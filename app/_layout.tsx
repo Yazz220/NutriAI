@@ -7,6 +7,7 @@ import { InventoryProvider } from "@/hooks/useInventoryStore";
 import { MealsProvider } from "@/hooks/useMealsStore";
 import { ShoppingListProvider } from "@/hooks/useShoppingListStore";
 import { UserPreferencesProvider } from "@/hooks/useUserPreferences";
+import { MealPlannerProvider } from "@/hooks/useMealPlanner";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -34,7 +35,9 @@ export default function RootLayout() {
         <InventoryProvider>
           <MealsProvider>
             <ShoppingListProvider>
-              <RootLayoutNav />
+              <MealPlannerProvider>
+                <RootLayoutNav />
+              </MealPlannerProvider>
             </ShoppingListProvider>
           </MealsProvider>
         </InventoryProvider>

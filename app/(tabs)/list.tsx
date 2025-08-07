@@ -4,17 +4,21 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  ActivityIndicator,
   SectionList,
   ScrollView
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { Plus, Sparkles, RotateCcw } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
+import { Spacing, Typography } from '@/constants/spacing';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { ShoppingListItem as ShoppingListItemComponent } from '@/components/ShoppingListItem';
 import { AddToListModal } from '@/components/AddToListModal';
 import { ExpirationDateModal } from '@/components/ExpirationDateModal';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ShoppingListItem } from '@/types';
 
 export default function ShoppingListScreen() {
@@ -27,6 +31,7 @@ export default function ShoppingListScreen() {
     clearCheckedItems,
     generateSmartList,
     moveToInventory,
+    toggleItemChecked,
     clearRecentlyPurchased
   } = useShoppingList();
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -34,11 +39,7 @@ export default function ShoppingListScreen() {
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
+    return <LoadingSpinner text="Loading your shopping list..." />;
   }
 
   const itemsByCategory = getItemsByCategory();
@@ -56,21 +57,28 @@ export default function ShoppingListScreen() {
   };
 
   const handleToggleItem = (item: ShoppingListItem) => {
-    setSelectedItem(item);
-    setExpirationModalVisible(true);
+    if (!item.checked) {
+      setSelectedItem(item);
+      setExpirationModalVisible(true);
+    } else {
+      // If unchecking, move it back to the main list immediately
+      toggleItemChecked(item.id);
+    }
   };
 
-  const handleConfirmExpiration = (expirationDate: Date) => {
+
+
+  const handleConfirmExpiration = (expirationDate: Date | null) => {
     if (selectedItem) {
       moveToInventory({
-        name: selectedItem.name,
-        quantity: selectedItem.quantity,
-        unit: selectedItem.unit,
-        category: selectedItem.category,
-        expiryDate: expirationDate.toISOString(),
+        ...selectedItem,
+        expiryDate: expirationDate ? expirationDate.toISOString() : undefined,
         addedDate: new Date().toISOString(),
       });
+      toggleItemChecked(selectedItem.id);
     }
+    setExpirationModalVisible(false);
+    setSelectedItem(null);
   };
 
   return (
@@ -93,23 +101,22 @@ export default function ShoppingListScreen() {
       
       <View style={styles.container}>
         <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={styles.smartListButton}
+          <Button
+            title="Generate Smart List"
             onPress={handleGenerateSmartList}
+            icon={<Sparkles size={16} color={Colors.white} />}
+            size="sm"
             testID="generate-smart-list-button"
-          >
-            <Sparkles size={16} color={Colors.white} />
-            <Text style={styles.smartListText}>Generate Smart List</Text>
-          </TouchableOpacity>
+          />
           
           {shoppingList.some(item => item.checked) && (
-            <TouchableOpacity 
-              style={styles.clearButton}
+            <Button
+              title="Clear Checked"
               onPress={clearCheckedItems}
+              variant="outline"
+              size="sm"
               testID="clear-checked-items-button"
-            >
-              <Text style={styles.clearButtonText}>Clear Checked</Text>
-            </TouchableOpacity>
+            />
           )}
         </View>
         
@@ -117,7 +124,10 @@ export default function ShoppingListScreen() {
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ShoppingListItemComponent item={item} />
+            <ShoppingListItemComponent 
+              item={item} 
+              onToggle={handleToggleItem} 
+            />
           )}
           renderSectionHeader={({ section: { title } }) => (
             <Text style={styles.sectionHeader}>{title}</Text>
@@ -161,7 +171,7 @@ export default function ShoppingListScreen() {
             <Text style={styles.recentlyPurchasedTitle}>Recently Purchased</Text>
             <ScrollView style={styles.recentlyPurchasedList}>
               {recentlyPurchased.map((item) => (
-                <View key={item.id} style={styles.recentlyPurchasedItem}>
+                <View key={`recent-${item.id}`} style={styles.recentlyPurchasedItem}>
                   <Text style={[styles.recentlyPurchasedText, styles.checkedText]}>
                     {item.name} ({item.quantity} {item.unit})
                   </Text>

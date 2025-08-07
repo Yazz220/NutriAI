@@ -1,10 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { memo, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Animated } from 'react-native';
 import { InventoryItem } from '@/types';
 import { FreshnessIndicator } from './FreshnessIndicator';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { Colors } from '@/constants/colors';
-import { Trash2 } from 'lucide-react-native';
+import { Spacing, Typography, Shadows } from '@/constants/spacing';
 
 interface InventoryItemCardProps {
   item: InventoryItem;
@@ -12,30 +12,66 @@ interface InventoryItemCardProps {
   onUseUp?: (item: InventoryItem) => void;
 }
 
-export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({ 
+export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({ 
   item, 
   onPress,
   onUseUp 
 }) => {
-  const { getFreshnessStatus, removeItem } = useInventory();
-  const freshnessStatus = getFreshnessStatus(item.expiryDate);
+  const { getFreshnessStatus } = useInventory();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
   
-  const handleDelete = () => {
-    removeItem(item.id);
-  };
+  // Memoize expensive calculations
+  const freshnessStatus = useMemo(() => 
+    getFreshnessStatus(item.expiryDate), 
+    [getFreshnessStatus, item.expiryDate]
+  );
 
-  const handleUseUp = () => {
+  // Animate card entrance
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, scaleAnim]);
+
+  const handleUseUp = useCallback(() => {
     if (onUseUp) {
       onUseUp(item);
     }
-  };
+  }, [onUseUp, item]);
+
+  const handlePress = useCallback(() => {
+    if (onPress) {
+      onPress();
+    }
+  }, [onPress]);
 
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={onPress}
-      testID={`inventory-item-${item.id}`}
+    <Animated.View 
+      style={{
+        opacity: fadeAnim,
+        transform: [{ scale: scaleAnim }],
+      }}
     >
+      <TouchableOpacity 
+        style={styles.container}
+        onPress={handlePress}
+        testID={`inventory-item-${item.id}`}
+        activeOpacity={onPress ? 0.7 : 1}
+        accessibilityLabel={`${item.name}, ${item.quantity} ${item.unit}, ${item.category}`}
+        accessibilityHint="Tap to view item details"
+        accessibilityRole="button"
+      >
       <View style={styles.imageContainer}>
         {item.imageUrl ? (
           <Image 
@@ -59,44 +95,44 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = ({
         <Text style={styles.category}>{item.category}</Text>
       </View>
       
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={handleDelete}
-        testID={`delete-item-${item.id}`}
-      >
-        <Trash2 size={16} color={Colors.expiring} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={handleUseUp} style={styles.useUpButton}>
-        <Text style={styles.useUpText}>Use Up</Text>
-      </TouchableOpacity>
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity 
+          onPress={handleUseUp} 
+          style={styles.useUpButton}
+          accessibilityLabel={`Use up ${item.name}`}
+          accessibilityHint="Tap to mark this item as used up"
+          accessibilityRole="button"
+        >
+          <Text style={styles.useUpText}>Use Up</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
+    </Animated.View>
   );
-};
+});
+
+// Add display name for debugging
+InventoryItemCard.displayName = 'InventoryItemCard';
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: Spacing.md,
+    padding: Spacing.md,
+    ...Shadows.sm,
   },
   imageContainer: {
     position: 'relative',
-    marginRight: 12,
   },
   image: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    borderRadius: Spacing.sm,
   },
   placeholderImage: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.border,
   },
   freshnessContainer: {
     position: 'absolute',
@@ -109,38 +145,37 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     justifyContent: 'center',
+    marginHorizontal: Spacing.md,
   },
   name: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   quantity: {
-    fontSize: 14,
+    fontSize: Typography.sizes.sm,
     color: Colors.lightText,
     marginBottom: 2,
   },
   category: {
-    fontSize: 12,
+    fontSize: Typography.sizes.xs,
     color: Colors.lightText,
+    fontStyle: 'italic',
   },
-  deleteButton: {
+  actionsContainer: {
     justifyContent: 'center',
-    padding: 8,
+    alignItems: 'center',
   },
   useUpButton: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Spacing.xl,
     backgroundColor: Colors.primary,
   },
   useUpText: {
+    fontSize: Typography.sizes.xs,
     color: Colors.white,
-    fontSize: 12,
-    fontWeight: '600',
+    fontWeight: Typography.weights.bold,
   },
 });

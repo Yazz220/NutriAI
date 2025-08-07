@@ -7,13 +7,14 @@ import { useShoppingList } from '@/hooks/useShoppingListStore';
 
 interface ShoppingListItemProps {
   item: ShoppingListItemType;
+  onToggle: (item: ShoppingListItemType) => void;
 }
 
-export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item }) => {
-  const { toggleItemChecked, removeItem } = useShoppingList();
+export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onToggle }) => {
+  const { removeItem } = useShoppingList();
   
   const handleToggle = () => {
-    toggleItemChecked(item.id);
+    onToggle(item);
   };
   
   const handleDelete = () => {

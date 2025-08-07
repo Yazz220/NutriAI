@@ -7,11 +7,15 @@ import {
   TouchableOpacity, 
   Modal, 
   ScrollView,
-  Platform
+  Alert
 } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { Spacing, Typography } from '@/constants/spacing';
 import { ItemCategory } from '@/types';
-import { X } from 'lucide-react-native';
+import { X, AlertCircle } from 'lucide-react-native';
+import { useValidation } from '@/hooks/useValidation';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface AddItemModalProps {
   visible: boolean;
@@ -62,33 +66,69 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
   const [unit, setUnit] = useState('pcs');
   const [category, setCategory] = useState<ItemCategory>('Produce');
   const [expiryDays, setExpiryDays] = useState('7');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleAdd = () => {
-    if (!name.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0) {
-      return;
-    }
+  const { validateInventoryItem, errors, clearErrors } = useValidation();
+  
+  const resetForm = () => {
+    setName('');
+    setQuantity('1');
+    setUnit('pcs');
+    setCategory('Produce');
+    setExpiryDays('7');
+    clearErrors();
+  };
+  
+  const handleAdd = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     
     const today = new Date();
     const expiryDate = new Date();
     expiryDate.setDate(today.getDate() + Number(expiryDays));
     
-    onAdd({
+    const itemData = {
       name: name.trim(),
       quantity: Number(quantity),
       unit,
       category,
       addedDate: today.toISOString(),
       expiryDate: expiryDate.toISOString()
-    });
+    };
     
-    // Reset form
-    setName('');
-    setQuantity('1');
-    setUnit('pcs');
-    setCategory('Produce');
-    setExpiryDays('7');
+    const validation = validateInventoryItem(itemData);
     
-    onClose();
+    if (!validation.isValid) {
+      setIsSubmitting(false);
+      Alert.alert(
+        'Validation Error',
+        validation.errors.join('\n'),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    try {
+      onAdd(itemData);
+      resetForm();
+      onClose();
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to add item. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleClose = () => {
+    if (!isSubmitting) {
+      resetForm();
+      onClose();
+    }
   };
   
   return (
@@ -102,78 +142,96 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add New Item</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={Colors.text} />
+            <TouchableOpacity 
+              onPress={handleClose} 
+              style={styles.closeButton}
+              disabled={isSubmitting}
+              accessibilityLabel="Close modal"
+              accessibilityHint="Tap to close the add item modal"
+            >
+              <X size={24} color={isSubmitting ? Colors.lightText : Colors.text} />
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.modalContent}>
-            <Text style={styles.label}>Item Name</Text>
-            <TextInput
-              style={styles.input}
+            <Input
+              label="Item Name"
               value={name}
               onChangeText={setName}
               placeholder="Enter item name"
-              placeholderTextColor={Colors.lightText}
+              error={errors.name}
+              required
               testID="item-name-input"
+              accessibilityLabel="Item name input"
+              accessibilityHint="Enter the name of the item you want to add"
             />
             
             <View style={styles.row}>
               <View style={styles.halfColumn}>
-                <Text style={styles.label}>Quantity</Text>
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Quantity"
                   value={quantity}
                   onChangeText={setQuantity}
                   keyboardType="numeric"
                   placeholder="1"
-                  placeholderTextColor={Colors.lightText}
+                  error={errors.quantity}
+                  required
                   testID="item-quantity-input"
+                  accessibilityLabel="Item quantity input"
+                  accessibilityHint="Enter the quantity of the item"
                 />
               </View>
               
               <View style={styles.halfColumn}>
-                <Text style={styles.label}>Unit</Text>
-                <View style={styles.pickerContainer}>
-                  {Platform.OS === 'web' ? (
-                    <select
-                      value={unit}
-                      onChange={(e) => setUnit(e.target.value)}
-                      style={styles.webPicker}
-                    >
-                      {commonUnits.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {commonUnits.map((u) => (
-                        <TouchableOpacity
-                          key={u}
+                <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+                  Unit <Text style={{ color: Colors.error }}>*</Text>
+                </Text>
+                <View 
+                  style={styles.pickerContainer}
+                  accessibilityRole="radiogroup"
+                  accessibilityLabel="Select unit of measurement"
+                >
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    accessibilityLabel="Scroll to see more units"
+                  >
+                    {commonUnits.map((u) => (
+                      <TouchableOpacity
+                        key={u}
+                        style={[
+                          styles.unitButton,
+                          unit === u && styles.selectedUnitButton
+                        ]}
+                        onPress={() => setUnit(u)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: unit === u }}
+                        accessibilityLabel={`${u} unit`}
+                        accessibilityHint={`Select ${u} as the unit of measurement`}
+                      >
+                        <Text 
                           style={[
-                            styles.unitButton,
-                            unit === u && styles.selectedUnitButton
+                            styles.unitButtonText,
+                            unit === u && styles.selectedUnitButtonText
                           ]}
-                          onPress={() => setUnit(u)}
                         >
-                          <Text 
-                            style={[
-                              styles.unitButtonText,
-                              unit === u && styles.selectedUnitButtonText
-                            ]}
-                          >
-                            {u}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  )}
+                          {u}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               </View>
             </View>
             
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.categoryContainer}>
+            <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+              Category <Text style={{ color: Colors.error }}>*</Text>
+            </Text>
+            <View 
+              style={styles.categoryContainer}
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Select item category"
+            >
               {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat}
@@ -182,6 +240,10 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                     category === cat && styles.selectedCategoryButton
                   ]}
                   onPress={() => setCategory(cat)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: category === cat }}
+                  accessibilityLabel={`${cat} category`}
+                  accessibilityHint={`Select ${cat} as the item category`}
                 >
                   <Text 
                     style={[
@@ -195,25 +257,30 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               ))}
             </View>
             
-            <Text style={styles.label}>Expires in (days)</Text>
-            <TextInput
-              style={styles.input}
+            <Input
+              label="Expires in (days)"
               value={expiryDays}
               onChangeText={setExpiryDays}
               keyboardType="numeric"
               placeholder="7"
-              placeholderTextColor={Colors.lightText}
+              error={errors.expiryDays}
+              required
               testID="item-expiry-input"
+              accessibilityLabel="Item expiry days input"
+              accessibilityHint="Enter how many days until the item expires"
             />
           </ScrollView>
           
-          <TouchableOpacity 
-            style={styles.addButton}
+          <Button
+            title={isSubmitting ? "Adding..." : "Add Item"}
             onPress={handleAdd}
+            disabled={isSubmitting}
+            loading={isSubmitting}
+            style={styles.addButton}
             testID="add-item-button"
-          >
-            <Text style={styles.addButtonText}>Add Item</Text>
-          </TouchableOpacity>
+            accessibilityLabel="Add item to inventory"
+            accessibilityHint="Tap to add the item to your inventory"
+          />
         </View>
       </View>
     </Modal>
@@ -228,119 +295,99 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    borderTopLeftRadius: Spacing.xl,
+    borderTopRightRadius: Spacing.xl,
+    paddingBottom: Spacing.xl,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   closeButton: {
-    padding: 4,
+    padding: Spacing.sm,
   },
   modalContent: {
-    padding: 16,
+    padding: Spacing.md,
     maxHeight: '70%',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: Colors.white,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: Spacing.md,
   },
   halfColumn: {
     width: '48%',
   },
   pickerContainer: {
     backgroundColor: Colors.white,
-    borderRadius: 8,
+    borderRadius: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: Platform.OS === 'web' ? 0 : 8,
-    paddingHorizontal: Platform.OS === 'web' ? 0 : 8,
-    height: Platform.OS === 'web' ? 46 : 'auto',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    height: 'auto',
+    marginTop: Spacing.sm,
   },
   webPicker: {
     width: '100%',
     height: 46,
     border: 'none',
-    fontSize: 16,
-    paddingLeft: 12,
+    fontSize: Typography.sizes.md,
+    paddingLeft: Spacing.md,
     color: Colors.text,
   },
   unitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginRight: Spacing.sm,
+    borderRadius: Spacing.sm,
     backgroundColor: Colors.secondary,
   },
   selectedUnitButton: {
     backgroundColor: Colors.primary,
   },
   unitButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontSize: 14,
   },
   selectedUnitButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.white,
   },
   categoryContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: Spacing.sm,
   },
   categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    margin: 4,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    margin: Spacing.xs,
+    borderRadius: Spacing.md,
     backgroundColor: Colors.secondary,
   },
   selectedCategoryButton: {
     backgroundColor: Colors.primary,
   },
   categoryButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontSize: 14,
   },
   selectedCategoryButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.white,
   },
   addButton: {
-    backgroundColor: Colors.primary,
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+    margin: Spacing.md,
   }
 });

@@ -81,7 +81,11 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
         } else {
           // Use mock data if no stored inventory
           setInventory(initialInventory);
-          await AsyncStorage.setItem('inventory', JSON.stringify(initialInventory));
+          try {
+            await AsyncStorage.setItem('inventory', JSON.stringify(initialInventory));
+          } catch (saveError) {
+            console.warn('Failed to save initial inventory to AsyncStorage:', saveError);
+          }
         }
       } catch (error) {
         console.error('Failed to load inventory:', error);
@@ -160,13 +164,16 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
     
     return inventory.filter(item => {
+      if (!item.expiryDate) return false;
       const expiryDate = new Date(item.expiryDate);
       return expiryDate <= threeDaysFromNow;
     });
   };
 
   // Get freshness status of an item
-  const getFreshnessStatus = (expiryDateStr: string): 'fresh' | 'aging' | 'expiring' => {
+  const getFreshnessStatus = (expiryDateStr?: string): 'fresh' | 'aging' | 'expiring' | 'untracked' => {
+    if (!expiryDateStr) return 'untracked';
+
     const now = new Date();
     const expiryDate = new Date(expiryDateStr);
     const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -217,6 +224,7 @@ export function useInventoryByFreshness() {
   const fresh = inventory.filter((item: InventoryItem) => getFreshnessStatus(item.expiryDate) === 'fresh');
   const aging = inventory.filter((item: InventoryItem) => getFreshnessStatus(item.expiryDate) === 'aging');
   const expiring = inventory.filter((item: InventoryItem) => getFreshnessStatus(item.expiryDate) === 'expiring');
+  const untracked = inventory.filter((item: InventoryItem) => getFreshnessStatus(item.expiryDate) === 'untracked');
   
-  return { fresh, aging, expiring };
+  return { fresh, aging, expiring, untracked };
 }

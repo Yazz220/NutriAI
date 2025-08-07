@@ -3,15 +3,17 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput, 
   TouchableOpacity, 
   Modal, 
   ScrollView,
-  Platform
+  Alert
 } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { Spacing, Typography } from '@/constants/spacing';
 import { ItemCategory } from '@/types';
 import { X } from 'lucide-react-native';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface AddToListModalProps {
   visible: boolean;
@@ -61,28 +63,72 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('pcs');
   const [category, setCategory] = useState<ItemCategory>('Produce');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
   
-  const handleAdd = () => {
-    if (!name.trim() || isNaN(Number(quantity)) || Number(quantity) <= 0) {
-      return;
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!name.trim()) {
+      newErrors.name = 'Item name is required';
+    } else if (name.trim().length < 2) {
+      newErrors.name = 'Item name must be at least 2 characters';
     }
     
-    onAdd({
-      name: name.trim(),
-      quantity: Number(quantity),
-      unit,
-      category,
-      checked: false,
-      addedBy: 'user'
-    });
+    const quantityNum = Number(quantity);
+    if (!quantity.trim() || isNaN(quantityNum) || quantityNum <= 0) {
+      newErrors.quantity = 'Please enter a valid quantity greater than 0';
+    }
     
-    // Reset form
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const resetForm = () => {
     setName('');
     setQuantity('1');
     setUnit('pcs');
     setCategory('Produce');
+    setErrors({});
+  };
+  
+  const handleAdd = async () => {
+    if (isSubmitting) return;
     
-    onClose();
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      onAdd({
+        name: name.trim(),
+        quantity: Number(quantity),
+        unit,
+        category,
+        checked: false,
+        addedBy: 'user'
+      });
+      
+      resetForm();
+      onClose();
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to add item to shopping list. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleClose = () => {
+    if (!isSubmitting) {
+      resetForm();
+      onClose();
+    }
   };
   
   return (
@@ -96,78 +142,96 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add to Shopping List</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={Colors.text} />
+            <TouchableOpacity 
+              onPress={handleClose} 
+              style={styles.closeButton}
+              disabled={isSubmitting}
+              accessibilityLabel="Close modal"
+              accessibilityHint="Tap to close the add to shopping list modal"
+            >
+              <X size={24} color={isSubmitting ? Colors.lightText : Colors.text} />
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.modalContent}>
-            <Text style={styles.label}>Item Name</Text>
-            <TextInput
-              style={styles.input}
+            <Input
+              label="Item Name"
               value={name}
               onChangeText={setName}
               placeholder="Enter item name"
-              placeholderTextColor={Colors.lightText}
+              error={errors.name}
+              required
               testID="list-item-name-input"
+              accessibilityLabel="Shopping list item name input"
+              accessibilityHint="Enter the name of the item to add to your shopping list"
             />
             
             <View style={styles.row}>
               <View style={styles.halfColumn}>
-                <Text style={styles.label}>Quantity</Text>
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Quantity"
                   value={quantity}
                   onChangeText={setQuantity}
                   keyboardType="numeric"
                   placeholder="1"
-                  placeholderTextColor={Colors.lightText}
+                  error={errors.quantity}
+                  required
                   testID="list-item-quantity-input"
+                  accessibilityLabel="Shopping list item quantity input"
+                  accessibilityHint="Enter the quantity needed"
                 />
               </View>
               
               <View style={styles.halfColumn}>
-                <Text style={styles.label}>Unit</Text>
-                <View style={styles.pickerContainer}>
-                  {Platform.OS === 'web' ? (
-                    <select
-                      value={unit}
-                      onChange={(e) => setUnit(e.target.value)}
-                      style={styles.webPicker}
-                    >
-                      {commonUnits.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {commonUnits.map((u) => (
-                        <TouchableOpacity
-                          key={u}
+                <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+                  Unit <Text style={{ color: Colors.error }}>*</Text>
+                </Text>
+                <View 
+                  style={styles.pickerContainer}
+                  accessibilityRole="radiogroup"
+                  accessibilityLabel="Select unit of measurement"
+                >
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    accessibilityLabel="Scroll to see more units"
+                  >
+                    {commonUnits.map((u) => (
+                      <TouchableOpacity
+                        key={u}
+                        style={[
+                          styles.unitButton,
+                          unit === u && styles.selectedUnitButton
+                        ]}
+                        onPress={() => setUnit(u)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: unit === u }}
+                        accessibilityLabel={`${u} unit`}
+                        accessibilityHint={`Select ${u} as the unit of measurement`}
+                      >
+                        <Text 
                           style={[
-                            styles.unitButton,
-                            unit === u && styles.selectedUnitButton
+                            styles.unitButtonText,
+                            unit === u && styles.selectedUnitButtonText
                           ]}
-                          onPress={() => setUnit(u)}
                         >
-                          <Text 
-                            style={[
-                              styles.unitButtonText,
-                              unit === u && styles.selectedUnitButtonText
-                            ]}
-                          >
-                            {u}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  )}
+                          {u}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               </View>
             </View>
             
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.categoryContainer}>
+            <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
+              Category <Text style={{ color: Colors.error }}>*</Text>
+            </Text>
+            <View 
+              style={styles.categoryContainer}
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Select item category"
+            >
               {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat}
@@ -176,6 +240,10 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
                     category === cat && styles.selectedCategoryButton
                   ]}
                   onPress={() => setCategory(cat)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: category === cat }}
+                  accessibilityLabel={`${cat} category`}
+                  accessibilityHint={`Select ${cat} as the item category`}
                 >
                   <Text 
                     style={[
@@ -190,13 +258,16 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
             </View>
           </ScrollView>
           
-          <TouchableOpacity 
-            style={styles.addButton}
+          <Button
+            title={isSubmitting ? "Adding..." : "Add to List"}
             onPress={handleAdd}
+            disabled={isSubmitting}
+            loading={isSubmitting}
+            style={styles.addButton}
             testID="add-to-list-button"
-          >
-            <Text style={styles.addButtonText}>Add to List</Text>
-          </TouchableOpacity>
+            accessibilityLabel="Add item to shopping list"
+            accessibilityHint="Tap to add the item to your shopping list"
+          />
         </View>
       </View>
     </Modal>
@@ -211,119 +282,91 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    borderTopLeftRadius: Spacing.xl,
+    borderTopRightRadius: Spacing.xl,
+    paddingBottom: Spacing.xl,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   closeButton: {
-    padding: 4,
+    padding: Spacing.sm,
   },
   modalContent: {
-    padding: 16,
+    padding: Spacing.md,
     maxHeight: '70%',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: Colors.white,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: Spacing.md,
   },
   halfColumn: {
     width: '48%',
   },
   pickerContainer: {
     backgroundColor: Colors.white,
-    borderRadius: 8,
+    borderRadius: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: Platform.OS === 'web' ? 0 : 8,
-    paddingHorizontal: Platform.OS === 'web' ? 0 : 8,
-    height: Platform.OS === 'web' ? 46 : 'auto',
-  },
-  webPicker: {
-    width: '100%',
-    height: 46,
-    border: 'none',
-    fontSize: 16,
-    paddingLeft: 12,
-    color: Colors.text,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    height: 'auto',
+    marginTop: Spacing.sm,
   },
   unitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginRight: Spacing.sm,
+    borderRadius: Spacing.sm,
     backgroundColor: Colors.secondary,
   },
   selectedUnitButton: {
     backgroundColor: Colors.primary,
   },
   unitButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontSize: 14,
   },
   selectedUnitButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.white,
   },
   categoryContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: Spacing.sm,
   },
   categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    margin: 4,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    margin: Spacing.xs,
+    borderRadius: Spacing.md,
     backgroundColor: Colors.secondary,
   },
   selectedCategoryButton: {
     backgroundColor: Colors.primary,
   },
   categoryButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontSize: 14,
   },
   selectedCategoryButtonText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.white,
   },
   addButton: {
-    backgroundColor: Colors.primary,
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+    margin: Spacing.md,
   }
 });

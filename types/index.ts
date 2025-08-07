@@ -5,7 +5,7 @@ export interface InventoryItem {
     unit: string;
     category: ItemCategory;
     addedDate: string;
-    expiryDate: string;
+    expiryDate?: string;
     imageUrl?: string;
   }
   
@@ -40,19 +40,98 @@ export interface InventoryItem {
     optional: boolean;
   }
   
-  export interface ShoppingListItem {
-    id: string;
+  export interface ShoppingListItem extends Omit<InventoryItem, 'expiryDate' | 'imageUrl'> {
+    checked: boolean;
+    addedBy: "user" | "system" | "meal" | "mealPlan";
+    mealId?: string;
+    plannedMealId?: string;
+  }
+  
+  export interface RecipeIngredient {
     name: string;
     quantity: number;
     unit: string;
-    category: ItemCategory;
-    checked: boolean;
-    addedBy: "user" | "system" | "meal";
-    mealId?: string;
   }
-  
+
+  export interface Recipe {
+    id: string;
+    name: string;
+    image: string; // URL or local asset
+    tags: string[];
+    prepTime: string; // e.g., '30 mins'
+    cookTime: string; // e.g., '45 mins'
+    servings: number;
+    ingredients: RecipeIngredient[];
+    instructions: string[];
+    notes?: string;
+  }
+
   export interface UserPreferences {
     dietaryPreferences: string[];
     allergies: string[];
     mealPlanDays: number;
+  }
+
+  // Meal Planning Types
+  export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+  export interface PlannedMeal {
+    id: string;
+    recipeId: string;
+    date: string; // ISO date string (YYYY-MM-DD)
+    mealType: MealType;
+    servings: number;
+    notes?: string;
+    isCompleted: boolean;
+    completedAt?: string;
+  }
+
+  export interface RecipeAvailability {
+    recipeId: string;
+    availableIngredients: number;
+    totalIngredients: number;
+    availabilityPercentage: number;
+    missingIngredients: MealIngredient[];
+    expiringIngredients: MealIngredient[];
+  }
+
+  export interface MealPlanSummary {
+    date: string; // ISO date string (YYYY-MM-DD)
+    meals: PlannedMeal[];
+    totalCalories?: number;
+    totalProtein?: number;
+    totalCarbs?: number;
+    totalFats?: number;
+    missingIngredientsCount: number;
+  }
+
+  export interface WeeklyMealPlan {
+    weekStartDate: string; // ISO date string (YYYY-MM-DD) - Monday of the week
+    days: MealPlanSummary[];
+    totalMissingIngredients: MealIngredient[];
+    weeklyNutritionSummary?: NutritionSummary;
+  }
+
+  export interface NutritionSummary {
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFats: number;
+    averageDailyCalories: number;
+  }
+
+  // Recipe filtering and sorting types
+  export type RecipeFilterType = 'all' | 'canMakeNow' | 'missingFew';
+
+  export interface RecipeFilter {
+    type: RecipeFilterType;
+    searchQuery: string;
+    tags: string[];
+    maxMissingIngredients?: number;
+  }
+
+  export type RecipeSortType = 'relevance' | 'prepTime' | 'availability' | 'name';
+
+  export interface RecipeWithAvailability extends Recipe {
+    availability: RecipeAvailability;
   }

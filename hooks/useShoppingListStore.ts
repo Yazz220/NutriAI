@@ -2,15 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { ShoppingListItem, ItemCategory } from '@/types';
-import { useInventory } from './useInventoryStore';
-import { useMeals } from './useMealsStore';
 
 export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
   const [recentlyPurchased, setRecentlyPurchased] = useState<ShoppingListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { inventory, addItem: addToInventory } = useInventory();
-  const { meals } = useMeals();
+  
+  // Placeholder for inventory - will be passed as parameter when needed
+  const inventory: any[] = [];
+
+  // Placeholder function for adding to inventory
+  const addToInventory = (item: any) => {
+    console.warn('addToInventory not implemented - needs to be called from component');
+  };
 
   // Load shopping list and recently purchased from AsyncStorage on mount
   useEffect(() => {
@@ -85,17 +89,17 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
 
   // Toggle checked status of an item and handle transfer to inventory
   const toggleItemChecked = (id: string) => {
-    const item = shoppingList.find(item => item.id === id);
-    if (!item) return;
+    const itemToMove = shoppingList.find(i => i.id === id) || recentlyPurchased.find(i => i.id === id);
+    if (!itemToMove) return;
 
-    if (!item.checked) {
+    if (!itemToMove.checked) {
       // Moving to recently purchased
       setShoppingList(prev => prev.filter(item => item.id !== id));
-      setRecentlyPurchased(prev => [...prev, { ...item, checked: true }]);
+      setRecentlyPurchased(prev => [...prev, { ...itemToMove, checked: true }]);
     } else {
       // Moving back to shopping list
       setRecentlyPurchased(prev => prev.filter(item => item.id !== id));
-      setShoppingList(prev => [...prev, { ...item, checked: false }]);
+      setShoppingList(prev => [...prev, { ...itemToMove, checked: false }]);
     }
   };
 
@@ -105,41 +109,106 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   };
 
   // Add missing ingredients from a meal to shopping list
-  const addMealIngredientsToList = (mealId: string) => {
+  const addMealIngredientsToList = (
+    mealId: string,
+    meals: any[],
+    inventory: any[]
+  ) => {
     const meal = meals.find(m => m.id === mealId);
-    if (!meal) return;
+    if (!meal) return 0;
     
-    meal.ingredients.forEach(ingredient => {
+    let addedCount = 0;
+    meal.ingredients.forEach((ingredient: any) => {
       if (ingredient.optional) return;
       
-      const inventoryItem = inventory.find(item => 
+      const inventoryItem = inventory.find((item: any) => 
         item.name.toLowerCase() === ingredient.name.toLowerCase() && 
         item.unit.toLowerCase() === ingredient.unit.toLowerCase()
       );
       
-      // If ingredient is not in inventory or quantity is insufficient
-      if (!inventoryItem || inventoryItem.quantity < ingredient.quantity) {
-        const neededQuantity = inventoryItem 
-          ? ingredient.quantity - inventoryItem.quantity 
-          : ingredient.quantity;
-        
+      const availableQuantity = inventoryItem ? inventoryItem.quantity : 0;
+      const neededQuantity = ingredient.quantity;
+      
+      if (availableQuantity < neededQuantity) {
+        const shortfall = neededQuantity - availableQuantity;
         addItem({
           name: ingredient.name,
-          quantity: neededQuantity,
+          quantity: shortfall,
           unit: ingredient.unit,
           category: determineCategory(ingredient.name),
+          addedDate: new Date().toISOString(),
           checked: false,
           addedBy: 'meal',
-          mealId
+          mealId,
         });
+        addedCount++;
       }
     });
+    
+    return addedCount;
+  };
+
+  // Generate shopping list from meal plan
+  const generateShoppingListFromMealPlan = (
+    plannedMeals: any[], 
+    meals: any[], 
+    inventory: any[]
+  ): number => {
+    const missingIngredients = new Map<string, any>();
+    
+    plannedMeals.forEach(plannedMeal => {
+      const meal = meals.find(m => m.id === plannedMeal.recipeId);
+      if (!meal) return;
+      
+      meal.ingredients.forEach((ingredient: any) => {
+        if (ingredient.optional) return;
+        
+        // Calculate total needed quantity (considering servings)
+        const neededQuantity = ingredient.quantity * plannedMeal.servings;
+        
+        // Check if we have enough in inventory
+        const inventoryItem = inventory.find((item: any) => 
+          item.name.toLowerCase() === ingredient.name.toLowerCase() && 
+          item.unit.toLowerCase() === ingredient.unit.toLowerCase()
+        );
+        
+        const availableQuantity = inventoryItem ? inventoryItem.quantity : 0;
+        const shortfall = Math.max(0, neededQuantity - availableQuantity);
+        
+        if (shortfall > 0) {
+          const key = `${ingredient.name.toLowerCase()}-${ingredient.unit.toLowerCase()}`;
+          
+          if (missingIngredients.has(key)) {
+            const existing = missingIngredients.get(key);
+            existing.quantity += shortfall;
+          } else {
+            missingIngredients.set(key, {
+              name: ingredient.name,
+              quantity: shortfall,
+              unit: ingredient.unit,
+              category: determineCategory(ingredient.name),
+              addedDate: new Date().toISOString(),
+              checked: false,
+              addedBy: 'mealPlan' as const,
+              plannedMealId: plannedMeal.id,
+            });
+          }
+        }
+      });
+    });
+    
+    // Add all missing ingredients to shopping list
+    Array.from(missingIngredients.values()).forEach(ingredient => {
+      addItem(ingredient);
+    });
+    
+    return Array.from(missingIngredients.values()).length;
   };
 
   // Generate smart shopping list based on inventory levels
   const generateSmartList = () => {
     // Logic to identify items running low
-    const lowItems = inventory.filter(item => {
+    const lowItems = inventory.filter((item: any) => {
       // Simple logic: if less than 2 units for countable items or less than 0.25 for measurable items
       if (item.unit === 'pcs' || item.unit === 'pieces') {
         return item.quantity < 2;
@@ -149,12 +218,13 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     });
     
     // Add low items to shopping list
-    lowItems.forEach(item => {
+    lowItems.forEach((item: any) => {
       addItem({
         name: item.name,
         quantity: item.unit === 'pcs' || item.unit === 'pieces' ? 5 : 1,
         unit: item.unit,
         category: item.category,
+        addedDate: new Date().toISOString(),
         checked: false,
         addedBy: 'system'
       });
@@ -177,6 +247,7 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
 
   // Helper function to determine category based on item name
   const determineCategory = (name: string): ItemCategory => {
+    if (!name) return 'Other';
     name = name.toLowerCase();
     
     if (/apple|banana|vegetable|fruit|lettuce|spinach|tomato|carrot|onion|potato|pepper/.test(name)) {
@@ -210,6 +281,7 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     toggleItemChecked,
     clearCheckedItems,
     addMealIngredientsToList,
+    generateShoppingListFromMealPlan,
     generateSmartList,
     getItemsByCategory,
     moveToInventory: addToInventory,

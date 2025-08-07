@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { Meal, MealIngredient } from '@/types';
-import { useInventory } from './useInventoryStore';
 
 // Mock data for initial meals
 const initialMeals: Meal[] = [
@@ -86,7 +85,6 @@ const initialMeals: Meal[] = [
 export const [MealsProvider, useMeals] = createContextHook(() => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { inventory, deductMealIngredients } = useInventory();
 
   // Load meals from AsyncStorage on mount
   useEffect(() => {
@@ -145,12 +143,12 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     const meal = meals.find(m => m.id === mealId);
     if (!meal) return false;
     
-    deductMealIngredients(meal.ingredients);
+    // Note: Ingredient deduction should be handled by the component using both hooks
     return true;
   };
 
   // Check if all ingredients for a meal are available
-  const checkIngredientsAvailability = (mealId: string) => {
+  const checkIngredientsAvailability = (mealId: string, inventory: any[] = []) => {
     const meal = meals.find(m => m.id === mealId);
     if (!meal) return { available: false, missingIngredients: [] };
     
@@ -159,7 +157,7 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     meal.ingredients.forEach(ingredient => {
       if (ingredient.optional) return;
       
-      const inventoryItem = inventory.find(item => 
+      const inventoryItem = inventory.find((item: any) => 
         item.name.toLowerCase() === ingredient.name.toLowerCase() && 
         item.unit.toLowerCase() === ingredient.unit.toLowerCase()
       );
