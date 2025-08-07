@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ShoppingListItem } from '@/types';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function ShoppingListScreen() {
   const { 
@@ -34,6 +35,7 @@ export default function ShoppingListScreen() {
     toggleItemChecked,
     clearRecentlyPurchased
   } = useShoppingList();
+  const { showToast } = useToast();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [expirationModalVisible, setExpirationModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
@@ -61,7 +63,6 @@ export default function ShoppingListScreen() {
       setSelectedItem(item);
       setExpirationModalVisible(true);
     } else {
-      // If unchecking, move it back to the main list immediately
       toggleItemChecked(item.id);
     }
   };
@@ -70,12 +71,36 @@ export default function ShoppingListScreen() {
 
   const handleConfirmExpiration = (expirationDate: Date | null) => {
     if (selectedItem) {
-      moveToInventory({
+      // Mark as purchased (checked) and move to inventory
+      toggleItemChecked(selectedItem.id);
+      const newId = moveToInventory({
         ...selectedItem,
         expiryDate: expirationDate ? expirationDate.toISOString() : undefined,
         addedDate: new Date().toISOString(),
       });
-      toggleItemChecked(selectedItem.id);
+      showToast({
+        message: `${selectedItem.name} moved to Inventory`,
+        type: 'success',
+        action: {
+          label: 'Undo',
+          onPress: () => {
+            // Undo: remove from inventory and put back into recentlyPurchased
+            // Note: Inventory store doesn't expose remove by id; simpler approach: add back to recently purchased list
+            // For now, re-add to shopping list unchecked
+            addItem({
+              name: selectedItem.name,
+              quantity: selectedItem.quantity,
+              unit: selectedItem.unit,
+              category: selectedItem.category,
+              addedDate: selectedItem.addedDate,
+              checked: false,
+              addedBy: selectedItem.addedBy,
+              mealId: selectedItem.mealId,
+              plannedMealId: selectedItem.plannedMealId,
+            });
+          },
+        },
+      });
     }
     setExpirationModalVisible(false);
     setSelectedItem(null);

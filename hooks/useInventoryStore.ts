@@ -107,12 +107,13 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   }, [inventory, isLoading]);
 
   // Add a new item to inventory
-  const addItem = (item: Omit<InventoryItem, 'id'>) => {
+  const addItem = (item: Omit<InventoryItem, 'id'>): string => {
     const newItem: InventoryItem = {
       ...item,
       id: Date.now().toString(),
     };
     setInventory(prev => [...prev, newItem]);
+    return newItem.id;
   };
 
   // Update an existing item

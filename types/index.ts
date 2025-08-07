@@ -31,6 +31,12 @@ export interface InventoryItem {
     prepTime: number; // in minutes
     cookTime: number; // in minutes
     servings: number;
+    nutritionPerServing?: {
+      calories: number;
+      protein: number; // grams
+      carbs: number;   // grams
+      fats: number;    // grams
+    };
   }
   
   export interface MealIngredient {
@@ -70,6 +76,7 @@ export interface InventoryItem {
     dietaryPreferences: string[];
     allergies: string[];
     mealPlanDays: number;
+    goals?: NutritionGoals;
   }
 
   // Meal Planning Types
@@ -118,6 +125,26 @@ export interface InventoryItem {
     totalCarbs: number;
     totalFats: number;
     averageDailyCalories: number;
+  }
+
+  export interface NutritionGoals {
+    dailyCalories: number;
+    protein: number; // grams
+    carbs: number;   // grams
+    fats: number;    // grams
+  }
+
+  export interface LoggedMeal {
+    id: string;
+    date: string; // YYYY-MM-DD
+    mealType: MealType;
+    mealId?: string; // reference to Meal if logged from a recipe
+    customName?: string;
+    servings: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
   }
 
   // Recipe filtering and sorting types

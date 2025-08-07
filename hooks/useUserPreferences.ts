@@ -1,12 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
-import { UserPreferences } from '@/types';
+import { UserPreferences, NutritionGoals } from '@/types';
 
 const defaultPreferences: UserPreferences = {
   dietaryPreferences: [],
   allergies: [],
-  mealPlanDays: 7
+  mealPlanDays: 7,
+  goals: {
+    dailyCalories: 2000,
+    protein: 120,
+    carbs: 220,
+    fats: 70,
+  }
 };
 
 export const [UserPreferencesProvider, useUserPreferences] = createContextHook(() => {
@@ -63,11 +69,19 @@ export const [UserPreferencesProvider, useUserPreferences] = createContextHook((
     }));
   };
 
+  const updateGoals = (goals: NutritionGoals) => {
+    setPreferences(prev => ({
+      ...prev,
+      goals,
+    }));
+  };
+
   return {
     preferences,
     isLoading,
     updateDietaryPreferences,
     updateAllergies,
-    updateMealPlanDays
+    updateMealPlanDays,
+    updateGoals,
   };
 });

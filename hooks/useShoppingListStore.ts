@@ -2,18 +2,36 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { ShoppingListItem, ItemCategory } from '@/types';
+import { useInventory } from '@/hooks/useInventoryStore';
 
 export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
   const [recentlyPurchased, setRecentlyPurchased] = useState<ShoppingListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { addItem: addInventoryItem } = useInventory();
   
-  // Placeholder for inventory - will be passed as parameter when needed
+  // Placeholder for inventory - used in generators; kept as empty array by default
   const inventory: any[] = [];
 
-  // Placeholder function for adding to inventory
-  const addToInventory = (item: any) => {
-    console.warn('addToInventory not implemented - needs to be called from component');
+  // Move a purchased item into Inventory
+  const moveToInventory = (item: ShoppingListItem & { expiryDate?: string }): string | undefined => {
+    try {
+      const newId = addInventoryItem({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+        addedDate: item.addedDate || new Date().toISOString(),
+        expiryDate: item.expiryDate,
+        imageUrl: undefined,
+      });
+      // Remove from recently purchased if present
+      setRecentlyPurchased(prev => prev.filter(i => i.id !== item.id));
+      return newId;
+    } catch (e) {
+      console.error('Failed to move to inventory', e);
+      return undefined;
+    }
   };
 
   // Load shopping list and recently purchased from AsyncStorage on mount
@@ -284,7 +302,7 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     generateShoppingListFromMealPlan,
     generateSmartList,
     getItemsByCategory,
-    moveToInventory: addToInventory,
+    moveToInventory,
     clearRecentlyPurchased: () => setRecentlyPurchased([]),
   };
 });

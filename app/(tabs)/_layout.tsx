@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet } from "react-native";
-import { Refrigerator, BookOpen, ClipboardList, ShoppingCart, Calendar } from "lucide-react-native";
+import { Refrigerator, BookOpen, ShoppingCart, Calendar, Brain } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 
 export default function TabLayout() {
@@ -17,7 +17,25 @@ export default function TabLayout() {
         headerShadowVisible: false,
       }}
     >
+      {/* Hide the standalone planner route from the tab bar since it's embedded inside Recipes */}
       <Tabs.Screen
+        key="tab-planner-hidden"
+        name="planner"
+        options={{
+          href: null,
+          title: 'Planner',
+        }}
+      />
+      <Tabs.Screen
+        key="tab-coach"
+        name="coach"
+        options={{
+          title: 'Coach',
+          tabBarIcon: ({ color }) => <Brain size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        key="tab-inventory"
         name="index"
         options={{
           title: "Inventory",
@@ -25,13 +43,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="planner"
-        options={{
-          title: "Planner",
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
+        key="tab-recipes"
         name="recipes"
         options={{
           title: "Recipes",
@@ -39,6 +51,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        key="tab-list"
         name="list"
         options={{
           title: 'Shopping List',
