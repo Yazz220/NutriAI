@@ -1,3 +1,4 @@
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
@@ -44,10 +45,24 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
         ]);
         
         if (storedList) {
-          setShoppingList(JSON.parse(storedList));
+          const parsed: ShoppingListItem[] = JSON.parse(storedList);
+          const seen = new Set<string>();
+          const fixed = parsed.map(it => {
+            const id = it.id && !seen.has(it.id) ? it.id : `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+            seen.add(id);
+            return { ...it, id };
+          });
+          setShoppingList(fixed);
         }
         if (storedRecent) {
-          setRecentlyPurchased(JSON.parse(storedRecent));
+          const parsed: ShoppingListItem[] = JSON.parse(storedRecent);
+          const seen = new Set<string>();
+          const fixed = parsed.map(it => {
+            const id = it.id && !seen.has(it.id) ? it.id : `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+            seen.add(id);
+            return { ...it, id };
+          });
+          setRecentlyPurchased(fixed);
         }
       } catch (error) {
         console.error('Failed to load shopping data:', error);
@@ -87,7 +102,7 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
       // Add new item if it doesn't exist
       const newItem: ShoppingListItem = {
         ...item,
-        id: Date.now().toString(),
+        id: generateId(),
       };
       setShoppingList(prev => [...prev, newItem]);
     }

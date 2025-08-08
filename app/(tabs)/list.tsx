@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ShoppingListItem } from '@/types';
+import { ExportShoppingModal } from '@/components/ExportShoppingModal';
 import { useToast } from '@/contexts/ToastContext';
 
 export default function ShoppingListScreen() {
@@ -39,6 +40,7 @@ export default function ShoppingListScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [expirationModalVisible, setExpirationModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
+  const [exportVisible, setExportVisible] = useState(false);
 
   if (isLoading) {
     return <LoadingSpinner text="Loading your shopping list..." />;
@@ -133,6 +135,14 @@ export default function ShoppingListScreen() {
             size="sm"
             testID="generate-smart-list-button"
           />
+          <View style={{ width: 12 }} />
+          <Button
+            title="Export / Share"
+            onPress={() => setExportVisible(true)}
+            variant="outline"
+            size="sm"
+            testID="export-shopping-list-button"
+          />
           
           {shoppingList.some(item => item.checked) && (
             <Button
@@ -190,6 +200,8 @@ export default function ShoppingListScreen() {
           onClose={() => setAddModalVisible(false)}
           onAdd={(item) => addItem(item as Omit<ShoppingListItem, 'id'>)}
         />
+
+        <ExportShoppingModal visible={exportVisible} onClose={() => setExportVisible(false)} />
         
         {recentlyPurchased.length > 0 && (
           <View style={styles.recentlyPurchasedContainer}>

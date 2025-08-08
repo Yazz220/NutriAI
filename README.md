@@ -4,41 +4,31 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 
 ## ✨ Features
 
-### 🏠 **Inventory Management**
-- **Smart Categorization**: Automatically organize items by category and freshness status
-- **Expiration Tracking**: Visual indicators for items expiring soon with dedicated "Expiring Soon" section
-- **Multiple Input Methods**:
-  - Manual entry with comprehensive item details
-  - Barcode scanning for instant product identification
-  - Camera capture for visual item logging
-  - Voice notes for hands-free inventory updates
-- **Search & Filter**: Quickly find items with real-time search functionality
+### 📦 Inventory (Core)
+- Smart categorization and expiration tracking with "Expiring Soon" surfacing
+- Fast add: manual entry, barcode scan, and camera capture
+- Powerful search and filters
 
-### 📅 **Meal Planning**
-- **Weekly Calendar View**: Visual meal planning with intuitive calendar interface
-- **Recipe Integration**: Browse and select from curated recipe collection
-- **Smart Recommendations**: Recipe suggestions based on available inventory
-- **Meal Type Organization**: Plan breakfast, lunch, dinner, and snacks
-- **Nutrition Overview**: Track nutritional information across your meal plans
+### 🍽️ Recipes + Planner (Consolidated)
+- Single screen with a top toggle: "Recipes" | "Planner"
+- Availability badges: Can Make Now / Missing Few Items
+- AI Picks header with proactive suggestions (from `useCoach`)
+- Weekly planning integrated directly in the Recipes tab
 
-### 🍳 **Recipe Management**
-- **Recipe Explorer**: Comprehensive recipe browser with search and filtering
-- **Availability Indicators**: See which recipes you can make with current inventory
-- **Detailed Recipe Views**: Complete ingredient lists, instructions, and nutritional info
-- **Smart Filtering**: Filter by "Can Make Now", "Missing Few Items", or view all recipes
+### 🛒 Shopping List
+- Auto-generate from planned recipes and missing ingredients
+- "Mark as Purchased" flow prompts for expiry, then moves items to Inventory
+- Toast notifications with Undo for safe, reversible actions
 
-### 🛒 **Smart Shopping Lists**
-- **Auto-Generation**: Automatically create shopping lists from meal plans
-- **Inventory Integration**: Only add items you don't already have
-- **Category Organization**: Items grouped by store categories for efficient shopping
-- **Purchase Tracking**: Mark items as purchased and automatically add to inventory
-- **Smart List Generation**: AI-powered suggestions based on consumption patterns
+### 📊 Nutrition Dashboard
+- Daily macro totals vs goals and weekly trend snapshots
+- Proactive "Right Now" suggestions
+- Conversational assistant via `useCoachChat`
 
-### 🎯 **Additional Features**
-- **Cross-Platform Sync**: Data persistence across app sessions
-- **Intuitive UI**: Clean, modern interface optimized for mobile use
-- **Real-time Updates**: Instant synchronization across all app features
-- **Accessibility**: Designed with accessibility best practices
+### 🌐 Recipe Import
+- Import from URLs (e.g., TikTok/Instagram/websites)
+- Client-side parsing via JSON-LD/Open Graph metadata
+- Preview before save, with smart follow-ups: "Add to Planner", "Add missing ingredients"
 
 ## 🚀 Getting Started
 
@@ -64,6 +54,20 @@ Follow these instructions to get a copy of the project up and running on your lo
    npm install --legacy-peer-deps
    ```
 
+### Environment Setup
+
+1. Create your `.env` from the template
+   ```sh
+   # macOS/Linux
+   cp env.example .env
+   # Windows PowerShell
+   Copy-Item env.example .env
+   ```
+2. Edit `.env`
+   - Expo public vars must be prefixed with `EXPO_PUBLIC_`
+   - Prefer using a backend proxy for AI calls instead of embedding secrets
+   - See `env.example` for placeholders (AI, Firebase/AWS, feature flags)
+
 ## 🏃‍♀️ Usage
 
 1. Start the development server:
@@ -79,9 +83,9 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 3. **Getting Started with NutriAI**:
    - **Add Inventory**: Start by adding items to your inventory using manual entry, barcode scanning, or camera capture
-   - **Plan Meals**: Navigate to the Meal Planner tab to schedule your weekly meals
-   - **Explore Recipes**: Browse recipes and see which ones you can make with your current inventory
-   - **Generate Shopping Lists**: Let NutriAI create smart shopping lists based on your meal plans
+   - **Plan Meals**: Use the Recipes tab toggle to switch to Planner and schedule your week
+   - **Explore Recipes**: Browse and see availability based on your inventory
+   - **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
 
 ## 🎯 Key Workflows
 
@@ -91,27 +95,40 @@ Follow these instructions to get a copy of the project up and running on your lo
 3. Fill in item details including expiration date and category
 4. Items automatically appear in your organized inventory
 
-### Planning Meals
-1. Navigate to the Meal Planner tab
-2. Tap on any day in the weekly calendar
-3. Select a meal type (breakfast, lunch, dinner, snack)
-4. Choose from available recipes or search for new ones
-5. Your meal plan updates automatically
+### Planning Meals (in Recipes)
+1. Go to the Recipes tab and switch to the "Planner" toggle
+2. Tap any day in the weekly view and select meal type (breakfast, lunch, dinner, snack)
+3. Add recipes from your library or AI Picks
+4. Your plan updates automatically and informs the Shopping List
 
 ### Smart Shopping
 1. Plan your meals for the week
-2. Tap "Generate Smart List" in the Shopping List tab
-3. Review the automatically generated list of needed ingredients
-4. Check off items as you shop - they'll automatically be added to your inventory
+2. Review or auto-generate your Shopping List from missing ingredients
+3. Check off items as you shop; marking as purchased prompts expiry and transfers to Inventory
 
 ## 📱 App Structure
 
-NutriAI features a clean tab-based navigation with four main sections:
+NutriAI uses a 4-tab layout focused on core nutrition workflows:
 
-1. **Inventory** - Track and manage your food items
-2. **Meal Planner** - Plan your weekly meals with calendar view
-3. **Recipes** - Explore and discover new recipes
-4. **Shopping List** - Manage your grocery shopping efficiently
+1. **Inventory** — Item management and expiry tracking
+2. **Recipes** — Library + Planner (toggle at top)
+3. **Shopping List** — Grocery management and checkout to Inventory
+4. **Nutrition Dashboard** — Macros, goals, and proactive insights
+ 
+## 📷 Screenshots
+
+Add images or GIFs to showcase core flows:
+- Recipes/Planner toggle
+- Mark as Purchased flow with expiry prompt
+- Nutrition Dashboard with macros and trends
+
+Place files under `docs/images/` and reference here, for example:
+
+```md
+![Recipes Toggle](docs/images/recipes-toggle.png)
+![Purchased Flow](docs/images/mark-purchased.gif)
+![Nutrition Dashboard](docs/images/nutrition-dashboard.png)
+```
 
 ## 🛠️ Tech Stack
 
@@ -123,41 +140,17 @@ NutriAI features a clean tab-based navigation with four main sections:
 - **Camera/Audio**: [Expo Camera](https://docs.expo.dev/versions/latest/sdk/camera/) and [Expo Audio](https://docs.expo.dev/versions/latest/sdk/audio/)
 - **Languages**: [TypeScript](https://www.typescriptlang.org/) for type safety and better developer experience
 
-## 🏗️ Project Structure
+## 🏗️ Project Structure (High-Level)
 
 ```
-NutriAI/
-├── app/                          # Expo Router app directory
-│   ├── (tabs)/                   # Tab-based navigation
-│   │   ├── index.tsx            # Inventory screen
-│   │   ├── planner.tsx          # Meal planner screen
-│   │   ├── recipes.tsx          # Recipes screen
-│   │   └── list.tsx             # Shopping list screen
-│   └── _layout.tsx              # Root layout
-├── components/                   # Reusable components
-│   ├── ui/                      # Base UI components
-│   │   ├── Button.tsx
-│   │   ├── Card.tsx
-│   │   ├── Input.tsx
-│   │   ├── Modal.tsx
-│   │   └── ...
-│   ├── MealPlannerCalendar.tsx  # Meal planning calendar
-│   ├── RecipeExplorer.tsx       # Recipe browsing
-│   ├── InventoryItemCard.tsx    # Inventory item display
-│   └── ...
-├── hooks/                       # Custom React hooks
-│   ├── useInventoryStore.ts     # Inventory management
-│   ├── useMealPlanner.ts        # Meal planning logic
-│   ├── useMealsStore.ts         # Recipe/meal data
-│   └── useShoppingListStore.ts  # Shopping list management
-├── utils/                       # Utility functions
-│   ├── recipeAvailability.ts    # Recipe availability calculations
-│   └── validation.ts            # Form validation helpers
-├── constants/                   # App constants
-│   ├── colors.ts               # Color palette
-│   └── spacing.ts              # Spacing and typography
-├── types/                      # TypeScript type definitions
-└── data/                       # Mock data and constants
+app/
+  (tabs)/                # Bottom tab navigation (4 tabs)
+  ...                    # Routes for screens and modals
+components/              # Reusable components (e.g., InventoryItemCard)
+hooks/                   # State and AI hooks (e.g., useNutrition, useCoach)
+utils/                   # Availability calculations, validation, etc.
+constants/               # Colors, spacing, theme tokens
+types/                   # TypeScript types and interfaces
 ```
 
 ## 🔧 Development
@@ -178,14 +171,18 @@ The project follows a clean architecture pattern with clear separation of concer
 - **Performance**: Efficient rendering and state management
 - **User Experience**: Intuitive navigation and clear visual feedback
 
-## 🚀 Future Enhancements
+## 🚀 Next Potential Enhancements
 
-- **AI Integration**: Automatic food recognition from photos
-- **Voice Processing**: Speech-to-text for voice notes
-- **Nutritional Analysis**: Detailed nutritional tracking and recommendations
-- **Social Features**: Share recipes and meal plans with friends
-- **Grocery Store Integration**: Real-time pricing and availability
-- **Waste Tracking**: Analytics on food waste reduction
+- Batch "Checkout" for shopping list
+- "Mark eaten" directly from the planner
+- Settings modal for nutrition goals
+- Enhanced recipe import with auto-actions
+- Visual progress charts in the Nutrition Dashboard
+
+## 📚 Documentation
+
+- Session Recap: `docs/Session-Recap.md`
+- Contributing Guide: `CONTRIBUTING.md`
 
 ## 🤝 Contributing
 
