@@ -3,6 +3,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useMemo, useState } from 'react';
 import { LoggedMeal, Meal, MealType, NutritionGoals } from '@/types';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 function isoDate(date = new Date()): string {
   return date.toISOString().split('T')[0];
@@ -12,6 +13,7 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
   const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { preferences } = useUserPreferences();
+  const { profile } = useUserProfile();
 
   useEffect(() => {
     const load = async () => {
@@ -88,7 +90,20 @@ export const [NutritionProvider, useNutrition] = createContextHook(() => {
     );
   }, [todayMeals]);
 
-  const goals: NutritionGoals | undefined = preferences.goals;
+  // Prefer goals from User Profile; fallback to existing preferences.goals for backward-compat
+  const goals: NutritionGoals | undefined = (() => {
+    const g = profile?.goals || {};
+    const mapped: NutritionGoals | undefined =
+      g.dailyCalories || g.proteinTargetG || g.carbsTargetG || g.fatsTargetG
+        ? {
+            dailyCalories: g.dailyCalories ?? 0,
+            protein: g.proteinTargetG ?? 0,
+            carbs: g.carbsTargetG ?? 0,
+            fats: g.fatsTargetG ?? 0,
+          }
+        : undefined;
+    return mapped ?? preferences.goals;
+  })();
 
   const remainingAgainstGoals = useMemo(() => {
     if (!goals) return undefined;

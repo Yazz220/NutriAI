@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet } from "react-native";
-import { Refrigerator, BookOpen, ShoppingCart, Calendar, Brain } from "lucide-react-native";
+import { Refrigerator, BookOpen, ShoppingCart, Calendar, Brain, User } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 
 export default function TabLayout() {
@@ -56,6 +56,14 @@ export default function TabLayout() {
         options={{
           title: 'Shopping List',
           tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        key="tab-profile"
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
     </Tabs>

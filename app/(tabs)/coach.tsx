@@ -1,24 +1,53 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Stack } from 'expo-router';
-import { Brain, ChefHat, Bell, Activity } from 'lucide-react-native';
+import { Brain, ChevronLeft, ChevronRight, BarChart3, LineChart as LineIcon } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useCoach } from '@/hooks/useCoach';
 import { useNutrition } from '@/hooks/useNutrition';
 import { useCoachChat } from '@/hooks/useCoachChat';
-import { MealDetailModal } from '@/components/MealDetailModal';
+// Removed MealDetailModal (unused in Insights)
+import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { StructuredMessage } from '@/components/StructuredMessage';
 
 export default function CoachScreen() {
-  const { suggestions, performAction } = useCoach();
   const { todayTotals, goals, remainingAgainstGoals, last7Days } = useNutrition();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
-  const [showDetail, setShowDetail] = useState(false);
-  const [detailRecipe, setDetailRecipe] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'actions'>('chat');
+  // Removed detail modal state (unused)
+  const [activeTab, setActiveTab] = useState<'chat' | 'insights'>('chat');
   const [inputText, setInputText] = useState('');
+  const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [calorieView, setCalorieView] = useState<'bar' | 'line'>('bar');
+  const chartWidth = Dimensions.get('window').width - Spacing.lg * 2; // card horizontal margin
+  const chartConfig = {
+    backgroundGradientFrom: Colors.white,
+    backgroundGradientTo: Colors.white,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(5, 150, 105, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+    propsForBackgroundLines: { stroke: Colors.border },
+    propsForLabels: { fontSize: 10 },
+  } as const;
+
+  const weekLabel = useMemo(() => {
+    // Derive a simple current-week label for now
+    const now = new Date();
+    const day = now.getDay(); // 0-6
+    const diffToMon = ((day + 6) % 7); // days since Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMon);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${fmt(monday)} – ${fmt(sunday)}`;
+  }, []);
+
+  const caloriesSeries = useMemo(() => {
+    // Use last7Days; fallback to zeros if missing
+    return last7Days.map((d: any, idx: number) => ({ x: idx + 1, y: Math.max(0, Number(d?.calories ?? 0)) }));
+  }, [last7Days]);
 
   return (
     <View style={styles.container}>
@@ -33,13 +62,13 @@ export default function CoachScreen() {
         }}
       />
 
-      {/* Top toggle between Chat and Quick Actions */}
+      {/* Top toggle between Chat and Insights */}
       <View style={styles.topTabs}>
         <TouchableOpacity style={[styles.topTab, activeTab === 'chat' && styles.topTabActive]} onPress={() => setActiveTab('chat')}>
           <Text style={[styles.topTabText, activeTab === 'chat' && styles.topTabTextActive]}>Chat</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.topTab, activeTab === 'actions' && styles.topTabActive]} onPress={() => setActiveTab('actions')}>
-          <Text style={[styles.topTabText, activeTab === 'actions' && styles.topTabTextActive]}>Quick Actions</Text>
+        <TouchableOpacity style={[styles.topTab, activeTab === 'insights' && styles.topTabActive]} onPress={() => setActiveTab('insights')}>
+          <Text style={[styles.topTabText, activeTab === 'insights' && styles.topTabTextActive]}>Insights</Text>
         </TouchableOpacity>
       </View>
 
@@ -63,8 +92,14 @@ export default function CoachScreen() {
               <View style={styles.messages}>
                 {messages.map((m) => (
                   <View key={m.id} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
-                    {!!m.text && <Text style={styles.msgText}>{m.text}</Text>}
-                    {!!m.summary && <Text style={styles.msgSummary}>{m.summary}</Text>}
+                    {m.role !== 'user' && m.structured ? (
+                      <StructuredMessage data={m.structured} />
+                    ) : (
+                      <>
+                        {!!m.text && <Text style={styles.msgText}>{m.text}</Text>}
+                        {!!m.summary && <Text style={styles.msgSummary}>{m.summary}</Text>}
+                      </>
+                    )}
                     {m.role === 'coach' && !!m.source && (
                       <Text style={styles.msgSource}>
                         {m.source === 'ai' ? 'AI' : m.source === 'heuristic' ? 'Suggestion' : 'Built-in'}
@@ -115,111 +150,122 @@ export default function CoachScreen() {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>Today</Text>
+            <Text style={styles.sectionTitle}>Insights</Text>
             <Card>
-              <View style={styles.ringsRow}>
-                <View style={styles.ringItem}>
-                  <Text style={styles.ringLabel}>Calories</Text>
-                  <Text style={styles.ringValue}>
-                    {todayTotals.calories}{goals ? ` / ${goals.dailyCalories}` : ''}
-                  </Text>
-                </View>
-                <View style={styles.ringItem}>
-                  <Text style={styles.ringLabel}>Protein</Text>
-                  <Text style={styles.ringValue}>
-                    {todayTotals.protein}{goals ? ` / ${goals.protein}g` : 'g'}
-                  </Text>
-                </View>
-                <View style={styles.ringItem}>
-                  <Text style={styles.ringLabel}>Carbs</Text>
-                  <Text style={styles.ringValue}>
-                    {todayTotals.carbs}{goals ? ` / ${goals.carbs}g` : 'g'}
-                  </Text>
-                </View>
-                <View style={styles.ringItem}>
-                  <Text style={styles.ringLabel}>Fats</Text>
-                  <Text style={styles.ringValue}>
-                    {todayTotals.fats}{goals ? ` / ${goals.fats}g` : 'g'}
-                  </Text>
-                </View>
-              </View>
-              {remainingAgainstGoals && (
-                <Text style={styles.remainingText}>
-                  Remaining: {remainingAgainstGoals.protein}g P • {remainingAgainstGoals.carbs}g C • {remainingAgainstGoals.fats}g F
-                </Text>
-              )}
-            </Card>
-
-            <Text style={styles.sectionTitle}>Right Now</Text>
-            {suggestions.map((s) => (
-              <Card key={s.id}>
-                <View style={styles.cardHeader}>
-                  {s.type === 'primary_meal' && <ChefHat size={18} color={Colors.primary} />}
-                  {s.type === 'heads_up' && <Bell size={18} color={Colors.expiring} />}
-                  {s.type === 'goal_pulse' && <Activity size={18} color={Colors.primary} />}
-                  <Text style={styles.cardTitle}>{s.title}</Text>
-                </View>
-                {!!s.subtitle && <Text style={styles.subtitle}>{s.subtitle}</Text>}
-                {s.recipe && (
-                  <View style={styles.metaRow}>
-                    {typeof s.meta?.readyInMins === 'number' && (
-                      <Text style={styles.metaChip}>{s.meta.readyInMins} mins</Text>
-                    )}
-                    {!!s.meta?.highlight && (
-                      <Text style={[styles.metaChip, styles.highlightChip]}>{s.meta.highlight}</Text>
-                    )}
-                    {typeof s.meta?.missingCount === 'number' && s.meta.missingCount > 0 && (
-                      <Text style={[styles.metaChip, styles.missingChip]}>Missing {s.meta.missingCount}</Text>
-                    )}
-                  </View>
-                )}
-                <View style={styles.actionsRow}>
-                  {s.actions.map((a, idx) => {
-                    const handlePress = () => {
-                      if (a.intent === 'SEE_RECIPE' && s.recipe) {
-                        setDetailRecipe(s.recipe);
-                        setShowDetail(true);
-                        return;
-                      }
-                      performAction(a.intent, a.args);
-                    };
-                    return (
-                      <Button
-                        key={`${s.id}-action-${idx}`}
-                        title={a.label}
-                        onPress={handlePress}
-                        variant={a.variant === 'outline' ? 'outline' : 'primary'}
-                        size="sm"
-                        style={styles.actionBtn}
-                      />
-                    );
-                  })}
-                </View>
-              </Card>
-            ))}
-
-            <Text style={styles.sectionTitle}>This Week</Text>
-            <Card>
-              <View style={styles.sparklineRow}>
-                {last7Days.map((d, idx) => (
-                  <View key={idx} style={[styles.sparkBar, { height: Math.max(4, Math.min(60, d.calories / 40)) }]} />
+              <View style={styles.timeframeRow}>
+                {(['weekly','monthly','yearly'] as const).map(tf => (
+                  <TouchableOpacity key={tf} style={[styles.timeframeTab, timeframe === tf && styles.timeframeTabActive]} onPress={() => setTimeframe(tf)}>
+                    <Text style={[styles.topTabText, timeframe === tf && styles.topTabTextActive]}>
+                      {tf === 'weekly' ? 'Weekly' : tf === 'monthly' ? 'Monthly' : 'Yearly'}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.sparkCaption}>Calories last 7 days</Text>
+              <View style={styles.rangeHeader}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => { /* TODO: implement range back */ }}>
+                  <ChevronLeft size={18} color={Colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.rangeLabel}>
+                  {timeframe === 'weekly' ? weekLabel : timeframe === 'monthly' ? 'This Month' : 'This Year'}
+                </Text>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => { /* TODO: implement range forward */ }}>
+                  <ChevronRight size={18} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+            </Card>
+
+            <Card>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Calorie (kcal)</Text>
+              </View>
+              <View style={styles.chartHeaderRow}>
+                <TouchableOpacity
+                  style={[styles.chartToggle, calorieView === 'bar' && styles.chartToggleActive]}
+                  onPress={() => setCalorieView('bar')}
+                >
+                  <BarChart3 size={16} color={calorieView === 'bar' ? Colors.primary : Colors.lightText} />
+                  <Text style={[styles.chartToggleText, calorieView === 'bar' && styles.topTabTextActive]}>Bar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chartToggle, calorieView === 'line' && styles.chartToggleActive]}
+                  onPress={() => setCalorieView('line')}
+                >
+                  <LineIcon size={16} color={calorieView === 'line' ? Colors.primary : Colors.lightText} />
+                  <Text style={[styles.chartToggleText, calorieView === 'line' && styles.topTabTextActive]}>Line</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.chartKitContainer}>
+                {calorieView === 'bar' ? (
+                  <BarChart
+                    data={{
+                      labels: caloriesSeries.map((_, i) => String(i + 1)),
+                      datasets: [{ data: caloriesSeries.map((p) => p.y) }],
+                    }}
+                    width={chartWidth}
+                    height={180}
+                    chartConfig={chartConfig}
+                    showBarTops={false}
+                    withInnerLines
+                    style={{ borderRadius: 12 }}
+                  />
+                ) : (
+                  <LineChart
+                    data={{
+                      labels: caloriesSeries.map((_, i) => String(i + 1)),
+                      datasets: [{ data: caloriesSeries.map((p) => p.y), color: () => Colors.primary }],
+                    }}
+                    width={chartWidth}
+                    height={180}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={{ borderRadius: 12 }}
+                  />
+                )}
+              </View>
+              <Text style={styles.sparkCaption}>Calories last 7 days{goals?.dailyCalories ? ` • Goal ${goals.dailyCalories}` : ''}</Text>
+            </Card>
+
+            <Card>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Nutrition (%)</Text>
+              </View>
+              {(() => {
+                const totalCals = Math.max(1, todayTotals.protein * 4 + todayTotals.carbs * 4 + todayTotals.fats * 9);
+                const macros = [
+                  { x: 'Protein', y: Math.max(0, todayTotals.protein * 4), color: Colors.primary },
+                  { x: 'Carbs', y: Math.max(0, todayTotals.carbs * 4), color: Colors.secondary },
+                  { x: 'Fats', y: Math.max(0, todayTotals.fats * 9), color: Colors.expiring },
+                ];
+                return (
+                  <View style={styles.chartKitContainer}>
+                    <PieChart
+                      data={macros.map((m) => ({
+                        name: m.x as string,
+                        population: m.y as number,
+                        color: m.color as string,
+                        legendFontColor: Colors.text,
+                        legendFontSize: 12,
+                      }))}
+                      width={chartWidth}
+                      height={180}
+                      chartConfig={chartConfig}
+                      accessor="population"
+                      backgroundColor="transparent"
+                      hasLegend
+                      center={[0, 0]}
+                    />
+                    <Text style={styles.sparkCaption}>
+                      P {todayTotals.protein}g • C {todayTotals.carbs}g • F {todayTotals.fats}g
+                    </Text>
+                  </View>
+                );
+              })()}
             </Card>
           </>
         )}
       </ScrollView>
 
-      <MealDetailModal
-        visible={showDetail}
-        meal={detailRecipe}
-        availability={detailRecipe?.availability}
-        onClose={() => {
-          setShowDetail(false);
-          setDetailRecipe(null);
-        }}
-      />
+      {/* Modal removed: Insights tab no longer shows recipe detail here */}
     </View>
   );
 }
@@ -277,6 +323,20 @@ const styles = StyleSheet.create({
   topTabActive: { backgroundColor: Colors.primary + '20' },
   topTabText: { color: Colors.lightText, fontWeight: '600' },
   topTabTextActive: { color: Colors.primary },
+  timeframeRow: { flexDirection: 'row', backgroundColor: Colors.tabBackground, borderRadius: 8, padding: 4 },
+  timeframeTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 6 },
+  timeframeTabActive: { backgroundColor: Colors.white },
+  chartContainer: { position: 'relative', paddingVertical: Spacing.md },
+  chartBar: { flex: 1, backgroundColor: Colors.primary, borderRadius: 4 },
+  goalLine: { position: 'absolute', left: 0, right: 0, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: Colors.border },
+  rangeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.sm },
+  iconBtn: { padding: Spacing.sm },
+  rangeLabel: { color: Colors.text, fontWeight: '600' },
+  chartHeaderRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  chartToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: Colors.tabBackground, borderRadius: 8 },
+  chartToggleActive: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.primary + '40' },
+  chartToggleText: { color: Colors.lightText, fontWeight: '600' },
+  chartKitContainer: { alignItems: 'center', paddingVertical: Spacing.sm },
 });
 
 

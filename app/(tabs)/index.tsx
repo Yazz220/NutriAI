@@ -30,6 +30,7 @@ import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { InventoryItem, ItemCategory } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
+import { VoiceAddModal } from '@/components/VoiceAddModal';
 
 const styles = StyleSheet.create({
   container: {
@@ -248,6 +249,8 @@ export default function InventoryScreen() {
   const recorderState = useAudioRecorderState(audioRecorder);
 
   const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
+  const [isVoiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string>('');
 
   const handleUseItem = (item: InventoryItem) => {
     removeItem(item.id);
@@ -369,8 +372,10 @@ export default function InventoryScreen() {
       const uri = audioRecorder.uri;
       if (uri) {
         console.log('Recording stopped, URI:', uri);
-        // TODO: Process the audio file
-        Alert.alert('Voice Note', 'Voice note captured! (Processing not implemented yet)');
+        // Frontend-only phase: open modal with editable transcript.
+        // Later we will upload `uri` to backend for transcription.
+        setVoiceTranscript('');
+        setVoiceModalVisible(true);
       }
     } catch (error) {
       console.error('Failed to stop recording', error);
@@ -632,6 +637,33 @@ export default function InventoryScreen() {
         contentContainerStyle={styles.sectionListContent}
       />
 
+      {/* Voice Add Modal */}
+      <VoiceAddModal
+        visible={isVoiceModalVisible}
+        initialTranscript={voiceTranscript}
+        onClose={() => setVoiceModalVisible(false)}
+        onConfirm={(items) => {
+          const now = new Date();
+          const expiry = new Date();
+          expiry.setDate(now.getDate() + 7);
+          const toUnit = (u: string): string => (u === 'count' ? 'pcs' : u);
+          items.forEach((it) => {
+            const item: Omit<InventoryItem, 'id'> = {
+              name: it.name || 'Item',
+              quantity: Number(it.quantity) || 1,
+              unit: toUnit((it.unit as any) || 'pcs') as any,
+              category: (it as any).category || mapCategory(undefined, it.name, true),
+              addedDate: now.toISOString(),
+              expiryDate: expiry.toISOString(),
+            };
+            addItem(item);
+          });
+          setVoiceModalVisible(false);
+          setVoiceTranscript('');
+          Alert.alert('Inventory Updated', 'Added items from voice input.');
+        }}
+      />
+
 
 
       <View style={styles.quickAddContainer}>
@@ -645,9 +677,9 @@ export default function InventoryScreen() {
               <IconCamera size={20} color={Colors.primary} />
               <Text style={styles.quickAddText}>Use Camera</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickAddButton, recorderState.isRecording && styles.recordingButton]} onPress={recorderState.isRecording ? stopRecording : startRecording}>
-              <Mic size={20} color={recorderState.isRecording ? Colors.white : Colors.primary} />
-              <Text style={[styles.quickAddText, recorderState.isRecording && { color: Colors.white }]}>{recorderState.isRecording ? 'Stop' : 'Voice Note'}</Text>
+            <TouchableOpacity style={styles.quickAddOption} onPress={recorderState.isRecording ? stopRecording : startRecording}>
+              <Mic size={20} color={Colors.primary} />
+              <Text style={styles.quickAddText}>{recorderState.isRecording ? 'Stop Recording' : 'Voice Note'}</Text>
             </TouchableOpacity>
           </View>
         )}
