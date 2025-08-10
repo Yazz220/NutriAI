@@ -1,119 +1,140 @@
+// Recipe Card Component
+// Displays local recipe information in a card format
+
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Bookmark } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
+import { Clock, Users, Edit, Trash2 } from 'lucide-react-native';
+import { Card } from '@/components/ui/Card';
 import { Colors } from '@/constants/colors';
-import { Recipe } from '@/types';
+import { Spacing, Typography } from '@/constants/spacing';
+import { Meal } from '@/types';
 
 interface RecipeCardProps {
-  recipe: Recipe;
-  missingIngredientsCount?: number;
-  isReadyToCook?: boolean;
-  isSaved?: boolean;
+  recipe: Meal;
   onPress: () => void;
-  onSave: (recipe: Recipe) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
-export function RecipeCard({ recipe, missingIngredientsCount, isReadyToCook, isSaved, onPress, onSave }: RecipeCardProps) {
+export const RecipeCard: React.FC<RecipeCardProps> = ({
+  recipe,
+  onPress,
+  onEdit,
+  onDelete,
+}) => {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
-      <Image source={{ uri: recipe.image }} style={styles.image} />
-      <View style={styles.infoContainer}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.title} numberOfLines={2}>{recipe.name}</Text>
-          <TouchableOpacity onPress={() => onSave(recipe)} style={styles.saveButton}>
-            <Bookmark size={22} color={isSaved ? Colors.primary : Colors.secondary} fill={isSaved ? Colors.primary : 'transparent'} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.tagsContainer}>
-          {recipe.tags.slice(0, 2).map(tag => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
+      <Card style={styles.card}>
+        <View style={styles.content}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {recipe.name?.charAt(0)?.toUpperCase() || '?'}
+            </Text>
+          </View>
+          <View style={styles.recipeInfo}>
+            <Text style={styles.recipeName} numberOfLines={2}>
+              {recipe.name}
+            </Text>
+            <View style={styles.recipeMeta}>
+              {recipe.cookTime && (
+                <View style={styles.metaItem}>
+                  <Clock size={14} color={Colors.lightText} />
+                  <Text style={styles.metaText}>{recipe.cookTime}m</Text>
+                </View>
+              )}
+              {recipe.servings && (
+                <View style={styles.metaItem}>
+                  <Users size={14} color={Colors.lightText} />
+                  <Text style={styles.metaText}>{recipe.servings}</Text>
+                </View>
+              )}
             </View>
-          ))}
+            {recipe.description && (
+              <Text style={styles.description} numberOfLines={2}>
+                {recipe.description}
+              </Text>
+            )}
+          </View>
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.iconButton} onPress={onEdit}>
+              <Edit size={16} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={onDelete}>
+              <Trash2 size={16} color={Colors.expiring} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      {isReadyToCook && (
-        <View style={[styles.statusBadge, styles.readyBadge]}>
-          <Text style={styles.statusBadgeText}>✅ Ready to Cook</Text>
-        </View>
-      )}
-      {missingIngredientsCount && missingIngredientsCount > 0 && (
-        <View style={[styles.statusBadge, styles.missingBadge]}>
-          <Text style={styles.statusBadgeText}>Missing {missingIngredientsCount} item(s)</Text>
-        </View>
-      )}
+      </Card>
     </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
+    marginBottom: Spacing.sm,
+  },
+  card: {
+    padding: Spacing.md,
     borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 16,
   },
-  image: {
-    width: '100%',
-    height: 150,
-  },
-  infoContainer: {
-    padding: 12,
-  },
-  headerContainer: {
+  content: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    gap: Spacing.md,
+    alignItems: 'center',
   },
-  title: {
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  recipeInfo: {
     flex: 1,
-    fontSize: 16,
+  },
+  recipeName: {
+    fontSize: Typography.sizes.md,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: Spacing.xs,
   },
-  tagsContainer: {
+  recipeMeta: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginBottom: Spacing.xs,
   },
-  tag: {
-    backgroundColor: Colors.lightGray,
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    marginRight: 6,
-    marginBottom: 6,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  tagText: {
-    fontSize: 11,
-    color: Colors.secondary,
-    fontWeight: '500',
+  metaText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
   },
-  statusBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+  description: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    lineHeight: 16,
   },
-  readyBadge: {
-    backgroundColor: 'rgba(46, 204, 113, 0.9)',
+  actions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
   },
-  missingBadge: {
-    backgroundColor: 'rgba(231, 76, 60, 0.9)',
-  },
-  statusBadgeText: {
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  saveButton: {
-    padding: 4,
+  iconButton: {
+    padding: Spacing.sm,
+    borderRadius: 10,
+    backgroundColor: Colors.tabBackground,
   },
 });

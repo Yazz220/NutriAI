@@ -8,6 +8,7 @@ export const Colors = {
     border: "#E0E0E0",
     shadow: "rgba(0, 0, 0, 0.1)",
     lightGray: "#F0F0F0",
+    card: "#FFFFFF",
     
     // Freshness indicators
     fresh: "#7EA172", // Green
@@ -19,4 +20,10 @@ export const Colors = {
     tabBackground: "#FFFFFF",
     tabIconInactive: "#AAAAAA",
     tabIconActive: "#7EA172",
+    
+    // Additional colors for components
+    success: "#4CAF50", // Green for success states
+    warning: "#FF9800", // Orange for warning states
+    error: "#F44336", // Red for error states
+    info: "#2196F3", // Blue for info states
   };

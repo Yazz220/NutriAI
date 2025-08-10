@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, BarChart3, LineChart as LineIcon } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
@@ -62,13 +62,19 @@ export default function CoachScreen() {
         }}
       />
 
-      {/* Top toggle between Chat and Insights */}
+      {/* Top toggle between Chat, Insights, and Planner */}
       <View style={styles.topTabs}>
         <TouchableOpacity style={[styles.topTab, activeTab === 'chat' && styles.topTabActive]} onPress={() => setActiveTab('chat')}>
           <Text style={[styles.topTabText, activeTab === 'chat' && styles.topTabTextActive]}>Chat</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.topTab, activeTab === 'insights' && styles.topTabActive]} onPress={() => setActiveTab('insights')}>
-          <Text style={[styles.topTabText, activeTab === 'insights' && styles.topTabTextActive]}>Insights</Text>
+          <Text style={[styles.topTabText, activeTab === 'insights' && styles.topTabTextActive]}>Insight</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.topTab}
+          onPress={() => router.push('/(tabs)/planner')}
+        >
+          <Text style={styles.topTabText}>Planner</Text>
         </TouchableOpacity>
       </View>
 

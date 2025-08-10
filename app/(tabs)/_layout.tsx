@@ -17,7 +17,7 @@ export default function TabLayout() {
         headerShadowVisible: false,
       }}
     >
-      {/* Hide the standalone planner route from the tab bar since it's embedded inside Recipes */}
+      {/* Hide the standalone planner route from the tab bar; accessible via Coach top tab */}
       <Tabs.Screen
         key="tab-planner-hidden"
         name="planner"

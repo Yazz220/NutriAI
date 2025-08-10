@@ -7,13 +7,16 @@ interface LoadingSpinnerProps {
   size?: 'small' | 'large';
   text?: string;
   overlay?: boolean;
+  color?: string;
 }
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'large',
   text,
   overlay = false,
+  color,
 }) => {
+
   const containerStyle = [
     styles.container,
     overlay && styles.overlay,
@@ -21,10 +24,11 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   return (
     <View style={containerStyle}>
-      <ActivityIndicator size={size} color={Colors.primary} />
+      <ActivityIndicator size={size} color={color || Colors.primary} />
       {text && <Text style={styles.text}>{text}</Text>}
     </View>
   );
+
 };
 
 const styles = StyleSheet.create({

@@ -4,37 +4,26 @@
 expo-env.d.ts
 # @end expo-cli
 
-# Node & package managers
-node_modules/
+# Environment files (do not commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs and caches
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-
-# Expo/React Native
 .expo/
 .expo-shared/
-web-build/
+.turbo/
+.cache/
 
 # Build outputs
 dist/
+web-build/
 build/
-coverage/
+android/
+ios/
 
-# IDE/editor
-.vscode/
-.idea/
-*.swp
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Environment files (do not commit secrets)
-.env*
-
-# iOS/Android (native)
-ios/Pods/
-ios/build/
-android/.gradle/
-android/app/build/
+# Misc
+*.DS_Store

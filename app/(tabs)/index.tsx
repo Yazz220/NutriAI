@@ -6,21 +6,21 @@ import {
   ScrollView,
   TouchableOpacity,
   SectionList,
+  RefreshControl,
   Alert,
   Image,
   Animated,
   TextInput,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Plus, AlertCircle, Mic, Camera as IconCamera, Barcode } from 'lucide-react-native';
+import { Plus, AlertCircle, Camera as IconCamera, Barcode } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
-import { useAudioRecorder, useAudioRecorderState, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useInventory, useInventoryByFreshness } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
-// import { useToast } from '@/contexts/ToastContext';
+import { useToast } from '@/contexts/ToastContext';
 import { InventoryItemCard } from '@/components/InventoryItemCard';
 import { AddItemModal } from '@/components/AddItemModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -30,7 +30,6 @@ import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { InventoryItem, ItemCategory } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
-import { VoiceAddModal } from '@/components/VoiceAddModal';
 
 const styles = StyleSheet.create({
   container: {
@@ -171,9 +170,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
   },
-  recordingButton: {
-    backgroundColor: Colors.danger,
-  },
   cameraContainer: {
     flex: 1,
   },
@@ -226,10 +222,10 @@ const styles = StyleSheet.create({
 });
 
 export default function InventoryScreen() {
-  const { inventory, isLoading, addItem, removeItem } = useInventory();
+  const { inventory, isLoading, addItem, removeItem, refresh } = useInventory();
   const { expiring } = useInventoryByFreshness();
   const { addItem: addToShoppingList } = useShoppingList();
-  // const { showToast } = useToast();
+  const { showToast } = useToast();
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -245,22 +241,41 @@ export default function InventoryScreen() {
   const [isReceiptMode, setIsReceiptMode] = useState<boolean>(true); // affects category mapping
   const cameraRef = useRef<CameraView>(null);
 
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(audioRecorder);
-
   const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
-  const [isVoiceModalVisible, setVoiceModalVisible] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleUseItem = (item: InventoryItem) => {
-    removeItem(item.id);
-    // Temporarily disabled toast
-    console.log(`Used up ${item.name}`);
+  const onRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await refresh?.();
+      showToast({ message: 'Inventory refreshed', type: 'info', duration: 1500 });
+    } catch (e) {
+      console.error(e);
+      showToast({ message: 'Refresh failed', type: 'error', duration: 2500 });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  const handleAddItem = (item: Omit<InventoryItem, 'id'>) => {
-    addItem(item);
-    setModalVisible(false);
+  const handleUseItem = async (item: InventoryItem) => {
+    try {
+      await removeItem(item.id);
+      showToast({ message: `Used up ${item.name}`, type: 'success', duration: 2000 });
+    } catch (e) {
+      console.error(e);
+      showToast({ message: 'Failed to update inventory', type: 'error', duration: 2500 });
+    }
+  };
+
+  const handleAddItem = async (item: Omit<InventoryItem, 'id'>) => {
+    try {
+      await addItem(item);
+      setModalVisible(false);
+      showToast({ message: `Added ${item.name}`, type: 'success', duration: 2000 });
+    } catch (e) {
+      console.error(e);
+      showToast({ message: 'Add failed. Please try again.', type: 'error', duration: 2500 });
+    }
   };
 
   const openCamera = async () => {
@@ -326,61 +341,40 @@ export default function InventoryScreen() {
     });
   };
 
-  const addSelectedToInventory = () => {
+  const addSelectedToInventory = async () => {
     if (!detectedItems) return;
     const now = new Date();
     const expiry = new Date();
     expiry.setDate(now.getDate() + 7);
-    detectedItems.forEach((it, idx) => {
-      if (!selectedIdx.has(idx)) return;
-      const edit = editableItems[idx];
-      const item: Omit<InventoryItem, 'id'> = {
-        name: edit?.name || it.name || 'Item',
-        quantity: Number(edit?.quantity || it.quantity || 1) || 1,
-        unit: (edit?.unit as any) || (it.unit as any) || 'pcs',
-        category: (edit?.category as ItemCategory) || (mapCategory(it.category, it.name || '', isReceiptMode)) || 'Other',
-        addedDate: now.toISOString(),
-        expiryDate: expiry.toISOString(),
-      };
-      addItem(item);
-    });
-    setDetectedItems(null);
-    setCapturedImage(null);
-    setSelectedIdx(new Set());
-    Alert.alert('Inventory Updated', 'Added selected items to your inventory.');
-  };
-
-  const startRecording = async () => {
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (perm.status !== 'granted') {
-        Alert.alert('Permission needed', 'Audio recording permission is required to add items with your voice.');
-        return;
-      }
-
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
-      await audioRecorder.record();
-    } catch (err) {
-      console.error('Failed to start recording', err);
+      const tasks: Promise<any>[] = [];
+      let addedCount = 0;
+      detectedItems.forEach((it, idx) => {
+        if (!selectedIdx.has(idx)) return;
+        const edit = editableItems[idx];
+        const item: Omit<InventoryItem, 'id'> = {
+          name: edit?.name || it.name || 'Item',
+          quantity: Number(edit?.quantity || it.quantity || 1) || 1,
+          unit: (edit?.unit as any) || (it.unit as any) || 'pcs',
+          category: (edit?.category as ItemCategory) || (mapCategory(it.category, it.name || '', isReceiptMode)) || 'Other',
+          addedDate: now.toISOString(),
+          expiryDate: expiry.toISOString(),
+        };
+        addedCount += 1;
+        tasks.push(addItem(item));
+      });
+      await Promise.all(tasks);
+      setDetectedItems(null);
+      setCapturedImage(null);
+      setSelectedIdx(new Set());
+      showToast({ message: `Added ${addedCount} item(s)`, type: 'success', duration: 2000 });
+    } catch (e) {
+      console.error(e);
+      showToast({ message: 'Some items could not be added', type: 'error', duration: 2500 });
     }
   };
 
-  const stopRecording = async () => {
-    try {
-      await audioRecorder.stop();
-      const uri = audioRecorder.uri;
-      if (uri) {
-        console.log('Recording stopped, URI:', uri);
-        // Frontend-only phase: open modal with editable transcript.
-        // Later we will upload `uri` to backend for transcription.
-        setVoiceTranscript('');
-        setVoiceModalVisible(true);
-      }
-    } catch (error) {
-      console.error('Failed to stop recording', error);
-    }
-  };
+  
 
   const filteredInventory = useMemo(() => {
     return inventory.filter(item => 
@@ -635,36 +629,8 @@ export default function InventoryScreen() {
         )}
         ListEmptyComponent={renderEmptyComponent}
         contentContainerStyle={styles.sectionListContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
       />
-
-      {/* Voice Add Modal */}
-      <VoiceAddModal
-        visible={isVoiceModalVisible}
-        initialTranscript={voiceTranscript}
-        onClose={() => setVoiceModalVisible(false)}
-        onConfirm={(items) => {
-          const now = new Date();
-          const expiry = new Date();
-          expiry.setDate(now.getDate() + 7);
-          const toUnit = (u: string): string => (u === 'count' ? 'pcs' : u);
-          items.forEach((it) => {
-            const item: Omit<InventoryItem, 'id'> = {
-              name: it.name || 'Item',
-              quantity: Number(it.quantity) || 1,
-              unit: toUnit((it.unit as any) || 'pcs') as any,
-              category: (it as any).category || mapCategory(undefined, it.name, true),
-              addedDate: now.toISOString(),
-              expiryDate: expiry.toISOString(),
-            };
-            addItem(item);
-          });
-          setVoiceModalVisible(false);
-          setVoiceTranscript('');
-          Alert.alert('Inventory Updated', 'Added items from voice input.');
-        }}
-      />
-
-
 
       <View style={styles.quickAddContainer}>
         {isQuickAddExpanded && (
@@ -676,10 +642,6 @@ export default function InventoryScreen() {
             <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
               <IconCamera size={20} color={Colors.primary} />
               <Text style={styles.quickAddText}>Use Camera</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAddOption} onPress={recorderState.isRecording ? stopRecording : startRecording}>
-              <Mic size={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>{recorderState.isRecording ? 'Stop Recording' : 'Voice Note'}</Text>
             </TouchableOpacity>
           </View>
         )}

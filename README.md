@@ -67,6 +67,80 @@ Follow these instructions to get a copy of the project up and running on your lo
    - Expo public vars must be prefixed with `EXPO_PUBLIC_`
    - Prefer using a backend proxy for AI calls instead of embedding secrets
    - See `env.example` for placeholders (AI, Firebase/AWS, feature flags)
+   - For recipes, NutriAI now defaults to TheMealDB provider. Add:
+     ```env
+     # TheMealDB uses a free public key '1' by default
+     EXPO_PUBLIC_MEALDB_API_KEY=1
+     # Optional (usually not needed for TheMealDB, but available for web CORS workarounds)
+     EXPO_PUBLIC_RECIPES_PROXY_BASE=
+     ```
+
+### Recipe Providers
+
+- __Default: TheMealDB__
+  - Free, no signup required. Test key `'1'` works out of the box.
+  - Env: `EXPO_PUBLIC_MEALDB_API_KEY` (use `1` unless you have a Patreon key).
+  - The app initializes the recipe provider with TheMealDB automatically in `components/RecipeProviderInitializer.tsx`.
+- __Other providers (legacy support)__: Spoonacular, Edamam
+  - Kept for compatibility but not used by default. You may adapt `RecipeProviderInitializer.tsx` to initialize a different provider if desired.
+
+Notes:
+- The web proxy `EXPO_PUBLIC_RECIPES_PROXY_BASE` is supported for CORS-only scenarios on web. Native apps (iOS/Android) call providers directly.
+
+### Recipe Store Architecture
+
+- The recipes feature shares a single store via `hooks/useRecipeStore.ts` using a React Context provider: `RecipeStoreProvider`.
+- The app root wraps the tree with `RecipeStoreProvider` in `app/_layout.tsx` so all recipe components use the same instance.
+- `components/RecipeProviderInitializer.tsx` is mounted in `app/(tabs)/recipes.tsx` to initialize the provider (defaults to TheMealDB) and warm trending recipes on first load.
+
+## 🧭 Milestone: Supabase Backend & AI Proxy
+
+We have integrated Supabase as the backend with a dedicated `nutriai` schema (strict RLS) and deployed an `ai-chat` Edge Function that securely proxies AI calls.
+
+What this enables:
+- Secure AI calls without exposing provider keys in the app
+- Per-user data isolation via RLS on `nutriai.*` tables
+- Easy backend evolution (models, rate limits, validation) without shipping new app builds
+
+### Supabase (Nourish) configuration
+- Project URL: `https://wckohtwftlwhyldnfpbz.supabase.co`
+- Schema: `nutriai`
+- Tables: `profiles`, `inventory_items`, `shopping_list_items`, `meal_plans`, `recipes_saved`, `ai_messages`
+- Edge Function: `ai-chat` (JWT verification enabled)
+
+### Client environment (Expo)
+Add to `.env` (client-safe):
+```
+EXPO_PUBLIC_SUPABASE_URL=https://wckohtwftlwhyldnfpbz.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<YOUR_ANON_KEY>
+
+# Optional informational values (no secrets)
+EXPO_PUBLIC_AI_PROVIDER=openrouter
+EXPO_PUBLIC_AI_API_BASE=https://openrouter.ai/api/v1
+EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
+```
+
+### Server secrets (Supabase → Functions → ai-chat → Secrets)
+- `AI_API_KEY` = your provider key (e.g., OpenRouter)
+- `AI_API_BASE` = https://openrouter.ai/api/v1
+- `AI_MODEL` = openai/gpt-oss-20b:free
+
+### Test the ai-chat Edge Function
+PowerShell (Windows):
+```powershell
+$ANON = "<YOUR_ANON_KEY>"
+$headers = @{ Authorization = "Bearer $ANON"; apikey = $ANON; "Content-Type" = "application/json" }
+$body = @{ messages = @(@{ role = "user"; content = "Give me a healthy dinner idea." }) } | ConvertTo-Json -Depth 8
+Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/functions/v1/ai-chat" -Headers $headers -Body $body | ConvertTo-Json -Depth 8
+```
+
+### Frontend usage
+- Use `utils/supabaseClient.ts` to access Supabase.
+- Call `utils/aiClient.ts: aiChat(messages)` to get structured JSON for the chat/coach UI.
+
+### Security notes
+- Do not put AI keys in `EXPO_PUBLIC_` env vars. Keep them as Supabase Function secrets.
+- RLS is enabled on all tables—reads/writes require an authenticated user.
 
 ## 🏃‍♀️ Usage
 

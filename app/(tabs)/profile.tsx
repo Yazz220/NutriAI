@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { supabase } from '@/utils/supabaseClient';
 
 const dietOptions = ['none','vegan','vegetarian','pescatarian','halal','kosher','gluten_free','keto','paleo'] as const;
 const goalTypes = ['maintain','lose','gain'] as const;
@@ -82,9 +83,7 @@ export default function ProfileScreen() {
           <Input label={local.unitSystem === 'metric' ? 'Height (cm)' : 'Height (cm)'} keyboardType="number-pad" value={local.heightCm} onChangeText={(t) => setLocal(p => ({ ...p, heightCm: t }))} />
           <Input label={local.unitSystem === 'metric' ? 'Weight (kg)' : 'Weight (kg)'} keyboardType="number-pad" value={local.weightKg} onChangeText={(t) => setLocal(p => ({ ...p, weightKg: t }))} />
         </View>
-        <Button onPress={saveBasics} style={styles.saveBtn}>
-          <Text style={styles.saveText}>Save Basics</Text>
-        </Button>
+        <Button title="Save Basics" onPress={saveBasics} style={styles.saveBtn} />
       </Card>
 
       <Card>
@@ -117,9 +116,7 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
-        <Button onPress={saveGoals} style={styles.saveBtn}>
-          <Text style={styles.saveText}>Save Goals</Text>
-        </Button>
+        <Button title="Save Goals" onPress={saveGoals} style={styles.saveBtn} />
       </Card>
 
       <Card>
@@ -153,9 +150,12 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
-        <Button onPress={savePreferences} style={styles.saveBtn}>
-          <Text style={styles.saveText}>Save Preferences</Text>
-        </Button>
+        <Button title="Save Preferences" onPress={savePreferences} style={styles.saveBtn} />
+      </Card>
+
+      <Card>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <Button title="Sign Out" onPress={() => supabase.auth.signOut()} style={styles.saveBtn} />
       </Card>
     </ScrollView>
   );

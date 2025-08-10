@@ -84,3 +84,51 @@ async function requestWithRetry(messages: ChatMessage[], stream: boolean, maxRet
 }
 
 class RetryableError extends Error {}
+
+// ---------------------------------------------------------------------------
+// Secure path used in production: call our Supabase Edge Function ai-chat.
+// This avoids exposing any provider API keys in the client app.
+// ---------------------------------------------------------------------------
+
+export type ChatStructuredBlock = {
+  kind: 'text' | 'tip' | 'recipe' | 'plan';
+  title?: string;
+  content?: string;
+  data?: unknown;
+};
+
+export type ChatStructuredResponse = {
+  type: 'chat';
+  model?: string;
+  output?: {
+    summary?: string;
+    suggestions?: string[];
+    blocks?: ChatStructuredBlock[];
+  };
+};
+
+/**
+ * aiChat: calls the Supabase Edge Function (functions/v1/ai-chat)
+ * using the public anon key as a bearer token. No provider keys in the app.
+ */
+export async function aiChat(messages: ChatMessage[]): Promise<ChatStructuredResponse> {
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !anon) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or ANON_KEY');
+
+  const url = `${base.replace(/\/$/, '')}/functions/v1/ai-chat`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${anon}`,
+      apikey: anon,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ai-chat failed (${res.status}): ${text}`);
+  }
+  return (await res.json()) as ChatStructuredResponse;
+}

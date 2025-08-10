@@ -95,7 +95,11 @@ export const Button: React.FC<ButtonProps> = ({
         {loading ? (
           <LoadingSpinner size="small" color={variant === 'primary' ? Colors.white : Colors.primary} />
         ) : (
-          icon && <>{icon}</>
+          icon && (typeof icon === 'string' ? (
+            <Text style={textStyles}>{icon}</Text>
+          ) : (
+            <>{icon}</>
+          ))
         )}
         {!loading && <Text style={textStyles}>{title}</Text>}
       </TouchableOpacity>

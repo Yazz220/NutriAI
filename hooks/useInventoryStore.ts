@@ -2,6 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { InventoryItem, ItemCategory } from '@/types';
+import { supabase } from '@/utils/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
+
+// Dev toggle: force offline cache only, never call Supabase
+const OFFLINE_ONLY = process.env.EXPO_PUBLIC_OFFLINE_ONLY === 'true';
 
 // Mock data for initial inventory
 const initialInventory: InventoryItem[] = [
@@ -70,33 +75,70 @@ const initialInventory: InventoryItem[] = [
 export const [InventoryProvider, useInventory] = createContextHook(() => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { user } = useAuth();
+
+  function rowToItem(r: any): InventoryItem {
+    return {
+      id: String(r.id),
+      name: r.name,
+      quantity: r.quantity,
+      unit: r.unit,
+      category: r.category as ItemCategory,
+      addedDate: r.added_date,
+      expiryDate: r.expiry_date ?? undefined,
+      imageUrl: undefined,
+    };
+  }
+
+  function itemToRow(i: Omit<InventoryItem, 'id'>) {
+    return {
+      name: i.name,
+      quantity: i.quantity,
+      unit: i.unit,
+      category: i.category,
+      added_date: i.addedDate,
+      expiry_date: i.expiryDate ?? null,
+      notes: null,
+    } as const;
+  }
 
   // Load inventory from AsyncStorage on mount
   useEffect(() => {
     const loadInventory = async () => {
       try {
-        const storedInventory = await AsyncStorage.getItem('inventory');
-        if (storedInventory) {
-          setInventory(JSON.parse(storedInventory));
+        setIsLoading(true);
+        console.log('[InventoryStore] loadInventory start. OFFLINE_ONLY =', OFFLINE_ONLY, 'user?', !!user);
+        if (user && !OFFLINE_ONLY) {
+          const { data, error } = await supabase
+            .from('inventory_items')
+            .select('id, name, quantity, unit, category, added_date, expiry_date')
+            .order('added_date', { ascending: false });
+          if (error) throw error;
+          const rows = (data ?? []).map(rowToItem);
+          setInventory(rows);
+          // cache
+          await AsyncStorage.setItem('inventory', JSON.stringify(rows));
         } else {
-          // Use mock data if no stored inventory
-          setInventory(initialInventory);
-          try {
-            await AsyncStorage.setItem('inventory', JSON.stringify(initialInventory));
-          } catch (saveError) {
-            console.warn('Failed to save initial inventory to AsyncStorage:', saveError);
-          }
+          // Not authenticated yet — use cached or mock
+          const stored = await AsyncStorage.getItem('inventory');
+          if (stored) setInventory(JSON.parse(stored));
+          else setInventory(initialInventory);
         }
       } catch (error) {
         console.error('Failed to load inventory:', error);
-        setInventory(initialInventory);
+        console.log('[InventoryStore] Falling back to cache/mock. OFFLINE_ONLY =', OFFLINE_ONLY, 'user?', !!user);
+        // fallback to cache/mock
+        const stored = await AsyncStorage.getItem('inventory').catch(() => null);
+        if (stored) setInventory(JSON.parse(stored as string));
+        else setInventory(initialInventory);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadInventory();
-  }, []);
+    // re-run on auth user change
+  }, [user?.id]);
 
   // Save inventory to AsyncStorage whenever it changes
   useEffect(() => {
@@ -107,25 +149,54 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   }, [inventory, isLoading]);
 
   // Add a new item to inventory
-  const addItem = (item: Omit<InventoryItem, 'id'>): string => {
-    const newItem: InventoryItem = {
-      ...item,
-      id: Date.now().toString(),
-    };
-    setInventory(prev => [...prev, newItem]);
-    return newItem.id;
+  const addItem = async (item: Omit<InventoryItem, 'id'>): Promise<string> => {
+    if (!user || OFFLINE_ONLY) {
+      const newItem: InventoryItem = { ...item, id: Date.now().toString() };
+      setInventory(prev => [newItem, ...prev]);
+      return newItem.id;
+    }
+    const payload = { ...itemToRow(item), user_id: user.id } as any;
+    const { data, error } = await supabase
+      .from('inventory_items')
+      .insert(payload)
+      .select('id, name, quantity, unit, category, added_date, expiry_date')
+      .single();
+    if (error) throw error;
+    const created = rowToItem(data);
+    setInventory(prev => [created, ...prev]);
+    return created.id;
   };
 
   // Update an existing item
-  const updateItem = (updatedItem: InventoryItem) => {
-    setInventory(prev => 
-      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
-    );
+  const updateItem = async (updatedItem: InventoryItem) => {
+    setInventory(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({
+          name: updatedItem.name,
+          quantity: updatedItem.quantity,
+          unit: updatedItem.unit,
+          category: updatedItem.category,
+          added_date: updatedItem.addedDate,
+          expiry_date: updatedItem.expiryDate ?? null,
+        })
+        .eq('id', updatedItem.id);
+      if (error) {
+        console.error('Failed to update inventory item:', error);
+      }
+    }
   };
 
   // Remove an item from inventory
-  const removeItem = (id: string) => {
+  const removeItem = async (id: string) => {
     setInventory(prev => prev.filter(item => item.id !== id));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete inventory item:', error);
+      }
+    }
   };
 
   // Deduct ingredients used in a meal
@@ -208,6 +279,23 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   return {
     inventory,
     isLoading,
+    refresh: async () => {
+      // manual pull-to-refresh
+      try {
+        if (user && !OFFLINE_ONLY) {
+          const { data, error } = await supabase
+            .from('inventory_items')
+            .select('id, name, quantity, unit, category, added_date, expiry_date')
+            .order('added_date', { ascending: false });
+          if (error) throw error;
+          const rows = (data ?? []).map(rowToItem);
+          setInventory(rows);
+          await AsyncStorage.setItem('inventory', JSON.stringify(rows));
+        }
+      } catch (e) {
+        console.error('Refresh inventory failed:', e);
+      }
+    },
     addItem,
     updateItem,
     removeItem,

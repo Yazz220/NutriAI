@@ -1,233 +1,257 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  RefreshControl,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
-import { Stack } from 'expo-router';
-import { Search, Plus, Sparkles } from 'lucide-react-native';
+import { Plus, BookOpen, Sparkles, TrendingUp } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
-import { useInventory } from '@/hooks/useInventoryStore';
-import { useMeals } from '@/hooks/useMealsStore';
-import { useMealPlanner } from '@/hooks/useMealPlanner';
-import { RecipeExplorer } from '@/components/RecipeExplorer';
-import { RecipeRecommendations } from '@/components/RecipeRecommendations';
-import PlannerScreen from './planner';
-import { MealPlanModal } from '@/components/MealPlanModal';
-import { MealDetailModal } from '@/components/MealDetailModal';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
-import { RecipeFilterType, PlannedMeal, RecipeWithAvailability } from '@/types';
-import { calculateMultipleRecipeAvailability } from '@/utils/recipeAvailability';
-import { useCoach } from '@/hooks/useCoach';
+import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useRecipeStore } from '@/hooks/useRecipeStore';
+import { RecipeCard } from '@/components/RecipeCard';
 import { ImportRecipeModal } from '@/components/ImportRecipeModal';
+import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
+import { MealDetailModal } from '@/components/MealDetailModal';
+import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
+import { RecipeProviderInitializer } from '@/components/RecipeProviderInitializer';
+import { ExternalRecipe } from '@/utils/recipeProvider';
+import { Meal } from '@/types';
 
 export default function RecipesScreen() {
-  const { inventory } = useInventory();
-  const { meals, isLoading, addMeal } = useMeals();
-  const { addPlannedMeal } = useMealPlanner();
-  const { suggestions } = useCoach();
-  const [showImport, setShowImport] = useState(false);
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<RecipeFilterType>('all');
-  const [activeTab, setActiveTab] = useState<'recipes' | 'planner'>('recipes');
-  const [showMealPlanModal, setShowMealPlanModal] = useState(false);
-  const [showRecipeDetail, setShowRecipeDetail] = useState(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<RecipeWithAvailability | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showEnhancedRecipeDetail, setShowEnhancedRecipeDetail] = useState(false);
+  // Local recipe detail modal removed temporarily (mismatch with ExternalRecipe modal)
+  const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [showMealDetail, setShowMealDetail] = useState(false);
+  const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Calculate recipe availability
-  const recipesWithAvailability = useMemo(() => {
-    return calculateMultipleRecipeAvailability(meals, inventory);
-  }, [meals, inventory]);
+  const {
+    localRecipes: recipes,
+    addLocalRecipe: addRecipe,
+    removeLocalRecipe: deleteRecipe,
+    saveExternalRecipe: addSavedRecipe,
+    searchRecipes,
+    getTrendingRecipes,
+    getRandomRecipes,
+    recipeProvider,
+  } = useRecipeStore();
 
-  const handleAddToMealPlan = (recipeId: string) => {
-    const recipe = recipesWithAvailability.find(r => r.id === recipeId);
-    if (recipe) {
-      setSelectedRecipe(recipe);
-      setShowMealPlanModal(true);
+  // Meal planner integration will be reintroduced when local modal returns
+
+  // Note: fetching is handled inside EnhancedRecipeDiscovery after provider initializes
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    if (!recipeProvider) {
+      // Avoid triggering store actions before provider is ready
+      setRefreshing(false);
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        getTrendingRecipes(),
+        // Refresh external recipes if discovery tab is active
+        ...(activeTab === 'discovery' ? [getRandomRecipes(['main course', 'healthy'], 10)] : []),
+      ]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const handleSavePlannedMeal = (plannedMeal: Omit<PlannedMeal, 'id'>) => {
-    addPlannedMeal(plannedMeal);
-    setShowMealPlanModal(false);
-    Alert.alert('Success', 'Recipe added to your meal plan!');
+  // Handle recipe press (local recipes)
+  const handleRecipePress = (recipe: Meal) => {
+    setSelectedMeal(recipe);
+    setShowMealDetail(true);
   };
 
-  const handleCloseMealPlanModal = () => {
-    setShowMealPlanModal(false);
+  // Handle external recipe press
+  const handleExternalRecipePress = (recipe: ExternalRecipe) => {
+    setSelectedExternalRecipe(recipe);
+    setShowEnhancedRecipeDetail(true);
   };
 
-  const handleRecipePress = (recipe: RecipeWithAvailability) => {
-    setSelectedRecipe(recipe);
-    setShowRecipeDetail(true);
+  // Handle save external recipe
+  const handleSaveExternalRecipe = (recipe: ExternalRecipe) => {
+    addSavedRecipe(recipe);
+    Alert.alert('Recipe Saved', `${recipe.title} has been added to your saved recipes.`);
+  };
+  
+  // (Optional) Remove-saved-recipe could be implemented in store later
+
+  // Handle add to meal plan (handled within modal if needed)
+
+  // Handle search
+  const handleSearch = async (searchParams: any) => {
+    try {
+      await searchRecipes(searchParams);
+    } catch (error) {
+      console.error('Search error:', error);
+    }
   };
 
-  const handleCloseRecipeDetail = () => {
-    setShowRecipeDetail(false);
-    setSelectedRecipe(null);
+  // Handle delete recipe
+  const handleDeleteRecipe = (recipe: Meal) => {
+    Alert.alert(
+      'Delete Recipe',
+      `Are you sure you want to delete "${recipe.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteRecipe(recipe.id);
+          },
+        },
+      ]
+    );
   };
 
-  if (isLoading) {
-    return <LoadingSpinner text="Loading recipes..." />;
-  }
+  // Handle edit recipe
+  const handleEditRecipe = (recipe: Meal) => {
+    // For now, just close the modal
+    // In the future, this could open an edit form
+    Alert.alert('Edit Recipe', 'Recipe editing will be available in a future update.');
+  };
+
+  // Render local recipes tab
+  const renderLocalRecipes = () => (
+    <View style={styles.tabContent}>
+      {recipes.length === 0 ? (
+        <Card style={styles.emptyState}>
+          <BookOpen size={48} color={Colors.lightText} />
+          <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
+          <Button
+            title="Import Recipe"
+            onPress={() => setShowImportModal(true)}
+            style={styles.importButton}
+          />
+        </Card>
+      ) : (
+        <View style={styles.recipesList}>
+          {recipes.map((recipe) => (
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              onPress={() => handleRecipePress(recipe)}
+              onEdit={() => handleEditRecipe(recipe)}
+              onDelete={() => handleDeleteRecipe(recipe)}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
+  // Render discovery tab
+  const renderDiscoveryTab = () => (
+    <EnhancedRecipeDiscovery
+      onRecipePress={handleExternalRecipePress}
+      onSaveRecipe={handleSaveExternalRecipe}
+      onSearch={handleSearch}
+    />
+  );
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: 'Recipes',
-          headerRight: () => (
-            <TouchableOpacity style={styles.headerButton} onPress={() => setShowImport(true)}>
-              <Plus size={24} color={Colors.primary} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+      {/* Recipe Provider Initializer */}
+      <RecipeProviderInitializer />
 
-      {/* Top toggle between Recipes and Planner */}
-      <View style={styles.topTabs}>
-        <TouchableOpacity style={[styles.topTab, activeTab === 'recipes' && styles.topTabActive]} onPress={() => setActiveTab('recipes')}>
-          <Text style={[styles.topTabText, activeTab === 'recipes' && styles.topTabTextActive]}>Recipes</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Sparkles size={24} color={Colors.primary} />
+          <Text style={styles.headerTitle}>Recipes</Text>
+        </View>
+        
+        <View style={styles.headerActions}>
+          <Button
+            title="Import"
+            onPress={() => setShowImportModal(true)}
+            style={styles.importButton}
+            icon={<Plus size={16} color={Colors.white} />}
+          />
+        </View>
+      </View>
+
+      {/* Tab Navigation */}
+      <View style={styles.tabNavigation}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'discovery' && styles.activeTab]}
+          onPress={() => setActiveTab('discovery')}
+        >
+          <TrendingUp size={20} color={activeTab === 'discovery' ? Colors.primary : Colors.lightText} />
+          <Text style={[styles.tabText, activeTab === 'discovery' && styles.activeTabText]}>
+            Discovery
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.topTab, activeTab === 'planner' && styles.topTabActive]} onPress={() => setActiveTab('planner')}>
-          <Text style={[styles.topTabText, activeTab === 'planner' && styles.topTabTextActive]}>Planner</Text>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'local' && styles.activeTab]}
+          onPress={() => setActiveTab('local')}
+        >
+          <BookOpen size={20} color={activeTab === 'local' ? Colors.primary : Colors.lightText} />
+          <Text style={[styles.tabText, activeTab === 'local' && styles.activeTabText]}>
+            My Recipes
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {activeTab === 'recipes' ? (
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* AI Picks Header */}
-        {suggestions.length > 0 && (
-          <Card style={styles.aiCard}>
-            <View style={styles.aiHeader}>
-              <Sparkles size={18} color={Colors.primary} />
-              <Text style={styles.aiTitle}>Best right now</Text>
-            </View>
-            {suggestions.filter(s => s.type === 'primary_meal').slice(0, 1).map(s => (
-              <View key={s.id} style={styles.aiSuggestion}>
-                <Text style={styles.aiRecipeName}>{s.recipe?.name}</Text>
-                <Text style={styles.aiSub}>{s.subtitle}</Text>
-                <View style={styles.aiMetaRow}>
-                  {!!s.meta?.readyInMins && (
-                    <Text style={styles.aiMetaChip}>{s.meta.readyInMins} mins</Text>
-                  )}
-                  {!!s.meta?.highlight && (
-                    <Text style={[styles.aiMetaChip, styles.aiHighlight]}>{s.meta.highlight}</Text>
-                  )}
-                  {typeof s.meta?.missingCount === 'number' && s.meta.missingCount > 0 && (
-                    <Text style={[styles.aiMetaChip, styles.aiMissing]}>Missing {s.meta.missingCount}</Text>
-                  )}
-                </View>
-                <View style={styles.aiActions}>
-                  <Button
-                    title="Add to Planner"
-                    size="sm"
-                    onPress={() => {
-                      if (s.recipe) {
-                        addPlannedMeal({ recipeId: s.recipe.id, date: new Date().toISOString().split('T')[0], mealType: 'dinner', servings: 1, isCompleted: false });
-                        Alert.alert('Added', 'Added to today\'s planner.');
-                      }
-                    }}
-                  />
-                </View>
-              </View>
-            ))}
-            <View style={styles.aiChips}>
-              {['Can make now', '<20 min', 'Use up spinach', 'High protein'].map((c) => (
-                <View key={c} style={styles.aiChip}><Text style={styles.aiChipText}>{c}</Text></View>
-              ))}
-            </View>
-          </Card>
-        )}
-        {/* Search and Filter Section */}
-        <Card style={styles.searchCard}>
-          <Input
-            placeholder="Search recipes..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon={<Search size={20} color={Colors.lightText} />}
-            style={styles.searchInput}
-          />
-
-          <View style={styles.filterContainer}>
-            <Button
-              title="All Recipes"
-              onPress={() => setFilterType('all')}
-              variant={filterType === 'all' ? 'primary' : 'outline'}
-              size="sm"
-              style={styles.filterButton}
-            />
-
-            <Button
-              title="Can Make Now"
-              onPress={() => setFilterType('canMakeNow')}
-              variant={filterType === 'canMakeNow' ? 'primary' : 'outline'}
-              size="sm"
-              style={styles.filterButton}
-            />
-
-            <Button
-              title="Missing Few"
-              onPress={() => setFilterType('missingFew')}
-              variant={filterType === 'missingFew' ? 'primary' : 'outline'}
-              size="sm"
-              style={styles.filterButton}
-            />
-          </View>
-        </Card>
-
-        {/* Recipe Recommendations */}
-        <RecipeRecommendations
-          recipesWithAvailability={recipesWithAvailability}
-          onAddToMealPlan={handleAddToMealPlan}
-          onRecipePress={handleRecipePress}
-        />
-
-        {/* Recipe Explorer */}
-        <RecipeExplorer
-          recipesWithAvailability={recipesWithAvailability}
-          searchQuery={searchQuery}
-          filterType={filterType}
-          onAddToMealPlan={handleAddToMealPlan}
-          onRecipePress={handleRecipePress}
-        />
+      {/* Tab Content */}
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {activeTab === 'discovery' ? renderDiscoveryTab() : renderLocalRecipes()}
       </ScrollView>
-      ) : (
-        <View style={{ flex: 1 }}>
-          <PlannerScreen />
-        </View>
-      )}
-
-      {/* Recipe Detail Modal */}
-      <MealDetailModal
-        visible={showRecipeDetail}
-        meal={selectedRecipe}
-        availability={selectedRecipe?.availability}
-        onClose={handleCloseRecipeDetail}
-      />
-
-      {/* Meal Plan Modal */}
-      <MealPlanModal
-        visible={showMealPlanModal}
-        selectedDate={new Date().toISOString().split('T')[0]}
-        onSave={handleSavePlannedMeal}
-        onClose={handleCloseMealPlanModal}
-      />
 
       {/* Import Recipe Modal */}
       <ImportRecipeModal
-        visible={showImport}
-        onClose={() => setShowImport(false)}
-        onSave={(meal) => addMeal(meal)}
+        visible={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSave={(recipe) => {
+          addRecipe(recipe);
+          setShowImportModal(false);
+          Alert.alert('Recipe Imported', `${recipe.name} has been successfully imported!`);
+        }}
       />
+
+      {/* Local Recipe Detail Modal */}
+      {selectedMeal && (
+        <MealDetailModal
+          visible={showMealDetail}
+          meal={selectedMeal}
+          onClose={() => {
+            setShowMealDetail(false);
+            setSelectedMeal(null);
+          }}
+        />
+      )}
+
+      {/* Enhanced External Recipe Detail Modal */}
+      {selectedExternalRecipe && (
+        <EnhancedRecipeDetailModal
+          recipe={selectedExternalRecipe!}
+          visible={showEnhancedRecipeDetail}
+          onClose={() => {
+            setShowEnhancedRecipeDetail(false);
+            setSelectedExternalRecipe(null);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -237,49 +261,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  headerButton: {
-    padding: Spacing.sm,
-    marginRight: Spacing.sm,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  topTabs: { flexDirection: 'row', marginHorizontal: Spacing.lg, marginTop: Spacing.lg, marginBottom: Spacing.md, backgroundColor: Colors.white, borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
-  topTab: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: 10 },
-  topTabActive: { backgroundColor: Colors.primary + '20' },
-  topTabText: { color: Colors.lightText, fontWeight: '600' },
-  topTabTextActive: { color: Colors.primary },
-  aiCard: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  aiHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-  aiTitle: { marginLeft: Spacing.sm, color: Colors.text, fontWeight: '600' },
-  aiSuggestion: { marginTop: Spacing.xs },
-  aiRecipeName: { fontSize: 16, fontWeight: '600', color: Colors.text },
-  aiSub: { color: Colors.lightText, marginTop: 2 },
-  aiMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
-  aiMetaChip: { backgroundColor: Colors.tabBackground, color: Colors.text, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: Typography.sizes.sm },
-  aiHighlight: { backgroundColor: Colors.secondary, color: Colors.white },
-  aiMissing: { backgroundColor: Colors.expiring, color: Colors.white },
-  aiActions: { flexDirection: 'row', marginTop: Spacing.sm },
-  aiChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
-  aiChip: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
-  aiChipText: { color: Colors.text, fontSize: Typography.sizes.sm },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  importButton: {
+    paddingHorizontal: Spacing.md,
+  },
+  tabNavigation: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: Colors.primary + '10',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.lightText,
+  },
+  activeTabText: {
+    color: Colors.primary,
+  },
   content: {
     flex: 1,
   },
-  searchCard: {
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
+  tabContent: {
+    padding: Spacing.lg,
   },
-  searchInput: {
-    marginBottom: Spacing.md,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+    gap: Spacing.lg,
   },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  },
-  filterButton: {
-    flex: 0,
-    minWidth: 100,
+  recipesList: {
+    gap: Spacing.md,
   },
 });

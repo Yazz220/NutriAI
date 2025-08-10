@@ -2,20 +2,24 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Meal } from '@/types';
 import { Colors } from '@/constants/colors';
-import { Clock, Users } from 'lucide-react-native';
+import { Clock, Users, Edit, Trash2 } from 'lucide-react-native';
 
 interface MealCardProps {
   meal: Meal;
   available: boolean;
   missingIngredientsCount?: number;
   onPress?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export const MealCard: React.FC<MealCardProps> = ({ 
   meal, 
   available, 
   missingIngredientsCount = 0,
-  onPress 
+  onPress,
+  onEdit,
+  onDelete
 }) => {
   const totalTime = meal.prepTime + meal.cookTime;
   
@@ -61,6 +65,20 @@ export const MealCard: React.FC<MealCardProps> = ({
           <Text style={styles.availableText}>Ready to Cook</Text>
         </View>
       )}
+      
+      {/* Action buttons */}
+      <View style={styles.actionButtons}>
+        {onEdit && (
+          <TouchableOpacity style={styles.actionButton} onPress={onEdit}>
+            <Edit size={16} color={Colors.primary} />
+          </TouchableOpacity>
+        )}
+        {onDelete && (
+          <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
+            <Trash2 size={16} color={Colors.danger} />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -136,5 +154,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.white,
     fontWeight: '500',
-  }
+  },
+  actionButtons: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
 });

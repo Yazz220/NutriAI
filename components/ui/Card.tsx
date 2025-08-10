@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, Text } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Shadows } from '@/constants/spacing';
 
@@ -24,7 +24,19 @@ export const Card: React.FC<CardProps> = ({
     style,
   ];
 
-  return <View style={cardStyle}>{children}</View>;
+  // Normalize children: wrap raw string nodes in <Text> to avoid RN error
+  const normalizedChildren = React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      if (__DEV__) {
+        // Help identify source during development
+        console.warn('[Card] Received raw string child; wrapping in <Text>:', JSON.stringify(child));
+      }
+      return <Text>{child}</Text>;
+    }
+    return child as React.ReactNode;
+  });
+
+  return <View style={cardStyle}>{normalizedChildren}</View>;
 };
 
 const styles = StyleSheet.create({
