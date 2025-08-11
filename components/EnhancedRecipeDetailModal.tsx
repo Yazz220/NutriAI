@@ -47,7 +47,7 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
 
-  const { addLocalRecipe, removeLocalRecipe, localRecipes, recipeProvider } = useRecipeStore();
+  const { saveExternalRecipe, removeLocalRecipe, localRecipes, recipeProvider } = useRecipeStore();
 
   // Load recipe details when modal opens
   useEffect(() => {
@@ -59,7 +59,8 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   // Check if recipe is saved
   useEffect(() => {
     if (recipe && localRecipes) {
-      setIsSaved(localRecipes.some(saved => saved.id === recipe.id.toString()));
+      const matched = localRecipes.find((saved: any) => saved?.externalData?.externalId === recipe.id);
+      setIsSaved(!!matched);
     }
   }, [recipe, localRecipes]);
 
@@ -86,35 +87,9 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   };
 
   const handleSaveRecipe = async () => {
-    if (!recipe || !recipeDetails) return;
-    
+    if (!recipe) return;
     try {
-      // Convert external recipe to local recipe format
-      const localRecipe: Meal = {
-        id: recipe.id.toString(),
-        name: recipe.title,
-        description: recipeDetails.instructions || recipe.title,
-        ingredients: recipeDetails.ingredients?.map((ing: any) => ({
-          name: ing.name,
-          quantity: ing.amount,
-          unit: ing.unit,
-          optional: false,
-        })) || [],
-        steps: recipeDetails.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step) || [],
-        prepTime: recipeDetails.preparationMinutes || 0,
-        cookTime: recipeDetails.cookingMinutes || 0,
-        servings: recipeDetails.servings || 4,
-        tags: [...(recipeDetails.cuisines || []), ...(recipeDetails.dishTypes || [])],
-        imageUrl: recipe.image,
-        nutritionPerServing: {
-          calories: recipeDetails.nutrition?.nutrients?.find((n: any) => n.name === 'Calories')?.amount || 0,
-          protein: recipeDetails.nutrition?.nutrients?.find((n: any) => n.name === 'Protein')?.amount || 0,
-          carbs: recipeDetails.nutrition?.nutrients?.find((n: any) => n.name === 'Carbohydrates')?.amount || 0,
-          fats: recipeDetails.nutrition?.nutrients?.find((n: any) => n.name === 'Total Fat')?.amount || 0,
-        },
-      };
-      
-      await addLocalRecipe(localRecipe);
+      await saveExternalRecipe(recipe);
       setIsSaved(true);
       Alert.alert('Success', 'Recipe saved to your collection!');
     } catch (error) {
@@ -125,11 +100,13 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
 
   const handleRemoveRecipe = async () => {
     if (!recipe) return;
-    
     try {
-      await removeLocalRecipe(recipe.id.toString());
-      setIsSaved(false);
-      Alert.alert('Success', 'Recipe removed from your collection!');
+      const matched = localRecipes.find((saved: any) => saved?.externalData?.externalId === recipe.id);
+      if (matched) {
+        await removeLocalRecipe(matched.id);
+        setIsSaved(false);
+        Alert.alert('Success', 'Recipe removed from your collection!');
+      }
     } catch (error) {
       console.error('Error removing recipe:', error);
       Alert.alert('Error', 'Failed to remove recipe');
@@ -176,25 +153,31 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
             <>
               {/* Recipe Stats */}
               <View style={styles.statsContainer}>
-                {recipeDetails?.readyInMinutes && (
-                  <View style={styles.stat}>
-                    <Clock size={16} color={Colors.primary} />
-                    <Text style={styles.statText}>{recipeDetails.readyInMinutes} min</Text>
-                  </View>
-                )}
-                {recipeDetails?.servings && (
-                  <View style={styles.stat}>
-                    <Users size={16} color={Colors.primary} />
-                    <Text style={styles.statText}>{recipeDetails.servings} servings</Text>
-                  </View>
-                )}
-                {recipeDetails?.aggregateLikes && (
+                {(() => {
+                  const mins = (recipeDetails?.readyInMinutes ?? recipe.readyInMinutes ?? 0);
+                  return mins > 0 ? (
+                    <View style={styles.stat}>
+                      <Clock size={16} color={Colors.primary} />
+                      <Text style={styles.statText}>{mins} min</Text>
+                    </View>
+                  ) : null;
+                })()}
+                {(() => {
+                  const sv = (recipeDetails?.servings ?? recipe.servings ?? 0);
+                  return sv > 0 ? (
+                    <View style={styles.stat}>
+                      <Users size={16} color={Colors.primary} />
+                      <Text style={styles.statText}>{sv} servings</Text>
+                    </View>
+                  ) : null;
+                })()}
+                {typeof recipeDetails?.aggregateLikes === 'number' && (
                   <View style={styles.stat}>
                     <Heart size={16} color={Colors.primary} />
                     <Text style={styles.statText}>{recipeDetails.aggregateLikes} likes</Text>
                   </View>
                 )}
-                {recipeDetails?.spoonacularScore && (
+                {typeof recipeDetails?.spoonacularScore === 'number' && (
                   <View style={styles.stat}>
                     <Star size={16} color={Colors.primary} />
                     <Text style={styles.statText}>{Math.round(recipeDetails.spoonacularScore)}%</Text>
@@ -231,20 +214,20 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
               </View>
 
               {/* Recipe Summary */}
-              {recipeDetails?.instructions && (
+              {(recipeDetails?.instructions || recipe.instructions) && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Summary</Text>
                   <Text style={styles.summaryText}>
-                    {recipeDetails.instructions.replace(/<[^>]*>/g, '')}
+                    {(recipeDetails?.instructions || recipe.instructions || '').replace(/<[^>]*>/g, '')}
                   </Text>
                 </View>
               )}
 
               {/* Ingredients */}
-              {recipeDetails?.ingredients && recipeDetails.ingredients.length > 0 && (
+              {(recipeDetails?.ingredients?.length || recipe.ingredients?.length) ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Ingredients</Text>
-                  {recipeDetails.ingredients.map((ingredient: any, index: number) => (
+                  {(recipeDetails?.ingredients || recipe.ingredients || []).map((ingredient: any, index: number) => (
                     <View key={index} style={styles.ingredientItem}>
                       <Text style={styles.ingredientText}>
                         • {ingredient.original}
@@ -252,20 +235,25 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                     </View>
                   ))}
                 </View>
-              )}
+              ) : null}
 
               {/* Instructions */}
-              {recipeDetails?.analyzedInstructions && recipeDetails.analyzedInstructions.length > 0 && (
+              {(recipeDetails?.analyzedInstructions?.length || recipe.analyzedInstructions?.length || recipe.instructions) ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Instructions</Text>
-                  {recipeDetails.analyzedInstructions[0].steps.map((step: any, index: number) => (
-                    <View key={index} style={styles.instructionStep}>
-                      <Text style={styles.stepNumber}>{index + 1}</Text>
-                      <Text style={styles.instructionText}>{step.step}</Text>
-                    </View>
-                  ))}
+                  {(() => {
+                    const steps: string[] = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
+                      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
+                      || (recipeDetails?.instructions || recipe.instructions || '').split('\n').filter(Boolean);
+                    return steps.map((step: string, index: number) => (
+                      <View key={index} style={styles.instructionStep}>
+                        <Text style={styles.stepNumber}>{index + 1}</Text>
+                        <Text style={styles.instructionText}>{step}</Text>
+                      </View>
+                    ));
+                  })()}
                 </View>
-              )}
+              ) : null}
 
               {/* Nutrition Info */}
               {recipeDetails?.nutrition?.nutrients && (

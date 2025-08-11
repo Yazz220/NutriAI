@@ -358,9 +358,23 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   }, [state.localRecipes, state.externalRecipes]);
 
   const getRecipesWithAvailability = useCallback((inventory: any[]): RecipeWithAvailability[] => {
-    const allRecipes = getAllRecipes();
+    // Normalize to Meal objects: include local meals and convert externals to minimal Meal shape
+    const externalAsMeals: Meal[] = state.externalRecipes.map((er: any) => ({
+      id: String(er.id),
+      name: er.title ?? String(er.id),
+      description: er.summary ?? er.title ?? '',
+      ingredients: Array.isArray(er.ingredients) ? er.ingredients : [],
+      steps: Array.isArray(er.analyzedInstructions) ? er.analyzedInstructions : [],
+      image: er.image ?? undefined,
+      tags: Array.isArray(er.cuisines) ? er.cuisines : (Array.isArray(er.dishTypes) ? er.dishTypes : []),
+      prepTime: typeof er.readyInMinutes === 'number' ? er.readyInMinutes : 0,
+      cookTime: 0,
+      servings: typeof er.servings === 'number' ? er.servings : 1,
+    } as Meal));
+
+    const allRecipes: Meal[] = [...state.localRecipes, ...externalAsMeals];
     
-    return allRecipes.map(recipe => {
+    return allRecipes.map((recipe: Meal) => {
       // Handle both Meal and ExternalRecipe types; default to empty list
       const ingredients = 'ingredients' in recipe ? (recipe.ingredients ?? []) : [];
       const ingredientsArr: any[] = Array.isArray(ingredients) ? ingredients : [];
@@ -382,7 +396,7 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
       return {
         ...recipe,
         availability: {
-          recipeId: recipe.id,
+          recipeId: String((recipe as any).id),
           availableIngredients: ingredientsArr.length - missingCount,
           totalIngredients: ingredientsArr.length,
           availabilityPercentage: Math.round(((ingredientsArr.length - missingCount) / Math.max(ingredientsArr.length, 1)) * 100),

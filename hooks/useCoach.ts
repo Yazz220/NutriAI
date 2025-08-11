@@ -78,8 +78,8 @@ export function useCoach() {
         if (a.availability.availabilityPercentage !== b.availability.availabilityPercentage) {
           return b.availability.availabilityPercentage - a.availability.availabilityPercentage;
         }
-        const aPrep = 'prepTime' in a ? a.prepTime : 0;
-        const bPrep = 'prepTime' in b ? b.prepTime : 0;
+        const aPrep = typeof (a as any).prepTime === 'number' ? (a as any).prepTime : 0;
+        const bPrep = typeof (b as any).prepTime === 'number' ? (b as any).prepTime : 0;
         return aPrep - bPrep;
       });
 

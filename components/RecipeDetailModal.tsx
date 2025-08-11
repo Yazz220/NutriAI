@@ -97,7 +97,8 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} onClose={onClose} style={styles.modal}>
+    <Modal visible={visible} onClose={onClose} title="" showCloseButton={false}>
+      <View style={styles.modal}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recipe Details</Text>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -363,6 +364,7 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
             <Text style={styles.secondaryButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
+      </View>
       </View>
     </Modal>
   );

@@ -90,9 +90,16 @@ export const RecipeSearch: React.FC<RecipeSearchProps> = ({
   };
 
   // Check if there are active filters
-  const hasActiveFilters = () => {
-    return filters.cuisine || filters.diet || filters.intolerances?.length || 
-           filters.maxReadyTime || filters.minProtein || filters.maxCalories || filters.type;
+  const hasActiveFilters = (): boolean => {
+    return !!(
+      (filters.cuisine && filters.cuisine.length > 0) ||
+      (filters.diet && filters.diet.length > 0) ||
+      (filters.intolerances && filters.intolerances.length > 0) ||
+      (typeof filters.maxReadyTime === 'number' && filters.maxReadyTime > 0) ||
+      (typeof filters.minProtein === 'number' && filters.minProtein > 0) ||
+      (typeof filters.maxCalories === 'number' && filters.maxCalories > 0) ||
+      (filters.type && filters.type.length > 0)
+    );
   };
 
   // Clear all filters

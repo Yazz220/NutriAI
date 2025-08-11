@@ -50,6 +50,9 @@ export interface RecipeSearchParams {
   addRecipeNutrition?: boolean;
   offset?: number;
   number?: number;
+  // Optional sorting (Spoonacular supports sort & sortDirection)
+  sort?: 'popularity' | 'healthiness' | 'time' | 'calories';
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface ExternalRecipe {
@@ -249,6 +252,8 @@ export class RecipeProviderService {
       if (params.minProtein) queryParams.append('minProtein', params.minProtein.toString());
       if (params.maxCalories) queryParams.append('maxCalories', params.maxCalories.toString());
       if (params.type) queryParams.append('type', params.type);
+      if (params.sort) queryParams.append('sort', params.sort);
+      if (params.sortDirection) queryParams.append('sortDirection', params.sortDirection);
       
       // Always include these for better data
       queryParams.append('addRecipeInformation', 'true');

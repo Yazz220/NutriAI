@@ -40,6 +40,18 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: 8,
   },
+  calendarCard: {
+    backgroundColor: Colors.white,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   content: {
     flex: 1,
   },
@@ -190,7 +202,7 @@ export default function PlannerScreen() {
         options={{
           title: 'Meal Planner',
           headerRight: () => (
-            <TouchableOpacity style={styles.headerButton} onPress={handleAddMeal}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => handleAddMeal()}>
               <Plus size={24} color={Colors.primary} />
             </TouchableOpacity>
           ),
@@ -222,7 +234,7 @@ export default function PlannerScreen() {
           </View>
           
           <View style={styles.quickActionsContainer}>
-            <TouchableOpacity style={styles.quickActionButton} onPress={handleAddMeal}>
+            <TouchableOpacity style={styles.quickActionButton} onPress={() => handleAddMeal()}>
               <Plus size={16} color={Colors.white} />
               <Text style={styles.quickActionText}>Add Meal</Text>
             </TouchableOpacity>

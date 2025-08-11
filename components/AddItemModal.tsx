@@ -341,7 +341,6 @@ const styles = StyleSheet.create({
   webPicker: {
     width: '100%',
     height: 46,
-    border: 'none',
     fontSize: Typography.sizes.md,
     paddingLeft: Spacing.md,
     color: Colors.text,

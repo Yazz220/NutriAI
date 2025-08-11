@@ -24,11 +24,17 @@ const initialMeals: Meal[] = [
       'Add soy sauce and mix well',
       'Serve over rice'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?q=80&w=2072&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?q=80&w=2072&auto=format&fit=crop',
     tags: ['quick', 'healthy', 'dinner'],
     prepTime: 15,
     cookTime: 20,
-    servings: 2
+    servings: 2,
+    nutritionPerServing: {
+      calories: 420,
+      protein: 35,
+      carbs: 45,
+      fats: 12
+    }
   },
   {
     id: '2',
@@ -49,11 +55,17 @@ const initialMeals: Meal[] = [
       'Combine all ingredients in a bowl',
       'Toss with dressing and serve'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop',
     tags: ['salad', 'healthy', 'quick', 'vegetarian'],
     prepTime: 10,
     cookTime: 0,
-    servings: 2
+    servings: 2,
+    nutritionPerServing: {
+      calories: 180,
+      protein: 4,
+      carbs: 22,
+      fats: 10
+    }
   },
   {
     id: '3',
@@ -74,11 +86,17 @@ const initialMeals: Meal[] = [
       'Toast bread and butter it',
       'Serve eggs over toast'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=2080&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=2080&auto=format&fit=crop',
     tags: ['breakfast', 'quick', 'vegetarian'],
     prepTime: 5,
     cookTime: 5,
-    servings: 1
+    servings: 1,
+    nutritionPerServing: {
+      calories: 320,
+      protein: 18,
+      carbs: 28,
+      fats: 16
+    }
   }
 ];
 

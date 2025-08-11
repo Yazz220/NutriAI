@@ -40,6 +40,58 @@ export default function SignInScreen() {
     }
   };
 
+  const onMagicLink = async () => {
+    setError(null);
+    if (!email) {
+      setError('Please enter your email to receive a magic link');
+      return;
+    }
+    setLoading(true);
+    try {
+      const redirectTo = process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL;
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+      if (authError) throw authError;
+      Alert.alert('Check your email', 'We sent you a magic sign-in link.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send magic link';
+      setError(msg);
+      Alert.alert('Magic link error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onOAuthGoogle = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const redirectTo = process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL;
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+        },
+      });
+      if (authError) throw authError;
+      // On native, this will open the browser to complete OAuth; session change handled on return
+      if (data?.url) {
+        // No-op; Supabase handles the URL opening in-app when necessary
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google sign-in failed';
+      setError(msg);
+      Alert.alert('OAuth error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onGuest = async () => {
     setError(null);
     setLoading(true);
@@ -90,6 +142,14 @@ export default function SignInScreen() {
 
       <TouchableOpacity style={styles.button} onPress={onSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.secondaryButton} onPress={onMagicLink} disabled={loading}>
+        <Text style={styles.secondaryText}>Send magic link</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.oauthButton} onPress={onOAuthGoogle} disabled={loading}>
+        <Text style={styles.oauthText}>Continue with Google</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.guestButton} onPress={onGuest} disabled={loading}>
@@ -162,6 +222,30 @@ const styles = StyleSheet.create({
   },
   guestText: {
     color: Colors.text,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.card,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  secondaryText: {
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  oauthButton: {
+    marginTop: Spacing.md,
+    backgroundColor: '#4285F4',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  oauthText: {
+    color: Colors.white,
     fontWeight: '600',
   },
   footer: {

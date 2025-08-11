@@ -26,6 +26,8 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
     getFreshnessStatus(item.expiryDate), 
     [getFreshnessStatus, item.expiryDate]
   );
+  const indicatorStatus: 'fresh' | 'aging' | 'expiring' =
+    freshnessStatus === 'untracked' ? 'aging' : freshnessStatus;
 
   // Animate card entrance
   useEffect(() => {
@@ -83,7 +85,7 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
           <View style={[styles.image, styles.placeholderImage]} />
         )}
         <View style={styles.freshnessContainer}>
-          <FreshnessIndicator status={freshnessStatus} />
+          <FreshnessIndicator status={indicatorStatus} />
         </View>
       </View>
       

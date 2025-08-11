@@ -30,7 +30,7 @@ export const MealCard: React.FC<MealCardProps> = ({
       testID={`meal-card-${meal.id}`}
     >
       <Image 
-        source={{ uri: meal.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c' }} 
+        source={{ uri: meal.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c' }} 
         style={styles.image} 
         resizeMode="cover"
       />

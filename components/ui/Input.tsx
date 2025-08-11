@@ -37,14 +37,14 @@ export const Input: React.FC<InputProps> = ({
 
   const inputContainerStyle = [
     styles.inputContainer,
-    isFocused && styles.inputContainerFocused,
-    error && styles.inputContainerError,
+    ...(isFocused ? [styles.inputContainerFocused] : []),
+    ...(error ? [styles.inputContainerError] : []),
   ];
 
   const inputStyle = [
     styles.input,
-    leftIcon && styles.inputWithLeftIcon,
-    (rightIcon || secureTextEntry) && styles.inputWithRightIcon,
+    ...(leftIcon ? [styles.inputWithLeftIcon] : []),
+    ...((rightIcon || secureTextEntry) ? [styles.inputWithRightIcon] : []),
     style,
   ];
 

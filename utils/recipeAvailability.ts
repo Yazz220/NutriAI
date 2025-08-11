@@ -85,15 +85,16 @@ export const calculateRecipeAvailability = (
   recipe: Recipe | Meal,
   inventory: InventoryItem[]
 ): RecipeAvailability => {
-  const ingredients = 'ingredients' in recipe ? recipe.ingredients : [];
-  const totalIngredients = ingredients.filter(ing => !ing.optional).length;
+  const ingredients: any[] = 'ingredients' in recipe ? ((recipe as any).ingredients ?? []) : [];
+  const totalIngredients = ingredients.filter(ing => !('optional' in ing) || !ing.optional).length;
+  
   let availableIngredients = 0;
   const missingIngredients: MealIngredient[] = [];
   const expiringIngredients: MealIngredient[] = [];
   
   // Check each required ingredient
-  ingredients.forEach(ingredient => {
-    if (ingredient.optional) return;
+  ingredients.forEach((ingredient: any) => {
+    if ('optional' in ingredient && ingredient.optional) return;
     
     // Find matching inventory item
     const inventoryItem = inventory.find(item => 
@@ -153,7 +154,7 @@ export const calculateRecipeAvailability = (
     : 100;
   
   return {
-    recipeId: recipe.id,
+    recipeId: String((recipe as any).id),
     availableIngredients,
     totalIngredients,
     availabilityPercentage,
@@ -195,8 +196,8 @@ export const sortRecipesByAvailability = (
         return b.availability.availabilityPercentage - a.availability.availabilityPercentage;
       
       case 'prepTime':
-        const aPrepTime = 'prepTime' in a ? a.prepTime : parseInt(a.prepTime?.replace(/\D/g, '') || '0');
-        const bPrepTime = 'prepTime' in b ? b.prepTime : parseInt(b.prepTime?.replace(/\D/g, '') || '0');
+        const aPrepTime = typeof (a as any).prepTime === 'number' ? (a as any).prepTime : 0;
+        const bPrepTime = typeof (b as any).prepTime === 'number' ? (b as any).prepTime : 0;
         return aPrepTime - bPrepTime;
       
       case 'name':

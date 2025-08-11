@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Animated,
   TextInput,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { Plus, AlertCircle, Camera as IconCamera, Barcode } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
@@ -226,6 +226,7 @@ export default function InventoryScreen() {
   const { expiring } = useInventoryByFreshness();
   const { addItem: addToShoppingList } = useShoppingList();
   const { showToast } = useToast();
+  const params = useLocalSearchParams<{ category?: string }>();
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -242,6 +243,7 @@ export default function InventoryScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<ItemCategory | 'Other' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -256,6 +258,19 @@ export default function InventoryScreen() {
       setIsRefreshing(false);
     }
   };
+
+  // Apply category filter from route param on first mount
+  useEffect(() => {
+    const cat = params?.category;
+    if (cat && typeof cat === 'string') {
+      // Narrow to known categories else treat as Other
+      const known = ['Produce','Dairy','Meat','Seafood','Frozen','Pantry','Bakery','Beverages','Other'] as const;
+      const asKnown = known.find(k => k.toLowerCase() === cat.toLowerCase());
+      setCategoryFilter((asKnown as ItemCategory | 'Other') ?? 'Other');
+    }
+  // run only on first render for drill-in behavior
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUseItem = async (item: InventoryItem) => {
     try {
@@ -377,10 +392,12 @@ export default function InventoryScreen() {
   
 
   const filteredInventory = useMemo(() => {
-    return inventory.filter(item => 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [inventory, searchQuery]);
+    return inventory.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = categoryFilter ? (item.category || 'Other') === categoryFilter : true;
+      return matchesSearch && matchesCategory;
+    });
+  }, [inventory, searchQuery, categoryFilter]);
 
   const groupedInventory = useMemo(() => {
     const grouped = filteredInventory.reduce((acc, item) => {
@@ -572,6 +589,22 @@ export default function InventoryScreen() {
     </View>
   );
 
+  // Optional active filter pill (shown above list when filter is active)
+  const FilterPill = () => (
+    categoryFilter ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8 }}>
+        <Text style={{ color: Colors.lightText, marginRight: 8 }}>Filter:</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.secondary, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 }}>
+          <Text style={{ color: Colors.text, fontWeight: '600' }}>{categoryFilter}</Text>
+          <TouchableOpacity onPress={() => setCategoryFilter(null)} style={{ marginLeft: 8 }}>
+            <Text style={{ color: Colors.primary, fontWeight: '600' }}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : null
+  );
+
+  // Main render
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -616,39 +649,45 @@ export default function InventoryScreen() {
         </Card>
       )}
 
-      <SectionList
-        sections={groupedInventory}
-        keyExtractor={(item) => `section-${item.id}`}
-        renderItem={({ item }) => (
-          <View style={styles.itemCardContainer}>
-            <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
-          </View>
-        )}
-        renderSectionHeader={({ section: { title } }) => (
-          <Text style={styles.sectionHeader}>{title}</Text>
-        )}
-        ListEmptyComponent={renderEmptyComponent}
-        contentContainerStyle={styles.sectionListContent}
+      <ScrollView
+        style={styles.container}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-      />
+      >
+        <FilterPill />
 
-      <View style={styles.quickAddContainer}>
-        {isQuickAddExpanded && (
-          <View>
-            <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
-              <Barcode size={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>Scan Barcode</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
-              <IconCamera size={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>Use Camera</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        <TouchableOpacity style={styles.quickAddButton} onPress={() => setQuickAddExpanded(!isQuickAddExpanded)}>
-          <Plus size={24} color={Colors.white} />
-        </TouchableOpacity>
-      </View>
+        <SectionList
+          sections={groupedInventory}
+          keyExtractor={(item) => `section-${item.id}`}
+          renderItem={({ item }) => (
+            <View style={styles.itemCardContainer}>
+              <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
+            </View>
+          )}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionHeader}>{title}</Text>
+          )}
+          ListEmptyComponent={renderEmptyComponent}
+          contentContainerStyle={styles.sectionListContent}
+        />
+
+        <View style={styles.quickAddContainer}>
+          {isQuickAddExpanded && (
+            <View>
+              <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
+                <Barcode size={20} color={Colors.primary} />
+                <Text style={styles.quickAddText}>Scan Barcode</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
+                <IconCamera size={20} color={Colors.primary} />
+                <Text style={styles.quickAddText}>Use Camera</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <TouchableOpacity style={styles.quickAddButton} onPress={() => setQuickAddExpanded(!isQuickAddExpanded)}>
+            <Plus size={24} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }

@@ -6,7 +6,7 @@ import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { calculateMultipleRecipeAvailability, getRecipesUsingExpiringIngredients } from '@/utils/recipeAvailability';
 import { Meal, PlannedMeal, RecipeWithAvailability } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
-import { createChatCompletion, createChatCompletionStream } from '@/utils/aiClient';
+import { aiChat, ChatMessage as ApiChatMessage, AiContext } from '@/utils/aiClient';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNutrition } from '@/hooks/useNutrition';
 import { buildAIContext } from '@/utils/aiContext';
@@ -122,63 +122,41 @@ export function useCoachChat() {
       generateListFromPlanner();
       return;
     }
-    // Default -> Ask AI (OpenRouter)
+    // Default -> Ask AI via Supabase Edge Function
     try {
-      // If AI isn't configured, short-circuit to built-in message once
-      const hasProxy = !!process.env.EXPO_PUBLIC_AI_PROXY_BASE;
-      const hasKey = !!process.env.EXPO_PUBLIC_AI_API_KEY;
-      if (!hasProxy && !hasKey) {
-        pushCoach({
-          text: "AI isn't configured yet. Add EXPO_PUBLIC_AI_API_KEY (or set EXPO_PUBLIC_AI_PROXY_BASE) to enable AI replies.",
-          summary: "Using built-in suggestions until AI is configured.",
-          source: 'builtin',
-        });
-        showToast({ message: 'AI key missing. Using built-in suggestions.', type: 'info' });
-        return;
-      }
-      const topInventory = inventory.slice(0, 8).map(i => `${i.name}${i.expiryDate ? ` (exp ${i.expiryDate})` : ''}`);
-      const topRecipes = recipesWithAvailability.slice(0, 5).map(r => {
-        const miss = r.availability.missingIngredients.length;
-        const exp = r.availability.expiringIngredients.length;
-        return `${r.name || 'Recipe'} — avail:${r.availability.availabilityPercentage}% miss:${miss}${exp ? ` exp:${exp}` : ''}`;
-      });
-      const plannedSummary = plannedMeals.slice(0, 5).map(pm => `${pm.date} ${pm.mealType}: ${pm.recipeId}`);
-
-      const contextStr = buildAIContext({ profile, todayTotals, last7Days, goals, inventoryCount: inventory.length });
-      const system = {
-        role: 'system' as const,
-        content: buildStructuredSystemPrompt(contextStr),
-      };
-      const user = {
-        role: 'user' as const,
-        content: [
-          `User question: ${text}`,
-          '',
-          'Context:',
-          `- Inventory (sample): ${topInventory.join(', ') || 'n/a'}`,
-          `- Recipes (sample): ${topRecipes.join(' | ') || 'n/a'}`,
-          `- Planned meals (sample): ${plannedSummary.join(' | ') || 'n/a'}`,
-        ].join('\n'),
+      // Build context for Edge Function
+      const ctx: AiContext = {
+        profile: profile ? {
+          display_name: profile.basics?.name,
+          units: profile.metrics?.unitSystem,
+          goals: (profile.goals as unknown as Record<string, unknown>) ?? {},
+          preferences: (profile.preferences as unknown as Record<string, unknown>) ?? {},
+        } : null,
+        inventory: inventory.slice(0, 100).map(i => ({
+          id: String(i.id),
+          name: i.name,
+          quantity: i.quantity,
+          unit: i.unit,
+          category: i.category,
+          expiryDate: i.expiryDate ?? null,
+        })),
+        plannedMeals: plannedMeals.slice(0, 100).map(pm => ({
+          id: pm.id,
+          recipeId: pm.recipeId,
+          date: pm.date,
+          mealType: pm.mealType,
+          servings: pm.servings,
+          notes: pm.notes ?? null,
+          isCompleted: !!pm.isCompleted,
+        })),
       };
 
-      // Show typing indicator and a placeholder message we will fill incrementally
       setIsTyping(true);
-      const placeholderId = newId();
-      setMessages(prev => [...prev, { id: placeholderId, role: 'coach', text: '', source: 'ai' }]);
-
-      let assembled = '';
-      await createChatCompletionStream([system, user], (chunk) => {
-        assembled += chunk;
-        // While streaming, show raw text as fallback (may be JSON-in-progress)
-        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: assembled } : m)));
-      });
-      // Try to parse structured JSON from final text
-      const parsed = tryExtractJSON((assembled || '').trim());
-      if (parsed) {
-        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, structured: parsed, text: undefined } : m)));
-      } else {
-        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: (assembled || '').trim() } : m)));
-      }
+      const apiMessages: ApiChatMessage[] = [{ role: 'user', content: text }];
+      const resp = await aiChat(apiMessages, ctx);
+      const replyText = resp?.output?.summary || resp?.output?.blocks?.[0]?.content || '';
+      const structured = resp?.output?.blocks?.[0]?.data ? (resp.output.blocks[0].data as any) : undefined;
+      pushCoach(structured ? { structured, summary: replyText, source: 'ai' } : { text: replyText, source: 'ai' });
       setIsTyping(false);
     } catch (err: any) {
       console.warn('AI error', err?.message || err);

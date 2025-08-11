@@ -220,9 +220,9 @@ export const RecipeRecommendations: React.FC<RecipeRecommendationsProps> = ({
         style={styles.recommendationCard}
         onPress={() => onRecipePress(recipe)}
       >
-        {recipe.imageUrl && (
+        {recipe.image && (
           <Image
-            source={{ uri: recipe.imageUrl }}
+            source={{ uri: recipe.image }}
             style={styles.recipeImage}
             resizeMode="cover"
           />

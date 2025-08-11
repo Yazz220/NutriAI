@@ -8,6 +8,10 @@ const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY; // If unset, requests mus
 const AI_PROXY_BASE = process.env.EXPO_PUBLIC_AI_PROXY_BASE; // Optional proxy
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+export type AiProfileContext = { display_name?: string; units?: string; goals?: Record<string, unknown> | null; preferences?: Record<string, unknown> | null };
+export type InventoryItemCtx = { id?: string | number; name: string; quantity?: number; unit?: string | null; category?: string | null; expiryDate?: string | null };
+export type PlannedMealCtx = { id?: string | number; recipeId: string; date: string; mealType: string; servings?: number; notes?: string | null; isCompleted?: boolean };
+export type AiContext = { profile?: AiProfileContext | null; inventory?: InventoryItemCtx[]; plannedMeals?: PlannedMealCtx[] };
 
 export async function createChatCompletion(messages: ChatMessage[]): Promise<string> {
   return await requestWithRetry(messages, false);
@@ -111,7 +115,7 @@ export type ChatStructuredResponse = {
  * aiChat: calls the Supabase Edge Function (functions/v1/ai-chat)
  * using the public anon key as a bearer token. No provider keys in the app.
  */
-export async function aiChat(messages: ChatMessage[]): Promise<ChatStructuredResponse> {
+export async function aiChat(messages: ChatMessage[], context?: AiContext): Promise<ChatStructuredResponse> {
   const base = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!base || !anon) throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or ANON_KEY');
@@ -124,11 +128,23 @@ export async function aiChat(messages: ChatMessage[]): Promise<ChatStructuredRes
       apikey: anon,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, context }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`ai-chat failed (${res.status}): ${text}`);
   }
-  return (await res.json()) as ChatStructuredResponse;
+  const json = await res.json();
+  // Support both structured and legacy { reply } shapes
+  if (json && json.type === 'chat') return json as ChatStructuredResponse;
+  if (json && typeof json.reply === 'string') {
+    return {
+      type: 'chat',
+      output: {
+        summary: json.reply,
+        blocks: [{ kind: 'text', title: 'Coach', content: json.reply }],
+      },
+    };
+  }
+  return json as ChatStructuredResponse;
 }

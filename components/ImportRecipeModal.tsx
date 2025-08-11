@@ -25,8 +25,8 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
   const [preview, setPreview] = useState<null | {
     name: string;
     description?: string;
-    imageUrl?: string;
-    ingredients: Array<{ name: string; quantity: number; unit: string; optional: boolean }>;
+    image?: string;
+    ingredients: Array<{ name: string; quantity: number; unit: string; optional?: boolean }>;
     steps: string[];
     tags: string[];
     prepTime?: number;
@@ -100,7 +100,7 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
     const meal: Omit<Meal, 'id'> = {
       name: preview.name,
       description: preview.description || '',
-      imageUrl: preview.imageUrl,
+      image: preview.image,
       tags: preview.tags,
       ingredients: preview.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, optional: i.optional })),
       steps: preview.steps.length ? preview.steps : ['Imported from URL'],
@@ -174,8 +174,8 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
 
           {preview && (
             <Card style={{ marginTop: Spacing.lg }}>
-              {preview.imageUrl && (
-                <Image source={{ uri: preview.imageUrl }} style={{ width: '100%', height: 180, borderRadius: 8 }} />
+              {preview.image && (
+                <Image source={{ uri: preview.image }} style={{ width: '100%', height: 180, borderRadius: 8 }} />
               )}
               <Text style={styles.previewName}>{preview.name}</Text>
               {preview.description ? <Text style={styles.previewDesc}>{preview.description}</Text> : null}

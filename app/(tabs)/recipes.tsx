@@ -14,8 +14,9 @@ import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
-import { RecipeCard } from '@/components/RecipeCard';
+import { EnhancedRecipeCard } from '@/components/EnhancedRecipeCard';
 import { ImportRecipeModal } from '@/components/ImportRecipeModal';
 import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
@@ -34,11 +35,10 @@ export default function RecipesScreen() {
   const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
   const [refreshing, setRefreshing] = useState(false);
 
+  // Use meals from the meals store for local recipes
+  const { meals: localRecipes, addMeal, removeMeal, updateMeal } = useMeals();
+
   const {
-    localRecipes: recipes,
-    addLocalRecipe: addRecipe,
-    removeLocalRecipe: deleteRecipe,
-    saveExternalRecipe: addSavedRecipe,
     searchRecipes,
     getTrendingRecipes,
     getRandomRecipes,
@@ -82,8 +82,41 @@ export default function RecipesScreen() {
 
   // Handle save external recipe
   const handleSaveExternalRecipe = (recipe: ExternalRecipe) => {
-    addSavedRecipe(recipe);
-    Alert.alert('Recipe Saved', `${recipe.title} has been added to your saved recipes.`);
+    // Convert ExternalRecipe to Meal format and add to meals (provider-agnostic)
+    const steps = recipe.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step)
+      || (recipe.instructions ? recipe.instructions.split('\n').filter(Boolean) : ['Follow recipe instructions']);
+
+    const tags = [
+      ...(recipe.cuisines || []),
+      ...(recipe.diets || []),
+      ...(recipe.dishTypes || []),
+      recipe.vegetarian ? 'vegetarian' : '',
+      recipe.vegan ? 'vegan' : '',
+      recipe.glutenFree ? 'gluten-free' : '',
+      recipe.dairyFree ? 'dairy-free' : '',
+    ].filter(Boolean) as string[];
+
+    const newMeal: Omit<Meal, 'id'> = {
+      name: recipe.title,
+      description: (recipe.instructions || 'Imported recipe').slice(0, 200),
+      ingredients: (recipe.ingredients || []).map((ing: any) => ({
+        name: ing.name,
+        quantity: ing.amount || 1,
+        unit: ing.unit || 'unit',
+        optional: false,
+      })),
+      steps,
+      image: recipe.image,
+      tags,
+      prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
+      cookTime: recipe.cookingMinutes || 0,
+      servings: recipe.servings || 1,
+      // Nutrition array varies by provider; skip unless available via nutrients mapping
+      nutritionPerServing: undefined,
+    };
+
+    addMeal(newMeal);
+    Alert.alert('Recipe Saved', `${recipe.title} has been added to your recipes.`);
   };
   
   // (Optional) Remove-saved-recipe could be implemented in store later
@@ -106,28 +139,21 @@ export default function RecipesScreen() {
       `Are you sure you want to delete "${recipe.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteRecipe(recipe.id);
-          },
-        },
+        { text: 'Delete', style: 'destructive', onPress: () => removeMeal(recipe.id) }
       ]
     );
   };
 
   // Handle edit recipe
   const handleEditRecipe = (recipe: Meal) => {
-    // For now, just close the modal
-    // In the future, this could open an edit form
-    Alert.alert('Edit Recipe', 'Recipe editing will be available in a future update.');
+    // TODO: Implement edit functionality
+    Alert.alert('Edit Recipe', 'Edit functionality coming soon!');
   };
 
-  // Render local recipes tab
+  // Render local recipes with enhanced cards
   const renderLocalRecipes = () => (
     <View style={styles.tabContent}>
-      {recipes.length === 0 ? (
+      {localRecipes.length === 0 ? (
         <Card style={styles.emptyState}>
           <BookOpen size={48} color={Colors.lightText} />
           <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
@@ -139,13 +165,16 @@ export default function RecipesScreen() {
         </Card>
       ) : (
         <View style={styles.recipesList}>
-          {recipes.map((recipe) => (
-            <RecipeCard
+          {localRecipes.map((recipe) => (
+            <EnhancedRecipeCard
               key={recipe.id}
               recipe={recipe}
               onPress={() => handleRecipePress(recipe)}
-              onEdit={() => handleEditRecipe(recipe)}
-              onDelete={() => handleDeleteRecipe(recipe)}
+              onFavorite={() => {
+                // TODO: Implement favorite functionality
+                console.log('Favorite recipe:', recipe.name);
+              }}
+              isFavorite={false} // TODO: Get from user preferences
             />
           ))}
         </View>
@@ -222,10 +251,10 @@ export default function RecipesScreen() {
       <ImportRecipeModal
         visible={showImportModal}
         onClose={() => setShowImportModal(false)}
-        onSave={(recipe) => {
-          addRecipe(recipe);
+        onSave={(meal) => {
+          addMeal(meal);
           setShowImportModal(false);
-          Alert.alert('Recipe Imported', `${recipe.name} has been successfully imported!`);
+          Alert.alert('Recipe Imported', `${meal.name} has been successfully imported!`);
         }}
       />
 
@@ -327,5 +356,6 @@ const styles = StyleSheet.create({
   },
   recipesList: {
     gap: Spacing.md,
+    alignItems: 'center',
   },
 });

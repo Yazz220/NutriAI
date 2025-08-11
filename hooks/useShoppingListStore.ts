@@ -3,29 +3,49 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { ShoppingListItem, ItemCategory } from '@/types';
-import { useInventory } from '@/hooks/useInventoryStore';
+// Avoid importing useInventory here to prevent hook order/provider dependency issues
+import { supabase } from '@/utils/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 
 export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
   const [recentlyPurchased, setRecentlyPurchased] = useState<ShoppingListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { addItem: addInventoryItem } = useInventory();
+  const { user } = useAuth();
+
+  const OFFLINE_ONLY = process.env.EXPO_PUBLIC_OFFLINE_ONLY === 'true';
   
   // Placeholder for inventory - used in generators; kept as empty array by default
   const inventory: any[] = [];
 
   // Move a purchased item into Inventory
-  const moveToInventory = (item: ShoppingListItem & { expiryDate?: string }): string | undefined => {
+  const moveToInventory = async (item: ShoppingListItem & { expiryDate?: string }): Promise<string | undefined> => {
     try {
-      const newId = addInventoryItem({
-        name: item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category,
-        addedDate: item.addedDate || new Date().toISOString(),
-        expiryDate: item.expiryDate,
-        imageUrl: undefined,
-      });
+      let newId: string | undefined = undefined;
+      const addedDate = item.addedDate || new Date().toISOString();
+      if (user && !OFFLINE_ONLY) {
+        const payload = {
+          user_id: user.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          category: item.category,
+          added_date: addedDate,
+          expiry_date: item.expiryDate ?? null,
+          notes: null,
+        } as const;
+        const { data, error } = await supabase
+          .schema('nutriai')
+          .from('inventory_items')
+          .insert(payload)
+          .select('id')
+          .single();
+        if (error) throw error;
+        newId = String(data.id);
+      } else {
+        // Offline-only: create a local ID; inventory store will pick up from cache later
+        newId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      }
       // Remove from recently purchased if present
       setRecentlyPurchased(prev => prev.filter(i => i.id !== item.id));
       return newId;
@@ -35,44 +55,54 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     }
   };
 
-  // Load shopping list and recently purchased from AsyncStorage on mount
+  // Load shopping list and recently purchased from Supabase or cache
   useEffect(() => {
     const loadShoppingData = async () => {
       try {
-        const [storedList, storedRecent] = await Promise.all([
-          AsyncStorage.getItem('shoppingList'),
-          AsyncStorage.getItem('recentlyPurchased')
-        ]);
-        
-        if (storedList) {
-          const parsed: ShoppingListItem[] = JSON.parse(storedList);
-          const seen = new Set<string>();
-          const fixed = parsed.map(it => {
-            const id = it.id && !seen.has(it.id) ? it.id : `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-            seen.add(id);
-            return { ...it, id };
-          });
-          setShoppingList(fixed);
-        }
-        if (storedRecent) {
-          const parsed: ShoppingListItem[] = JSON.parse(storedRecent);
-          const seen = new Set<string>();
-          const fixed = parsed.map(it => {
-            const id = it.id && !seen.has(it.id) ? it.id : `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-            seen.add(id);
-            return { ...it, id };
-          });
-          setRecentlyPurchased(fixed);
+        setIsLoading(true);
+        if (user && !OFFLINE_ONLY) {
+          const { data, error } = await supabase
+            .schema('nutriai')
+            .from('shopping_list_items')
+            .select('id, name, quantity, unit, checked, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+          if (error) throw error;
+          const rows = (data ?? []).map((r: any): ShoppingListItem => ({
+            id: String(r.id),
+            name: r.name,
+            quantity: Number(r.quantity),
+            unit: r.unit,
+            category: determineCategory(r.name),
+            addedDate: r.created_at,
+            checked: !!r.checked,
+            addedBy: 'user',
+          }));
+          setShoppingList(rows);
+          await AsyncStorage.setItem('shoppingList', JSON.stringify(rows));
+        } else {
+          const [storedList, storedRecent] = await Promise.all([
+            AsyncStorage.getItem('shoppingList'),
+            AsyncStorage.getItem('recentlyPurchased'),
+          ]);
+          if (storedList) setShoppingList(JSON.parse(storedList));
+          if (storedRecent) setRecentlyPurchased(JSON.parse(storedRecent));
         }
       } catch (error) {
         console.error('Failed to load shopping data:', error);
+        const [storedList, storedRecent] = await Promise.all([
+          AsyncStorage.getItem('shoppingList'),
+          AsyncStorage.getItem('recentlyPurchased'),
+        ]).catch(() => [null, null] as any);
+        if (storedList) setShoppingList(JSON.parse(storedList as string));
+        if (storedRecent) setRecentlyPurchased(JSON.parse(storedRecent as string));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadShoppingData();
-  }, []);
+  }, [user?.id]);
 
   // Save shopping data to AsyncStorage whenever it changes
   useEffect(() => {
@@ -85,7 +115,7 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   }, [shoppingList, recentlyPurchased, isLoading]);
 
   // Add a new item to shopping list
-  const addItem = (item: Omit<ShoppingListItem, 'id'>) => {
+  const addItem = async (item: Omit<ShoppingListItem, 'id'>) => {
     // Check if item already exists in the list
     const existingItem = shoppingList.find(
       i => i.name.toLowerCase() === item.name.toLowerCase() && i.unit === item.unit
@@ -93,46 +123,114 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
 
     if (existingItem) {
       // Update quantity if item exists
-      updateItem({
+      await updateItem({
         ...existingItem,
         quantity: existingItem.quantity + item.quantity,
         checked: false // Uncheck when updating quantity
       });
     } else {
       // Add new item if it doesn't exist
-      const newItem: ShoppingListItem = {
-        ...item,
-        id: generateId(),
-      };
-      setShoppingList(prev => [...prev, newItem]);
+      if (user && !OFFLINE_ONLY) {
+        const payload = {
+          user_id: user.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          checked: !!item.checked,
+          created_at: item.addedDate ?? new Date().toISOString(),
+        };
+        const { data, error } = await supabase
+          .schema('nutriai')
+          .from('shopping_list_items')
+          .insert(payload)
+          .select('id, name, quantity, unit, checked, created_at')
+          .single();
+        if (error) throw error;
+        const created: ShoppingListItem = {
+          id: String(data.id),
+          name: data.name,
+          quantity: Number(data.quantity),
+          unit: data.unit,
+          category: determineCategory(data.name),
+          addedDate: data.created_at,
+          checked: !!data.checked,
+          addedBy: item.addedBy ?? 'user',
+        };
+        setShoppingList(prev => [...prev, created]);
+      } else {
+        const newItem: ShoppingListItem = {
+          ...item,
+          id: generateId(),
+        };
+        setShoppingList(prev => [...prev, newItem]);
+      }
     }
   };
 
   // Update an existing item
-  const updateItem = (updatedItem: ShoppingListItem) => {
-    setShoppingList(prev => 
-      prev.map(item => item.id === updatedItem.id ? updatedItem : item)
-    );
+  const updateItem = async (updatedItem: ShoppingListItem) => {
+    setShoppingList(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase
+        .schema('nutriai')
+        .from('shopping_list_items')
+        .update({
+          name: updatedItem.name,
+          quantity: updatedItem.quantity,
+          unit: updatedItem.unit,
+          checked: !!updatedItem.checked,
+        })
+        .eq('id', updatedItem.id);
+      if (error) console.error('Failed to update shopping item:', error);
+    }
   };
 
   // Remove an item from shopping list
-  const removeItem = (id: string) => {
+  const removeItem = async (id: string) => {
     setShoppingList(prev => prev.filter(item => item.id !== id));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase.schema('nutriai').from('shopping_list_items').delete().eq('id', id);
+      if (error) console.error('Failed to delete shopping item:', error);
+    }
   };
 
   // Toggle checked status of an item and handle transfer to inventory
-  const toggleItemChecked = (id: string) => {
+  const toggleItemChecked = async (id: string) => {
     const itemToMove = shoppingList.find(i => i.id === id) || recentlyPurchased.find(i => i.id === id);
     if (!itemToMove) return;
 
     if (!itemToMove.checked) {
-      // Moving to recently purchased
+      // Mark purchased → move to Inventory
       setShoppingList(prev => prev.filter(item => item.id !== id));
-      setRecentlyPurchased(prev => [...prev, { ...itemToMove, checked: true }]);
+      const updated = { ...itemToMove, checked: true };
+      setRecentlyPurchased(prev => [...prev, updated]);
+      if (user && !OFFLINE_ONLY) {
+        const { error } = await supabase
+          .schema('nutriai')
+          .from('shopping_list_items')
+          .update({ checked: true })
+          .eq('id', id);
+        if (error) console.error('Failed to toggle shopping item:', error);
+      }
+      // Immediately transfer to inventory
+      try {
+        await moveToInventory({ ...updated, expiryDate: undefined });
+      } catch (e) {
+        console.error('Failed auto-move to inventory:', e);
+      }
     } else {
       // Moving back to shopping list
       setRecentlyPurchased(prev => prev.filter(item => item.id !== id));
-      setShoppingList(prev => [...prev, { ...itemToMove, checked: false }]);
+      const updated = { ...itemToMove, checked: false };
+      setShoppingList(prev => [...prev, updated]);
+      if (user && !OFFLINE_ONLY) {
+        const { error } = await supabase
+          .schema('nutriai')
+          .from('shopping_list_items')
+          .update({ checked: false })
+          .eq('id', id);
+        if (error) console.error('Failed to toggle shopping item:', error);
+      }
     }
   };
 

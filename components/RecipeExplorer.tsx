@@ -233,9 +233,9 @@ export const RecipeExplorer: React.FC<RecipeExplorerProps> = ({
         style={styles.recipeCard}
         onPress={() => onRecipePress(recipe)}
       >
-        {recipe.imageUrl && (
+        {recipe.image && (
           <Image
-            source={{ uri: recipe.imageUrl }}
+            source={{ uri: recipe.image }}
             style={styles.recipeImage}
             resizeMode="cover"
           />

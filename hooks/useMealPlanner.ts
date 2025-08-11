@@ -2,28 +2,57 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { PlannedMeal, MealType, MealPlanSummary, WeeklyMealPlan } from '@/types';
+import { supabase } from '@/utils/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 
 export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   const [plannedMeals, setPlannedMeals] = useState<PlannedMeal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { user } = useAuth();
+  const OFFLINE_ONLY = process.env.EXPO_PUBLIC_OFFLINE_ONLY === 'true';
 
-  // Load planned meals from AsyncStorage on mount
+  // Load planned meals from Supabase or AsyncStorage on mount and auth change
   useEffect(() => {
     const loadPlannedMeals = async () => {
       try {
-        const storedMeals = await AsyncStorage.getItem('plannedMeals');
-        if (storedMeals) {
-          setPlannedMeals(JSON.parse(storedMeals));
+        setIsLoading(true);
+        if (user && !OFFLINE_ONLY) {
+          const { data, error } = await supabase
+            .schema('nutriai')
+            .from('meal_plans')
+            .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at, created_at')
+            .eq('user_id', user.id)
+            .order('date', { ascending: true })
+            .order('meal_type', { ascending: true });
+          if (error) throw error;
+          const rows = (data ?? []).map((r: any): PlannedMeal => ({
+            id: String(r.id),
+            recipeId: r.recipe_id,
+            date: typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().split('T')[0],
+            mealType: r.meal_type as MealType,
+            servings: Number(r.servings ?? 1),
+            notes: r.notes ?? undefined,
+            isCompleted: !!r.is_completed,
+            completedAt: r.completed_at ?? undefined,
+            // created_at unused by UI but fetched for ordering predictability
+          }));
+          setPlannedMeals(rows);
+          await AsyncStorage.setItem('plannedMeals', JSON.stringify(rows));
+        } else {
+          const storedMeals = await AsyncStorage.getItem('plannedMeals');
+          if (storedMeals) setPlannedMeals(JSON.parse(storedMeals));
         }
       } catch (error) {
         console.error('Failed to load planned meals:', error);
+        const storedMeals = await AsyncStorage.getItem('plannedMeals').catch(() => null);
+        if (storedMeals) setPlannedMeals(JSON.parse(storedMeals as string));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadPlannedMeals();
-  }, []);
+  }, [user?.id]);
 
   // Save planned meals to AsyncStorage whenever it changes
   useEffect(() => {
@@ -34,24 +63,70 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   }, [plannedMeals, isLoading]);
 
   // Add a new planned meal
-  const addPlannedMeal = (meal: Omit<PlannedMeal, 'id'>) => {
-    const newMeal: PlannedMeal = {
-      ...meal,
-      id: Date.now().toString(),
-    };
-    setPlannedMeals(prev => [...prev, newMeal]);
+  const addPlannedMeal = async (meal: Omit<PlannedMeal, 'id'>) => {
+    const local: PlannedMeal = { ...meal, id: Date.now().toString() };
+    if (user && !OFFLINE_ONLY) {
+      const payload = {
+        user_id: user.id,
+        recipe_id: meal.recipeId,
+        date: meal.date, // ISO YYYY-MM-DD
+        meal_type: meal.mealType,
+        servings: meal.servings ?? 1,
+        notes: meal.notes ?? null,
+        is_completed: meal.isCompleted ?? false,
+        completed_at: meal.completedAt ?? null,
+      } as const;
+      const { data, error } = await supabase
+        .schema('nutriai')
+        .from('meal_plans')
+        .insert(payload)
+        .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at')
+        .single();
+      if (error) throw error;
+      const created: PlannedMeal = {
+        id: String(data.id),
+        recipeId: data.recipe_id,
+        date: typeof data.date === 'string' ? data.date : new Date(data.date).toISOString().split('T')[0],
+        mealType: data.meal_type as MealType,
+        servings: Number(data.servings ?? 1),
+        notes: data.notes ?? undefined,
+        isCompleted: !!data.is_completed,
+        completedAt: data.completed_at ?? undefined,
+      };
+      setPlannedMeals(prev => [...prev, created]);
+    } else {
+      setPlannedMeals(prev => [...prev, local]);
+    }
   };
 
   // Update an existing planned meal
-  const updatePlannedMeal = (updatedMeal: PlannedMeal) => {
-    setPlannedMeals(prev => 
-      prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal)
-    );
+  const updatePlannedMeal = async (updatedMeal: PlannedMeal) => {
+    setPlannedMeals(prev => prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase
+        .schema('nutriai')
+        .from('meal_plans')
+        .update({
+          recipe_id: updatedMeal.recipeId,
+          date: updatedMeal.date,
+          meal_type: updatedMeal.mealType,
+          servings: updatedMeal.servings,
+          notes: updatedMeal.notes ?? null,
+          is_completed: updatedMeal.isCompleted ?? false,
+          completed_at: updatedMeal.completedAt ?? null,
+        })
+        .eq('id', updatedMeal.id);
+      if (error) console.error('Failed to update planned meal:', error);
+    }
   };
 
   // Remove a planned meal
-  const removePlannedMeal = (id: string) => {
+  const removePlannedMeal = async (id: string) => {
     setPlannedMeals(prev => prev.filter(meal => meal.id !== id));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase.schema('nutriai').from('meal_plans').delete().eq('id', id);
+      if (error) console.error('Failed to delete planned meal:', error);
+    }
   };
 
   // Get planned meals for a specific date
@@ -70,14 +145,17 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   };
 
   // Mark a meal as completed
-  const completeMeal = (id: string) => {
-    setPlannedMeals(prev => 
-      prev.map(meal => 
-        meal.id === id 
-          ? { ...meal, isCompleted: true, completedAt: new Date().toISOString() }
-          : meal
-      )
-    );
+  const completeMeal = async (id: string) => {
+    const completedAt = new Date().toISOString();
+    setPlannedMeals(prev => prev.map(meal => meal.id === id ? { ...meal, isCompleted: true, completedAt } : meal));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase
+        .schema('nutriai')
+        .from('meal_plans')
+        .update({ is_completed: true, completed_at: completedAt })
+        .eq('id', id);
+      if (error) console.error('Failed to complete planned meal:', error);
+    }
   };
 
   // Get meal plan summary for a specific date
@@ -125,21 +203,23 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   };
 
   // Move a meal to a different date/time
-  const moveMeal = (mealId: string, newDate: string, newMealType: MealType) => {
-    setPlannedMeals(prev => 
-      prev.map(meal => 
-        meal.id === mealId 
-          ? { ...meal, date: newDate, mealType: newMealType }
-          : meal
-      )
-    );
+  const moveMeal = async (mealId: string, newDate: string, newMealType: MealType) => {
+    setPlannedMeals(prev => prev.map(meal => meal.id === mealId ? { ...meal, date: newDate, mealType: newMealType } : meal));
+    if (user && !OFFLINE_ONLY) {
+      const { error } = await supabase
+        .schema('nutriai')
+        .from('meal_plans')
+        .update({ date: newDate, meal_type: newMealType })
+        .eq('id', mealId);
+      if (error) console.error('Failed to move planned meal:', error);
+    }
   };
 
   // Duplicate a meal to another date/time
-  const duplicateMeal = (mealId: string, newDate: string, newMealType: MealType) => {
+  const duplicateMeal = async (mealId: string, newDate: string, newMealType: MealType) => {
     const mealToDuplicate = plannedMeals.find(meal => meal.id === mealId);
     if (mealToDuplicate) {
-      addPlannedMeal({
+      await addPlannedMeal({
         recipeId: mealToDuplicate.recipeId,
         date: newDate,
         mealType: newMealType,

@@ -110,8 +110,10 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
         console.log('[InventoryStore] loadInventory start. OFFLINE_ONLY =', OFFLINE_ONLY, 'user?', !!user);
         if (user && !OFFLINE_ONLY) {
           const { data, error } = await supabase
+            .schema('nutriai')
             .from('inventory_items')
             .select('id, name, quantity, unit, category, added_date, expiry_date')
+            .eq('user_id', user.id)
             .order('added_date', { ascending: false });
           if (error) throw error;
           const rows = (data ?? []).map(rowToItem);
@@ -157,6 +159,7 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
     }
     const payload = { ...itemToRow(item), user_id: user.id } as any;
     const { data, error } = await supabase
+      .schema('nutriai')
       .from('inventory_items')
       .insert(payload)
       .select('id, name, quantity, unit, category, added_date, expiry_date')
@@ -172,6 +175,7 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
     setInventory(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
     if (user && !OFFLINE_ONLY) {
       const { error } = await supabase
+        .schema('nutriai')
         .from('inventory_items')
         .update({
           name: updatedItem.name,
@@ -192,7 +196,7 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   const removeItem = async (id: string) => {
     setInventory(prev => prev.filter(item => item.id !== id));
     if (user && !OFFLINE_ONLY) {
-      const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+      const { error } = await supabase.schema('nutriai').from('inventory_items').delete().eq('id', id);
       if (error) {
         console.error('Failed to delete inventory item:', error);
       }
@@ -284,8 +288,10 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
       try {
         if (user && !OFFLINE_ONLY) {
           const { data, error } = await supabase
+            .schema('nutriai')
             .from('inventory_items')
             .select('id, name, quantity, unit, category, added_date, expiry_date')
+            .eq('user_id', user.id)
             .order('added_date', { ascending: false });
           if (error) throw error;
           const rows = (data ?? []).map(rowToItem);

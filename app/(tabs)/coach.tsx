@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, BarChart3, LineChart as LineIcon } from 'lucide-react-native';
@@ -8,17 +8,23 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useNutrition } from '@/hooks/useNutrition';
 import { useCoachChat } from '@/hooks/useCoachChat';
+import { useMealPlanner } from '@/hooks/useMealPlanner';
+import { useInventory } from '@/hooks/useInventoryStore';
 // Removed MealDetailModal (unused in Insights)
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StructuredMessage } from '@/components/StructuredMessage';
 
 export default function CoachScreen() {
   const { todayTotals, goals, remainingAgainstGoals, last7Days } = useNutrition();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
+  const { plannedMeals, getWeekStartDate } = useMealPlanner();
+  const { getExpiringItems, getItemsByCategory } = useInventory();
   // Removed detail modal state (unused)
   const [activeTab, setActiveTab] = useState<'chat' | 'insights'>('chat');
   const [inputText, setInputText] = useState('');
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [anchorISO, setAnchorISO] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [calorieView, setCalorieView] = useState<'bar' | 'line'>('bar');
   const chartWidth = Dimensions.get('window').width - Spacing.lg * 2; // card horizontal margin
   const chartConfig = {
@@ -31,9 +37,22 @@ export default function CoachScreen() {
     propsForLabels: { fontSize: 10 },
   } as const;
 
+  // Persist timeframe selection
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem('coach_insights_timeframe');
+        if (saved === 'weekly' || saved === 'monthly' || saved === 'yearly') setTimeframe(saved);
+      } catch {}
+    })();
+  }, []);
+  useEffect(() => {
+    AsyncStorage.setItem('coach_insights_timeframe', timeframe).catch(() => {});
+  }, [timeframe]);
+
   const weekLabel = useMemo(() => {
     // Derive a simple current-week label for now
-    const now = new Date();
+    const now = new Date(anchorISO);
     const day = now.getDay(); // 0-6
     const diffToMon = ((day + 6) % 7); // days since Monday
     const monday = new Date(now);
@@ -42,12 +61,87 @@ export default function CoachScreen() {
     sunday.setDate(monday.getDate() + 6);
     const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     return `${fmt(monday)} – ${fmt(sunday)}`;
-  }, []);
+  }, [anchorISO]);
 
   const caloriesSeries = useMemo(() => {
     // Use last7Days; fallback to zeros if missing
     return last7Days.map((d: any, idx: number) => ({ x: idx + 1, y: Math.max(0, Number(d?.calories ?? 0)) }));
   }, [last7Days]);
+
+  // --- Insights metrics ---
+  const todayISO = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const weekStartISO = useMemo(() => getWeekStartDate(anchorISO), [getWeekStartDate, anchorISO]);
+  const weekEndISO = useMemo(() => {
+    const d = new Date(weekStartISO);
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().split('T')[0];
+  }, [weekStartISO]);
+  const monthStartISO = useMemo(() => {
+    const now = new Date(anchorISO);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    return d.toISOString().split('T')[0];
+  }, [anchorISO]);
+  const monthEndISO = useMemo(() => {
+    const now = new Date(anchorISO);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    return d.toISOString().split('T')[0];
+  }, [anchorISO]);
+  const yearStartISO = useMemo(() => {
+    const now = new Date(anchorISO);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+    return d.toISOString().split('T')[0];
+  }, [anchorISO]);
+  const yearEndISO = useMemo(() => {
+    const now = new Date(anchorISO);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), 11, 31));
+    return d.toISOString().split('T')[0];
+  }, [anchorISO]);
+
+  const rangeStartISO = useMemo(() => (
+    timeframe === 'weekly' ? weekStartISO : timeframe === 'monthly' ? monthStartISO : yearStartISO
+  ), [timeframe, weekStartISO, monthStartISO, yearStartISO]);
+  const rangeEndISO = useMemo(() => (
+    timeframe === 'weekly' ? weekEndISO : timeframe === 'monthly' ? monthEndISO : yearEndISO
+  ), [timeframe, weekEndISO, monthEndISO, yearEndISO]);
+
+  const mealsInRange = useMemo(() => plannedMeals.filter(m => m.date >= rangeStartISO && m.date <= rangeEndISO), [plannedMeals, rangeStartISO, rangeEndISO]);
+  const completedInRange = useMemo(() => mealsInRange.filter(m => !!m.isCompleted).length, [mealsInRange]);
+  const plannedInRange = mealsInRange.length;
+  const completionRate = plannedInRange ? Math.round((completedInRange / plannedInRange) * 100) : 0;
+
+  const expiringSoon = useMemo(() => getExpiringItems().length, [getExpiringItems]);
+  const categoryBreakdown = useMemo(() => {
+    const byCat = getItemsByCategory();
+    const entries = Object.entries(byCat).map(([cat, items]) => ({ cat, count: items.length }));
+    entries.sort((a, b) => b.count - a.count);
+    return entries.slice(0, 4);
+  }, [getItemsByCategory]);
+
+  // Shift anchor date by +/- one unit of the active timeframe
+  const shiftRange = (delta: number) => {
+    const d = new Date(anchorISO);
+    if (timeframe === 'weekly') d.setDate(d.getDate() + delta * 7);
+    else if (timeframe === 'monthly') d.setMonth(d.getMonth() + delta);
+    else d.setFullYear(d.getFullYear() + delta);
+    setAnchorISO(d.toISOString().split('T')[0]);
+  };
+
+  // Completion rate trend for last 8 weeks (ending at current week anchor)
+  const completionTrend = useMemo(() => {
+    const points: number[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const ref = new Date(anchorISO);
+      ref.setDate(ref.getDate() - i * 7);
+      const start = getWeekStartDate(ref.toISOString().split('T')[0]);
+      const endD = new Date(start);
+      endD.setDate(endD.getDate() + 6);
+      const end = endD.toISOString().split('T')[0];
+      const meals = plannedMeals.filter(m => m.date >= start && m.date <= end);
+      const comp = meals.filter(m => !!m.isCompleted).length;
+      points.push(meals.length ? Math.round((comp / meals.length) * 100) : 0);
+    }
+    return points;
+  }, [anchorISO, plannedMeals, getWeekStartDate]);
 
   return (
     <View style={styles.container}>
@@ -168,16 +262,50 @@ export default function CoachScreen() {
                 ))}
               </View>
               <View style={styles.rangeHeader}>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => { /* TODO: implement range back */ }}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => shiftRange(-1)}>
                   <ChevronLeft size={18} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.rangeLabel}>
                   {timeframe === 'weekly' ? weekLabel : timeframe === 'monthly' ? 'This Month' : 'This Year'}
                 </Text>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => { /* TODO: implement range forward */ }}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => shiftRange(1)}>
                   <ChevronRight size={18} color={Colors.text} />
                 </TouchableOpacity>
               </View>
+            </Card>
+
+            <Card>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Planner Summary ({timeframe === 'weekly' ? 'This Week' : timeframe === 'monthly' ? 'This Month' : 'This Year'})</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/(tabs)/planner')}>
+                <View style={{ gap: 8 }}>
+                  <Text style={styles.subtitle}>Planned: {plannedInRange} • Completed: {completedInRange} • Rate: {completionRate}%</Text>
+                  <View style={{ height: 8, backgroundColor: Colors.tabBackground, borderRadius: 6, overflow: 'hidden' }}>
+                    <View style={{ width: `${completionRate}%`, height: '100%', backgroundColor: Colors.primary }} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Card>
+
+            <Card>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Completion Trend (Last 8 Weeks)</Text>
+              </View>
+              <View style={styles.chartKitContainer}>
+                <LineChart
+                  data={{
+                    labels: completionTrend.map((_, i) => String(i + 1)),
+                    datasets: [{ data: completionTrend, color: () => Colors.secondary }],
+                  }}
+                  width={chartWidth}
+                  height={160}
+                  chartConfig={chartConfig}
+                  bezier
+                  style={{ borderRadius: 12 }}
+                />
+              </View>
+              <Text style={styles.sparkCaption}>Weekly completion rate (%)</Text>
             </Card>
 
             <Card>
@@ -233,39 +361,23 @@ export default function CoachScreen() {
 
             <Card>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Nutrition (%)</Text>
+                <Text style={styles.cardTitle}>Inventory Health</Text>
               </View>
-              {(() => {
-                const totalCals = Math.max(1, todayTotals.protein * 4 + todayTotals.carbs * 4 + todayTotals.fats * 9);
-                const macros = [
-                  { x: 'Protein', y: Math.max(0, todayTotals.protein * 4), color: Colors.primary },
-                  { x: 'Carbs', y: Math.max(0, todayTotals.carbs * 4), color: Colors.secondary },
-                  { x: 'Fats', y: Math.max(0, todayTotals.fats * 9), color: Colors.expiring },
-                ];
-                return (
-                  <View style={styles.chartKitContainer}>
-                    <PieChart
-                      data={macros.map((m) => ({
-                        name: m.x as string,
-                        population: m.y as number,
-                        color: m.color as string,
-                        legendFontColor: Colors.text,
-                        legendFontSize: 12,
-                      }))}
-                      width={chartWidth}
-                      height={180}
-                      chartConfig={chartConfig}
-                      accessor="population"
-                      backgroundColor="transparent"
-                      hasLegend
-                      center={[0, 0]}
-                    />
-                    <Text style={styles.sparkCaption}>
-                      P {todayTotals.protein}g • C {todayTotals.carbs}g • F {todayTotals.fats}g
-                    </Text>
-                  </View>
-                );
-              })()}
+              <View style={{ gap: 12 }}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/(tabs)/list')}>
+                  <Text style={styles.subtitle}>Expiring soon: {expiringSoon}</Text>
+                </TouchableOpacity>
+                <View style={{ gap: 8 }}>
+                  {categoryBreakdown.map((c) => (
+                    <TouchableOpacity key={c.cat} activeOpacity={0.8} onPress={() => router.push(`/(tabs)/index?category=${encodeURIComponent(c.cat)}`)}>
+                      <View style={{ gap: 4 }}>
+                        <Text style={styles.metaChip}>{c.cat}</Text>
+                        <Text style={styles.metaChip}>{c.count}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </Card>
           </>
         )}

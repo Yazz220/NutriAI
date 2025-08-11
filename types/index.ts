@@ -26,7 +26,7 @@ export interface InventoryItem {
     description: string;
     ingredients: MealIngredient[];
     steps: string[];
-    imageUrl?: string;
+    image?: string;
     tags: string[];
     prepTime: number; // in minutes
     cookTime: number; // in minutes
@@ -43,7 +43,7 @@ export interface InventoryItem {
     name: string;
     quantity: number;
     unit: string;
-    optional: boolean;
+    optional?: boolean;
   }
   
   export interface ShoppingListItem extends Omit<InventoryItem, 'expiryDate' | 'imageUrl'> {
@@ -159,6 +159,6 @@ export interface InventoryItem {
 
   export type RecipeSortType = 'relevance' | 'prepTime' | 'availability' | 'name';
 
-  export interface RecipeWithAvailability extends Recipe {
+  export type RecipeWithAvailability = (Recipe | Meal) & {
     availability: RecipeAvailability;
-  }
+  };
