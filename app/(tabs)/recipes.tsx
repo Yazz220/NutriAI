@@ -7,8 +7,10 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
-import { Plus, BookOpen, Sparkles, TrendingUp } from 'lucide-react-native';
+import { Plus, BookOpen, Sparkles, TrendingUp, ChefHat, Heart, Search } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
@@ -191,35 +193,63 @@ export default function RecipesScreen() {
     />
   );
 
+  // Calculate stats
+  const totalRecipes = localRecipes.length;
+  const favoriteRecipes = 0; // TODO: Implement favorites
+  const recentRecipes = localRecipes.slice(0, 3).length;
+
   return (
     <View style={styles.container}>
       {/* Recipe Provider Initializer */}
       <RecipeProviderInitializer />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Sparkles size={24} color={Colors.primary} />
-          <Text style={styles.headerTitle}>Recipes</Text>
-        </View>
+      {/* Enhanced Hero Header */}
+      <ExpoLinearGradient
+        colors={['#ff9a9e', '#fecfef', '#fecfef']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.statusBarSpacer} />
         
-        <View style={styles.headerActions}>
-          <Button
-            title="Import"
-            onPress={() => setShowImportModal(true)}
-            style={styles.importButton}
-            icon={<Plus size={16} color={Colors.white} />}
+        {/* Header */}
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTitleRow}>
+            <ChefHat size={28} color={Colors.white} />
+            <Text style={styles.heroTitle}>Recipes</Text>
+          </View>
+          <TouchableOpacity style={styles.importButton} onPress={() => setShowImportModal(true)}>
+            <Plus size={24} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Stats */}
+        <View style={styles.recipeStats}>
+          <StatCard 
+            icon={<BookOpen size={20} color="#ff9a9e" />} 
+            label="My Recipes" 
+            value={totalRecipes.toString()} 
+          />
+          <StatCard 
+            icon={<Heart size={20} color="#FF6B6B" />} 
+            label="Favorites" 
+            value={favoriteRecipes.toString()} 
+          />
+          <StatCard 
+            icon={<TrendingUp size={20} color="#4ECDC4" />} 
+            label="Recent" 
+            value={recentRecipes.toString()} 
           />
         </View>
-      </View>
+      </ExpoLinearGradient>
 
-      {/* Tab Navigation */}
+      {/* Enhanced Tab Navigation */}
       <View style={styles.tabNavigation}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'discovery' && styles.activeTab]}
           onPress={() => setActiveTab('discovery')}
         >
-          <TrendingUp size={20} color={activeTab === 'discovery' ? Colors.primary : Colors.lightText} />
+          <Search size={20} color={activeTab === 'discovery' ? Colors.primary : Colors.lightText} />
           <Text style={[styles.tabText, activeTab === 'discovery' && styles.activeTabText]}>
             Discovery
           </Text>
@@ -285,63 +315,127 @@ export default function RecipesScreen() {
   );
 }
 
+// Enhanced Component Definitions
+const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <View style={styles.statCard}>
+    <View style={styles.statIcon}>{icon}</View>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
+  hero: {
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    minHeight: 260,
+  },
+  statusBarSpacer: {
+    height: Platform.OS === 'ios' ? 44 : 24,
+  },
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginBottom: 20,
+    marginTop: 10,
   },
-  headerLeft: {
+  heroTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
   },
-  headerTitle: {
+  heroTitle: {
+    color: Colors.white,
     fontSize: 24,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+    fontWeight: '700',
+    marginLeft: 12,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   importButton: {
-    paddingHorizontal: Spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  recipeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 5,
+  },
+  statCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statIcon: {
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.lightText,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   tabNavigation: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    marginTop: -10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 20,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   activeTab: {
-    backgroundColor: Colors.primary + '10',
+    backgroundColor: Colors.primary + '15',
   },
   tabText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.lightText,
   },
   activeTabText: {
     color: Colors.primary,
+    fontWeight: '700',
   },
   content: {
     flex: 1,

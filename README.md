@@ -9,11 +9,11 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Fast add: manual entry, barcode scan, and camera capture
 - Powerful search and filters
 
-### 🍽️ Recipes + Planner (Consolidated)
-- Single screen with a top toggle: "Recipes" | "Planner"
-- Availability badges: Can Make Now / Missing Few Items
-- AI Picks header with proactive suggestions (from `useCoach`)
-- Weekly planning integrated directly in the Recipes tab
+### 🧠 Coach Dashboard
+- Visual dashboard with calorie ring, macros, meal rows, and day navigation
+- Plan meals inline per day (Breakfast/Lunch/Dinner/Snack) using the + button
+- Floating chat assistant for "Plan my day/week" and shopping list actions
+- Availability and AI Picks remain visible in Recipes for discovery
 
 ### 🛒 Shopping List
 - Auto-generate from planned recipes and missing ingredients
@@ -28,7 +28,7 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 ### 🌐 Recipe Import
 - Import from URLs (e.g., TikTok/Instagram/websites)
 - Client-side parsing via JSON-LD/Open Graph metadata
-- Preview before save, with smart follow-ups: "Add to Planner", "Add missing ingredients"
+- Preview before save, with smart follow-ups: "Add to Plan", "Add missing ingredients"
 
 ## 🚀 Getting Started
 
@@ -157,7 +157,7 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 
 3. **Getting Started with NutriAI**:
    - **Add Inventory**: Start by adding items to your inventory using manual entry, barcode scanning, or camera capture
-   - **Plan Meals**: Use the Recipes tab toggle to switch to Planner and schedule your week
+   - **Plan Meals**: Open the Coach tab and use the + buttons on each meal row, or ask the coach to "Plan my day/week"
    - **Explore Recipes**: Browse and see availability based on your inventory
    - **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
 
@@ -169,11 +169,12 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 3. Fill in item details including expiration date and category
 4. Items automatically appear in your organized inventory
 
-### Planning Meals (in Recipes)
-1. Go to the Recipes tab and switch to the "Planner" toggle
-2. Tap any day in the weekly view and select meal type (breakfast, lunch, dinner, snack)
-3. Add recipes from your library or AI Picks
-4. Your plan updates automatically and informs the Shopping List
+### Planning Meals (Coach Dashboard)
+1. Go to the Coach tab
+2. Use the left/right arrows to pick a day
+3. Tap + on Breakfast/Lunch/Dinner/Snack, select a recipe and servings
+4. Or ask the coach: "Plan my day" or "Plan my week"
+5. Your plan updates automatically and informs the Shopping List
 
 ### Smart Shopping
 1. Plan your meals for the week
@@ -185,14 +186,14 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 NutriAI uses a 4-tab layout focused on core nutrition workflows:
 
 1. **Inventory** — Item management and expiry tracking
-2. **Recipes** — Library + Planner (toggle at top)
+2. **Recipes** — Library and discovery
 3. **Shopping List** — Grocery management and checkout to Inventory
 4. **Nutrition Dashboard** — Macros, goals, and proactive insights
  
 ## 📷 Screenshots
 
 Add images or GIFs to showcase core flows:
-- Recipes/Planner toggle
+- Coach dashboard planning
 - Mark as Purchased flow with expiry prompt
 - Nutrition Dashboard with macros and trends
 

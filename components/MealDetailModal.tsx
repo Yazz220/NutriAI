@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Meal, Recipe, RecipeAvailability, RecipeIngredient } from '@/types';
-import { Clock, Users, ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X } from 'lucide-react-native';
+import { Clock, Users, ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X, MessageCircle, BookOpen, Star, Send } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
@@ -156,140 +157,229 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <ScrollView style={styles.scrollView}>
-            {(() => {
-              const imageUri = (('imageUrl' in meal ? (meal as any).imageUrl : (meal as any).image) as string) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
-              return (
-                <Image
-                  source={{ uri: imageUri }}
-              style={styles.image}
-              resizeMode="cover"
-                />
-              );
-            })()}
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* Enhanced Hero Image with Gradient Overlay */}
+            <View style={styles.heroContainer}>
+              {(() => {
+                const imageUri = (('imageUrl' in meal ? (meal as any).imageUrl : (meal as any).image) as string) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
+                return (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.image}
+                    resizeMode="cover"
+                  />
+                );
+              })()}
+              
+              {/* Gradient Overlay */}
+              <ExpoLinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+                style={styles.imageOverlay}
+              />
 
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-              testID="close-meal-detail"
-            >
-              <X size={24} color={Colors.white} />
-            </TouchableOpacity>
+              {/* Enhanced Close Button */}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onClose}
+                testID="close-meal-detail"
+              >
+                <X size={20} color={Colors.white} />
+              </TouchableOpacity>
+
+              {/* Recipe Title Overlay */}
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>{meal.name}</Text>
+                {'description' in meal && meal.description && (
+                  <Text style={styles.heroDescription}>{meal.description}</Text>
+                )}
+                
+                {/* Enhanced Meta Info */}
+                <View style={styles.heroMetaContainer}>
+                  <View style={styles.heroMetaItem}>
+                    <Clock size={16} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.heroMetaText}>{totalTime} min</Text>
+                  </View>
+                  <View style={styles.heroMetaItem}>
+                    <Users size={16} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.heroMetaText}>{meal.servings} servings</Text>
+                  </View>
+                  <View style={styles.heroMetaItem}>
+                    <Star size={16} color="#FFD93D" />
+                    <Text style={styles.heroMetaText}>4.8</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
 
             <View style={styles.content}>
-              {/* Top toggle between Details and Chat */}
-              <View style={styles.topTabs}>
-                <TouchableOpacity style={[styles.topTab, activeTab === 'details' && styles.topTabActive]} onPress={() => setActiveTab('details')}>
-                  <Text style={[styles.topTabText, activeTab === 'details' && styles.topTabTextActive]}>Details</Text>
+              {/* Enhanced Tab Navigation */}
+              <View style={styles.modernTabContainer}>
+                <TouchableOpacity 
+                  style={[styles.modernTab, activeTab === 'details' && styles.modernTabActive]} 
+                  onPress={() => setActiveTab('details')}
+                >
+                  <BookOpen size={20} color={activeTab === 'details' ? Colors.primary : Colors.lightText} />
+                  <Text style={[styles.modernTabText, activeTab === 'details' && styles.modernTabTextActive]}>
+                    Recipe Details
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.topTab, activeTab === 'chat' && styles.topTabActive]} onPress={() => setActiveTab('chat')}>
-                  <Text style={[styles.topTabText, activeTab === 'chat' && styles.topTabTextActive]}>Chat</Text>
+                <TouchableOpacity 
+                  style={[styles.modernTab, activeTab === 'chat' && styles.modernTabActive]} 
+                  onPress={() => setActiveTab('chat')}
+                >
+                  <MessageCircle size={20} color={activeTab === 'chat' ? Colors.primary : Colors.lightText} />
+                  <Text style={[styles.modernTabText, activeTab === 'chat' && styles.modernTabTextActive]}>
+                    AI Assistant
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.title}>{meal.name}</Text>
-              {'description' in meal && meal.description && (
-                <Text style={styles.description}>{meal.description}</Text>
-              )}
-
-              <View style={styles.metaContainer}>
-                <View style={styles.metaItem}>
-                  <Clock size={16} color={Colors.lightText} />
-                  <Text style={styles.metaText}>{totalTime} min</Text>
-                </View>
-
-                <View style={styles.metaItem}>
-                  <Users size={16} color={Colors.lightText} />
-                  <Text style={styles.metaText}>{meal.servings} servings</Text>
-                </View>
-              </View>
-
-              {/* Availability Status */}
+              {/* Enhanced Availability Status */}
               {recipeAvailability && (
-                <View style={styles.availabilityContainer}>
+                <View style={[
+                  styles.modernAvailabilityContainer,
+                  recipeAvailability.availabilityPercentage === 100 
+                    ? styles.availabilityGood 
+                    : styles.availabilityBad
+                ]}>
                   <View style={styles.availabilityHeader}>
-                    {recipeAvailability.availabilityPercentage === 100 ? (
-                      <CheckCircle size={20} color={Colors.fresh} />
-                    ) : (
-                      <AlertTriangle size={20} color={Colors.expiring} />
-                    )}
-                    <Text style={[
-                      styles.availabilityText,
-                      recipeAvailability.availabilityPercentage === 100
-                        ? styles.availabilityTextGood
-                        : styles.availabilityTextBad
-                    ]}>
-                      {recipeAvailability.availabilityPercentage === 100
-                        ? 'You can make this now!'
-                        : `Missing ${recipeAvailability.missingIngredients.length} ingredients`}
+                    <View style={styles.availabilityIconContainer}>
+                      {recipeAvailability.availabilityPercentage === 100 ? (
+                        <CheckCircle size={24} color="#4ECDC4" />
+                      ) : (
+                        <AlertTriangle size={24} color="#FF6B6B" />
+                      )}
+                    </View>
+                    <View style={styles.availabilityTextContainer}>
+                      <Text style={styles.modernAvailabilityTitle}>
+                        {recipeAvailability.availabilityPercentage === 100
+                          ? 'Ready to Cook!'
+                          : 'Missing Ingredients'}
+                      </Text>
+                      <Text style={styles.modernAvailabilitySubtitle}>
+                        {recipeAvailability.availabilityPercentage === 100
+                          ? 'All ingredients are available'
+                          : `${recipeAvailability.missingIngredients.length} ingredients needed`}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.availabilityProgressContainer}>
+                    <View style={styles.availabilityProgressBar}>
+                      <View 
+                        style={[
+                          styles.availabilityProgress, 
+                          { width: `${recipeAvailability.availabilityPercentage}%` }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.availabilityPercentageText}>
+                      {recipeAvailability.availabilityPercentage}%
                     </Text>
                   </View>
-                  <Text style={styles.availabilityPercentage}>
-                    {recipeAvailability.availabilityPercentage}% available
-                  </Text>
                 </View>
               )}
 
               {activeTab === 'details' ? (
                 <>
-                  <View style={styles.tagsContainer}>
+                  {/* Enhanced Tags */}
+                  <View style={styles.modernTagsContainer}>
                     {meal.tags.map((tag, index) => (
-                      <View key={index} style={styles.tag}>
-                        <Text style={styles.tagText}>{tag}</Text>
+                      <View key={index} style={styles.modernTag}>
+                        <Text style={styles.modernTagText}>{tag}</Text>
                       </View>
                     ))}
                   </View>
 
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Ingredients</Text>
-                    {ingredients.map((ingredient, index) => {
-                      const isMissing = recipeAvailability?.missingIngredients.some(
-                        mi => mi.name.toLowerCase() === ingredient.name.toLowerCase()
-                      );
-                      const isExpiring = recipeAvailability?.expiringIngredients.some(
-                        ei => ei.name.toLowerCase() === ingredient.name.toLowerCase()
-                      );
+                  {/* Enhanced Ingredients Section */}
+                  <View style={styles.modernSection}>
+                    <View style={styles.modernSectionHeader}>
+                      <ShoppingBag size={24} color={Colors.primary} />
+                      <Text style={styles.modernSectionTitle}>Ingredients</Text>
+                    </View>
+                    <View style={styles.ingredientsContainer}>
+                      {ingredients.map((ingredient, index) => {
+                        const isMissing = recipeAvailability?.missingIngredients.some(
+                          mi => mi.name.toLowerCase() === ingredient.name.toLowerCase()
+                        );
+                        const isExpiring = recipeAvailability?.expiringIngredients.some(
+                          ei => ei.name.toLowerCase() === ingredient.name.toLowerCase()
+                        );
 
-                      return (
-                        <View key={index} style={styles.ingredientItem}>
-                          <Text style={styles.ingredientText}>
-                            {ingredient.quantity} {ingredient.unit} {ingredient.name}
-                            {'optional' in ingredient && (ingredient as any).optional ? ' (optional)' : ''}
-                          </Text>
-                          <View style={styles.ingredientStatus}>
-                            {isMissing && (
-                              <Text style={styles.missingText}>Missing</Text>
-                            )}
-                            {isExpiring && !isMissing && (
-                              <Text style={styles.expiringText}>Expiring</Text>
-                            )}
-                            {!isMissing && !isExpiring && (
-                              <CheckCircle size={16} color={Colors.fresh} />
-                            )}
+                        return (
+                          <View key={index} style={styles.modernIngredientItem}>
+                            <View style={styles.ingredientContent}>
+                              <View style={[
+                                styles.ingredientStatusDot,
+                                isMissing ? styles.missingDot : 
+                                isExpiring ? styles.expiringDot : styles.availableDot
+                              ]} />
+                              <Text style={styles.modernIngredientText}>
+                                <Text style={styles.ingredientQuantity}>
+                                  {ingredient.quantity} {ingredient.unit}
+                                </Text>
+                                {' '}
+                                <Text style={styles.ingredientName}>
+                                  {ingredient.name}
+                                </Text>
+                                {'optional' in ingredient && (ingredient as any).optional && (
+                                  <Text style={styles.optionalText}> (optional)</Text>
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.modernIngredientStatus}>
+                              {isMissing && (
+                                <View style={styles.statusBadge}>
+                                  <Text style={styles.missingBadgeText}>Missing</Text>
+                                </View>
+                              )}
+                              {isExpiring && !isMissing && (
+                                <View style={[styles.statusBadge, styles.expiringBadge]}>
+                                  <Text style={styles.expiringBadgeText}>Expiring</Text>
+                                </View>
+                              )}
+                              {!isMissing && !isExpiring && (
+                                <CheckCircle size={20} color="#4ECDC4" />
+                              )}
+                            </View>
                           </View>
-                        </View>
-                      );
-                    })}
+                        );
+                      })}
+                    </View>
                   </View>
 
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Instructions</Text>
-                    {steps.map((step, index) => (
-                      <View key={index} style={styles.stepItem}>
-                        <Text style={styles.stepNumber}>{index + 1}</Text>
-                        <Text style={styles.stepText}>{step}</Text>
-                      </View>
-                    ))}
+                  {/* Enhanced Instructions Section */}
+                  <View style={styles.modernSection}>
+                    <View style={styles.modernSectionHeader}>
+                      <ChefHat size={24} color={Colors.primary} />
+                      <Text style={styles.modernSectionTitle}>Instructions</Text>
+                    </View>
+                    <View style={styles.stepsContainer}>
+                      {steps.map((step, index) => (
+                        <View key={index} style={styles.modernStepItem}>
+                          <View style={styles.modernStepNumber}>
+                            <Text style={styles.stepNumberText}>{index + 1}</Text>
+                          </View>
+                          <Text style={styles.modernStepText}>{step}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 </>
               ) : (
                 <>
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Ask about this recipe</Text>
-                    <View style={styles.chipsRow}>
+                  {/* Enhanced Chat Section */}
+                  <View style={styles.modernSection}>
+                    <View style={styles.modernSectionHeader}>
+                      <MessageCircle size={24} color={Colors.primary} />
+                      <Text style={styles.modernSectionTitle}>AI Recipe Assistant</Text>
+                    </View>
+                    <Text style={styles.chatDescription}>
+                      Ask me anything about this recipe - substitutions, scaling, cooking tips, or nutritional info!
+                    </Text>
+                    <View style={styles.modernChipsContainer}>
                       {quickChips.map((chip) => (
-                        <TouchableOpacity key={chip} style={styles.chip} onPress={() => sendMessage(chip)}>
-                          <Text style={styles.chipText}>{chip}</Text>
+                        <TouchableOpacity key={chip} style={styles.modernChip} onPress={() => sendMessage(chip)}>
+                          <Text style={styles.modernChipText}>{chip}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -319,21 +409,24 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                     </View>
 
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                      <View style={styles.composerRow}>
-                        <TextInput
-                          placeholder="Ask about substitutions, scaling, or steps…"
-                          placeholderTextColor={Colors.lightText}
-                          style={styles.input}
-                          value={chatInput}
-                          onChangeText={setChatInput}
-                          onSubmitEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v) { sendMessage(v); setChatInput(''); } }}
-                          returnKeyType="send"
-                        />
+                      <View style={styles.modernComposerRow}>
+                        <View style={styles.modernInputContainer}>
+                          <TextInput
+                            placeholder="Ask about substitutions, scaling, or steps…"
+                            placeholderTextColor={Colors.lightText}
+                            style={styles.modernInput}
+                            value={chatInput}
+                            onChangeText={setChatInput}
+                            onSubmitEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v) { sendMessage(v); setChatInput(''); } }}
+                            returnKeyType="send"
+                            multiline
+                          />
+                        </View>
                         <TouchableOpacity
-                          style={styles.sendBtn}
+                          style={styles.modernSendBtn}
                           onPress={() => { const v = chatInput.trim(); if (v) { sendMessage(v); setChatInput(''); } }}
                         >
-                          <Text style={styles.sendText}>Send</Text>
+                          <Send size={20} color={Colors.white} />
                         </TouchableOpacity>
                       </View>
                     </KeyboardAvoidingView>
@@ -343,46 +436,48 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
             </View>
           </ScrollView>
 
-          <View style={styles.buttonContainer}>
-            {/* Add to Meal Plan Button */}
-            <TouchableOpacity
-              style={[styles.button, styles.planButton]}
-              onPress={handleAddToMealPlan}
-              testID="add-to-plan-button"
-            >
-              <Calendar size={20} color={Colors.primary} />
-              <Text style={styles.planButtonText}>Add to Plan</Text>
-            </TouchableOpacity>
-
-            {/* Add Missing Ingredients Button */}
-            {recipeAvailability && recipeAvailability.missingIngredients.length > 0 && (
+          {/* Enhanced Action Buttons */}
+          <View style={styles.modernButtonContainer}>
+            <View style={styles.buttonRow}>
+              {/* Add to Meal Plan Button */}
               <TouchableOpacity
-                style={[styles.button, styles.listButton]}
-                onPress={handleAddMissingToList}
-                testID="add-missing-to-list-button"
+                style={styles.modernSecondaryButton}
+                onPress={handleAddToMealPlan}
+                testID="add-to-plan-button"
               >
-                <ShoppingBag size={20} color={Colors.text} />
-                <Text style={styles.listButtonText}>
-                  Add Missing ({recipeAvailability.missingIngredients.length})
-                </Text>
+                <Calendar size={20} color={Colors.primary} />
+                <Text style={styles.modernSecondaryButtonText}>Add to Plan</Text>
               </TouchableOpacity>
-            )}
+
+              {/* Add Missing Ingredients Button */}
+              {recipeAvailability && recipeAvailability.missingIngredients.length > 0 && (
+                <TouchableOpacity
+                  style={styles.modernSecondaryButton}
+                  onPress={handleAddMissingToList}
+                  testID="add-missing-to-list-button"
+                >
+                  <ShoppingBag size={20} color={Colors.primary} />
+                  <Text style={styles.modernSecondaryButtonText}>
+                    Missing ({recipeAvailability.missingIngredients.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Cook Now Button */}
             {'ingredients' in meal && (
               <TouchableOpacity
                 style={[
-                  styles.button,
-                  styles.cookButton,
-                  recipeAvailability?.availabilityPercentage !== 100 && styles.disabledButton
+                  styles.modernPrimaryButton,
+                  recipeAvailability?.availabilityPercentage !== 100 && styles.modernDisabledButton
                 ]}
                 onPress={handleCook}
                 disabled={recipeAvailability?.availabilityPercentage !== 100}
                 testID="cook-meal-button"
               >
-                <ChefHat size={20} color={Colors.white} />
-                <Text style={styles.cookButtonText}>
-                  {recipeAvailability?.availabilityPercentage === 100 ? 'Cook Now' : 'Missing Ingredients'}
+                <ChefHat size={24} color={Colors.white} />
+                <Text style={styles.modernPrimaryButtonText}>
+                  {recipeAvailability?.availabilityPercentage === 100 ? 'Cook This Recipe' : 'Missing Ingredients'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -409,7 +504,7 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContainer: {
     flex: 1,
@@ -418,135 +513,333 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  heroContainer: {
+    position: 'relative',
+    height: 320,
+  },
   image: {
     width: '100%',
-    height: 250,
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   closeButton: {
     position: 'absolute',
-    top: 40,
-    right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 8,
+    top: Platform.OS === 'ios' ? 50 : 30,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
   },
-  content: {
-    padding: 16,
+  heroContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.white,
     marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  description: {
+  heroDescription: {
     fontSize: 16,
-    color: Colors.lightText,
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 16,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  metaContainer: {
+  heroMetaContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    gap: 20,
   },
-  metaItem: {
+  heroMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  metaText: {
+  heroMetaText: {
     fontSize: 14,
-    color: Colors.lightText,
+    color: 'rgba(255,255,255,0.9)',
     marginLeft: 6,
+    fontWeight: '600',
   },
-  tagsContainer: {
+  content: {
+    padding: 20,
+    paddingTop: 24,
+  },
+  modernTabContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  modernTabActive: {
+    backgroundColor: Colors.primary + '15',
+  },
+  modernTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.lightText,
+  },
+  modernTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  modernTagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  tag: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagText: {
-    fontSize: 12,
-    color: Colors.text,
-  },
-  section: {
     marginBottom: 24,
+    gap: 8,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  ingredientItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modernTag: {
+    backgroundColor: Colors.primary + '15',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
   },
-  ingredientText: {
+  modernTagText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  modernSection: {
+    marginBottom: 32,
+  },
+  modernSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modernSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+    marginLeft: 12,
+  },
+  ingredientsContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernIngredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border + '30',
+  },
+  ingredientContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  ingredientStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  availableDot: {
+    backgroundColor: '#4ECDC4',
+  },
+  missingDot: {
+    backgroundColor: '#FF6B6B',
+  },
+  expiringDot: {
+    backgroundColor: '#FFD93D',
+  },
+  modernIngredientText: {
     fontSize: 16,
     color: Colors.text,
     flex: 1,
   },
-  missingText: {
-    fontSize: 14,
-    color: Colors.expiring,
+  ingredientQuantity: {
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  ingredientName: {
     fontWeight: '500',
   },
-  stepItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
+  optionalText: {
+    fontStyle: 'italic',
+    color: Colors.lightText,
   },
-  stepNumber: {
-    width: 24,
-    height: 24,
+  modernIngredientStatus: {
+    alignItems: 'center',
+  },
+  statusBadge: {
+    backgroundColor: '#FF6B6B15',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
-    color: Colors.white,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginRight: 12,
-    fontSize: 14,
-    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#FF6B6B30',
   },
-  stepText: {
+  expiringBadge: {
+    backgroundColor: '#FFD93D15',
+    borderColor: '#FFD93D30',
+  },
+  missingBadgeText: {
+    fontSize: 10,
+    color: '#FF6B6B',
+    fontWeight: '700',
+  },
+  expiringBadgeText: {
+    fontSize: 10,
+    color: '#FFD93D',
+    fontWeight: '700',
+  },
+  stepsContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernStepItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  modernStepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  stepNumberText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modernStepText: {
     fontSize: 16,
     color: Colors.text,
     flex: 1,
+    lineHeight: 24,
+    fontWeight: '500',
   },
-  availabilityContainer: {
-    backgroundColor: Colors.lightGray,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+  modernAvailabilityContainer: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  availabilityGood: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#4ECDC4',
+  },
+  availabilityBad: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B6B',
   },
   availabilityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  availabilityIconContainer: {
+    marginRight: 16,
+  },
+  availabilityTextContainer: {
+    flex: 1,
+  },
+  modernAvailabilityTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
     marginBottom: 4,
   },
-  availabilityText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  availabilityTextGood: {
-    color: Colors.fresh,
-  },
-  availabilityTextBad: {
-    color: Colors.expiring,
-  },
-  availabilityPercentage: {
+  modernAvailabilitySubtitle: {
     fontSize: 14,
     color: Colors.lightText,
+    fontWeight: '500',
+  },
+  availabilityProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  availabilityProgressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: Colors.background,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  availabilityProgress: {
+    height: '100%',
+    backgroundColor: '#4ECDC4',
+    borderRadius: 4,
+  },
+  availabilityPercentageText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
   },
   ingredientStatus: {
     flexDirection: 'row',
@@ -557,164 +850,179 @@ const styles = StyleSheet.create({
     color: Colors.aging,
     fontWeight: '500',
   },
-  buttonContainer: {
-    flexDirection: 'column',
-    padding: 16,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    gap: 8,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-  },
-  planButton: {
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  listButton: {
-    backgroundColor: Colors.secondary,
-  },
-  cookButton: {
-    backgroundColor: Colors.primary,
-  },
-  disabledButton: {
-    backgroundColor: Colors.lightText,
-    opacity: 0.7,
-  },
-  planButtonText: {
+  chatDescription: {
     fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginLeft: 8,
-  },
-  listButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  cookButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
-    marginLeft: 8,
-  },
-  topTabs: {
-    flexDirection: 'row',
-    backgroundColor: Colors.secondary,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 12,
-  },
-  topTab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  topTabActive: {
-    backgroundColor: Colors.white,
-  },
-  topTabText: {
     color: Colors.lightText,
-    fontWeight: '600',
+    marginBottom: 16,
+    lineHeight: 22,
   },
-  topTabTextActive: {
-    color: Colors.text,
-  },
-  chipsRow: {
+  modernChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 20,
   },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: Colors.secondary,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
+  modernChip: {
+    backgroundColor: Colors.primary + '15',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
   },
-  chipText: {
-    color: Colors.text,
-    fontSize: 12,
+  modernChipText: {
+    color: Colors.primary,
+    fontSize: 14,
     fontWeight: '600',
   },
+  modernComposerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginTop: 16,
+  },
+  modernInputContainer: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernInput: {
+    fontSize: 16,
+    color: Colors.text,
+    maxHeight: 100,
+  },
+  modernSendBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  modernButtonContainer: {
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border + '30',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  modernSecondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: Colors.white,
+    borderWidth: 2,
+    borderColor: Colors.primary + '30',
+    gap: 8,
+  },
+  modernSecondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  modernPrimaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    gap: 12,
+  },
+  modernPrimaryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  modernDisabledButton: {
+    backgroundColor: Colors.lightText,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   msg: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    maxWidth: '90%',
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 12,
+    maxWidth: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   msgUser: {
     backgroundColor: Colors.primary,
     alignSelf: 'flex-end',
+    borderBottomRightRadius: 8,
   },
   msgCoach: {
     backgroundColor: Colors.white,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.border + '50',
+    borderBottomLeftRadius: 8,
   },
   msgText: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
   },
   msgSource: {
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 11,
     color: Colors.lightText,
+    fontWeight: '500',
   },
   inlineActions: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 12,
   },
   inlineActionBtn: {
-    backgroundColor: Colors.secondary,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    backgroundColor: Colors.primary + '15',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
   },
   inlineActionText: {
-    color: Colors.text,
+    color: Colors.primary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   typingText: {
     color: Colors.lightText,
     fontStyle: 'italic',
+    fontSize: 15,
   },
-  composerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    color: Colors.text,
-  },
-  sendBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-  },
-  sendText: {
-    color: Colors.white,
-    fontWeight: '700',
-  }
 });

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Platform,
 } from 'react-native';
 import { TrendingUp, Search, Sparkles, Clock, Users, Heart, Star } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -60,13 +61,23 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
 
   // Load after provider is initialized
   useEffect(() => {
-    if (!recipeProvider) return;
-    if (trendingRecipes.length === 0) {
-      getTrendingRecipes();
-    }
-    if (externalRecipes.length === 0) {
-      getRandomRecipes(['main course', 'healthy'], 12, true);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!recipeProvider) return;
+        if (Platform.OS !== 'web') {
+          if (trendingRecipes.length === 0) {
+            await getTrendingRecipes();
+          }
+          if (externalRecipes.length === 0) {
+            await getRandomRecipes(['main course', 'healthy'], 12, true);
+          }
+        }
+      } catch (e) {
+        console.error('[EnhancedDiscovery] Failed to load discovery lists', e);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [recipeProvider, getTrendingRecipes, trendingRecipes.length, externalRecipes.length, getRandomRecipes]);
 
   // Handle refresh
@@ -74,13 +85,24 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
     if (!recipeProvider) return;
     setRefreshing(true);
     try {
-      await Promise.all([
-        getTrendingRecipes(),
-        getRandomRecipes(['main course', 'healthy'], 10),
-      ]);
+      if (Platform.OS !== 'web') {
+        await Promise.all([
+          getTrendingRecipes(),
+          getRandomRecipes(['main course', 'healthy'], 10),
+        ]);
+      }
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Open search with pre-filled filters
+  const openSearchWith = async (params: Partial<typeof filters>) => {
+    if (!recipeProvider) return;
+    const next = { ...filters, ...params };
+    setFilters(next);
+    setShowSearch(true);
+    await onSearch(next);
   };
 
   // Handle recipe press
@@ -103,7 +125,6 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
   // Render recipe card (image-first, badges)
   const renderRecipeCard = (recipe: ExternalRecipe, showSaveButton: boolean = true) => (
     <TouchableOpacity
-      key={recipe.id}
       style={styles.recipeCard}
       onPress={() => handleRecipePress(recipe)}
     >
@@ -210,6 +231,11 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
         <Text style={styles.headerDescription}>
           Discover thousands of professional recipes with nutrition data and smart recommendations
         </Text>
+        {Platform.OS === 'web' && (
+          <Text style={{ color: '#888', marginTop: 4 }}>
+            Discovery sections are limited on web due to CORS. Use search or run the app on a device.
+          </Text>
+        )}
 
         {/* Filter chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
@@ -274,6 +300,126 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+        {/* Popular Categories (horizontal chips) */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Categories</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH}
+            contentContainerStyle={styles.rowHContent}
+          >
+            {[
+              { label: 'Breakfast', type: 'breakfast' },
+              { label: 'Lunch', type: 'lunch' },
+              { label: 'Dinner', type: 'dinner' },
+              { label: 'Vegan', diet: 'vegan' },
+              { label: 'High Protein', type: 'main course', diet: undefined, sort: 'healthiness' as const },
+            ].map((c) => (
+              <TouchableOpacity key={c.label} style={styles.catChip} onPress={() => openSearchWith({ type: c.type as any, diet: c.diet as any, sort: c.sort })}>
+                <Text style={styles.catChipText}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Card>
+
+        {/* Calorie Counters (grid) */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Calorie Counters</Text>
+          </View>
+          <View style={styles.grid2}>
+            {[
+              { label: '50–100 kcal', maxCalories: 100 },
+              { label: '100–200 kcal', maxCalories: 200 },
+              { label: '200–300 kcal', maxCalories: 300 },
+              { label: '300–400 kcal', maxCalories: 400 },
+              { label: '400–500 kcal', maxCalories: 500 },
+              { label: '500–600 kcal', maxCalories: 600 },
+            ].map((r) => (
+              <TouchableOpacity key={r.label} style={styles.calTile} onPress={() => openSearchWith({ maxCalories: r.maxCalories, sort: 'calories', sortDirection: 'asc' })}>
+                <Text style={styles.calTileText}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
+        {/* Pick Your Meal (horizontal) */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pick Your Meal</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH} contentContainerStyle={styles.rowHContent}>
+            {[
+              { label: 'Bowls', type: 'salad' },
+              { label: 'Soups', type: 'soup' },
+              { label: 'Pasta', type: 'pasta' },
+              { label: 'Desserts', type: 'dessert' },
+              { label: 'Main Dishes', type: 'main course' },
+            ].map((m) => (
+              <TouchableOpacity key={m.label} style={styles.mealCard} onPress={() => openSearchWith({ type: m.type as any })}>
+                <Text style={styles.mealCardText}>{m.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Card>
+
+        {/* Pick Your Method (horizontal) */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pick Your Method</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH} contentContainerStyle={styles.rowHContent}>
+            {[
+              { label: 'Easy', maxReadyTime: 20 },
+              { label: '5 Ingredients', query: '5 ingredient' },
+              { label: 'One-Pot', query: 'one pot' },
+              { label: 'On the go', query: 'wrap sandwich' },
+            ].map((m) => (
+              <TouchableOpacity key={m.label} style={styles.methodCard} onPress={() => openSearchWith({ query: m.query as any, maxReadyTime: m.maxReadyTime as any })}>
+                <Text style={styles.methodCardText}>{m.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Card>
+
+        {/* Pick Your Diet (grid) */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pick Your Diet</Text>
+          </View>
+          <View style={styles.grid2}>
+            {[
+              { label: 'Vegetarian', diet: 'vegetarian' },
+              { label: 'Vegan', diet: 'vegan' },
+              { label: 'Low Carb', query: 'low carb' },
+              { label: 'Low Fat', query: 'low fat' },
+              { label: 'Low Calorie', maxCalories: 400 },
+              { label: 'High Protein', query: 'high protein' },
+            ].map((d) => (
+              <TouchableOpacity key={d.label} style={styles.dietTile} onPress={() => openSearchWith({ diet: d.diet as any, query: d.query as any, maxCalories: d.maxCalories as any })}>
+                <Text style={styles.dietTileText}>{d.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
+        {/* Our Favorites (horizontal from trending) */}
+        {trendingRecipes.length > 0 && (
+          <Card style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Our Favorites</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH}
+              contentContainerStyle={styles.rowHContent}
+            >
+              {trendingRecipes.slice(0, 12).map((r, idx) => (
+                <View key={`fav-${r.id}-${idx}`} style={styles.hCardWrapper}>
+                  {renderRecipeCard(r)}
+                </View>
+              ))}
+            </ScrollView>
+          </Card>
+        )}
         {/* Trending Recipes */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
@@ -285,7 +431,9 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
             <LoadingSpinner text="Loading trending recipes..." />
           ) : trendingRecipes.length > 0 ? (
             <View style={styles.recipeGrid}>
-              {trendingRecipes.slice(0, 6).map((recipe) => renderRecipeCard(recipe))}
+              {trendingRecipes.slice(0, 6).map((recipe, idx) => (
+                <View key={`trend-${recipe.id}-${idx}`}>{renderRecipeCard(recipe)}</View>
+              ))}
             </View>
           ) : (
             <Text style={styles.emptyText}>No trending recipes available</Text>
@@ -332,7 +480,9 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
             </View>
             
             <View style={styles.recipeGrid}>
-              {externalRecipes.map(recipe => renderRecipeCard(recipe, true))}
+              {externalRecipes.map((recipe, idx) => (
+              <View key={`recent-${recipe.id}-${idx}`}>{renderRecipeCard(recipe, true)}</View>
+            ))}
             </View>
 
             <View style={{ marginTop: Spacing.sm }}>
@@ -647,5 +797,104 @@ const styles = StyleSheet.create({
   retryButton: {
     width: '100%',
     backgroundColor: Colors.expiring,
+  },
+  // Horizontal rows
+  rowH: {
+    paddingVertical: Spacing.xs,
+  },
+  rowHContent: {
+    gap: Spacing.xs,
+    paddingRight: Spacing.lg,
+  },
+  // Popular Categories chip
+  catChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: Spacing.xs,
+  },
+  catChipText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  // 2-column grid tiles
+  grid2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  calTile: {
+    flexBasis: '48%',
+    paddingVertical: Spacing.lg,
+    borderRadius: 12,
+    backgroundColor: Colors.tabBackground,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calTileText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  // Horizontal meal cards
+  mealCard: {
+    width: 140,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.xs,
+  },
+  mealCardText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  // Horizontal method cards
+  methodCard: {
+    width: 160,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: Colors.tabBackground,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.xs,
+  },
+  methodCardText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  // Diet tiles
+  dietTile: {
+    flexBasis: '48%',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dietTileText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  // Horizontal card wrapper for favorites carousel
+  hCardWrapper: {
+    width: 240,
+    marginRight: Spacing.sm,
   },
 });

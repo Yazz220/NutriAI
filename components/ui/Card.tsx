@@ -42,7 +42,9 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border + '30',
   },
 });

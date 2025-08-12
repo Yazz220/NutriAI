@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, TextInput, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import { Download, X, ChefHat, Image as ImageIcon, Link, FileText } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { importRecipeFromUrl, importRecipeFromText, importRecipeFromImage } from '@/utils/recipeImport';
+import { transcribeFromUrl, transcribeFromUri } from '@/utils/sttClient';
+import { smartImport } from '@/utils/universalImport';
 import { Meal } from '@/types';
 
 interface ImportRecipeModalProps {
@@ -21,7 +25,9 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
   const [url, setUrl] = useState('');
   const [rawText, setRawText] = useState('');
   const [pickedImage, setPickedImage] = useState<string | null>(null);
+  const [pickedVideo, setPickedVideo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [preview, setPreview] = useState<null | {
     name: string;
     description?: string;
@@ -34,32 +40,193 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
     servings?: number;
   }>(null);
 
+  const isLikelyUrl = useMemo(() => {
+    const s = url.trim();
+    if (!s) return false;
+    try { new URL(s); return true; } catch { return false; }
+  }, [url]);
+
+  const isSocialVideoLink = useMemo(() => {
+    if (!isLikelyUrl) return false;
+    try {
+      const u = new URL(url.trim());
+      const host = u.hostname.replace(/^www\./, '');
+      const path = u.pathname || '';
+      // Only treat as social VIDEO when both host matches and path looks like a video permalink
+      if (host.includes('tiktok.com') || host.includes('vm.tiktok.com')) {
+        return /\/video\//.test(path) || path.length > 1; // vm.tiktok shortlinks redirect
+      }
+      if (host.includes('instagram.com')) {
+        return /\/(reel|reels)\//.test(path);
+      }
+      if (host.includes('youtube.com')) {
+        return /\/(watch|shorts)\//.test(path) || u.searchParams.has('v');
+      }
+      if (host === 'youtu.be') {
+        return path.length > 1; // youtu.be/<id>
+      }
+      if (host.includes('facebook.com') || host === 'fb.watch') {
+        return /\/(reel|watch)\//.test(path) || path.length > 1; // fb.watch/<id>
+      }
+      // Avoid Pinterest and generic hosts to reduce false positives
+      return false;
+    } catch { return false; }
+  }, [url, isLikelyUrl]);
+
+  // Detector helpers defined above using URL parsing: isLikelyUrl, isSocialVideoLink
+
   if (!visible) return null;
+
+  // Text preprocessor: remove hashtags/emojis/mentions/urls, normalize spacing and bullets
+  const cleanText = (input: string) => {
+    let t = input
+      // remove URLs
+      .replace(/https?:[^\s]+/gi, ' ')
+      // remove mentions and hashtags
+      .replace(/[@#][\w_]+/g, ' ')
+      // remove most emojis (basic range)
+      .replace(/[\u{1F300}-\u{1FAFF}\u{1F900}-\u{1F9FF}]/gu, ' ')
+      // normalize dashes/bullets
+      .replace(/[•\-*·]+/g, '- ')
+      // collapse whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+    return t;
+  };
+
+  const handleTranscribeFromUrl = async () => {
+    if (!isLikelyUrl) return;
+    setIsTranscribing(true);
+    try {
+      const { text } = await transcribeFromUrl(url.trim(), { language: 'english', response_format: 'json' });
+      const cleaned = cleanText(text || '');
+      if (!cleaned) throw new Error('Empty transcript');
+      const data = await importRecipeFromText(cleaned);
+      setPreview(data);
+    } catch (e) {
+      Alert.alert('Transcription failed', 'We could not transcribe this video link. Try pasting the caption or upload a screenshot.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleTranscribePickedVideo = async () => {
+    if (!pickedVideo) return;
+    setIsTranscribing(true);
+    try {
+      const ext = pickedVideo.split('.').pop()?.toLowerCase();
+      const mime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+      const { text } = await transcribeFromUri(pickedVideo, 'video.mp4', mime, { language: 'english', response_format: 'json' });
+      const cleaned = cleanText(text || '');
+      if (!cleaned) throw new Error('Empty transcript');
+      const data = await importRecipeFromText(cleaned);
+      setPreview(data);
+    } catch (e) {
+      Alert.alert('Transcription failed', 'We could not transcribe this video. On web, try using the video URL instead.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   const handleImport = async () => {
     setIsLoading(true);
     try {
-      let data;
-      if (activeTab === 'url') {
-        data = await importRecipeFromUrl(url.trim());
-      } else if (activeTab === 'text') {
-        data = await importRecipeFromText(rawText.trim());
-      } else {
-        if (!pickedImage) throw new Error('No image selected');
-        // Convert file URI to base64 data URL
-        const base64 = await FileSystem.readAsStringAsync(pickedImage, { encoding: FileSystem.EncodingType.Base64 });
-        const ext = pickedImage.split('.').pop()?.toLowerCase();
-        const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-        const dataUrl = `data:${mime};base64,${base64}`;
-        data = await importRecipeFromImage(dataUrl);
+      const input: any = { url: undefined, text: undefined, file: undefined };
+      if (isLikelyUrl) input.url = url.trim();
+      if (!input.url && url.trim()) input.text = url.trim();
+      if (!input.url && !input.text) {
+        if (pickedVideo) {
+          const ext = pickedVideo.split('.').pop()?.toLowerCase();
+          const mime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+          input.file = { uri: pickedVideo, mime, name: 'video.' + (ext || 'mp4') };
+        } else if (pickedImage) {
+          const ext = pickedImage.split('.').pop()?.toLowerCase();
+          const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+          input.file = { uri: pickedImage, mime, name: 'image.' + (ext || 'jpg') };
+        }
       }
-      setPreview(data);
-      if (!data.ingredients?.length && activeTab === 'url') {
-        // Prompt to try AI text if URL failed
-        Alert.alert('Heads up', 'This page didn\'t expose a recipe. If you can paste the recipe text or transcript, try the Text tab.');
+
+      if (!input.url && !input.text && !input.file) {
+        Alert.alert('Nothing to import', 'Please paste a URL/text or attach an image/video.');
+        return;
       }
-    } catch (e) {
-      const msg = activeTab === 'url' ? 'Could not parse the recipe from this URL.' : activeTab === 'text' ? 'Could not parse the provided text.' : 'Could not parse the selected image.';
+
+      console.log('[ImportRecipeModal] Smart import starting', { hasUrl: !!input.url, hasText: !!input.text, hasFile: !!input.file });
+      const { recipe, provenance } = await smartImport(input);
+      console.log('[ImportRecipeModal] Smart import complete', { source: provenance?.source, notes: provenance?.parserNotes?.length, confidence: provenance?.confidence });
+      
+      if (!recipe) {
+        Alert.alert('No recipe found', 'We could not extract a recipe. If this was a social video, try Transcribe Video or attach a screenshot.');
+        return;
+      }
+
+      // Enhanced preview with validation data
+      const enhancedPreview = {
+        ...recipe,
+        confidence: provenance?.confidence || 0.5,
+        originalUrl: input.url,
+        extractionMethods: provenance?.parserNotes || [],
+        validationIssues: [], // Will be populated by validation system
+        missingIngredients: [], // Will be populated by ingredient recovery
+        inferredQuantities: [] // Will be populated by ingredient recovery
+      };
+
+      // Run validation and ingredient recovery
+      try {
+        const { parseRecipeWithAI, validateRecipeConsistency } = await import('../utils/aiRecipeParser');
+        
+        // Convert to ParsedRecipe format for validation
+        const parsedRecipe = {
+          title: recipe.name,
+          ingredients: recipe.ingredients.map((ing: any) => ({
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            optional: ing.optional || false,
+            confidence: 0.8, // Default confidence
+            inferred: false
+          })),
+          instructions: recipe.steps,
+          prepTime: recipe.prepTime,
+          cookTime: recipe.cookTime,
+          servings: recipe.servings,
+          tags: recipe.tags || [],
+          confidence: provenance?.confidence || 0.5
+        };
+
+        // Validate recipe consistency
+        const validationResult = await validateRecipeConsistency(
+          parsedRecipe,
+          input.text || input.url || 'Imported content'
+        );
+
+        // Update preview with validation results
+        enhancedPreview.ingredients = validationResult.validatedRecipe.ingredients.map((ing: any) => ({
+          ...ing,
+          hasIssues: ing.confidence < 0.6 || ing.inferred,
+          issues: ing.confidence < 0.6 ? ['Low confidence extraction'] : 
+                  ing.inferred ? ['Quantity was inferred'] : []
+        }));
+        
+        enhancedPreview.validationIssues = validationResult.inconsistencies.map((inc: any) => ({
+          type: inc.type,
+          severity: inc.severity,
+          description: inc.description,
+          suggestion: inc.suggestion
+        }));
+        
+        enhancedPreview.missingIngredients = validationResult.missingIngredients;
+        enhancedPreview.inferredQuantities = validationResult.inferredQuantities;
+
+      } catch (validationError) {
+        console.warn('[ImportRecipeModal] Validation failed:', validationError);
+        // Continue with basic preview if validation fails
+      }
+
+      setPreview(enhancedPreview);
+    } catch (e: any) {
+      console.error('[ImportRecipeModal] Smart import failed', e);
+      const msg = e?.message || 'Could not import this recipe. Try another source, transcribing the video, or attaching a screenshot.';
       Alert.alert('Import failed', msg);
     } finally {
       setIsLoading(false);
@@ -72,25 +239,42 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
       Alert.alert('Permission required', 'Please allow photo library access to import from image.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.9 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.9 });
     if (!result.canceled && result.assets?.length) {
       const uri = result.assets[0].uri;
-      setActiveTab('image');
-      setPickedImage(uri);
+      // Heuristic: decide image vs video by mediaType or file extension
+      const isVideo = (result.assets[0] as any).type?.startsWith('video') || /\.(mp4|mov|m4v|webm)$/i.test(uri);
       setPreview(null);
-      // Auto-start analysis for better UX
-      try {
-        setIsLoading(true);
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        const ext = uri.split('.').pop()?.toLowerCase();
-        const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-        const dataUrl = `data:${mime};base64,${base64}`;
-        const data = await importRecipeFromImage(dataUrl);
-        setPreview(data);
-      } catch (e) {
-        Alert.alert('Import failed', 'Could not parse the selected image.');
-      } finally {
-        setIsLoading(false);
+      if (isVideo) {
+        setPickedVideo(uri);
+        // MVP flow: prompt user to paste caption or take screenshot
+        Alert.alert(
+          'Video detected',
+          'You can transcribe the video to extract the recipe, paste the caption in Text tab, or pick a screenshot.',
+          [
+            { text: 'Transcribe Video', onPress: () => handleTranscribePickedVideo() },
+            { text: 'Paste Caption', onPress: () => setActiveTab('text') },
+            { text: 'Pick Screenshot', onPress: () => setActiveTab('image') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+      } else {
+        setActiveTab('image');
+        setPickedImage(uri);
+        // Auto-start analysis for better UX
+        try {
+          setIsLoading(true);
+          const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          const ext = uri.split('.').pop()?.toLowerCase();
+          const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+          const dataUrl = `data:${mime};base64,${base64}`;
+          const data = await importRecipeFromImage(dataUrl);
+          setPreview(data);
+        } catch (e) {
+          Alert.alert('Import failed', 'Could not parse the selected image.');
+        } finally {
+          setIsLoading(false);
+        }
       }
     }
   };
@@ -116,61 +300,59 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
   return (
     <View style={styles.overlay}>
       <View style={styles.container}>
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Import Recipe</Text>
-
-          <View style={styles.tabRow}>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'url' && styles.tabBtnActive]} onPress={() => setActiveTab('url')}>
-              <Text style={[styles.tabText, activeTab === 'url' && styles.tabTextActive]}>From URL</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'text' && styles.tabBtnActive]} onPress={() => setActiveTab('text')}>
-              <Text style={[styles.tabText, activeTab === 'text' && styles.tabTextActive]}>From Text</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'image' && styles.tabBtnActive]} onPress={() => setActiveTab('image')}>
-              <Text style={[styles.tabText, activeTab === 'image' && styles.tabTextActive]}>From Image</Text>
+        {/* Enhanced Header with Gradient */}
+        <ExpoLinearGradient
+          colors={['#ff9a9e', '#fecfef']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerTitleRow}>
+              <View style={styles.headerIcon}>
+                <Download size={20} color={Colors.white} />
+              </View>
+              <Text style={styles.title}>Import Recipe</Text>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <X size={20} color={Colors.white} />
             </TouchableOpacity>
           </View>
+        </ExpoLinearGradient>
 
-          {activeTab === 'url' ? (
+        <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+          <Input
+            placeholder="Paste recipe URL or text (or attach a photo/video)"
+            value={url}
+            onChangeText={setUrl}
+            autoCapitalize="none"
+            keyboardType={isLikelyUrl ? 'url' : 'default'}
+            autoCorrect={false}
+          />
+          <Text style={styles.helpText}>Single-button import detects URL, text, image, or video automatically.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 1, marginRight: Spacing.sm }}>
+              <Button title={isLoading ? 'Importing…' : 'Smart Import'} onPress={handleImport} disabled={isLoading || (!url.trim() && !pickedImage && !pickedVideo)} />
+            </View>
+            <Button title="Attach" variant="outline" onPress={handlePickImage} />
+          </View>
+          {pickedImage ? (
+            <Image source={{ uri: pickedImage }} style={styles.previewImage} />
+          ) : null}
+          {!!pickedVideo && (
+            <Text style={styles.helpText}>Video attached. You can also transcribe it for better accuracy.</Text>
+          )}
+          {isSocialVideoLink ? (
             <>
-              <Input
-                placeholder="Paste recipe URL (TikTok, website, etc.)"
-                value={url}
-                onChangeText={setUrl}
-                autoCapitalize="none"
-                keyboardType="url"
-                autoCorrect={false}
-              />
-              <Button title={isLoading ? 'Importing…' : 'Import'} onPress={handleImport} disabled={isLoading || !url.trim()} />
-            </>
-          ) : activeTab === 'text' ? (
-            <>
-              <Text style={styles.helpText}>Paste any recipe text, transcript, or notes. We\'ll parse ingredients and steps.</Text>
-              <TextInput
-                value={rawText}
-                onChangeText={setRawText}
-                multiline
-                placeholder="e.g. Title, ingredients list, step-by-step instructions…"
-                style={styles.textArea}
-              />
-              <Button title={isLoading ? 'Parsing…' : 'Parse Text'} onPress={handleImport} disabled={isLoading || !rawText.trim()} />
-            </>
-          ) : (
-            <>
-              <Text style={styles.helpText}>Pick a screenshot or photo of a recipe. We\'ll OCR and parse it.</Text>
-              {pickedImage ? (
-                <Image source={{ uri: pickedImage }} style={styles.previewImage} />
-              ) : null}
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ marginRight: Spacing.sm }}>
-                  <Button title="Choose Photo" onPress={handlePickImage} variant="outline" />
-                </View>
-                <Button title={isLoading ? 'Parsing…' : 'Import'} onPress={handleImport} disabled={isLoading || !pickedImage} />
+              <Text style={styles.helpText}>Detected social video link. Optional: transcribe audio for better extraction.</Text>
+              <View style={{ marginTop: Spacing.xs }}>
+                <Button title={isTranscribing ? 'Transcribing…' : 'Transcribe Video (Beta)'} onPress={handleTranscribeFromUrl} disabled={isTranscribing || !url.trim()} />
               </View>
             </>
-          )}
+          ) : null}
 
-          {isLoading && <ActivityIndicator style={{ marginTop: Spacing.md }} />}
+          {(isLoading || isTranscribing) && <ActivityIndicator style={{ marginTop: Spacing.md }} />}
 
           {preview && (
             <Card style={{ marginTop: Spacing.lg }}>
@@ -199,18 +381,76 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
             </Card>
           )}
         </ScrollView>
-        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <Text style={styles.closeText}>Close</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  container: { maxHeight: '85%', backgroundColor: Colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: Spacing.lg },
-  title: { fontSize: Typography.sizes.xl, fontWeight: '600', color: Colors.text, marginBottom: Spacing.md },
+  overlay: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    justifyContent: 'flex-end' 
+  },
+  container: { 
+    maxHeight: '90%', 
+    backgroundColor: Colors.background, 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  title: { 
+    fontSize: 22, 
+    fontWeight: '700', 
+    color: Colors.white,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: 20,
+  },
   tabRow: { flexDirection: 'row', backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, overflow: 'hidden', marginBottom: Spacing.md },
   tabBtn: { flex: 1, paddingVertical: Spacing.sm, alignItems: 'center', backgroundColor: Colors.white },
   tabBtnActive: { backgroundColor: Colors.primary + '20' },

@@ -11,9 +11,11 @@ import {
   Image,
   Animated,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Plus, AlertCircle, Camera as IconCamera, Barcode } from 'lucide-react-native';
+import { Plus, AlertCircle, Camera as IconCamera, Barcode, Package, TrendingUp, Filter } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
@@ -31,54 +33,160 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { InventoryItem, ItemCategory } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
 
+// Enhanced Component Definitions
+const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <View style={styles.statCard}>
+    <View style={styles.statIcon}>{icon}</View>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
+  content: {
+    flex: 1,
+  },
+  hero: {
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    minHeight: 280,
+  },
+  statusBarSpacer: {
+    height: Platform.OS === 'ios' ? 44 : 24,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroTitle: {
+    color: Colors.white,
+    fontSize: 24,
+    fontWeight: '700',
+    marginLeft: 12,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  inventoryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 5,
+  },
+  statCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statIcon: {
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.lightText,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   searchContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
+    marginTop: 10,
   },
   searchInput: {
     marginBottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  headerButton: {
-    padding: Spacing.sm,
-    marginRight: Spacing.sm,
-  },
-  expiringCard: {
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+  expiringSection: {
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    marginTop: -10,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 20,
   },
   expiringHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: 12,
+  },
+  expiringTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   expiringTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.text,
-    marginLeft: Spacing.sm,
+    marginLeft: 8,
+  },
+  expiringCount: {
+    fontSize: 14,
+    color: Colors.lightText,
+    fontWeight: '500',
+  },
+  expiringScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
   },
   expiringItem: {
     width: 250,
-    marginRight: Spacing.md,
+    marginRight: 12,
   },
   sectionHeader: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
-    marginTop: 8,
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 12,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.background,
   },
   sectionListContent: {
-    paddingBottom: 150, // Ensure space for quick add buttons
+    paddingBottom: 150,
+    paddingTop: 10,
   },
   itemCardContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     marginBottom: 12,
   },
   emptyContainer: {
@@ -87,53 +195,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
     marginTop: 50,
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyText: {
-    fontSize: 16,
-    color: Colors.secondary,
-    marginBottom: 16,
+    fontSize: 18,
+    color: Colors.text,
+    marginBottom: 8,
     textAlign: 'center',
-  },
-  toastContainer: {
-    position: 'absolute',
-    bottom: 100,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderRadius: 8,
-    padding: 12,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  toastText: {
-    color: Colors.white,
-    fontSize: 14,
-    flex: 1,
-  },
-  toastButton: {
-    marginLeft: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 6,
-  },
-  toastButtonText: {
-    color: Colors.white,
-    fontSize: 12,
     fontWeight: '600',
   },
   quickAddContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 30,
     right: 20,
     alignItems: 'flex-end',
   },
@@ -144,31 +224,34 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
+    shadowRadius: 8,
+    elevation: 8,
     marginBottom: 12,
   },
   quickAddOption: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginBottom: 8,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   quickAddText: {
     marginLeft: 8,
     fontSize: 14,
     color: Colors.text,
+    fontWeight: '500',
   },
   cameraContainer: {
     flex: 1,
@@ -609,14 +692,59 @@ export default function InventoryScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Inventory',
-          headerRight: () => (
-            <TouchableOpacity style={styles.headerButton} onPress={() => setModalVisible(true)}>
-              <Plus size={24} color={Colors.primary} />
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }}
       />
+
+      {/* Enhanced Hero Header */}
+      <ExpoLinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.statusBarSpacer} />
+        
+        {/* Header */}
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTitleRow}>
+            <Package size={28} color={Colors.white} />
+            <Text style={styles.heroTitle}>Inventory</Text>
+          </View>
+          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+            <Plus size={24} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Stats */}
+        <View style={styles.inventoryStats}>
+          <StatCard 
+            icon={<Package size={20} color="#667eea" />} 
+            label="Total Items" 
+            value={inventory.length.toString()} 
+          />
+          <StatCard 
+            icon={<AlertCircle size={20} color="#FF6B6B" />} 
+            label="Expiring Soon" 
+            value={expiring.length.toString()} 
+          />
+          <StatCard 
+            icon={<TrendingUp size={20} color="#4ECDC4" />} 
+            label="Categories" 
+            value={groupedInventory.length.toString()} 
+          />
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Input
+            placeholder="Search your inventory..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
+        </View>
+      </ExpoLinearGradient>
 
       <AddItemModal
         visible={isModalVisible}
@@ -624,34 +752,30 @@ export default function InventoryScreen() {
         onAdd={handleAddItem}
       />
 
-      <View style={styles.searchContainer}>
-        <Input
-          placeholder="Search inventory..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={styles.searchInput}
-        />
-      </View>
-
+      {/* Enhanced Expiring Section */}
       {expiring.length > 0 && (
-        <Card style={styles.expiringCard}>
+        <View style={styles.expiringSection}>
           <View style={styles.expiringHeader}>
-            <AlertCircle size={20} color={Colors.expiring} />
-            <Text style={styles.expiringTitle}>Expiring Soon</Text>
+            <View style={styles.expiringTitleRow}>
+              <AlertCircle size={20} color="#FF6B6B" />
+              <Text style={styles.expiringTitle}>Expiring Soon</Text>
+            </View>
+            <Text style={styles.expiringCount}>{expiring.length} items</Text>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.expiringScroll}>
             {expiring.map(item => (
               <View key={`expiring-${item.id}`} style={styles.expiringItem}>
                 <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
               </View>
             ))}
           </ScrollView>
-        </Card>
+        </View>
       )}
 
       <ScrollView
-        style={styles.container}
+        style={styles.content}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
         <FilterPill />
 

@@ -3,16 +3,17 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput, 
   TouchableOpacity, 
   Modal, 
   ScrollView,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { ItemCategory } from '@/types';
-import { X, AlertCircle } from 'lucide-react-native';
+import { X, Package, Calendar, Hash } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useValidation } from '@/hooks/useValidation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -140,68 +141,89 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add New Item</Text>
-            <TouchableOpacity 
-              onPress={handleClose} 
-              style={styles.closeButton}
-              disabled={isSubmitting}
-              accessibilityLabel="Close modal"
-              accessibilityHint="Tap to close the add item modal"
-            >
-              <X size={24} color={isSubmitting ? Colors.lightText : Colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.modalContent}>
-            <Input
-              label="Item Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter item name"
-              error={errors.name}
-              required
-              testID="item-name-input"
-              accessibilityLabel="Item name input"
-              accessibilityHint="Enter the name of the item you want to add"
-            />
-            
-            <View style={styles.row}>
-              <View style={styles.halfColumn}>
-                <Input
-                  label="Quantity"
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  error={errors.quantity}
-                  required
-                  testID="item-quantity-input"
-                  accessibilityLabel="Item quantity input"
-                  accessibilityHint="Enter the quantity of the item"
-                />
+          {/* Enhanced Header with Gradient */}
+          <ExpoLinearGradient
+            colors={['#667eea', '#764ba2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.modalHeader}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.headerTitleRow}>
+                <View style={styles.headerIcon}>
+                  <Package size={24} color={Colors.white} />
+                </View>
+                <Text style={styles.modalTitle}>Add New Item</Text>
               </View>
-              
-              <View style={styles.halfColumn}>
-                <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
-                  Unit <Text style={{ color: Colors.error }}>*</Text>
-                </Text>
-                <View 
-                  style={styles.pickerContainer}
-                  accessibilityRole="radiogroup"
-                  accessibilityLabel="Select unit of measurement"
-                >
+              <TouchableOpacity 
+                onPress={handleClose} 
+                style={styles.closeButton}
+                disabled={isSubmitting}
+                accessibilityLabel="Close modal"
+                accessibilityHint="Tap to close the add item modal"
+              >
+                <X size={24} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          </ExpoLinearGradient>
+          
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Enhanced Input Sections */}
+            <View style={styles.inputSection}>
+              <View style={styles.sectionHeader}>
+                <Package size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Item Details</Text>
+              </View>
+              <Input
+                label="Item Name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter item name"
+                error={errors.name}
+                required
+                testID="item-name-input"
+                accessibilityLabel="Item name input"
+                accessibilityHint="Enter the name of the item you want to add"
+              />
+            </View>
+
+            <View style={styles.inputSection}>
+              <View style={styles.sectionHeader}>
+                <Hash size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Quantity & Unit</Text>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.halfColumn}>
+                  <Input
+                    label="Quantity"
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="numeric"
+                    placeholder="1"
+                    error={errors.quantity}
+                    required
+                    testID="item-quantity-input"
+                    accessibilityLabel="Item quantity input"
+                    accessibilityHint="Enter the quantity of the item"
+                  />
+                </View>
+                
+                <View style={styles.halfColumn}>
+                  <Text style={styles.inputLabel}>
+                    Unit <Text style={{ color: Colors.error }}>*</Text>
+                  </Text>
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false}
+                    style={styles.unitsScroll}
                     accessibilityLabel="Scroll to see more units"
                   >
                     {commonUnits.map((u) => (
                       <TouchableOpacity
                         key={u}
                         style={[
-                          styles.unitButton,
-                          unit === u && styles.selectedUnitButton
+                          styles.modernUnitButton,
+                          unit === u && styles.selectedModernUnitButton
                         ]}
                         onPress={() => setUnit(u)}
                         accessibilityRole="radio"
@@ -211,8 +233,8 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                       >
                         <Text 
                           style={[
-                            styles.unitButtonText,
-                            unit === u && styles.selectedUnitButtonText
+                            styles.modernUnitButtonText,
+                            unit === u && styles.selectedModernUnitButtonText
                           ]}
                         >
                           {u}
@@ -224,51 +246,56 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               </View>
             </View>
             
-            <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
-              Category <Text style={{ color: Colors.error }}>*</Text>
-            </Text>
-            <View 
-              style={styles.categoryContainer}
-              accessibilityRole="radiogroup"
-              accessibilityLabel="Select item category"
-            >
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryButton,
-                    category === cat && styles.selectedCategoryButton
-                  ]}
-                  onPress={() => setCategory(cat)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: category === cat }}
-                  accessibilityLabel={`${cat} category`}
-                  accessibilityHint={`Select ${cat} as the item category`}
-                >
-                  <Text 
+            <View style={styles.inputSection}>
+              <View style={styles.sectionHeader}>
+                <Package size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Category</Text>
+              </View>
+              <View style={styles.modernCategoryContainer}>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
                     style={[
-                      styles.categoryButtonText,
-                      category === cat && styles.selectedCategoryButtonText
+                      styles.modernCategoryButton,
+                      category === cat && styles.selectedModernCategoryButton
                     ]}
+                    onPress={() => setCategory(cat)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: category === cat }}
+                    accessibilityLabel={`${cat} category`}
+                    accessibilityHint={`Select ${cat} as the item category`}
                   >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text 
+                      style={[
+                        styles.modernCategoryButtonText,
+                        category === cat && styles.selectedModernCategoryButtonText
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
             
-            <Input
-              label="Expires in (days)"
-              value={expiryDays}
-              onChangeText={setExpiryDays}
-              keyboardType="numeric"
-              placeholder="7"
-              error={errors.expiryDays}
-              required
-              testID="item-expiry-input"
-              accessibilityLabel="Item expiry days input"
-              accessibilityHint="Enter how many days until the item expires"
-            />
+            <View style={styles.inputSection}>
+              <View style={styles.sectionHeader}>
+                <Calendar size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Expiration</Text>
+              </View>
+              <Input
+                label="Expires in (days)"
+                value={expiryDays}
+                onChangeText={setExpiryDays}
+                keyboardType="numeric"
+                placeholder="7"
+                error={errors.expiryDays}
+                required
+                testID="item-expiry-input"
+                accessibilityLabel="Item expiry days input"
+                accessibilityHint="Enter how many days until the item expires"
+              />
+            </View>
           </ScrollView>
           
           <Button
@@ -290,103 +317,149 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: Colors.background,
-    borderTopLeftRadius: Spacing.xl,
-    borderTopRightRadius: Spacing.xl,
-    paddingBottom: Spacing.xl,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
   },
   modalHeader: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   modalTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.white,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   closeButton: {
-    padding: Spacing.sm,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalContent: {
-    padding: Spacing.md,
+    padding: 20,
     maxHeight: '70%',
+  },
+  inputSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.md,
+    gap: 12,
   },
   halfColumn: {
-    width: '48%',
+    flex: 1,
   },
-  pickerContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: Spacing.md,
-    borderWidth: 1,
+  unitsScroll: {
+    marginTop: 8,
+  },
+  modernUnitButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    borderWidth: 2,
     borderColor: Colors.border,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    height: 'auto',
-    marginTop: Spacing.sm,
   },
-  webPicker: {
-    width: '100%',
-    height: 46,
-    fontSize: Typography.sizes.md,
-    paddingLeft: Spacing.md,
+  selectedModernUnitButton: {
+    backgroundColor: Colors.primary + '15',
+    borderColor: Colors.primary,
+  },
+  modernUnitButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.text,
   },
-  unitButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    marginRight: Spacing.sm,
-    borderRadius: Spacing.sm,
-    backgroundColor: Colors.secondary,
+  selectedModernUnitButtonText: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
-  selectedUnitButton: {
-    backgroundColor: Colors.primary,
-  },
-  unitButtonText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text,
-  },
-  selectedUnitButtonText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.white,
-  },
-  categoryContainer: {
+  modernCategoryContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: Spacing.sm,
+    gap: 8,
   },
-  categoryButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    margin: Spacing.xs,
-    borderRadius: Spacing.md,
-    backgroundColor: Colors.secondary,
+  modernCategoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: Colors.background,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    marginBottom: 8,
   },
-  selectedCategoryButton: {
-    backgroundColor: Colors.primary,
+  selectedModernCategoryButton: {
+    backgroundColor: Colors.primary + '15',
+    borderColor: Colors.primary,
   },
-  categoryButtonText: {
-    fontSize: Typography.sizes.sm,
+  modernCategoryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.text,
   },
-  selectedCategoryButtonText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.white,
+  selectedModernCategoryButtonText: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
   addButton: {
-    margin: Spacing.md,
-  }
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
 });

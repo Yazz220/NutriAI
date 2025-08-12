@@ -8,29 +8,29 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
 - Final (4 tabs):
   - Inventory — Core item management
   - Shopping List — Grocery management with "Mark as Purchased" flow
-  - Recipes — Includes both Recipes AND Planner (toggle at top)
-  - Nutrition Dashboard — Focused nutrition tracking (transformed from Coach)
+  - Recipes — Library and discovery
+  - Coach — Visual dashboard with planning (calorie ring, macros, meal rows, day nav)
 
 ## 🔑 Key Changes Made
 
 ### 1) Tab Consolidation
-- Moved Meal Planner into Recipes tab with a two-button toggle ("Recipes" / "Planner")
+- Consolidated meal planning into the Coach dashboard
+- Removed the standalone Planner tab and its route from the tab bar
 - Reduced navigation clutter from 5 to 4 tabs
-- Fixed routing: removed Planner from bottom navigation, route remains accessible
 
 ### 2) AI Integration Strategy
 - Recipes tab: "AI Picks" header with proactive suggestions from `useCoach`
-- Nutrition Dashboard: focused nutrition tracking with:
-  - Daily macro totals and goals
-  - Weekly progress trends
-  - Proactive "Right Now" suggestions
+- Coach dashboard: focused nutrition + planning with:
+  - Calorie ring and macros
+  - Per-meal rows with add (+) and thumbnails
+  - Day navigation and persistent selected day
   - Conversational chat interface via `useCoachChat`
 
 ### 3) Recipe Import Feature
 - New ImportRecipeModal: paste recipe URLs (TikTok, Instagram, websites)
 - Client-side parsing using JSON-LD/Open Graph metadata
 - Preview and save imported recipes to personal library
-- Smart follow-ups: "Add to Planner" and "Add missing ingredients"
+- Smart follow-ups: "Add to Plan" and "Add missing ingredients"
 
 ### 4) Enhanced Shopping List Flow
 - "Mark as Purchased" prompts for expiry date when checking items
@@ -65,7 +65,7 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
 ### Intuitive Workflows
 - Recipe import with preview and smart actions
 - Shopping list → Inventory flow with expiry prompts
-- Consolidated meal planning within recipe discovery
+- Consolidated meal planning within the Coach dashboard
 
 ### User Feedback
 - Toast notifications for major actions
@@ -78,7 +78,7 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
 - Inventory Management — Track items, expiry dates, categories
 - Smart Shopping Lists — Generate from recipes, mark as purchased
 - Recipe Library — Browse, search, import from URLs
-- Meal Planning — Weekly calendar integrated with recipes
+- Meal Planning — Daily planning inline on Coach dashboard
 - Nutrition Tracking — Daily macros, goals, weekly trends
 - AI Assistance — Proactive suggestions, conversational interface
 

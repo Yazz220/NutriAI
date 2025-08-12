@@ -17,21 +17,38 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
       try {
         setIsLoading(true);
         if (user && !OFFLINE_ONLY) {
-          const { data, error } = await supabase
+          let data: any[] | null = null;
+          // First attempt: full select including notes
+          let { data: d1, error: e1 } = await supabase
             .schema('nutriai')
             .from('meal_plans')
             .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at, created_at')
             .eq('user_id', user.id)
             .order('date', { ascending: true })
             .order('meal_type', { ascending: true });
-          if (error) throw error;
+          if (e1 && (e1 as any).code === '42703') {
+            // Retry without notes column if it doesn't exist yet
+            const { data: d2, error: e2 } = await supabase
+              .schema('nutriai')
+              .from('meal_plans')
+              .select('id, recipe_id, date, meal_type, servings, is_completed, completed_at, created_at')
+              .eq('user_id', user.id)
+              .order('date', { ascending: true })
+              .order('meal_type', { ascending: true });
+            if (e2) throw e2;
+            data = d2 ?? [];
+          } else if (e1) {
+            throw e1;
+          } else {
+            data = d1 ?? [];
+          }
           const rows = (data ?? []).map((r: any): PlannedMeal => ({
             id: String(r.id),
             recipeId: r.recipe_id,
             date: typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().split('T')[0],
             mealType: r.meal_type as MealType,
             servings: Number(r.servings ?? 1),
-            notes: r.notes ?? undefined,
+            notes: (r as any).notes ?? undefined,
             isCompleted: !!r.is_completed,
             completedAt: r.completed_at ?? undefined,
             // created_at unused by UI but fetched for ordering predictability
@@ -76,22 +93,43 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         is_completed: meal.isCompleted ?? false,
         completed_at: meal.completedAt ?? null,
       } as const;
-      const { data, error } = await supabase
+      // Try insert including notes; if column missing, retry without it
+      let ins = await supabase
         .schema('nutriai')
         .from('meal_plans')
         .insert(payload)
         .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at')
         .single();
-      if (error) throw error;
+      if (ins.error && (ins.error as any).code === '42703') {
+        const { data: data2, error: err2 } = await supabase
+          .schema('nutriai')
+          .from('meal_plans')
+          .insert({
+            user_id: user.id,
+            recipe_id: meal.recipeId,
+            date: meal.date,
+            meal_type: meal.mealType,
+            servings: meal.servings ?? 1,
+            is_completed: meal.isCompleted ?? false,
+            completed_at: meal.completedAt ?? null,
+          })
+          .select('id, recipe_id, date, meal_type, servings, is_completed, completed_at')
+          .single();
+        if (err2) throw err2;
+        ins = { data: data2, error: null } as any;
+      } else if (ins.error) {
+        throw ins.error;
+      }
+      const d = ins.data as any;
       const created: PlannedMeal = {
-        id: String(data.id),
-        recipeId: data.recipe_id,
-        date: typeof data.date === 'string' ? data.date : new Date(data.date).toISOString().split('T')[0],
-        mealType: data.meal_type as MealType,
-        servings: Number(data.servings ?? 1),
-        notes: data.notes ?? undefined,
-        isCompleted: !!data.is_completed,
-        completedAt: data.completed_at ?? undefined,
+        id: String(d.id),
+        recipeId: d.recipe_id,
+        date: typeof d.date === 'string' ? d.date : new Date(d.date).toISOString().split('T')[0],
+        mealType: d.meal_type as MealType,
+        servings: Number(d.servings ?? 1),
+        notes: (d as any).notes ?? undefined,
+        isCompleted: !!d.is_completed,
+        completedAt: d.completed_at ?? undefined,
       };
       setPlannedMeals(prev => [...prev, created]);
     } else {
@@ -103,7 +141,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   const updatePlannedMeal = async (updatedMeal: PlannedMeal) => {
     setPlannedMeals(prev => prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal));
     if (user && !OFFLINE_ONLY) {
-      const { error } = await supabase
+      // Try update including notes; if missing column, retry without it
+      let { error } = await supabase
         .schema('nutriai')
         .from('meal_plans')
         .update({
@@ -116,6 +155,21 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
           completed_at: updatedMeal.completedAt ?? null,
         })
         .eq('id', updatedMeal.id);
+      if (error && (error as any).code === '42703') {
+        const r2 = await supabase
+          .schema('nutriai')
+          .from('meal_plans')
+          .update({
+            recipe_id: updatedMeal.recipeId,
+            date: updatedMeal.date,
+            meal_type: updatedMeal.mealType,
+            servings: updatedMeal.servings,
+            is_completed: updatedMeal.isCompleted ?? false,
+            completed_at: updatedMeal.completedAt ?? null,
+          })
+          .eq('id', updatedMeal.id);
+        error = r2.error as any;
+      }
       if (error) console.error('Failed to update planned meal:', error);
     }
   };

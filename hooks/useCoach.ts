@@ -101,7 +101,7 @@ export function useCoach() {
       },
       actions: [
         { label: 'See Recipe', intent: 'SEE_RECIPE', args: { recipeId: recipe.id }, variant: 'outline' },
-        { label: 'Add to Planner', intent: 'ADD_TO_PLANNER', args: { recipeId: recipe.id, mealType: timeMealType } },
+        { label: 'Add to Plan', intent: 'ADD_TO_PLANNER', args: { recipeId: recipe.id, mealType: timeMealType } },
         ...(missingCount > 0 ? [{ label: `Add ${missingCount} missing`, intent: 'ADD_MISSING_TO_LIST', args: { recipeId: recipe.id } } as const] : []),
       ],
       score: 1,
@@ -155,13 +155,13 @@ export function useCoach() {
         const planned: Omit<PlannedMeal, 'id'> = { recipeId, date: today, mealType, servings: 1, isCompleted: false };
         addPlannedMeal(planned);
         showToast({
-          message: 'Added to Planner for today',
+          message: 'Added to plan for today',
           type: 'success',
           action: {
             label: 'Undo',
             onPress: () => {
               // Not tracked id; for MVP, inform user to remove manually
-              Alert.alert('Tip', 'You can remove it from the Planner if needed.');
+              Alert.alert('Tip', 'You can remove it from the plan if needed.');
             },
           },
         });

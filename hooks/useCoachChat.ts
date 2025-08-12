@@ -56,7 +56,7 @@ export function useCoachChat() {
       date.setDate(today.getDate() + idx);
       addPlannedMeal({ recipeId: e.recipe.id, date: date.toISOString().split('T')[0], mealType: e.mealType || 'dinner', servings: 1, isCompleted: false });
     });
-    showToast({ message: `Added ${entries.length} meals to planner`, type: 'success' });
+    showToast({ message: `Added ${entries.length} meals to your plan`, type: 'success' });
   }
 
   function planDay() {

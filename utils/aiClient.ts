@@ -7,6 +7,21 @@ const AI_MODEL = process.env.EXPO_PUBLIC_AI_MODEL || 'openai/gpt-oss-20b:free';
 const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY; // If unset, requests must go through proxy
 const AI_PROXY_BASE = process.env.EXPO_PUBLIC_AI_PROXY_BASE; // Optional proxy
 
+// Masked runtime config log (no secrets)
+try {
+  // eslint-disable-next-line no-console
+  console.log('[AI] config', {
+    provider: AI_PROVIDER,
+    hasProxy: Boolean(AI_PROXY_BASE),
+    hasKey: Boolean(AI_API_KEY),
+    base: (AI_PROXY_BASE || AI_API_BASE)?.replace(/:\/\//, '://'),
+  });
+} catch {}
+
+export function isAiConfigured() {
+  return Boolean(AI_PROXY_BASE || AI_API_KEY);
+}
+
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 export type AiProfileContext = { display_name?: string; units?: string; goals?: Record<string, unknown> | null; preferences?: Record<string, unknown> | null };
 export type InventoryItemCtx = { id?: string | number; name: string; quantity?: number; unit?: string | null; category?: string | null; expiryDate?: string | null };
@@ -32,6 +47,11 @@ export async function createChatCompletionStream(
 }
 
 async function requestWithRetry(messages: ChatMessage[], stream: boolean, maxRetries = 2): Promise<string> {
+  if (!isAiConfigured()) {
+    throw new Error(
+      'AI is not configured. Set EXPO_PUBLIC_AI_PROXY_BASE (recommended) or EXPO_PUBLIC_AI_API_KEY in your env and restart Expo.'
+    );
+  }
   const base = AI_PROXY_BASE || AI_API_BASE;
   const url = `${base.replace(/\/$/, '')}/chat/completions`;
 

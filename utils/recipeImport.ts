@@ -23,23 +23,55 @@ function parseISO8601DurationToMinutes(duration?: string): number | undefined {
   return hours * 60 + mins;
 }
 
-function normalizeIngredient(raw: string) {
-  // Very naive parser: "1 cup rice" -> { quantity: 1, unit: 'cup', name: 'rice' }
-  const parts = raw.trim().split(/\s+/);
-  const quantity = parseFloat(parts[0]);
-  if (!isNaN(quantity) && parts.length >= 3) {
-    const unit = parts[1];
-    const name = parts.slice(2).join(' ');
-    return { name, quantity, unit, optional: false };
+function toNumberFromUnicodeFractions(s: string): number | null {
+  const map: Record<string, number> = { '¼': 0.25, '½': 0.5, '¾': 0.75, '⅓': 1/3, '⅔': 2/3, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875 };
+  if (map[s] != null) return map[s];
+  const frac = s.match(/^(\d+)\/(\d+)$/);
+  if (frac) { const n = parseFloat(frac[1]); const d = parseFloat(frac[2]); return d ? n/d : null; }
+  return null;
+}
+
+function parseMixedQuantity(tokens: string[]): { qty: number | null; used: number } {
+  // handles: "1", "1/2", "1 1/2", and unicode like "½"
+  if (!tokens.length) return { qty: null, used: 0 };
+  const first = tokens[0];
+  let qty = Number.isFinite(parseFloat(first)) ? parseFloat(first) : toNumberFromUnicodeFractions(first);
+  let used = qty != null ? 1 : 0;
+  if (qty != null && tokens[1]) {
+    const f2 = toNumberFromUnicodeFractions(tokens[1]) ?? (tokens[1].includes('/') ? toNumberFromUnicodeFractions(tokens[1]) : null);
+    if (f2 != null) { qty += f2; used = 2; }
   }
-  return { name: raw.trim(), quantity: 1, unit: 'pcs', optional: false };
+  return { qty: qty ?? null, used };
+}
+
+function normalizeIngredient(raw: string) {
+  // More robust parser: quantity (mixed/unicode) + unit + name; tolerate descriptors
+  let line = raw.replace(/\s+/g, ' ').trim();
+  line = line.replace(/^[-•*]\s*/, '');
+  line = line.replace(/^optional\s*[:\-]?\s*/i, '');
+  // Keep descriptors; only detect optional flag without cutting text
+  const isOptional = /\(\s*optional\s*\)/i.test(line) || /\boptional\b/i.test(line);
+  const tokens = line.split(' ');
+  const { qty, used } = parseMixedQuantity(tokens);
+  const UNITS = ['tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','g','gram','grams','kg','kilogram','kilograms','ml','milliliter','milliliters','l','liter','liters','clove','cloves','bunch','pinch','lb','pound','pounds'];
+  let unit = 'pcs';
+  let nameStart = 0;
+  if (qty != null) {
+    const u = (tokens[used] || '').toLowerCase();
+    if (UNITS.includes(u)) { unit = u.replace(/s$/, ''); nameStart = used + 1; }
+    else { unit = 'pcs'; nameStart = used; }
+  } else {
+    nameStart = 0;
+  }
+  const name = tokens.slice(nameStart).join(' ').trim();
+  return { name: name || raw.trim(), quantity: qty ?? 1, unit, optional: isOptional };
 }
 
 // AI fallback import from free-form text (copied recipe, transcript, etc.)
 import { createChatCompletion } from './aiClient';
 
 export async function importRecipeFromText(text: string): Promise<ImportedRecipe> {
-  const sys = `You are a precise recipe parser. Given unstructured recipe text, extract a clean JSON with fields:
+  const sys = `You are a precise recipe parser. Given unstructured recipe text (may include headings, ads, fluff), extract a STRICT JSON with fields:
 {
   "name": string,
   "description"?: string,
@@ -51,7 +83,12 @@ export async function importRecipeFromText(text: string): Promise<ImportedRecipe
   "cookTime"?: number, // minutes
   "servings"?: number
 }
-Rules: return ONLY minified JSON. Quantities should be numbers. Units short (e.g., g, ml, tbsp, tsp, cup, pcs).`;
+Rules (MANDATORY):
+- Always extract BOTH ingredients and steps. Never return empty arrays; if missing, infer reasonable values from context and mark uncertain with ~ in quantity and optional: true.
+- Do not include commentary/ads. Use concise step sentences (5-12 steps typical; split long instructions).
+- Quantities must be numbers when known; use short units (g, ml, tbsp, tsp, cup, pcs). Normalize synonyms.
+- Never invent items that are not implied by the text.
+- Return ONLY minified JSON.`;
   const user = text.slice(0, 8000);
   const raw = await createChatCompletion([
     { role: 'system', content: sys },
@@ -63,7 +100,37 @@ Rules: return ONLY minified JSON. Quantities should be numbers. Units short (e.g
 }
 
 export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> {
-  // Try fetching directly; if blocked, try reader proxy
+  // Use the enhanced URL content extractor
+  try {
+    const { extractUrlContent } = await import('./urlContentExtractor');
+    const extracted = await extractUrlContent(url);
+    
+    // If we got structured content, parse it directly
+    if (extracted.metadata.confidence > 0.8 && !extracted.fallbackUsed) {
+      // Try to parse the structured text first
+      try {
+        const parsed = await importRecipeFromText(extracted.rawText);
+        return parsed;
+      } catch (error) {
+        console.warn('[RecipeImport] Structured content parsing failed, falling back to legacy method:', error);
+      }
+    }
+    
+    // For lower confidence or fallback content, continue with legacy extraction
+    // but use the extracted content as a starting point
+    if (extracted.rawText && extracted.rawText.length > 100) {
+      try {
+        const parsed = await importRecipeFromText(extracted.rawText);
+        return parsed;
+      } catch (error) {
+        console.warn('[RecipeImport] Enhanced extraction failed, using legacy method:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('[RecipeImport] Enhanced URL extractor failed, using legacy method:', error);
+  }
+
+  // Fallback to legacy extraction method
   let html = '';
   try {
     const res = await fetch(url);
@@ -86,19 +153,34 @@ export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> 
     doc = new DOMParser().parseFromString(html, 'text/html');
   } catch {}
 
-  // Try JSON-LD @type Recipe
+  // Try JSON-LD @type Recipe (handle @graph and arrays)
   const ldScripts = doc ? Array.from(doc.querySelectorAll('script[type="application/ld+json"]')) : [];
   for (const script of ldScripts) {
     try {
-      const json = JSON.parse(script.textContent || '{}');
-      const candidates = Array.isArray(json) ? json : [json];
-      const recipeJson = candidates.find((j) => j['@type'] === 'Recipe' || (Array.isArray(j['@type']) && j['@type'].includes('Recipe')));
+      const root = JSON.parse(script.textContent || '{}');
+      const pool: any[] = [];
+      const pushCandidate = (obj: any) => { if (obj && typeof obj === 'object') pool.push(obj); };
+      if (Array.isArray(root)) root.forEach(pushCandidate); else pushCandidate(root);
+      // Flatten @graph entries
+      const graph = pool.flatMap((n) => (Array.isArray(n['@graph']) ? n['@graph'] : []));
+      const all = [...pool, ...graph];
+      const isRecipeType = (t: any) => t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'));
+      const recipeJson = all.find((j) => isRecipeType(j['@type']));
       if (recipeJson) {
-        const ingredientsList: string[] = recipeJson.recipeIngredient || [];
-        const instructions = (recipeJson.recipeInstructions || []).map((step: any) =>
-          typeof step === 'string' ? step : step.text
-        );
-        return {
+        const ingredientsList: string[] = Array.isArray(recipeJson.recipeIngredient) ? recipeJson.recipeIngredient : [];
+        // Handle HowToSection/HowToStep structures
+        const rawInstr = recipeJson.recipeInstructions || [];
+        const instructions: string[] = Array.isArray(rawInstr)
+          ? rawInstr.flatMap((step: any) => {
+              if (typeof step === 'string') return [step];
+              if (Array.isArray(step)) return step.map((s) => (typeof s === 'string' ? s : s?.text).trim());
+              if (step?.itemListElement && Array.isArray(step.itemListElement)) {
+                return step.itemListElement.map((s: any) => (typeof s === 'string' ? s : s?.text)).filter(Boolean);
+              }
+              return step?.text ? [String(step.text)] : [];
+            })
+          : [];
+        const result: ImportedRecipe = {
           name: recipeJson.name || 'Imported Recipe',
           description: recipeJson.description,
           imageUrl: (Array.isArray(recipeJson.image) ? recipeJson.image[0] : recipeJson.image) || undefined,
@@ -109,8 +191,68 @@ export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> 
           cookTime: parseISO8601DurationToMinutes(recipeJson.cookTime),
           servings: recipeJson.recipeYield ? parseInt(String(recipeJson.recipeYield).replace(/\D/g, '') || '0', 10) : undefined,
         };
+        if (result.ingredients.length && result.steps.length) return result;
+        // If JSON-LD incomplete, try DOM fallbacks below before returning
+        html = html; // no-op to keep scope
       }
     } catch {}
+  }
+
+  // Helper: find list under a heading (Ingredients / Directions / Steps / Method)
+  function extractByHeading(root: Document, headingKeywords: string[]): string[] {
+    const hs = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6')) as HTMLElement[];
+    for (const h of hs) {
+      const text = (h.innerText || h.textContent || '').trim().toLowerCase();
+      if (!text) continue;
+      if (headingKeywords.some((kw) => text.includes(kw))) {
+        // Traverse next siblings until we hit a list or paragraph block
+        let el: Element | null = h.nextElementSibling;
+        const lines: string[] = [];
+        while (el && !(el as HTMLElement).matches('h1,h2,h3,h4,h5,h6')) {
+          if (el.matches('ul,ol')) {
+            lines.push(...Array.from(el.querySelectorAll('li')).map((li) => (li as HTMLElement).innerText || li.textContent || ''));
+            break;
+          }
+          if (el.matches('p,div')) {
+            const t = (el as HTMLElement).innerText || el.textContent || '';
+            // Split on line breaks/bullets
+            const split = t.split(/\n|•|\r/).map((s) => s.trim()).filter(Boolean);
+            if (split.length > 1) { lines.push(...split); break; }
+          }
+          el = el.nextElementSibling;
+        }
+        if (lines.length) return lines;
+      }
+    }
+    return [];
+  }
+
+  // DOM selector fallbacks for common sites
+  if (doc) {
+    let ingTexts = Array.from(doc.querySelectorAll('[itemprop="recipeIngredient"], .ingredient, .ingredients li, li.ingredient, ul.ingredients li'))
+      .map((el) => (el as HTMLElement).innerText || el.textContent || '')
+      .map((t) => t.replace(/\s+/g, ' ').trim())
+      .filter((t) => t && t.length > 1);
+    if (!ingTexts.length) {
+      ingTexts = extractByHeading(doc, ['ingredient']);
+    }
+    let stepTexts = Array.from(doc.querySelectorAll('[itemprop="recipeInstructions"] li, .instructions li, ol li, .method li'))
+      .map((el) => (el as HTMLElement).innerText || el.textContent || '')
+      .map((t) => t.replace(/\s+/g, ' ').trim())
+      .filter((t) => t && t.length > 3);
+    if (!stepTexts.length) {
+      stepTexts = extractByHeading(doc, ['instruction', 'direction', 'method', 'step']);
+    }
+    if (ingTexts.length || stepTexts.length) {
+      return {
+        name: doc.querySelector('h1')?.textContent?.trim() || doc.title || 'Imported Recipe',
+        description: doc.querySelector('meta[name="description"]')?.getAttribute('content') || undefined,
+        imageUrl: doc.querySelector('meta[property="og:image"]')?.getAttribute('content') || undefined,
+        ingredients: ingTexts.map(normalizeIngredient),
+        steps: stepTexts,
+        tags: [],
+      };
+    }
   }
 
   // Fallback: Open Graph
@@ -129,15 +271,80 @@ export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> 
 
   // As a better fallback, strip text content and ask AI to parse it
   try {
-    const text = (doc?.body?.textContent || '').slice(0, 12000) || html.slice(0, 12000);
+    const text = (doc?.body?.textContent || '').slice(0, 20000) || html.slice(0, 20000);
     if (text) {
+      // 1) Plain-text section extractor (no AI). Prefer exact site content.
+      const sections = extractRecipeSectionsFromText(text);
+      if (sections.ingredients.length >= 3 && sections.steps.length >= 3) {
+        return {
+          ...basic,
+          name: basic.name,
+          description: basic.description,
+          imageUrl: basic.imageUrl,
+          ingredients: sections.ingredients.map(normalizeIngredient),
+          steps: sections.steps,
+          tags: [],
+        };
+      }
+      // 2) If still weak, use AI but DO NOT overwrite found lists; only fill gaps.
       const parsed = await importRecipeFromText(text);
+      if (!parsed.ingredients?.length && sections.ingredients.length) parsed.ingredients = sections.ingredients.map(normalizeIngredient);
+      if (!parsed.steps?.length && sections.steps.length) parsed.steps = sections.steps;
       return { ...basic, ...parsed, imageUrl: parsed.imageUrl || basic.imageUrl };
     }
   } catch {}
 
   return basic;
 }
+
+// Extract Ingredients and Steps sections from plain text content deterministically (no AI)
+function extractRecipeSectionsFromText(text: string): { ingredients: string[]; steps: string[] } {
+  const T = normalizeWhitespace(text);
+  // Find headings
+  const ingIdx = indexOfAny(T, [/\bingredients\b/i]);
+  const stepsIdx = indexOfAny(T, [/\bsteps\b/i, /\bdirections\b/i, /\bmethod\b/i, /\binstructions\b/i]);
+  const ingredients: string[] = [];
+  const steps: string[] = [];
+  if (ingIdx >= 0) {
+    const end = stepsIdx > ingIdx ? stepsIdx : Math.min(T.length, ingIdx + 4000);
+    const ingBlock = T.slice(ingIdx, end);
+    // lines after heading
+    const lines = ingBlock.split(/\n/).slice(1).map((l) => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      // stop on next heading marker
+      if (/^(yield|servings|steps|directions|method|instructions)\b/i.test(line)) break;
+      if (/^[-•*\d]/.test(line) || /\d/.test(line)) ingredients.push(cleanBullet(line));
+    }
+  }
+  if (stepsIdx >= 0) {
+    const end = Math.min(T.length, stepsIdx + 6000);
+    const stepBlock = T.slice(stepsIdx, end);
+    const lines = stepBlock.split(/\n/).slice(1).map((l) => l.trim()).filter(Boolean);
+    let expected = 1;
+    for (const line of lines) {
+      // hard stops before site footer/meta/links
+      if (/^(yield|servings|ingredients|meal\s*type|category|food\s*group|season|nutrition|government|policies)\b/i.test(line)) break;
+      if (/https?:\/\//i.test(line) || /^\[/.test(line) || /^\*/.test(line)) break;
+      // numbered steps preferred
+      const m = line.match(/^(\d+)[).]\s+(.*)$/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > expected + 2) break; // jump means we likely left steps section
+        expected = n + 1;
+        steps.push(m[2]);
+        continue;
+      }
+      // fallback: accept longer instruction-like lines, but stop on metadata-like `Label:`
+      if (/^\w[\w\s]+:\s+/.test(line)) break;
+      if (line.length > 12) steps.push(line);
+    }
+  }
+  return { ingredients, steps };
+}
+
+function normalizeWhitespace(s: string) { return s.replace(/\r/g, '').replace(/\u00A0/g, ' ').replace(/[\t ]+/g, ' ').replace(/\s*\n\s*/g, '\n'); }
+function indexOfAny(hay: string, pats: RegExp[]): number { for (const p of pats) { const m = hay.search(p); if (m >= 0) return m; } return -1; }
+function cleanBullet(s: string): string { return s.replace(/^[-•*]\s*/, '').trim(); }
 
 function normalizeImportedRecipe(data: any): ImportedRecipe {
   const ing = Array.isArray(data.ingredients) ? data.ingredients.map((i: any) => ({
@@ -162,8 +369,46 @@ function normalizeImportedRecipe(data: any): ImportedRecipe {
 }
 
 
-// Import from image via Vision model (Qwen VL) using OpenRouter-compatible API
+// Import from image via enhanced OCR processing + Vision model fallback
 export async function importRecipeFromImage(imageDataUrl: string): Promise<ImportedRecipe> {
+  try {
+    // Try OCR extraction first (faster and more reliable for text-heavy images)
+    const { processImageOcr, validateOcrResult } = await import('./imageOcrProcessor');
+    
+    try {
+      const ocrResult = await processImageOcr(imageDataUrl, {
+        preprocessImage: true,
+        provider: 'auto',
+        fallbackProviders: true
+      });
+      
+      const validation = validateOcrResult(ocrResult);
+      
+      // If OCR extracted good text, use it
+      if (validation.isValid && ocrResult.text.length > 50) {
+        console.log('[RecipeImport] Using OCR extraction for image');
+        const recipe = await importRecipeFromText(ocrResult.text);
+        return recipe;
+      } else if (ocrResult.text.length > 20) {
+        // Even if validation failed, try parsing if we got some text
+        console.log('[RecipeImport] Using OCR extraction with low confidence');
+        try {
+          const recipe = await importRecipeFromText(ocrResult.text);
+          return recipe;
+        } catch (error) {
+          console.warn('[RecipeImport] OCR text parsing failed, falling back to vision model:', error);
+        }
+      }
+    } catch (error) {
+      console.warn('[RecipeImport] OCR processing failed, falling back to vision model:', error);
+    }
+  } catch (error) {
+    console.warn('[RecipeImport] OCR processor not available, using vision model:', error);
+  }
+
+  // Fallback to vision model for complex images or when OCR fails
+  console.log('[RecipeImport] Using vision model for image processing');
+  
   const AI_API_BASE = process.env.EXPO_PUBLIC_AI_API_BASE || 'https://openrouter.ai/api/v1';
   const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY;
   const AI_PROXY_BASE = process.env.EXPO_PUBLIC_AI_PROXY_BASE; // Optional proxy

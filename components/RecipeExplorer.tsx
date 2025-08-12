@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Image,
 } from 'react-native';
@@ -346,15 +345,18 @@ export const RecipeExplorer: React.FC<RecipeExplorerProps> = ({
           {filteredAndSortedRecipes.length} recipe{filteredAndSortedRecipes.length !== 1 ? 's' : ''}
         </Text>
       </View>
-      
-      <FlatList
-        data={filteredAndSortedRecipes}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRecipeCard}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={false} // Disable scroll since this is inside a ScrollView
-      />
+
+      {filteredAndSortedRecipes.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <View>
+          {filteredAndSortedRecipes.map((recipe) => (
+            <View key={recipe.id}>
+              {renderRecipeCard({ item: recipe })}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 };

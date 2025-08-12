@@ -5,10 +5,12 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   SectionList,
-  ScrollView
+  ScrollView,
+  Platform
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Plus, Sparkles, RotateCcw } from 'lucide-react-native';
+import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
@@ -108,50 +110,75 @@ export default function ShoppingListScreen() {
     setSelectedItem(null);
   };
 
+  // Calculate stats
+  const totalItems = shoppingList.length;
+  const checkedItems = shoppingList.filter(item => item.checked).length;
+  const uncheckedItems = totalItems - checkedItems;
+
   return (
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
-          title: 'Shopping List',
-          headerRight: () => (
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => setAddModalVisible(true)}
-              testID="add-to-shopping-list-button"
-            >
-              <Plus size={24} color={Colors.primary} />
-            </TouchableOpacity>
-          )
+          headerShown: false,
         }} 
       />
       
       <View style={styles.container}>
+        {/* Enhanced Hero Header */}
+        <ExpoLinearGradient
+          colors={['#11998e', '#38ef7d']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={styles.statusBarSpacer} />
+          
+          {/* Header */}
+          <View style={styles.heroHeader}>
+            <View style={styles.heroTitleRow}>
+              <ShoppingCart size={28} color={Colors.white} />
+              <Text style={styles.heroTitle}>Shopping List</Text>
+            </View>
+            <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
+              <Plus size={24} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Stats */}
+          <View style={styles.shoppingStats}>
+            <StatCard 
+              icon={<ShoppingCart size={20} color="#11998e" />} 
+              label="Total Items" 
+              value={totalItems.toString()} 
+            />
+            <StatCard 
+              icon={<CheckCircle size={20} color="#4ECDC4" />} 
+              label="Completed" 
+              value={checkedItems.toString()} 
+            />
+            <StatCard 
+              icon={<Clock size={20} color="#FF6B6B" />} 
+              label="Remaining" 
+              value={uncheckedItems.toString()} 
+            />
+          </View>
+        </ExpoLinearGradient>
+
+        {/* Enhanced Actions */}
         <View style={styles.actionsContainer}>
-          <Button
-            title="Generate Smart List"
-            onPress={handleGenerateSmartList}
-            icon={<Sparkles size={16} color={Colors.white} />}
-            size="sm"
-            testID="generate-smart-list-button"
-          />
-          <View style={{ width: 12 }} />
-          <Button
-            title="Export / Share"
-            onPress={() => setExportVisible(true)}
-            variant="outline"
-            size="sm"
-            testID="export-shopping-list-button"
-          />
+          <TouchableOpacity style={styles.smartListButton} onPress={handleGenerateSmartList}>
+            <Sparkles size={18} color={Colors.white} />
+            <Text style={styles.smartListText}>Smart List</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.exportButton} onPress={() => setExportVisible(true)}>
+            <Text style={styles.exportButtonText}>Export</Text>
+          </TouchableOpacity>
           
           {shoppingList.some(item => item.checked) && (
-            <Button
-              title="Clear Checked"
-              onPress={clearCheckedItems}
-              variant="outline"
-              size="sm"
-              testID="clear-checked-items-button"
-            />
+            <TouchableOpacity style={styles.clearButton} onPress={clearCheckedItems}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
           )}
         </View>
         
@@ -235,50 +262,148 @@ export default function ShoppingListScreen() {
   );
 }
 
+// Enhanced Component Definitions
+const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <View style={styles.statCard}>
+    <View style={styles.statIcon}>{icon}</View>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  hero: {
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    minHeight: 260,
+  },
+  statusBarSpacer: {
+    height: Platform.OS === 'ios' ? 44 : 24,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroTitle: {
+    color: Colors.white,
+    fontSize: 24,
+    fontWeight: '700',
+    marginLeft: 12,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   addButton: {
-    padding: 8,
-    marginRight: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  shoppingStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 5,
+  },
+  statCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statIcon: {
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.lightText,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   actionsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
   },
   smartListButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginRight: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    flex: 1,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   smartListText: {
     color: Colors.white,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 8,
+    fontSize: 16,
+  },
+  exportButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exportButtonText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 16,
   },
   clearButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   clearButtonText: {
-    color: Colors.primary,
-    fontWeight: '500',
+    color: '#FF6B6B',
+    fontWeight: '600',
+    fontSize: 16,
   },
   listContent: {
     padding: 16,

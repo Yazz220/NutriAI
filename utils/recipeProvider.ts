@@ -185,9 +185,12 @@ export class RecipeProviderService {
       console.warn(`[RecipeAPI] Warning: ${providerType} requires authentication but no API key provided`);
     }
     
-    // Set up proxy for web platform
+    // Set up proxy for web platform: prefer custom proxy if provided, otherwise fall back
     if (Platform.OS === 'web') {
-      this.proxyBase = 'https://api.allorigins.win/raw';
+      if (!this.proxyBase || this.proxyBase.trim().length === 0) {
+        this.proxyBase = 'https://api.allorigins.win/raw';
+      }
+      console.log('[RecipeAPI] Web proxy configured', { proxyBase: this.proxyBase });
     }
     
     console.log('[RecipeAPI] Provider initialized', { 

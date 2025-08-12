@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { StyleSheet } from "react-native";
-import { Refrigerator, BookOpen, ShoppingCart, Calendar, Brain, User } from "lucide-react-native";
+import { Refrigerator, BookOpen, ShoppingCart, Brain, User } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 
 export default function TabLayout() {
@@ -17,15 +17,7 @@ export default function TabLayout() {
         headerShadowVisible: false,
       }}
     >
-      {/* Hide the standalone planner route from the tab bar; accessible via Coach top tab */}
-      <Tabs.Screen
-        key="tab-planner-hidden"
-        name="planner"
-        options={{
-          href: null,
-          title: 'Planner',
-        }}
-      />
+      {/* Planner removed — consolidated into Coach dashboard */}
       <Tabs.Screen
         key="tab-coach"
         name="coach"

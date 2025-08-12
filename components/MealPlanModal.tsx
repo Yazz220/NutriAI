@@ -8,8 +8,10 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
-import { X, Calendar, Clock, Users, Search } from 'lucide-react-native';
+import { X, Calendar, Clock, Users, Search, ChefHat, Plus, Minus } from 'lucide-react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { PlannedMeal, MealType, Recipe, Meal } from '@/types';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -33,76 +35,120 @@ const MEAL_TYPES: { value: MealType; label: string }[] = [
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
   },
   header: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  dateTimeContainer: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGray,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
   },
-  dateTimeText: {
-    fontSize: 14,
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.white,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.text,
     marginLeft: 8,
+  },
+  dateTimeContainer: {
+    backgroundColor: Colors.white,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   mealTypeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   mealTypeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.border,
     backgroundColor: Colors.white,
   },
   mealTypeButtonActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primary + '15',
     borderColor: Colors.primary,
   },
   mealTypeText: {
     fontSize: 14,
+    fontWeight: '500',
     color: Colors.text,
   },
   mealTypeTextActive: {
-    color: Colors.white,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -166,18 +212,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   servingsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.lightGray,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.primary + '30',
   },
   servingsText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.text,
-    marginHorizontal: 16,
+    marginHorizontal: 20,
   },
   notesInput: {
     borderWidth: 1,
@@ -192,23 +240,31 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   button: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   cancelButton: {
-    backgroundColor: Colors.lightGray,
+    backgroundColor: Colors.white,
+    borderWidth: 2,
+    borderColor: Colors.border,
   },
   saveButton: {
     backgroundColor: Colors.primary,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   cancelButtonText: {
     color: Colors.text,
@@ -309,20 +365,36 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {existingMeal ? 'Edit Meal' : 'Plan Meal'}
-            </Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <X size={24} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+          {/* Enhanced Header with Gradient */}
+          <ExpoLinearGradient
+            colors={['#667eea', '#764ba2', '#f093fb']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.headerTitleRow}>
+                <View style={styles.headerIcon}>
+                  <ChefHat size={20} color={Colors.white} />
+                </View>
+                <Text style={styles.title}>
+                  {existingMeal ? 'Edit Meal' : 'Plan Meal'}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <X size={20} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          </ExpoLinearGradient>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContent}>
             {/* Date Display */}
             <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Calendar size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Date</Text>
+              </View>
               <View style={styles.dateTimeContainer}>
-                <Calendar size={16} color={Colors.primary} />
                 <Text style={styles.dateTimeText}>{formatDate(selectedDate)}</Text>
               </View>
             </View>

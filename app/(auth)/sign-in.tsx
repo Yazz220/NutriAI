@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Link, router } from 'expo-router';
 import { supabase } from '@/utils/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { User, Mail, Lock, LogIn } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SignInScreen() {
@@ -110,59 +112,82 @@ export default function SignInScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome back</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
+      {/* Enhanced Header with Gradient */}
+      <ExpoLinearGradient
+        colors={['#4facfe', '#00f2fe']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <View style={styles.statusBarSpacer} />
+        <View style={styles.headerContent}>
+          <View style={styles.logoContainer}>
+            <User size={32} color={Colors.white} />
+          </View>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to continue your nutrition journey</Text>
+        </View>
+      </ExpoLinearGradient>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          placeholderTextColor={Colors.lightText}
-        />
-      </View>
+      <View style={styles.formContainer}>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor={Colors.lightText}
-        />
-      </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Email</Text>
+          <View style={styles.inputContainer}>
+            <Mail size={20} color={Colors.lightText} />
+            <TextInput
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor={Colors.lightText}
+            />
+          </View>
+        </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.field}>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.inputContainer}>
+            <Lock size={20} color={Colors.lightText} />
+            <TextInput
+              style={styles.input}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={Colors.lightText}
+            />
+          </View>
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={onSignIn} disabled={loading}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <TouchableOpacity style={styles.button} onPress={onSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.secondaryButton} onPress={onMagicLink} disabled={loading}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={onMagicLink} disabled={loading}>
         <Text style={styles.secondaryText}>Send magic link</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.oauthButton} onPress={onOAuthGoogle} disabled={loading}>
+        <TouchableOpacity style={styles.oauthButton} onPress={onOAuthGoogle} disabled={loading}>
         <Text style={styles.oauthText}>Continue with Google</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.guestButton} onPress={onGuest} disabled={loading}>
+        <TouchableOpacity style={styles.guestButton} onPress={onGuest} disabled={loading}>
         <Text style={styles.guestText}>Continue as guest (dev)</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <View style={styles.footer}>
+        <View style={styles.footer}>
         <Text style={styles.footerText}>Don’t have an account?</Text>
         <Link href="/(auth)/sign-up" asChild>
           <TouchableOpacity>
             <Text style={styles.link}>Sign Up</Text>
           </TouchableOpacity>
         </Link>
+        </View>
       </View>
     </View>
   );
@@ -171,46 +196,104 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.lg,
-    justifyContent: 'center',
     backgroundColor: Colors.background,
   },
+  header: {
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    minHeight: 280,
+  },
+  statusBarSpacer: {
+    height: Platform.OS === 'ios' ? 44 : 24,
+  },
+  headerContent: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: Colors.text,
+    color: Colors.white,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    marginBottom: 8,
   },
   subtitle: {
-    marginTop: 4,
-    marginBottom: Spacing.lg,
-    color: Colors.lightText,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  formContainer: {
+    flex: 1,
+    padding: 20,
+    marginTop: -20,
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   field: {
-    marginBottom: Spacing.md,
+    marginBottom: 20,
   },
   label: {
-    marginBottom: 6,
+    marginBottom: 8,
     color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   input: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
+    flex: 1,
+    paddingVertical: 16,
+    paddingLeft: 12,
     color: Colors.text,
-    backgroundColor: Colors.card,
+    fontSize: 16,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   button: {
-    marginTop: Spacing.lg,
+    marginTop: 24,
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buttonText: {
     color: Colors.white,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 16,
   },
   guestButton: {
