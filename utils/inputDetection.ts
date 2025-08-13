@@ -14,6 +14,12 @@ export interface DetectionResult {
     size?: number;
     isVideoUrl?: boolean;
     isSocialMedia?: boolean;
+    // Extended analysis fields used by validators/tests
+    hasRecipeStructure?: boolean;
+    bulletPoints?: number;
+    numberedSteps?: number;
+    measurements?: number;
+    lineCount?: number;
   };
 }
 

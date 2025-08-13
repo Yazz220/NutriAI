@@ -26,6 +26,10 @@ import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModa
 import { RecipeProviderInitializer } from '@/components/RecipeProviderInitializer';
 import { ExternalRecipe } from '@/utils/recipeProvider';
 import { Meal } from '@/types';
+import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+import { FolderCard } from '@/components/folders/FolderCard';
+import { NewFolderModal } from '@/components/folders/NewFolderModal';
+import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 
 export default function RecipesScreen() {
   const [showImportModal, setShowImportModal] = useState(false);
@@ -36,9 +40,17 @@ export default function RecipesScreen() {
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
   const [refreshing, setRefreshing] = useState(false);
+  // Folders UI state
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [folderModalMode, setFolderModalMode] = useState<'create' | 'rename'>('create');
+  const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
+  const [addToFolderVisible, setAddToFolderVisible] = useState(false);
+  const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
 
   // Use meals from the meals store for local recipes
   const { meals: localRecipes, addMeal, removeMeal, updateMeal } = useMeals();
+  const { folders, createFolder, renameFolder, deleteFolder, getFoldersForRecipe, removeRecipeFromFolder } = useRecipeFolders();
 
   const {
     searchRecipes,
@@ -74,6 +86,11 @@ export default function RecipesScreen() {
   const handleRecipePress = (recipe: Meal) => {
     setSelectedMeal(recipe);
     setShowMealDetail(true);
+  };
+
+  const handleLongPressRecipe = (recipe: Meal) => {
+    setSelectedForFolderRecipeId(recipe.id);
+    setAddToFolderVisible(true);
   };
 
   // Handle external recipe press
@@ -141,7 +158,17 @@ export default function RecipesScreen() {
       `Are you sure you want to delete "${recipe.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeMeal(recipe.id) }
+        { text: 'Delete', style: 'destructive', onPress: () => {
+            // Remove from local meals
+            removeMeal(recipe.id);
+            // Also remove references from any folders
+            folders.forEach(f => {
+              if (f.recipeIds.includes(recipe.id)) {
+                removeRecipeFromFolder(f.id, recipe.id);
+              }
+            });
+          }
+        }
       ]
     );
   };
@@ -152,9 +179,81 @@ export default function RecipesScreen() {
     Alert.alert('Edit Recipe', 'Edit functionality coming soon!');
   };
 
-  // Render local recipes with enhanced cards
+  // Folder actions
+  const openCreateFolder = () => {
+    setFolderModalMode('create');
+    setRenameFolderId(null);
+    setShowFolderModal(true);
+  };
+
+  const handleSubmitFolder = (name: string) => {
+    if (folderModalMode === 'create') {
+      const id = createFolder(name);
+      setActiveFolderId(id);
+    } else if (folderModalMode === 'rename' && renameFolderId) {
+      renameFolder(renameFolderId, name);
+    }
+    setShowFolderModal(false);
+  };
+
+  const requestRenameFolder = (id: string) => {
+    setFolderModalMode('rename');
+    setRenameFolderId(id);
+    setShowFolderModal(true);
+  };
+
+  const requestDeleteFolder = (id: string, name: string) => {
+    Alert.alert('Delete Folder', `Delete "${name}"? Recipes remain available in All Recipes.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        if (activeFolderId === id) setActiveFolderId(null);
+        deleteFolder(id);
+      } },
+    ]);
+  };
+
+  // Render local recipes with enhanced cards and folders
   const renderLocalRecipes = () => (
     <View style={styles.tabContent}>
+      {/* Folders header */}
+      <View style={styles.foldersHeaderRow}>
+        <Text style={styles.sectionTitle}>Recipe Folders</Text>
+        <TouchableOpacity style={styles.newFolderBtn} onPress={openCreateFolder}>
+          <Text style={styles.newFolderText}>+ New Folder</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Folders list */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 4 }}
+        style={{ marginBottom: Spacing.md }}
+      >
+        <TouchableOpacity
+          style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive]}
+          onPress={() => setActiveFolderId(null)}
+        >
+          <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All Recipes</Text>
+        </TouchableOpacity>
+        {folders.map((f) => (
+          <FolderCard
+            key={f.id}
+            name={f.name}
+            count={f.recipeIds.length}
+            onPress={() => setActiveFolderId(f.id)}
+            onMore={() => {
+              Alert.alert(f.name, undefined, [
+                { text: 'Rename', onPress: () => requestRenameFolder(f.id) },
+                { text: 'Delete', style: 'destructive', onPress: () => requestDeleteFolder(f.id, f.name) },
+                { text: 'Cancel', style: 'cancel' },
+              ]);
+            }}
+          />
+        ))}
+      </ScrollView>
+
+      {/* Recipes list */}
       {localRecipes.length === 0 ? (
         <Card style={styles.emptyState}>
           <BookOpen size={48} color={Colors.lightText} />
@@ -167,11 +266,15 @@ export default function RecipesScreen() {
         </Card>
       ) : (
         <View style={styles.recipesList}>
-          {localRecipes.map((recipe) => (
+          {(activeFolderId
+            ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
+            : localRecipes
+          ).map((recipe) => (
             <EnhancedRecipeCard
               key={recipe.id}
               recipe={recipe}
               onPress={() => handleRecipePress(recipe)}
+              onLongPress={() => handleLongPressRecipe(recipe)}
               onFavorite={() => {
                 // TODO: Implement favorite functionality
                 console.log('Favorite recipe:', recipe.name);
@@ -267,15 +370,20 @@ export default function RecipesScreen() {
       </View>
 
       {/* Tab Content */}
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {activeTab === 'discovery' ? renderDiscoveryTab() : renderLocalRecipes()}
-      </ScrollView>
+      {activeTab === 'discovery' ? (
+        // EnhancedRecipeDiscovery manages its own ScrollView and refresh
+        renderDiscoveryTab()
+      ) : (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
+          {renderLocalRecipes()}
+        </ScrollView>
+      )}
 
       {/* Import Recipe Modal */}
       <ImportRecipeModal
@@ -285,6 +393,26 @@ export default function RecipesScreen() {
           addMeal(meal);
           setShowImportModal(false);
           Alert.alert('Recipe Imported', `${meal.name} has been successfully imported!`);
+        }}
+      />
+
+      {/* New/Rename Folder Modal */}
+      <NewFolderModal
+        visible={showFolderModal}
+        mode={folderModalMode}
+        defaultName={folderModalMode === 'rename' && renameFolderId ? (folders.find(f => f.id === renameFolderId)?.name || '') : ''}
+        onClose={() => setShowFolderModal(false)}
+        onSubmit={handleSubmitFolder}
+      />
+
+      {/* Add To Folder Sheet */}
+      <AddToFolderSheet
+        visible={addToFolderVisible}
+        recipeId={selectedForFolderRecipeId}
+        onClose={() => setAddToFolderVisible(false)}
+        onCreateNew={() => {
+          setAddToFolderVisible(false);
+          openCreateFolder();
         }}
       />
 
@@ -400,6 +528,48 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  // Folders UI
+  foldersHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  newFolderBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.primary + '15',
+  },
+  newFolderText: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  allFolderPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginRight: Spacing.sm,
+  },
+  allFolderPillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  allFolderText: {
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  allFolderTextActive: {
+    color: Colors.white,
   },
   tabNavigation: {
     flexDirection: 'row',

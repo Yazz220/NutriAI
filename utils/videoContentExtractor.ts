@@ -65,7 +65,9 @@ export async function extractVideoContent(
     // Extract embedded captions/subtitles
     if (extractCaptions) {
       try {
-        captions = await extractEmbeddedCaptions(videoFile);
+        const cap = await extractEmbeddedCaptions(videoFile);
+        captions = cap || undefined;
+
         if (captions) {
           extractionMethods.push('embedded-captions');
           confidence += 0.3;
@@ -156,7 +158,7 @@ async function getVideoMetadata(videoFile: File): Promise<{
     video.onloadedmetadata = () => {
       const metadata = {
         duration: video.duration,
-        hasAudio: video.mozHasAudio || Boolean(video.webkitAudioDecodedByteCount) || 
+        hasAudio: Boolean((video as any).mozHasAudio) || Boolean((video as any).webkitAudioDecodedByteCount) || 
                   Boolean((video as any).audioTracks?.length),
         width: video.videoWidth,
         height: video.videoHeight

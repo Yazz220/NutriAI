@@ -6,7 +6,7 @@ import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { calculateMultipleRecipeAvailability, getRecipesUsingExpiringIngredients } from '@/utils/recipeAvailability';
 import { Meal, PlannedMeal, RecipeWithAvailability } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
-import { aiChat, ChatMessage as ApiChatMessage, AiContext } from '@/utils/aiClient';
+import { aiChat, ChatMessage as ApiChatMessage, AiContext, createChatCompletion } from '@/utils/aiClient';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNutrition } from '@/hooks/useNutrition';
 import { buildAIContext } from '@/utils/aiContext';
@@ -153,13 +153,28 @@ export function useCoachChat() {
 
       setIsTyping(true);
       const apiMessages: ApiChatMessage[] = [{ role: 'user', content: text }];
-      const resp = await aiChat(apiMessages, ctx);
-      const replyText = resp?.output?.summary || resp?.output?.blocks?.[0]?.content || '';
-      const structured = resp?.output?.blocks?.[0]?.data ? (resp.output.blocks[0].data as any) : undefined;
-      pushCoach(structured ? { structured, summary: replyText, source: 'ai' } : { text: replyText, source: 'ai' });
-      setIsTyping(false);
+      try {
+        // Primary path: Supabase Edge Function (no client key exposure)
+        const resp = await aiChat(apiMessages, ctx);
+        const replyText = resp?.output?.summary || resp?.output?.blocks?.[0]?.content || '';
+        const structured = resp?.output?.blocks?.[0]?.data ? (resp.output.blocks[0].data as any) : undefined;
+        pushCoach(structured ? { structured, summary: replyText, source: 'ai' } : { text: replyText, source: 'ai' });
+      } catch (edgeErr: any) {
+        // Fallback: Direct AI call if configured
+        console.warn('[AI] Edge function failed, attempting direct AI fallback:', edgeErr?.message || edgeErr);
+        try {
+          const reply = await createChatCompletion(apiMessages);
+          pushCoach({ text: reply, source: 'ai' });
+        } catch (directErr: any) {
+          console.warn('[AI] Direct AI fallback also failed:', directErr?.message || directErr);
+          pushCoach({ text: "I can plan today or the week, and generate a shopping list. Try 'Plan my day'.", source: 'builtin' });
+          showToast({ message: 'AI is unavailable. Using built-in suggestions.', type: 'info' });
+        }
+      } finally {
+        setIsTyping(false);
+      }
     } catch (err: any) {
-      console.warn('AI error', err?.message || err);
+      console.warn('[AI] Unexpected error building context or sending message:', err?.message || err);
       pushCoach({ text: "I can plan today or the week, and generate a shopping list. Try 'Plan my day'.", source: 'builtin' });
       showToast({ message: 'AI is unavailable. Using built-in suggestions.', type: 'info' });
       setIsTyping(false);

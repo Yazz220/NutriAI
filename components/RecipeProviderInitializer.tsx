@@ -54,8 +54,8 @@ export const RecipeProviderInitializer: React.FC<RecipeProviderInitializerProps>
     try {
       console.log('[RecipeProviderInitializer] Starting initialization...');
       
-      // For now, use a hardcoded API key for TheMealDB (which doesn't actually require one)
-      const apiKey = '1'; // TheMealDB uses "1" as a free tier identifier
+      // Use env-driven API key for TheMealDB (defaults to "1" free tier)
+      const apiKey = process.env.EXPO_PUBLIC_MEALDB_API_KEY || '1';
       const providerType = 'mealdb' as const;
       
       console.log('[RecipeProviderInitializer] Initializing with:', { apiKey, providerType });

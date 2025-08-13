@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, Text } from 'react-native';
+import { View, StyleSheet, ViewStyle, Text, StyleProp } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Shadows } from '@/constants/spacing';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padding?: keyof typeof Spacing;
   shadow?: 'sm' | 'md' | 'lg';
   onPress?: () => void;

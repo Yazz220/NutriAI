@@ -129,16 +129,19 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   if (!recipe) return null;
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Recipe Details">
+    <Modal visible={visible} onClose={onClose} title="Recipe Details" size="full" hasHeader={false}>
       <View style={styles.modal}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{recipe.title}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>{recipe.title}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
           {recipe.image && (
             <View style={styles.imageContainer}>
               <Image source={{ uri: recipe.image }} style={styles.image} />

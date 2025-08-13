@@ -17,6 +17,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
+import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -63,11 +64,13 @@ export default function RootLayout() {
                 <MealPlannerProvider>
                   <NutritionProvider>
                     <RecipeStoreProvider>
+                      <RecipeFoldersProvider>
                       <ToastProvider>
                         <GlobalErrorBoundary>
                           <RootLayoutNav />
                         </GlobalErrorBoundary>
                       </ToastProvider>
+                      </RecipeFoldersProvider>
                     </RecipeStoreProvider>
                   </NutritionProvider>
                 </MealPlannerProvider>

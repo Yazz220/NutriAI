@@ -162,3 +162,14 @@ export interface InventoryItem {
   export type RecipeWithAvailability = (Recipe | Meal) & {
     availability: RecipeAvailability;
   };
+
+  // Recipe Folders
+  export interface RecipeFolder {
+    id: string;
+    name: string;
+    recipeIds: string[]; // references Meal.id
+    createdAt: string; // ISO datetime
+    updatedAt: string; // ISO datetime
+  }
+  
+  export type RecipeFolderMap = Record<string, RecipeFolder>;

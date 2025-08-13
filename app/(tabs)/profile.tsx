@@ -153,14 +153,14 @@ export default function ProfileScreen() {
               label="Goal Type" 
               options={goalTypes} 
               selected={local.goalType} 
-              onSelect={(g) => setLocal(p => ({ ...p, goalType: g }))}
+              onSelect={(g) => setLocal(p => ({ ...p, goalType: g as typeof goalTypes[number] }))}
             />
             
             <ChipSelector 
               label="Activity Level" 
               options={activityLevels} 
               selected={local.activityLevel} 
-              onSelect={(a) => setLocal(p => ({ ...p, activityLevel: a }))}
+              onSelect={(a) => setLocal(p => ({ ...p, activityLevel: a as typeof activityLevels[number] }))}
             />
           </EnhancedCard>
 
@@ -174,7 +174,7 @@ export default function ProfileScreen() {
               label="Dietary Restrictions" 
               options={dietOptions} 
               selected={local.dietary} 
-              onSelect={(d) => setLocal(p => ({ ...p, dietary: d }))}
+              onSelect={(d) => setLocal(p => ({ ...p, dietary: d as typeof dietOptions[number] }))}
             />
             
             <View style={styles.inputGroup}>
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
               label="Unit System" 
               options={units} 
               selected={local.unitSystem} 
-              onSelect={(u) => setLocal(p => ({ ...p, unitSystem: u }))}
+              onSelect={(u) => setLocal(p => ({ ...p, unitSystem: u as typeof units[number] }))}
             />
           </EnhancedCard>
 

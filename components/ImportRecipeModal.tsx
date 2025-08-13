@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { importRecipeFromUrl, importRecipeFromText, importRecipeFromImage } from '@/utils/recipeImport';
 import { transcribeFromUrl, transcribeFromUri } from '@/utils/sttClient';
 import { smartImport } from '@/utils/universalImport';
+
 import { Meal } from '@/types';
 
 interface ImportRecipeModalProps {
@@ -39,6 +40,9 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
     cookTime?: number;
     servings?: number;
   }>(null);
+  const [provenance, setProvenance] = useState<any | null>(null);
+  const [improvedPreview, setImprovedPreview] = useState<typeof preview>(null);
+  const [showDiff, setShowDiff] = useState(false);
 
   const isLikelyUrl = useMemo(() => {
     const s = url.trim();
@@ -98,13 +102,39 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
     if (!isLikelyUrl) return;
     setIsTranscribing(true);
     try {
+      console.log('[ImportRecipeModal] Starting transcription for URL:', url.trim());
       const { text } = await transcribeFromUrl(url.trim(), { language: 'english', response_format: 'json' });
       const cleaned = cleanText(text || '');
-      if (!cleaned) throw new Error('Empty transcript');
-      const data = await importRecipeFromText(cleaned);
-      setPreview(data);
+      
+      if (!cleaned || cleaned.length < 10) {
+        throw new Error('No meaningful content transcribed from video');
+      }
+      
+      console.log('[ImportRecipeModal] Transcription successful, length:', cleaned.length);
+      
+      // Use the smart import system with the transcribed text
+      const { recipe, provenance } = await smartImport({ text: cleaned });
+      
+      if (!recipe) {
+        throw new Error('Could not extract recipe from transcribed content');
+      }
+      
+      // Create preview
+      const enhancedPreview = {
+        ...recipe,
+        confidence: 0.8,
+        originalUrl: url.trim(),
+        extractionMethods: ['Video transcription + rule-based parsing']
+      };
+      
+      setPreview(enhancedPreview);
+      setProvenance(provenance || null);
+      console.log('[ImportRecipeModal] Transcription and parsing complete');
+      
     } catch (e) {
-      Alert.alert('Transcription failed', 'We could not transcribe this video link. Try pasting the caption or upload a screenshot.');
+      console.error('[ImportRecipeModal] Transcription failed:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Transcription failed', `Could not transcribe this video: ${errorMessage}\n\nTry pasting the recipe text from the video description or take a screenshot instead.`);
     } finally {
       setIsTranscribing(false);
     }
@@ -152,78 +182,87 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
       }
 
       console.log('[ImportRecipeModal] Smart import starting', { hasUrl: !!input.url, hasText: !!input.text, hasFile: !!input.file });
-      const { recipe, provenance } = await smartImport(input);
-      console.log('[ImportRecipeModal] Smart import complete', { source: provenance?.source, notes: provenance?.parserNotes?.length, confidence: provenance?.confidence });
       
-      if (!recipe) {
-        Alert.alert('No recipe found', 'We could not extract a recipe. If this was a social video, try Transcribe Video or attach a screenshot.');
-        return;
-      }
-
-      // Enhanced preview with validation data
-      const enhancedPreview = {
-        ...recipe,
-        confidence: provenance?.confidence || 0.5,
-        originalUrl: input.url,
-        extractionMethods: provenance?.parserNotes || [],
-        validationIssues: [], // Will be populated by validation system
-        missingIngredients: [], // Will be populated by ingredient recovery
-        inferredQuantities: [] // Will be populated by ingredient recovery
-      };
-
-      // Run validation and ingredient recovery
       try {
-        const { parseRecipeWithAI, validateRecipeConsistency } = await import('../utils/aiRecipeParser');
+        const { recipe, provenance } = await smartImport(input);
+        console.log('[ImportRecipeModal] Smart import complete', { 
+          source: provenance?.source, 
+          notes: provenance?.parserNotes?.length, 
+          confidence: provenance?.confidence
+        });
         
-        // Convert to ParsedRecipe format for validation
-        const parsedRecipe = {
-          title: recipe.name,
-          ingredients: recipe.ingredients.map((ing: any) => ({
-            name: ing.name,
-            quantity: ing.quantity,
-            unit: ing.unit,
-            optional: ing.optional || false,
-            confidence: 0.8, // Default confidence
-            inferred: false
-          })),
-          instructions: recipe.steps,
-          prepTime: recipe.prepTime,
-          cookTime: recipe.cookTime,
-          servings: recipe.servings,
-          tags: recipe.tags || [],
-          confidence: provenance?.confidence || 0.5
+        if (!recipe) {
+          Alert.alert('No recipe found', 'We could not extract a recipe. If this was a social video, try Transcribe Video or attach a screenshot.');
+          return;
+        }
+        
+        // Continue with preview setup and validation
+        let enhancedPreview: any = {
+          ...recipe,
+          confidence: provenance?.confidence || 0.5,
+          originalUrl: input.url,
+          extractionMethods: provenance?.parserNotes || [],
+          validationIssues: [],
+          missingIngredients: [],
+          inferredQuantities: []
         };
 
-        // Validate recipe consistency
-        const validationResult = await validateRecipeConsistency(
-          parsedRecipe,
-          input.text || input.url || 'Imported content'
-        );
+        // Run validation and ingredient recovery
+        try {
+          const { validateRecipeConsistency } = await import('../utils/aiRecipeParser');
+          const parsedRecipe = {
+            title: recipe.name,
+            ingredients: recipe.ingredients.map((ing: any) => ({
+              name: ing.name,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              optional: ing.optional || false,
+              confidence: 0.8,
+              inferred: false
+            })),
+            instructions: recipe.steps,
+            prepTime: recipe.prepTime,
+            cookTime: recipe.cookTime,
+            servings: recipe.servings,
+            tags: recipe.tags || [],
+            confidence: provenance?.confidence || 0.5
+          };
 
-        // Update preview with validation results
-        enhancedPreview.ingredients = validationResult.validatedRecipe.ingredients.map((ing: any) => ({
-          ...ing,
-          hasIssues: ing.confidence < 0.6 || ing.inferred,
-          issues: ing.confidence < 0.6 ? ['Low confidence extraction'] : 
-                  ing.inferred ? ['Quantity was inferred'] : []
-        }));
-        
-        enhancedPreview.validationIssues = validationResult.inconsistencies.map((inc: any) => ({
-          type: inc.type,
-          severity: inc.severity,
-          description: inc.description,
-          suggestion: inc.suggestion
-        }));
-        
-        enhancedPreview.missingIngredients = validationResult.missingIngredients;
-        enhancedPreview.inferredQuantities = validationResult.inferredQuantities;
+          const validationResult = await validateRecipeConsistency(
+            parsedRecipe as any,
+            input.text || input.url || 'Imported content'
+          );
 
-      } catch (validationError) {
-        console.warn('[ImportRecipeModal] Validation failed:', validationError);
-        // Continue with basic preview if validation fails
+          enhancedPreview.ingredients = validationResult.validatedRecipe.ingredients.map((ing: any) => ({
+            ...ing,
+            hasIssues: ing.confidence < 0.6 || ing.inferred,
+            issues: ing.confidence < 0.6 ? ['Low confidence extraction'] : 
+                    ing.inferred ? ['Quantity was inferred'] : []
+          }));
+          
+          enhancedPreview.validationIssues = validationResult.inconsistencies.map((inc: any) => ({
+            type: inc.type,
+            severity: inc.severity,
+            description: inc.description,
+            suggestion: inc.suggestion
+          }));
+          
+          enhancedPreview.missingIngredients = validationResult.missingIngredients;
+          enhancedPreview.inferredQuantities = validationResult.inferredQuantities;
+        } catch (validationError) {
+          console.warn('[ImportRecipeModal] Validation failed:', validationError);
+        }
+
+        setPreview(enhancedPreview);
+        setProvenance(provenance || null);
+        
+      } catch (importError) {
+        console.error('[ImportRecipeModal] Smart import failed:', importError);
+        const errorMessage = importError instanceof Error ? importError.message : 'Unknown error occurred';
+        Alert.alert('Import Failed', `Could not process this content: ${errorMessage}`);
+        return;
       }
-
-      setPreview(enhancedPreview);
+      
     } catch (e: any) {
       console.error('[ImportRecipeModal] Smart import failed', e);
       const msg = e?.message || 'Could not import this recipe. Try another source, transcribing the video, or attaching a screenshot.';
@@ -231,6 +270,57 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Build a textual representation from current preview for AI enrichment
+  const buildTextFromRecipe = (r: NonNullable<typeof preview>) => {
+    const ingLines = (r.ingredients || []).map(i => `${i.quantity} ${i.unit} ${i.name}${i.optional ? ' (optional)' : ''}`.trim());
+    const stepLines = (r.steps || []).map((s, idx) => `${idx + 1}. ${s}`);
+    return [r.name, r.description || '', 'Ingredients:', ...ingLines, 'Instructions:', ...stepLines].filter(Boolean).join('\n');
+  };
+
+  const handleImproveWithAI = async () => {
+    if (!preview) return;
+    setIsLoading(true);
+    try {
+      const { parseRecipeWithAI } = await import('../utils/aiRecipeParser');
+      const content = buildTextFromRecipe(preview);
+      const parsed = await parseRecipeWithAI(content, { includeNutrition: false, strictValidation: true, useMultiStage: true });
+      const improved = {
+        name: parsed.title || preview.name,
+        description: (parsed as any).description || preview.description,
+        image: preview.image,
+        ingredients: (parsed.ingredients || []).map((ing: any) => ({
+          name: ing.name,
+          quantity: typeof ing.quantity === 'number' ? ing.quantity : (parseFloat(String(ing.quantity)) || 0),
+          unit: ing.unit || 'pcs',
+          optional: !!ing.optional
+        })),
+        steps: parsed.instructions || [],
+        tags: parsed.tags || preview.tags || [],
+        prepTime: parsed.prepTime ?? preview.prepTime,
+        cookTime: parsed.cookTime ?? preview.cookTime,
+        servings: parsed.servings ?? preview.servings,
+      } as NonNullable<typeof preview>;
+      setImprovedPreview(improved);
+      setShowDiff(true);
+    } catch (e) {
+      console.warn('[ImportRecipeModal] AI improvement failed:', e);
+      Alert.alert('Improve with AI failed', 'Could not enhance this recipe right now.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleDiff = () => setShowDiff(v => !v);
+
+  const computeDiffList = (a: string[], b: string[]) => {
+    const setA = new Set(a.map(s => s.trim().toLowerCase()));
+    const setB = new Set(b.map(s => s.trim().toLowerCase()));
+    const removed = a.filter(s => !setB.has(s.trim().toLowerCase()));
+    const added = b.filter(s => !setA.has(s.trim().toLowerCase()));
+    const unchanged = a.filter(s => setB.has(s.trim().toLowerCase()));
+    return { added, removed, unchanged };
   };
 
   const handlePickImage = async () => {
@@ -345,9 +435,16 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
           )}
           {isSocialVideoLink ? (
             <>
-              <Text style={styles.helpText}>Detected social video link. Optional: transcribe audio for better extraction.</Text>
+              <Text style={styles.helpText}>
+                Detected social video link. For best results, use "Transcribe Video" to extract audio, 
+                or copy the recipe text from the video description/comments.
+              </Text>
               <View style={{ marginTop: Spacing.xs }}>
-                <Button title={isTranscribing ? 'Transcribing…' : 'Transcribe Video (Beta)'} onPress={handleTranscribeFromUrl} disabled={isTranscribing || !url.trim()} />
+                <Button 
+                  title={isTranscribing ? 'Transcribing…' : 'Transcribe Video'} 
+                  onPress={handleTranscribeFromUrl} 
+                  disabled={isTranscribing || !url.trim()} 
+                />
               </View>
             </>
           ) : null}
@@ -359,25 +456,60 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
               {preview.image && (
                 <Image source={{ uri: preview.image }} style={{ width: '100%', height: 180, borderRadius: 8 }} />
               )}
-              <Text style={styles.previewName}>{preview.name}</Text>
+              <Text style={styles.previewName}>{(showDiff && improvedPreview ? improvedPreview.name : preview.name)}</Text>
               {preview.description ? <Text style={styles.previewDesc}>{preview.description}</Text> : null}
+              {/* Provenance banner */}
+              {provenance && (
+                <View style={styles.provBanner}>
+                  {!!provenance.policy && (
+                    <Text style={styles.provBadge}>Policy: {String(provenance.policy)}</Text>
+                  )}
+                  {!!provenance.extractionMethod && (
+                    <Text style={styles.provBadge}>Extracted: {String(provenance.extractionMethod)}</Text>
+                  )}
+                  {typeof provenance.confidence === 'number' && (
+                    <Text style={styles.provBadge}>Confidence: {provenance.confidence.toFixed(2)}</Text>
+                  )}
+                </View>
+              )}
               <Text style={styles.sectionTitle}>Ingredients</Text>
-              {preview.ingredients.length ? (
-                preview.ingredients.map((i, idx) => (
-                  <Text key={idx} style={styles.ingredient}>{i.quantity} {i.unit} {i.name}</Text>
-                ))
-              ) : (
-                <Text style={styles.previewDesc}>No ingredients parsed</Text>
-              )}
+              {(() => {
+                const baseList = preview.ingredients.map(i => `${i.quantity} ${i.unit} ${i.name}`.trim());
+                const impList = (improvedPreview?.ingredients || []).map(i => `${i.quantity} ${i.unit} ${i.name}`.trim());
+                if (showDiff && improvedPreview) {
+                  const { added, removed, unchanged } = computeDiffList(baseList, impList);
+                  return (
+                    <View>
+                      {removed.map((s, idx) => (<Text key={`r-${idx}`} style={styles.diffRemoved}>- {s}</Text>))}
+                      {unchanged.map((s, idx) => (<Text key={`u-${idx}`} style={styles.ingredient}>{s}</Text>))}
+                      {added.map((s, idx) => (<Text key={`a-${idx}`} style={styles.diffAdded}>+ {s}</Text>))}
+                    </View>
+                  );
+                }
+                const list = (improvedPreview && !showDiff) ? impList : baseList;
+                return list.length ? list.map((s, idx) => (<Text key={idx} style={styles.ingredient}>{s}</Text>)) : (<Text style={styles.previewDesc}>No ingredients parsed</Text>);
+              })()}
               <Text style={styles.sectionTitle}>Steps</Text>
-              {preview.steps.length ? (
-                preview.steps.map((s, idx) => (
-                  <Text key={idx} style={styles.step}>{idx + 1}. {s}</Text>
-                ))
-              ) : (
-                <Text style={styles.previewDesc}>No steps parsed</Text>
-              )}
-              <Button title="Save to Library" onPress={handleSave} style={{ marginTop: Spacing.md }} />
+              {(() => {
+                const baseSteps = preview.steps;
+                const impSteps = improvedPreview?.steps || [];
+                if (showDiff && improvedPreview) {
+                  const { added, removed, unchanged } = computeDiffList(baseSteps, impSteps);
+                  return (
+                    <View>
+                      {removed.map((s, idx) => (<Text key={`sr-${idx}`} style={styles.diffRemoved}>- {s}</Text>))}
+                      {unchanged.map((s, idx) => (<Text key={`su-${idx}`} style={styles.step}>{(baseSteps.indexOf(s) + 1)}. {s}</Text>))}
+                      {added.map((s, idx) => (<Text key={`sa-${idx}`} style={styles.diffAdded}>+ {s}</Text>))}
+                    </View>
+                  );
+                }
+                const list = (improvedPreview && !showDiff) ? impSteps : baseSteps;
+                return list.length ? list.map((s, idx) => (<Text key={idx} style={styles.step}>{idx + 1}. {s}</Text>)) : (<Text style={styles.previewDesc}>No steps parsed</Text>);
+              })()}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: Spacing.md }}>
+                <Button title="Save to Library" onPress={handleSave} />
+                <Button title={improvedPreview ? (showDiff ? 'Hide diff' : 'Show diff') : 'Improve with AI'} variant="outline" onPress={improvedPreview ? toggleDiff : handleImproveWithAI} />
+              </View>
             </Card>
           )}
         </ScrollView>
@@ -466,6 +598,33 @@ const styles = StyleSheet.create({
   step: { color: Colors.text, marginTop: 4 },
   closeBtn: { alignSelf: 'center', padding: Spacing.md },
   closeText: { color: Colors.primary, fontWeight: '600' },
+  provBanner: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  provBadge: {
+    backgroundColor: Colors.tabBackground,
+    color: Colors.text,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginRight: 6,
+    marginTop: 4,
+    fontSize: 12,
+    overflow: 'hidden',
+  },
+  diffRemoved: {
+    color: '#b91c1c',
+    textDecorationLine: 'line-through',
+    marginTop: 4,
+  },
+  diffAdded: {
+    color: '#065f46',
+    marginTop: 4,
+  },
 });
 
 

@@ -38,6 +38,47 @@ export interface StructuredRecipeData {
   };
 }
 
+// Lightweight JSON-LD Recipe type and extractor to enable verbatim mapping
+export type RecipeJsonLd = {
+  name?: string;
+  recipeIngredient?: string[];
+  recipeInstructions?: Array<string | { text?: string } | { itemListElement?: Array<string | { text?: string }> }>;
+  totalTime?: string;
+  prepTime?: string;
+  cookTime?: string;
+  recipeYield?: string | number;
+  keywords?: string | string[];
+  image?: string | string[];
+  description?: string;
+  author?: any;
+};
+
+export function extractJsonLdRecipes(html: string): RecipeJsonLd[] {
+  const matches = [...html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  )];
+  const out: RecipeJsonLd[] = [];
+  for (const m of matches) {
+    try {
+      const blockText = (m[1] || '').trim();
+      if (!blockText) continue;
+      const block = JSON.parse(blockText);
+      const nodes: any[] = Array.isArray(block)
+        ? block
+        : [block, ...((block && Array.isArray(block['@graph'])) ? block['@graph'] : [])];
+      for (const node of nodes) {
+        const t = node && node['@type'];
+        if (t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) {
+          out.push(node as RecipeJsonLd);
+        }
+      }
+    } catch {
+      // ignore malformed JSON-LD blocks
+    }
+  }
+  return out;
+}
+
 // Social media oEmbed endpoints
 const OEMBED_ENDPOINTS = {
   tiktok: 'https://www.tiktok.com/oembed',
@@ -413,9 +454,9 @@ function extractOpenGraphData(doc: Document): StructuredRecipeData | null {
   if (ingredients.length === 0 && instructions.length === 0) return null;
   
   return {
-    name: title,
-    description,
-    imageUrl: image,
+    name: title || 'Imported Recipe',
+    description: description ?? undefined,
+    imageUrl: image ?? undefined,
     ingredients,
     instructions,
     keywords: []

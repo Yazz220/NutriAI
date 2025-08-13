@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   SectionList,
-  RefreshControl,
   Alert,
   Image,
   Animated,
@@ -30,7 +29,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { InventoryItem, ItemCategory } from '@/types';
+import { InventoryItem, ItemCategory, ShoppingListItem } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
 
 // Enhanced Component Definitions
@@ -359,6 +358,34 @@ export default function InventoryScreen() {
     try {
       await removeItem(item.id);
       showToast({ message: `Used up ${item.name}`, type: 'success', duration: 2000 });
+      // Prompt to add to shopping list
+      Alert.alert(
+        'Add to Shopping List?',
+        `Would you like to add ${item.name} to your shopping list?`,
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: async () => {
+              try {
+                await addToShoppingList({
+                  name: item.name,
+                  quantity: 1,
+                  unit: item.unit || 'pcs',
+                  category: item.category || 'Other',
+                  addedDate: new Date().toISOString(),
+                  checked: false,
+                  addedBy: 'system',
+                } as Omit<ShoppingListItem, 'id'>);
+                showToast({ message: `Added ${item.name} to shopping list`, type: 'success', duration: 1800 });
+              } catch (e) {
+                console.error(e);
+                showToast({ message: 'Failed to add to shopping list', type: 'error', duration: 2500 });
+              }
+            },
+          },
+        ]
+      );
     } catch (e) {
       console.error(e);
       showToast({ message: 'Failed to update inventory', type: 'error', duration: 2500 });
@@ -772,32 +799,33 @@ export default function InventoryScreen() {
         </View>
       )}
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+      <SectionList
+        sections={groupedInventory}
+        keyExtractor={(item) => `section-${item.id}`}
+        renderItem={({ item }) => (
+          <View style={styles.itemCardContainer}>
+            <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
+          </View>
+        )}
+        renderSectionHeader={({ section: { title } }) => (
+          <Text style={styles.sectionHeader}>{title}</Text>
+        )}
+        ListEmptyComponent={renderEmptyComponent}
+        contentContainerStyle={styles.sectionListContent}
         showsVerticalScrollIndicator={false}
-      >
-        <FilterPill />
+        refreshing={isRefreshing}
+        onRefresh={onRefresh}
+        ListHeaderComponent={
+          <>
+            <FilterPill />
+          </>
+        }
+      />
 
-        <SectionList
-          sections={groupedInventory}
-          keyExtractor={(item) => `section-${item.id}`}
-          renderItem={({ item }) => (
-            <View style={styles.itemCardContainer}>
-              <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
-            </View>
-          )}
-          renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.sectionHeader}>{title}</Text>
-          )}
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={styles.sectionListContent}
-        />
-
-        <View style={styles.quickAddContainer}>
-          {isQuickAddExpanded && (
-            <View>
-              <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
+      <View style={styles.quickAddContainer}>
+        {isQuickAddExpanded && (
+          <View>
+            <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
                 <Barcode size={20} color={Colors.primary} />
                 <Text style={styles.quickAddText}>Scan Barcode</Text>
               </TouchableOpacity>
@@ -805,13 +833,12 @@ export default function InventoryScreen() {
                 <IconCamera size={20} color={Colors.primary} />
                 <Text style={styles.quickAddText}>Use Camera</Text>
               </TouchableOpacity>
-            </View>
-          )}
-          <TouchableOpacity style={styles.quickAddButton} onPress={() => setQuickAddExpanded(!isQuickAddExpanded)}>
-            <Plus size={24} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          </View>
+        )}
+        <TouchableOpacity style={styles.quickAddButton} onPress={() => setQuickAddExpanded(!isQuickAddExpanded)}>
+          <Plus size={24} color={Colors.white} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

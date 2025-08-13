@@ -212,87 +212,6 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
 
   return (
     <View style={styles.container}>
-      {/* Discovery Header */}
-      <Card style={styles.discoveryHeader}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Sparkles size={24} color={Colors.primary} />
-            <Text style={styles.headerTitle}>Recipe Discovery</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => recipeProvider && setShowSearch(true)}
-          >
-            <Search size={20} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-        
-        <Text style={styles.headerDescription}>
-          Discover thousands of professional recipes with nutrition data and smart recommendations
-        </Text>
-        {Platform.OS === 'web' && (
-          <Text style={{ color: '#888', marginTop: 4 }}>
-            Discovery sections are limited on web due to CORS. Use search or run the app on a device.
-          </Text>
-        )}
-
-        {/* Filter chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
-          {[
-            { key: 'vegetarian', label: 'Vegetarian', apply: () => ({ diet: 'vegetarian' }) },
-            { key: 'vegan', label: 'Vegan', apply: () => ({ diet: 'vegan' }) },
-            { key: 'quick', label: 'Quick < 20m', apply: () => ({ maxReadyTime: 20 }) },
-            { key: 'lowcal', label: '≤ 400 kcal', apply: () => ({ maxCalories: 400, sort: 'calories' as const, sortDirection: 'asc' as const }) },
-            { key: 'italian', label: 'Italian', apply: () => ({ cuisine: 'Italian' }) },
-            { key: 'dessert', label: 'Dessert', apply: () => ({ type: 'dessert' }) },
-          ].map(chip => (
-            <TouchableOpacity
-              key={chip.key}
-              style={styles.chip}
-              onPress={async () => {
-                if (!recipeProvider) return;
-                const next = { ...filters, ...chip.apply() };
-                setFilters(next);
-                await onSearch(next);
-              }}
-            >
-              <Text style={styles.chipText}>{chip.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Sorting */}
-        <View style={styles.sortRow}>
-          {(['popularity','healthiness','time','calories'] as const).map(s => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.sortChip, filters.sort === s && styles.sortChipActive]}
-              onPress={async () => {
-                if (!recipeProvider) return;
-                const next = { ...filters, sort: s };
-                setFilters(next);
-                await onSearch(next);
-              }}
-            >
-              <Text style={[styles.sortChipText, filters.sort === s && styles.sortChipTextActive]}>{s}</Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity
-            style={styles.dirChip}
-            onPress={async () => {
-              if (!recipeProvider) return;
-              const newDir: 'asc' | 'desc' = filters.sortDirection === 'asc' ? 'desc' : 'asc';
-              const next = { ...filters, sortDirection: newDir };
-              setFilters(next);
-              await onSearch(next);
-            }}
-          >
-            <Text style={styles.dirChipText}>{filters.sortDirection === 'asc' ? 'Asc' : 'Desc'}</Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
-
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -300,212 +219,55 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Popular Categories (horizontal chips) */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Popular Categories</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH}
-            contentContainerStyle={styles.rowHContent}
-          >
-            {[
-              { label: 'Breakfast', type: 'breakfast' },
-              { label: 'Lunch', type: 'lunch' },
-              { label: 'Dinner', type: 'dinner' },
-              { label: 'Vegan', diet: 'vegan' },
-              { label: 'High Protein', type: 'main course', diet: undefined, sort: 'healthiness' as const },
-            ].map((c) => (
-              <TouchableOpacity key={c.label} style={styles.catChip} onPress={() => openSearchWith({ type: c.type as any, diet: c.diet as any, sort: c.sort })}>
-                <Text style={styles.catChipText}>{c.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Card>
-
-        {/* Calorie Counters (grid) */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Calorie Counters</Text>
-          </View>
-          <View style={styles.grid2}>
-            {[
-              { label: '50–100 kcal', maxCalories: 100 },
-              { label: '100–200 kcal', maxCalories: 200 },
-              { label: '200–300 kcal', maxCalories: 300 },
-              { label: '300–400 kcal', maxCalories: 400 },
-              { label: '400–500 kcal', maxCalories: 500 },
-              { label: '500–600 kcal', maxCalories: 600 },
-            ].map((r) => (
-              <TouchableOpacity key={r.label} style={styles.calTile} onPress={() => openSearchWith({ maxCalories: r.maxCalories, sort: 'calories', sortDirection: 'asc' })}>
-                <Text style={styles.calTileText}>{r.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
-
-        {/* Pick Your Meal (horizontal) */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pick Your Meal</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH} contentContainerStyle={styles.rowHContent}>
-            {[
-              { label: 'Bowls', type: 'salad' },
-              { label: 'Soups', type: 'soup' },
-              { label: 'Pasta', type: 'pasta' },
-              { label: 'Desserts', type: 'dessert' },
-              { label: 'Main Dishes', type: 'main course' },
-            ].map((m) => (
-              <TouchableOpacity key={m.label} style={styles.mealCard} onPress={() => openSearchWith({ type: m.type as any })}>
-                <Text style={styles.mealCardText}>{m.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Card>
-
-        {/* Pick Your Method (horizontal) */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pick Your Method</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH} contentContainerStyle={styles.rowHContent}>
-            {[
-              { label: 'Easy', maxReadyTime: 20 },
-              { label: '5 Ingredients', query: '5 ingredient' },
-              { label: 'One-Pot', query: 'one pot' },
-              { label: 'On the go', query: 'wrap sandwich' },
-            ].map((m) => (
-              <TouchableOpacity key={m.label} style={styles.methodCard} onPress={() => openSearchWith({ query: m.query as any, maxReadyTime: m.maxReadyTime as any })}>
-                <Text style={styles.methodCardText}>{m.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Card>
-
-        {/* Pick Your Diet (grid) */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pick Your Diet</Text>
-          </View>
-          <View style={styles.grid2}>
-            {[
-              { label: 'Vegetarian', diet: 'vegetarian' },
-              { label: 'Vegan', diet: 'vegan' },
-              { label: 'Low Carb', query: 'low carb' },
-              { label: 'Low Fat', query: 'low fat' },
-              { label: 'Low Calorie', maxCalories: 400 },
-              { label: 'High Protein', query: 'high protein' },
-            ].map((d) => (
-              <TouchableOpacity key={d.label} style={styles.dietTile} onPress={() => openSearchWith({ diet: d.diet as any, query: d.query as any, maxCalories: d.maxCalories as any })}>
-                <Text style={styles.dietTileText}>{d.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
-
-        {/* Our Favorites (horizontal from trending) */}
-        {trendingRecipes.length > 0 && (
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Our Favorites</Text>
+        {/* Discovery Header (now scrolls away) */}
+        <Card style={styles.discoveryHeader}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              <Sparkles size={24} color={Colors.primary} />
+              <Text style={styles.headerTitle}>Recipe Discovery</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowH}
-              contentContainerStyle={styles.rowHContent}
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => recipeProvider && setShowSearch(true)}
             >
-              {trendingRecipes.slice(0, 12).map((r, idx) => (
-                <View key={`fav-${r.id}-${idx}`} style={styles.hCardWrapper}>
-                  {renderRecipeCard(r)}
-                </View>
-              ))}
-            </ScrollView>
-          </Card>
-        )}
-        {/* Trending Recipes */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <TrendingUp size={20} color={Colors.primary} />
-            <Text style={styles.sectionTitle}>Trending Now</Text>
+              <Search size={20} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
-          
-          {isLoading && trendingRecipes.length === 0 ? (
-            <LoadingSpinner text="Loading trending recipes..." />
-          ) : trendingRecipes.length > 0 ? (
-            <View style={styles.recipeGrid}>
-              {trendingRecipes.slice(0, 6).map((recipe, idx) => (
-                <View key={`trend-${recipe.id}-${idx}`}>{renderRecipeCard(recipe)}</View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>No trending recipes available</Text>
+          <Text style={styles.headerDescription}>
+            Discover thousands of professional recipes with nutrition data and smart recommendations
+          </Text>
+          {Platform.OS === 'web' && (
+            <Text style={{ color: '#888', marginTop: 4 }}>
+              Discovery sections are limited on web due to CORS. Use search or run the app on a device.
+            </Text>
           )}
         </Card>
+        {/* Minimal layout ends here. All category and counter sections removed for a clean look. */}
 
-        {/* Quick Actions */}
-        <Card style={styles.actionsCard}>
-          <Text style={styles.actionsTitle}>Quick Discovery</Text>
-          
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => recipeProvider && getRandomRecipes(['main course'], 10)}
-            >
-              <Star size={20} color={Colors.primary} />
-              <Text style={styles.actionButtonText}>Main Dishes</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => recipeProvider && getRandomRecipes(['vegetarian'], 10)}
-            >
-              <Star size={20} color={Colors.secondary} />
-              <Text style={styles.actionButtonText}>Vegetarian</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => recipeProvider && getRandomRecipes(['quick'], 10)}
-            >
-              <Clock size={20} color={Colors.warning} />
-              <Text style={styles.actionButtonText}>Quick Meals</Text>
-            </TouchableOpacity>
+        {/* Minimal Feed */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Explore Recipes</Text>
+          </View>
+
+          {isLoading && externalRecipes.length === 0 && trendingRecipes.length === 0 ? (
+            <LoadingSpinner text="Loading recipes..." />
+          ) : (
+            <View style={styles.recipeGrid}>
+              {(externalRecipes.length ? externalRecipes : trendingRecipes).map((recipe, idx) => (
+                <View key={`feed-${recipe.id}-${idx}`}>{renderRecipeCard(recipe, true)}</View>
+              ))}
+            </View>
+          )}
+
+          <View style={{ marginTop: Spacing.sm }}>
+            <Button
+              title={isLoading ? 'Loading…' : 'Load more'}
+              onPress={() => recipeProvider && getRandomRecipes(undefined, 12, true)}
+              disabled={isLoading || !recipeProvider}
+            />
           </View>
         </Card>
-
-        {/* Recent Discoveries */}
-        {externalRecipes.length > 0 && (
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Sparkles size={20} color={Colors.secondary} />
-              <Text style={styles.sectionTitle}>Recent Discoveries</Text>
-            </View>
-            
-            <View style={styles.recipeGrid}>
-              {externalRecipes.map((recipe, idx) => (
-              <View key={`recent-${recipe.id}-${idx}`}>{renderRecipeCard(recipe, true)}</View>
-            ))}
-            </View>
-
-            <View style={{ marginTop: Spacing.sm }}>
-              <Button
-                title={isLoading ? 'Loading…' : 'Load more'}
-                onPress={() => recipeProvider && getRandomRecipes(['main course', 'healthy'], 12, true)}
-                disabled={isLoading || !recipeProvider}
-              />
-            </View>
-          </Card>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <Card style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Button
-              title="Retry"
-              onPress={handleRefresh}
-              style={styles.retryButton}
-            />
-          </Card>
-        )}
       </ScrollView>
     </View>
   );

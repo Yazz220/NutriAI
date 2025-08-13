@@ -41,8 +41,6 @@ const UNIT_MAPPINGS: Record<string, string> = {
   'tablespoons': 'tbsp',
   'tablespoon': 'tbsp',
   'cups': 'cup',
-  'ounces': 'oz',
-  'ounce': 'oz',
   'fluid ounces': 'fl oz',
   'fluid ounce': 'fl oz',
   'pints': 'pt',
@@ -59,8 +57,6 @@ const UNIT_MAPPINGS: Record<string, string> = {
   // Weight
   'pounds': 'lb',
   'pound': 'lb',
-  'ounces': 'oz',
-  'ounce': 'oz',
   'grams': 'g',
   'gram': 'g',
   'kilograms': 'kg',

@@ -108,16 +108,38 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
   useEffect(() => {
     const loadMeals = async () => {
       try {
+        console.log('[Meals] Loading from storage…');
         const storedMeals = await AsyncStorage.getItem('meals');
         if (storedMeals) {
-          setMeals(JSON.parse(storedMeals));
+          try {
+            const parsed = JSON.parse(storedMeals);
+            if (Array.isArray(parsed)) {
+              console.log('[Meals] Loaded', { count: parsed.length });
+              if (parsed.length === 0) {
+                console.warn('[Meals] Stored meals is empty array, reseeding initialMeals');
+                setMeals(initialMeals);
+                await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
+              } else {
+                setMeals(parsed);
+              }
+            } else {
+              console.warn('[Meals] Stored data not an array, resetting to initialMeals');
+              setMeals(initialMeals);
+              await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
+            }
+          } catch (e) {
+            console.warn('[Meals] Failed to parse stored meals, resetting to initialMeals', e);
+            setMeals(initialMeals);
+            await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
+          }
         } else {
           // Use mock data if no stored meals
+          console.log('[Meals] No stored meals found, seeding initialMeals');
           setMeals(initialMeals);
           await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
         }
       } catch (error) {
-        console.error('Failed to load meals:', error);
+        console.error('[Meals] Failed to load meals:', error);
         setMeals(initialMeals);
       } finally {
         setIsLoading(false);
@@ -131,7 +153,8 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
   useEffect(() => {
     if (!isLoading) {
       AsyncStorage.setItem('meals', JSON.stringify(meals))
-        .catch(error => console.error('Failed to save meals:', error));
+        .then(() => console.log('[Meals] Saved', { count: meals.length }))
+        .catch(error => console.error('[Meals] Failed to save meals:', error));
     }
   }, [meals, isLoading]);
 
@@ -154,6 +177,17 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
   // Remove a meal
   const removeMeal = (id: string) => {
     setMeals(prev => prev.filter(meal => meal.id !== id));
+  };
+
+  // Reset meals to defaults (useful if storage got corrupted)
+  const resetMeals = async () => {
+    try {
+      console.log('[Meals] Resetting to initialMeals');
+      setMeals(initialMeals);
+      await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
+    } catch (e) {
+      console.error('[Meals] Failed to reset meals', e);
+    }
   };
 
   // Cook a meal (deduct ingredients from inventory)
@@ -213,6 +247,7 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     addMeal,
     updateMeal,
     removeMeal,
+    resetMeals,
     cookMeal,
     checkIngredientsAvailability,
     getRecommendedMeals

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Star } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -260,15 +261,21 @@ export default function CoachScreen() {
       </TouchableOpacity>
 
       {/* Chat Modal */}
-      <Modal visible={chatOpen} animationType="slide" onRequestClose={() => setChatOpen(false)}>
-        <View style={[styles.container, { backgroundColor: Colors.background }] }>
-          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
-            <Text style={{ fontSize: Typography.sizes.xl, fontWeight: '700', color: Colors.text }}>Coach Chat</Text>
-            <TouchableOpacity onPress={() => setChatOpen(false)} style={styles.headerButton}>
+      <Modal
+        visible={chatOpen}
+        animationType="slide"
+        onRequestClose={() => setChatOpen(false)}
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+      >
+        <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Coach Chat</Text>
+            <TouchableOpacity onPress={() => setChatOpen(false)} style={styles.headerButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ color: Colors.primary, fontWeight: '600' }}>Close</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={{ paddingHorizontal: Spacing.lg }}>
+          <ScrollView style={{ paddingHorizontal: Spacing.lg }} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
             <View style={styles.chipsRow}>
               {['Plan my day', 'Plan my week', 'Generate shopping list'].map((chip) => (
                 <TouchableOpacity key={chip} style={styles.chip} onPress={() => sendMessage(chip)}>
@@ -321,7 +328,7 @@ export default function CoachScreen() {
             </View>
           </ScrollView>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={[styles.composerRow, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg }]}>
+            <View style={[styles.composerRow, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}> 
               <TextInput
                 placeholder="Ask me to plan your day or week…"
                 placeholderTextColor={Colors.lightText}
@@ -339,7 +346,7 @@ export default function CoachScreen() {
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Plan Meal Modal */}
@@ -685,6 +692,21 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 20,
+  },
+  modalHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
+    color: Colors.text,
   },
   headerButton: { padding: Spacing.sm, marginRight: Spacing.sm },
   metaChip: { backgroundColor: Colors.tabBackground, color: Colors.text, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: Typography.sizes.sm },

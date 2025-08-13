@@ -25,6 +25,7 @@ interface EnhancedRecipeCardProps {
   onPress: () => void;
   onFavorite?: () => void;
   isFavorite?: boolean;
+  onLongPress?: () => void;
 }
 
 export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
@@ -32,6 +33,7 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
   onPress,
   onFavorite,
   isFavorite = false,
+  onLongPress,
 }) => {
   const nutrition = recipe.nutritionPerServing;
   const calories = nutrition?.calories || 0;
@@ -40,7 +42,7 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
   const fats = nutrition?.fats || 0;
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
+    <TouchableOpacity onPress={onPress} onLongPress={onLongPress} style={styles.container}>
       <Card style={styles.card}>
         {/* Recipe Image */}
         <View style={styles.imageContainer}>

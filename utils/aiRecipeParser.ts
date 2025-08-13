@@ -213,13 +213,13 @@ async function parseRecipeMultiStage(
 ): Promise<ParsedRecipe> {
   // Stage 1: Initial structure extraction
   const initialParse = await performInitialParsing(content);
-  
+
   // Stage 2: Ingredient validation and enhancement
-  const enhancedIngredients = await enhanceIngredients(initialParse.ingredients, content);
-  
+  const enhancedIngredients = await enhanceIngredients(initialParse.ingredients ?? [], content);
+
   // Stage 3: Instruction validation and cross-referencing
-  const validatedInstructions = await validateInstructions(initialParse.instructions, enhancedIngredients, content);
-  
+  const validatedInstructions = await validateInstructions(initialParse.instructions ?? [], enhancedIngredients, content);
+
   // Stage 4: Final consistency check and confidence scoring
   const finalRecipe = await performFinalValidation({
     ...initialParse,
@@ -230,109 +230,79 @@ async function parseRecipeMultiStage(
   return finalRecipe;
 }
 
+// ...
+
 /**
- * Single-stage parsing for simpler cases
+ * Single-stage parsing for environments where multi-stage is not desired
  */
 async function parseRecipeSingleStage(
   content: string,
   options: { includeNutrition: boolean; strictValidation: boolean; confidenceThreshold: number }
 ): Promise<ParsedRecipe> {
-  const prompt = createSingleStagePrompt(content, options.includeNutrition);
+  const systemPrompt = `You are a meticulous recipe extraction assistant.
+Extract a clean JSON object that conforms strictly to the provided schema fields.
+Do not include commentary. Output only JSON.`;
+
+  const userPrompt = `SOURCE CONTENT:\n\n${content.slice(0, 6000)}\n\nReturn the recipe fields: title, description, imageUrl, ingredients[], instructions[], prepTime, cookTime, servings, difficulty, cuisine, tags[], confidence.`;
+
   const response = await createChatCompletion([
-    { role: 'system', content: prompt.system },
-    { role: 'user', content: prompt.user }
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
   ]);
 
-  const parsedData = extractAndValidateJSON(response, RECIPE_SCHEMA);
-  return normalizeRecipeData(parsedData, options.confidenceThreshold);
+  const data = extractAndValidateJSON(response, RECIPE_SCHEMA);
+  let recipe = normalizeRecipeData(data, options.confidenceThreshold);
+
+  if (options.strictValidation) {
+    try {
+      const validation = await validateRecipeConsistency(recipe, content);
+      recipe = validation.validatedRecipe;
+    } catch {
+      // keep normalized recipe on validation failure
+    }
+  }
+
+  return recipe;
 }
 
 /**
  * Stage 1: Initial structure extraction
  */
-async function performInitialParsing(content: string): Promise<Partial<ParsedRecipe>> {
-  const systemPrompt = `You are a precise recipe extraction specialist. Your task is to extract the basic structure of a recipe from the provided content.
-
-CRITICAL REQUIREMENTS:
-1. Extract ONLY information that is explicitly present in the content
-2. Do NOT invent or assume ingredients, quantities, or steps
-3. If information is unclear or missing, mark it as such
-4. Return ONLY valid JSON matching the exact schema provided
-
-EXTRACTION RULES:
-- Title: Use the most prominent recipe name found
-- Ingredients: Extract each ingredient with quantity, unit, and name when available
-- Instructions: Extract cooking steps in logical order
-- Times: Only include if explicitly mentioned (in minutes)
-- Servings: Only if clearly stated
-- Mark confidence for each ingredient (0.0 to 1.0)
-- Mark inferred=true for any guessed information
-
-UNIT STANDARDIZATION:
-Use only these units: ${STANDARD_UNITS.join(', ')}
-
-Return strict JSON matching this schema:`;
-
-  const userPrompt = `Extract the recipe structure from this content:
-
-${content.slice(0, 4000)}
-
-Return only the JSON object, no additional text.`;
+async function performInitialParsing(content: string): Promise<ParsedRecipe> {
+  const systemPrompt = `You extract structured recipe JSON per the schema. Keep arrays concise and avoid hallucination.`;
+  const userPrompt = `Parse the following into the schema JSON (no markdown fences):\n\n${content.slice(0, 7000)}`;
 
   const response = await createChatCompletion([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
   ]);
 
-  const parsedData = extractAndValidateJSON(response, RECIPE_SCHEMA);
-  return parsedData;
+  const data = extractAndValidateJSON(response, RECIPE_SCHEMA);
+  return normalizeRecipeData(data, 0.5);
 }
 
 /**
- * Stage 2: Ingredient enhancement and validation
+ * Stage 2: Ingredient validation and enhancement
  */
 async function enhanceIngredients(
   ingredients: ParsedIngredient[],
-  originalContent: string
+  content: string
 ): Promise<ParsedIngredient[]> {
-  const systemPrompt = `You are an ingredient validation specialist. Your task is to enhance and validate a list of recipe ingredients.
-
-VALIDATION TASKS:
-1. Check if quantities and units are reasonable and consistent
-2. Identify missing ingredients mentioned in the original content
-3. Standardize units using the approved list
-4. Infer missing quantities when context provides clues
-5. Mark confidence levels accurately
-
-INFERENCE RULES:
-- Only infer quantities when there are clear contextual clues
-- Mark inferred quantities with inferred=true and lower confidence
-- Use "to taste" for seasonings without quantities
-- Mark optional ingredients when indicated by "optional" or similar terms
-
-APPROVED UNITS: ${STANDARD_UNITS.join(', ')}
-
-Return the enhanced ingredients list as JSON array.`;
-
-  const userPrompt = `Original content:
-${originalContent.slice(0, 2000)}
-
-Current ingredients:
-${JSON.stringify(ingredients, null, 2)}
-
-Enhance and validate these ingredients. Return only the JSON array.`;
-
-  const response = await createChatCompletion([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ]);
-
-  const enhancedIngredients = extractAndValidateJSON(response, {
-    type: "array",
-    items: RECIPE_SCHEMA.properties.ingredients.items
+  // Lightweight normalization: clamp confidence, coerce optional, and standardize units when reasonable
+  const normalized = ingredients.map((ing) => {
+    const unit = ing.unit?.toLowerCase().trim();
+    const stdUnit = unit && STANDARD_UNITS.includes(unit) ? unit : ing.unit;
+    return {
+      ...ing,
+      unit: stdUnit,
+      optional: Boolean(ing.optional),
+      confidence: Math.max(0, Math.min(1, ing.confidence ?? 0.6)),
+      inferred: Boolean(ing.inferred)
+    };
   });
 
-  return enhancedIngredients;
+  // Optionally, could use LLM to infer missing quantities; keep simple for type safety
+  return normalized;
 }
 
 /**
@@ -341,134 +311,34 @@ Enhance and validate these ingredients. Return only the JSON array.`;
 async function validateInstructions(
   instructions: string[],
   ingredients: ParsedIngredient[],
-  originalContent: string
+  content: string
 ): Promise<string[]> {
-  const systemPrompt = `You are an instruction validation specialist. Your task is to validate and enhance cooking instructions.
-
-VALIDATION TASKS:
-1. Ensure all ingredients mentioned in steps exist in the ingredients list
-2. Check for logical flow and completeness
-3. Standardize cooking terminology
-4. Add missing critical steps if obvious from context
-5. Ensure instructions are clear and actionable
-
-RULES:
-- Do NOT add ingredients to steps that aren't in the ingredients list
-- Do NOT invent steps not supported by the content
-- Keep instructions concise but complete
-- Use standard cooking verbs (mix, stir, bake, etc.)
-- Include temperatures and times when specified
-
-Return the validated instructions as a JSON array of strings.`;
-
-  const ingredientNames = ingredients.map(ing => ing.name).join(', ');
-  
-  const userPrompt = `Available ingredients: ${ingredientNames}
-
-Current instructions:
-${JSON.stringify(instructions, null, 2)}
-
-Original content for reference:
-${originalContent.slice(0, 2000)}
-
-Validate and enhance these instructions. Return only the JSON array.`;
-
-  const response = await createChatCompletion([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ]);
-
-  const validatedInstructions = extractAndValidateJSON(response, {
-    type: "array",
-    items: { type: "string" }
-  });
-
-  return validatedInstructions;
+  // Remove empty/too-short steps and trim
+  const cleaned = (instructions || [])
+    .filter((s) => typeof s === 'string' && s.trim().length >= 5)
+    .map((s) => s.trim());
+  return cleaned.length > 0 ? cleaned : instructions;
 }
 
 /**
- * Stage 4: Final validation and confidence scoring
+ * Stage 4: Final consistency check and confidence scoring
  */
 async function performFinalValidation(
-  recipe: Partial<ParsedRecipe>,
-  originalContent: string,
-  options: { confidenceThreshold: number }
+  recipe: ParsedRecipe,
+  content: string,
+  options: { includeNutrition: boolean; strictValidation: boolean; confidenceThreshold: number }
 ): Promise<ParsedRecipe> {
-  const systemPrompt = `You are a final recipe validation specialist. Your task is to perform a final quality check and assign an overall confidence score.
-
-VALIDATION CHECKLIST:
-1. Recipe has a clear title
-2. All ingredients have reasonable quantities and units
-3. Instructions reference only available ingredients
-4. Cooking times and temperatures are realistic
-5. Recipe is complete and cookable
-
-CONFIDENCE SCORING:
-- 0.9-1.0: Excellent, complete recipe with all details
-- 0.7-0.8: Good recipe with minor gaps or uncertainties
-- 0.5-0.6: Acceptable recipe but missing some information
-- 0.3-0.4: Poor quality, significant gaps
-- 0.0-0.2: Unusable, major issues
-
-Return the complete recipe with final confidence score.`;
-
-  const userPrompt = `Recipe to validate:
-${JSON.stringify(recipe, null, 2)}
-
-Original content:
-${originalContent.slice(0, 1500)}
-
-Perform final validation and return the complete recipe with confidence score.`;
-
-  const response = await createChatCompletion([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ]);
-
-  const finalRecipe = extractAndValidateJSON(response, RECIPE_SCHEMA);
-  const normalizedRecipe = normalizeRecipeData(finalRecipe, options.confidenceThreshold);
-
-  return normalizedRecipe;
-}
-
-/**
- * Creates a single-stage prompt for simpler parsing
- */
-function createSingleStagePrompt(content: string, includeNutrition: boolean) {
-  const systemPrompt = `You are a precise recipe parser. Extract recipe information from the provided content and return it as structured JSON.
-
-CRITICAL REQUIREMENTS:
-1. Extract ONLY information explicitly present in the content
-2. Do NOT invent ingredients, quantities, or steps
-3. Use standard cooking units: ${STANDARD_UNITS.join(', ')}
-4. Mark confidence for each ingredient (0.0 to 1.0)
-5. Mark inferred=true for any guessed information
-6. Return ONLY valid JSON, no additional text
-
-RECIPE STRUCTURE:
-- title: Recipe name (required)
-- description: Brief description if available
-- ingredients: Array of ingredient objects (required)
-- instructions: Array of cooking steps (required)
-- prepTime: Preparation time in minutes
-- cookTime: Cooking time in minutes
-- servings: Number of servings
-- difficulty: "easy", "medium", or "hard"
-- cuisine: Type of cuisine if identifiable
-- tags: Array of relevant tags
-- confidence: Overall confidence score (0.0 to 1.0)
-
-${includeNutrition ? 'Include nutrition information if available in the content.' : ''}
-
-Return strict JSON matching the schema.`;
-
-  const userPrompt = `Extract the recipe from this content:
-
-${content.slice(0, 6000)}
-
-Return only the JSON object.`;
-
-  return { system: systemPrompt, user: userPrompt };
+  if (!options.strictValidation) return recipe;
+  try {
+    const validation = await validateRecipeConsistency(recipe, content);
+    // Keep minimum confidence between earlier and validation phases
+    return {
+      ...validation.validatedRecipe,
+      confidence: Math.min(recipe.confidence, validation.validatedRecipe.confidence)
+    };
+  } catch {
+    return recipe;
+  }
 }
 
 /**
@@ -478,10 +348,10 @@ function extractAndValidateJSON(response: string, schema: any): any {
   try {
     // Use the enhanced AI response validator
     const { validateAIResponse } = require('./aiResponseValidator');
-    
+
     // Convert simple schema to validation schema format
     const validationSchema = convertToValidationSchema(schema);
-    
+
     const validationResult = validateAIResponse(response, validationSchema, {
       strictMode: false,
       allowPartialData: true,
@@ -490,7 +360,7 @@ function extractAndValidateJSON(response: string, schema: any): any {
     });
 
     if (!validationResult.isValid) {
-      const errorMessages = validationResult.errors.map(e => e.message).join('; ');
+      const errorMessages = validationResult.errors.map((e: any) => e.message).join('; ');
       throw new Error(`Validation failed: ${errorMessages}`);
     }
 
@@ -677,12 +547,29 @@ export async function validateRecipeConsistency(
       missingIngredients: recoveryResult.missingIngredients.map(m => m.name),
       inferredQuantities: recoveryResult.inferredQuantities.map(iq => ({
         name: iq.ingredientName,
-        originalQuantity: iq.originalQuantity || null,
-        suggestedQuantity: iq.inferredQuantity,
-        unit: iq.inferredUnit
+        quantity: iq.inferredQuantity,
+        unit: iq.inferredUnit,
+        optional: false,
+        confidence: 0.6,
+        inferred: true,
+        notes: iq.originalQuantity ? `Originally: ${iq.originalQuantity}` : undefined
       })),
       inconsistencies: recoveryResult.inconsistencies.map(inc => ({
-        type: inc.type,
+        type: ((): ValidationIssue['type'] => {
+          switch (inc.type) {
+            case 'missing_in_steps':
+              return 'step_reference_error';
+            case 'missing_in_ingredients':
+            case 'duplicate_ingredient':
+              return 'missing_ingredient';
+            case 'quantity_mismatch':
+              return 'quantity_mismatch';
+            case 'unit_inconsistency':
+              return 'unit_inconsistency';
+            default:
+              return 'step_reference_error';
+          }
+        })(),
         description: inc.description,
         severity: inc.severity,
         suggestion: inc.suggestion

@@ -13,6 +13,75 @@ export interface ImportedRecipe {
   servings?: number;
 }
 
+// Score JSON-LD candidates by completeness
+function scoreJsonLd(ld: RecipeJsonLd): number {
+  let score = 0;
+  if (ld.name) score += 2;
+  if (ld.recipeIngredient && ld.recipeIngredient.length) score += Math.min(10, ld.recipeIngredient.length);
+  const instrCount = Array.isArray(ld.recipeInstructions)
+    ? ld.recipeInstructions.length
+    : 0;
+  score += Math.min(10, instrCount);
+  if (ld.prepTime) score += 1;
+  if (ld.cookTime) score += 1;
+  if (ld.totalTime) score += 1;
+  if (ld.recipeYield) score += 1;
+  return score;
+}
+
+// Map JSON-LD Recipe to ImportedRecipe verbatim (no AI mutation)
+function normalizeJsonLdRecipe(ld: RecipeJsonLd): ImportedRecipe {
+  // Instructions normalization
+  const instructions: string[] = [];
+  const rawInstr = ld.recipeInstructions as any;
+  if (Array.isArray(rawInstr)) {
+    for (const step of rawInstr) {
+      if (!step) continue;
+      if (typeof step === 'string') {
+        const s = step.trim();
+        if (s) instructions.push(s);
+        continue;
+      }
+      if (typeof step === 'object') {
+        const text = (step.text ?? '').toString().trim();
+        if (text) {
+          instructions.push(text);
+          continue;
+        }
+        const list = Array.isArray((step as any).itemListElement) ? (step as any).itemListElement : [];
+        for (const li of list) {
+          if (!li) continue;
+          if (typeof li === 'string') {
+            const t = li.trim();
+            if (t) instructions.push(t);
+          } else if (typeof li === 'object' && li.text) {
+            const t = String(li.text).trim();
+            if (t) instructions.push(t);
+          }
+        }
+      }
+    }
+  }
+
+  const ingredients = Array.isArray(ld.recipeIngredient) ? ld.recipeIngredient.map(normalizeIngredient) : [];
+  const img = Array.isArray(ld.image) ? ld.image[0] : (ld.image as any);
+  const keywordsArr = Array.isArray(ld.keywords)
+    ? ld.keywords
+    : (typeof ld.keywords === 'string' ? ld.keywords.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  return {
+    name: ld.name || 'Imported Recipe',
+    description: ld.description || undefined,
+    imageUrl: img ? String(img) : undefined,
+    ingredients,
+    steps: instructions,
+    tags: keywordsArr,
+    prepTime: parseISO8601DurationToMinutes(ld.prepTime),
+    cookTime: parseISO8601DurationToMinutes(ld.cookTime),
+    servings: ld.recipeYield ? parseInt(String(ld.recipeYield).replace(/\D/g, '') || '0', 10) || undefined : undefined,
+  };
+}
+
 function parseISO8601DurationToMinutes(duration?: string): number | undefined {
   if (!duration) return undefined;
   // Simple PTxxM/PTxxHxxM parser
@@ -67,8 +136,39 @@ function normalizeIngredient(raw: string) {
   return { name: name || raw.trim(), quantity: qty ?? 1, unit, optional: isOptional };
 }
 
+// ------------------ Tokenization & Fidelity Helpers ------------------
+function tokenize(text: string): string[] {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s\/.-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function containsAnyToken(haystack: string, tokenSet: Set<string>): boolean {
+  const parts = tokenize(haystack);
+  for (const p of parts) {
+    if (tokenSet.has(p)) return true;
+  }
+  return false;
+}
+
+function enforceTokenFidelity(parsed: ImportedRecipe, sourceText: string): ImportedRecipe {
+  const tokens = new Set(tokenize(sourceText));
+  // Filter ingredients whose names share no tokens with source
+  const filteredIngredients = (parsed.ingredients || []).filter(i => containsAnyToken(i.name || '', tokens));
+  // Filter steps that share no tokens at all (keeps concise steps that mention actions/ingredients)
+  const filteredSteps = (parsed.steps || []).filter(s => containsAnyToken(s, tokens));
+  return {
+    ...parsed,
+    ingredients: filteredIngredients,
+    steps: filteredSteps
+  };
+}
+
 // AI fallback import from free-form text (copied recipe, transcript, etc.)
 import { createChatCompletion } from './aiClient';
+import { extractJsonLdRecipes, RecipeJsonLd } from './urlContentExtractor';
 
 export async function importRecipeFromText(text: string): Promise<ImportedRecipe> {
   const sys = `You are a precise recipe parser. Given unstructured recipe text (may include headings, ads, fluff), extract a STRICT JSON with fields:
@@ -100,37 +200,7 @@ Rules (MANDATORY):
 }
 
 export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> {
-  // Use the enhanced URL content extractor
-  try {
-    const { extractUrlContent } = await import('./urlContentExtractor');
-    const extracted = await extractUrlContent(url);
-    
-    // If we got structured content, parse it directly
-    if (extracted.metadata.confidence > 0.8 && !extracted.fallbackUsed) {
-      // Try to parse the structured text first
-      try {
-        const parsed = await importRecipeFromText(extracted.rawText);
-        return parsed;
-      } catch (error) {
-        console.warn('[RecipeImport] Structured content parsing failed, falling back to legacy method:', error);
-      }
-    }
-    
-    // For lower confidence or fallback content, continue with legacy extraction
-    // but use the extracted content as a starting point
-    if (extracted.rawText && extracted.rawText.length > 100) {
-      try {
-        const parsed = await importRecipeFromText(extracted.rawText);
-        return parsed;
-      } catch (error) {
-        console.warn('[RecipeImport] Enhanced extraction failed, using legacy method:', error);
-      }
-    }
-  } catch (error) {
-    console.warn('[RecipeImport] Enhanced URL extractor failed, using legacy method:', error);
-  }
-
-  // Fallback to legacy extraction method
+  // Structured-data-first: fetch HTML and try JSON-LD verbatim
   let html = '';
   try {
     const res = await fetch(url);
@@ -143,9 +213,49 @@ export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> 
       html = await res.text();
     } catch {}
   }
+
+  if (html) {
+    try {
+      const candidates = extractJsonLdRecipes(html);
+      if (candidates && candidates.length) {
+        // choose best candidate by completeness
+        const scored = candidates
+          .map((ld) => ({ ld, score: scoreJsonLd(ld) }))
+          .sort((a, b) => b.score - a.score);
+        const best = scored[0].ld;
+        const mapped = normalizeJsonLdRecipe(best);
+        // If JSON-LD provides both lists, ALWAYS return verbatim mapping without AI
+        if (mapped.ingredients.length && mapped.steps.length) return mapped;
+      }
+    } catch (e) {
+      console.warn('[RecipeImport] JSON-LD extraction failed, continue with extractor:', e);
+    }
+  }
+
+  // Use the enhanced URL content extractor as secondary path
+  try {
+    const { extractUrlContent } = await import('./urlContentExtractor');
+    const extracted = await extractUrlContent(url);
+
+    if (extracted.rawText && extracted.rawText.length > 100) {
+      try {
+        let parsed = await importRecipeFromText(extracted.rawText);
+        // Enforce token fidelity to prevent inventions when using AI fallback
+        parsed = enforceTokenFidelity(parsed, extracted.rawText);
+        return parsed;
+      } catch (error) {
+        console.warn('[RecipeImport] Enhanced extraction failed, using legacy method:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('[RecipeImport] Enhanced URL extractor failed, using legacy method:', error);
+  }
+
+  // Fallback to legacy extraction method
   if (!html) {
     // As a last resort, let AI parse from URL text itself (may be less accurate)
-    return importRecipeFromText(`URL: ${url}\nIf you know this site format, reconstruct the recipe.`);
+    const ai = await importRecipeFromText(`URL: ${url}\nIf you know this site format, reconstruct the recipe.`);
+    return enforceTokenFidelity(ai, `URL: ${url}`);
   }
 
   let doc: Document | null = null;
@@ -287,7 +397,9 @@ export async function importRecipeFromUrl(url: string): Promise<ImportedRecipe> 
         };
       }
       // 2) If still weak, use AI but DO NOT overwrite found lists; only fill gaps.
-      const parsed = await importRecipeFromText(text);
+      let parsed = await importRecipeFromText(text);
+      // Prevent invention: filter parsed with token fidelity
+      parsed = enforceTokenFidelity(parsed, text);
       if (!parsed.ingredients?.length && sections.ingredients.length) parsed.ingredients = sections.ingredients.map(normalizeIngredient);
       if (!parsed.steps?.length && sections.steps.length) parsed.steps = sections.steps;
       return { ...basic, ...parsed, imageUrl: parsed.imageUrl || basic.imageUrl };
