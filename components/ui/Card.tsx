@@ -41,7 +41,7 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     marginBottom: Spacing.lg,
     borderWidth: 1,

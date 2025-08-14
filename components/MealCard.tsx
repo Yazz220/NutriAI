@@ -85,15 +85,12 @@ export const MealCard: React.FC<MealCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   unavailableContainer: {
     opacity: 0.8,

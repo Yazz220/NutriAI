@@ -515,7 +515,9 @@ const styles = StyleSheet.create({
   actionCard: {
     marginBottom: Spacing.sm,
     borderLeftWidth: 3,
-    backgroundColor: Colors.white
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border
   },
   actionHeader: {
     flexDirection: 'row',

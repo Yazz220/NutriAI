@@ -19,10 +19,27 @@ class MockFile implements File {
     this.lastModified = Date.now();
   }
 
-  arrayBuffer(): Promise<ArrayBuffer> { throw new Error('Not implemented'); }
-  slice(): Blob { throw new Error('Not implemented'); }
-  stream(): ReadableStream<Uint8Array> { throw new Error('Not implemented'); }
-  text(): Promise<string> { throw new Error('Not implemented'); }
+  // Blob interface methods
+  arrayBuffer(): Promise<ArrayBuffer> { return Promise.resolve(new ArrayBuffer(0)); }
+  slice(start?: number, end?: number, contentType?: string): Blob { return new Blob([], { type: contentType }); }
+  stream(): ReadableStream<Uint8Array> { 
+    // Minimal readable stream; not used by tests
+    const it = (function* () { /* empty */ })();
+    // @ts-ignore - create a minimal ReadableStream compatible object for TS
+    return {
+      getReader() {
+        return {
+          read: () => Promise.resolve({ done: true, value: undefined }),
+          releaseLock: () => {},
+        };
+      },
+      [Symbol.asyncIterator]: async function* () { for await (const _ of it) { /* no-op */ } },
+    } as unknown as ReadableStream<Uint8Array>;
+  }
+  text(): Promise<string> { return Promise.resolve(''); }
+
+  // File-specific new API in lib.dom.d.ts
+  bytes(): Promise<Uint8Array> { return Promise.resolve(new Uint8Array()); }
 }
 
 describe('Input Detection System', () => {

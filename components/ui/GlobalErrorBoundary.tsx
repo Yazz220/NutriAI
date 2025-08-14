@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Colors } from '@/constants/colors';
 
 interface State {
   hasError: boolean;
@@ -51,35 +52,35 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#0b0f0e',
+    backgroundColor: Colors.background,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#e5f9f4',
+    color: Colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#9fb5af',
+    color: Colors.lightText,
     marginBottom: 16,
   },
   details: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: Colors.card,
     borderRadius: 8,
     padding: 12,
   },
   errorLabel: {
-    color: '#b3ffda',
+    color: Colors.warning,
     fontWeight: '600',
     marginBottom: 6,
   },
   errorText: {
-    color: '#f6f6f6',
+    color: Colors.text,
   },
   stackText: {
     marginTop: 8,
-    color: '#cbd5d1',
+    color: Colors.lightText,
     fontSize: 12,
   },
 });

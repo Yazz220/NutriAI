@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { Plus, BookOpen, Sparkles, TrendingUp, ChefHat, Heart, Search } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Plus, BookOpen, ChefHat, Search, Brain } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -30,6 +31,7 @@ import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
 import { FolderCard } from '@/components/folders/FolderCard';
 import { NewFolderModal } from '@/components/folders/NewFolderModal';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
+import RecipeChatInterface from '@/components/RecipeChatInterface';
 
 export default function RecipesScreen() {
   const [showImportModal, setShowImportModal] = useState(false);
@@ -38,7 +40,7 @@ export default function RecipesScreen() {
   const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
-  const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
+  const [activeTab, setActiveTab] = useState<'local' | 'discovery' | 'chat'>('discovery');
   const [refreshing, setRefreshing] = useState(false);
   // Folders UI state
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -47,6 +49,42 @@ export default function RecipesScreen() {
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [addToFolderVisible, setAddToFolderVisible] = useState(false);
   const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
+
+  // Favorites (persisted locally)
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+  // Load favorites on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('favoriteRecipes');
+        if (stored) {
+          const arr: string[] = JSON.parse(stored);
+          setFavoriteIds(new Set(arr));
+        }
+      } catch (e) {
+        console.warn('Failed to load favorites', e);
+      }
+    })();
+  }, []);
+
+  const persistFavorites = useCallback(async (setRef: Set<string>) => {
+    try {
+      await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(Array.from(setRef)));
+    } catch (e) {
+      console.warn('Failed to save favorites', e);
+    }
+  }, []);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setFavoriteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      // fire and forget
+      persistFavorites(next);
+      return next;
+    });
+  }, [persistFavorites]);
 
   // Use meals from the meals store for local recipes
   const { meals: localRecipes, addMeal, removeMeal, updateMeal } = useMeals();
@@ -175,8 +213,8 @@ export default function RecipesScreen() {
 
   // Handle edit recipe
   const handleEditRecipe = (recipe: Meal) => {
-    // TODO: Implement edit functionality
-    Alert.alert('Edit Recipe', 'Edit functionality coming soon!');
+    // Guarded UX: editing to be implemented; for now, inform the user
+    Alert.alert('Edit Recipe', 'Editing will be available soon. For external recipes, import/save first.');
   };
 
   // Folder actions
@@ -275,11 +313,8 @@ export default function RecipesScreen() {
               recipe={recipe}
               onPress={() => handleRecipePress(recipe)}
               onLongPress={() => handleLongPressRecipe(recipe)}
-              onFavorite={() => {
-                // TODO: Implement favorite functionality
-                console.log('Favorite recipe:', recipe.name);
-              }}
-              isFavorite={false} // TODO: Get from user preferences
+              onFavorite={() => toggleFavorite(recipe.id)}
+              isFavorite={favoriteIds.has(recipe.id)}
             />
           ))}
         </View>
@@ -296,10 +331,7 @@ export default function RecipesScreen() {
     />
   );
 
-  // Calculate stats
-  const totalRecipes = localRecipes.length;
-  const favoriteRecipes = 0; // TODO: Implement favorites
-  const recentRecipes = localRecipes.slice(0, 3).length;
+  // Stats removed to reclaim space
 
   return (
     <View style={styles.container}>
@@ -308,7 +340,7 @@ export default function RecipesScreen() {
 
       {/* Enhanced Hero Header */}
       <ExpoLinearGradient
-        colors={['#ff9a9e', '#fecfef', '#fecfef']}
+        colors={[Colors.background, Colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
@@ -326,24 +358,7 @@ export default function RecipesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Stats */}
-        <View style={styles.recipeStats}>
-          <StatCard 
-            icon={<BookOpen size={20} color="#ff9a9e" />} 
-            label="My Recipes" 
-            value={totalRecipes.toString()} 
-          />
-          <StatCard 
-            icon={<Heart size={20} color="#FF6B6B" />} 
-            label="Favorites" 
-            value={favoriteRecipes.toString()} 
-          />
-          <StatCard 
-            icon={<TrendingUp size={20} color="#4ECDC4" />} 
-            label="Recent" 
-            value={recentRecipes.toString()} 
-          />
-        </View>
+        {/* Stats row removed */}
       </ExpoLinearGradient>
 
       {/* Enhanced Tab Navigation */}
@@ -359,6 +374,16 @@ export default function RecipesScreen() {
         </TouchableOpacity>
         
         <TouchableOpacity
+          style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
+          onPress={() => setActiveTab('chat')}
+        >
+          <Brain size={20} color={activeTab === 'chat' ? Colors.primary : Colors.lightText} />
+          <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>
+            AI Chat
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'local' && styles.activeTab]}
           onPress={() => setActiveTab('local')}
         >
@@ -373,6 +398,8 @@ export default function RecipesScreen() {
       {activeTab === 'discovery' ? (
         // EnhancedRecipeDiscovery manages its own ScrollView and refresh
         renderDiscoveryTab()
+      ) : activeTab === 'chat' ? (
+        <RecipeChatInterface />
       ) : (
         <ScrollView
           style={styles.content}
@@ -443,14 +470,7 @@ export default function RecipesScreen() {
   );
 }
 
-// Enhanced Component Definitions
-const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
-  <View style={styles.statCard}>
-    <View style={styles.statIcon}>{icon}</View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+// Stats component removed
 
 const styles = StyleSheet.create({
   container: {
@@ -458,9 +478,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   hero: {
-    paddingBottom: 20,
+    paddingBottom: 12,
     paddingHorizontal: 20,
-    minHeight: 260,
+    minHeight: 180,
   },
   statusBarSpacer: {
     height: Platform.OS === 'ios' ? 44 : 24,
@@ -469,8 +489,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 12,
+    marginTop: 6,
   },
   heroTitleRow: {
     flexDirection: 'row',
@@ -495,40 +515,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
   },
-  recipeStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 5,
-  },
-  statCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statIcon: {
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.lightText,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  // stats styles removed
   // Folders UI
   foldersHeaderRow: {
     flexDirection: 'row',
@@ -555,9 +542,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
     marginRight: Spacing.sm,
   },
   allFolderPillActive: {
@@ -573,18 +560,15 @@ const styles = StyleSheet.create({
   },
   tabNavigation: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: Colors.white,
-    marginHorizontal: 20,
-    marginTop: -10,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginTop: -8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 12,
   },
   tab: {
     flex: 1,
@@ -592,8 +576,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   activeTab: {
     backgroundColor: Colors.primary + '15',

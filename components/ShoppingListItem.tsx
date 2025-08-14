@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Vibration } from 'react-native';
 import { ShoppingListItem as ShoppingListItemType } from '@/types';
 import { Colors } from '@/constants/colors';
 import { Check, Trash2 } from 'lucide-react-native';
@@ -18,6 +18,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onTogg
   };
   
   const handleDelete = () => {
+    try { Vibration.vibrate(10); } catch {}
     removeItem(item.id);
   };
   
@@ -61,15 +62,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   checkedContainer: {
     backgroundColor: Colors.secondary,
@@ -106,6 +104,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   deleteButton: {
-    padding: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
   }
 });

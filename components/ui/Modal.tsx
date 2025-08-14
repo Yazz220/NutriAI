@@ -94,12 +94,12 @@ const styles = StyleSheet.create({
   },
   fullOverlay: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.background,
     justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
   modalContent: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     maxHeight: '90%',
     ...Shadows.lg,

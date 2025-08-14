@@ -94,7 +94,7 @@ export default function CoachScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Enhanced Hero Header with Gradient */}
         <ExpoLinearGradient
-          colors={['#667eea', '#764ba2', '#f093fb']}
+          colors={["#000000", "#1C1C1E"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -122,19 +122,19 @@ export default function CoachScreen() {
               <Svg width={ringSize} height={ringSize}>
                 <Defs>
                   <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
-                    <Stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
+                    <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
+                    <Stop offset="100%" stopColor="#ffffff" stopOpacity="0.10" />
                   </LinearGradient>
                   <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#ffffff" stopOpacity="0.8" />
+                    <Stop offset="0%" stopColor="#FF9500" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#FF9500" stopOpacity="0.9" />
                   </LinearGradient>
                 </Defs>
                 <Circle 
                   cx={ringSize/2} 
                   cy={ringSize/2} 
                   r={radius} 
-                  stroke="url(#ringGradient)" 
+                  stroke="rgba(255,255,255,0.15)" 
                   strokeWidth={stroke} 
                   fill="none" 
                 />
@@ -142,7 +142,7 @@ export default function CoachScreen() {
                   cx={ringSize/2}
                   cy={ringSize/2}
                   r={radius}
-                  stroke="url(#progressGradient)"
+                  stroke="#FF9500"
                   strokeWidth={stroke}
                   strokeDasharray={`${dash}, ${circumference}`}
                   strokeLinecap="round"
@@ -364,7 +364,7 @@ export default function CoachScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#000000',
   },
   content: {
     flex: 1,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginBottom: 16,
   },
   sectionHeader: {
@@ -504,13 +504,13 @@ const styles = StyleSheet.create({
   sectionAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: 'rgba(255,149,0,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   sectionActionText: {
-    color: Colors.primary,
+    color: '#FF9500',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -522,15 +522,14 @@ const styles = StyleSheet.create({
   },
   macroCard: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   macroHeader: {
     alignItems: 'center',
@@ -543,7 +542,7 @@ const styles = StyleSheet.create({
   macroLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.lightText,
+    color: '#8A8A8E',
     letterSpacing: 0.5,
   },
   macroProgress: {
@@ -563,12 +562,12 @@ const styles = StyleSheet.create({
   },
   macroUnit: {
     fontSize: 10,
-    color: Colors.lightText,
+    color: '#8A8A8E',
     fontWeight: '600',
   },
   macroGoal: {
     fontSize: 12,
-    color: Colors.lightText,
+    color: '#8A8A8E',
     fontWeight: '500',
   },
   mealsSection: {
@@ -578,20 +577,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mealCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: '#1C1C1E',
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   mealCardPlanned: {
-    borderColor: Colors.primary + '30',
-    backgroundColor: Colors.primary + '05',
+    borderColor: 'rgba(255,149,0,0.30)',
+    backgroundColor: 'rgba(255,149,0,0.05)',
   },
   mealCardHeader: {
     flexDirection: 'row',
@@ -602,7 +598,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: 'rgba(255,149,0,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -613,7 +609,7 @@ const styles = StyleSheet.create({
   mealTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#FFFFFF',
   },
   mealContent: {
     flexDirection: 'row',
@@ -624,7 +620,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 12,
     marginRight: 12,
-    backgroundColor: Colors.tabBackground,
+    backgroundColor: '#2C2C2E',
   },
   mealInfo: {
     flex: 1,
@@ -632,7 +628,7 @@ const styles = StyleSheet.create({
   mealName: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   mealStats: {
@@ -641,7 +637,7 @@ const styles = StyleSheet.create({
   },
   mealKcal: {
     fontSize: 12,
-    color: Colors.primary,
+    color: '#FF9500',
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -651,7 +647,7 @@ const styles = StyleSheet.create({
   },
   emptyMealText: {
     fontSize: 14,
-    color: Colors.lightText,
+    color: '#8A8A8E',
     fontWeight: '500',
     marginTop: 8,
   },
@@ -667,6 +663,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   insightHeader: {
     flexDirection: 'row',
@@ -676,18 +675,18 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginLeft: 6,
   },
   insightValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   insightSubtitle: {
     fontSize: 11,
-    color: Colors.lightText,
+    color: '#8A8A8E',
     fontWeight: '500',
   },
   bottomSpacer: {
@@ -701,12 +700,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   modalTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#FFFFFF',
   },
   headerButton: { padding: Spacing.sm, marginRight: Spacing.sm },
   metaChip: { backgroundColor: Colors.tabBackground, color: Colors.text, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: Typography.sizes.sm },
@@ -715,26 +714,26 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap' },
   actionBtn: { marginRight: Spacing.sm, marginTop: Spacing.xs },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
-  chipText: { color: Colors.text, fontSize: Typography.sizes.sm },
+  chip: { backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
+  chipText: { color: '#FFFFFF', fontSize: Typography.sizes.sm },
   messages: { marginTop: Spacing.sm },
   msg: { padding: Spacing.md, borderRadius: 12, marginBottom: Spacing.sm },
-  msgUser: { backgroundColor: Colors.secondary },
-  msgCoach: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border },
-  msgText: { color: Colors.text },
-  msgSummary: { color: Colors.lightText, marginTop: 4 },
-  msgSource: { color: Colors.lightText, marginTop: 4, fontSize: Typography.sizes.sm },
-  typingText: { color: Colors.lightText, fontStyle: 'italic' },
-  inlineCard: { backgroundColor: Colors.tabBackground, borderRadius: 8, padding: Spacing.sm, marginTop: Spacing.xs },
-  inlineTitle: { color: Colors.text, fontWeight: '600' },
-  inlineSub: { color: Colors.lightText, marginTop: 2 },
+  msgUser: { backgroundColor: '#1C1C1E' },
+  msgCoach: { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  msgText: { color: '#FFFFFF' },
+  msgSummary: { color: '#8A8A8E', marginTop: 4 },
+  msgSource: { color: '#8A8A8E', marginTop: 4, fontSize: Typography.sizes.sm },
+  typingText: { color: '#8A8A8E', fontStyle: 'italic' },
+  inlineCard: { backgroundColor: '#2C2C2E', borderRadius: 8, padding: Spacing.sm, marginTop: Spacing.xs },
+  inlineTitle: { color: '#FFFFFF', fontWeight: '600' },
+  inlineSub: { color: '#8A8A8E', marginTop: 2 },
   inlineActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  composerRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: Spacing.sm, backgroundColor: Colors.white },
-  input: { flex: 1, paddingVertical: Spacing.md, color: Colors.text },
+  composerRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: Spacing.md, backgroundColor: '#2C2C2E' },
+  input: { flex: 1, paddingVertical: Spacing.md, color: '#FFFFFF' },
   sendBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  sendText: { color: Colors.primary, fontWeight: '600' },
+  sendText: { color: '#FF9500', fontWeight: '600' },
   iconBtn: { padding: Spacing.sm },
-  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: Colors.primary, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.shadow, shadowOpacity: 0.25, shadowRadius: 6, elevation: 6 },
+  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: '#FF9500', borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(255,149,0,0.3)', shadowOpacity: 0.6, shadowRadius: 12, elevation: 8 },
 });
 
 // --- Enhanced Presentational Components ---

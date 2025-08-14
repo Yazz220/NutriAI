@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   statCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -126,11 +126,11 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     marginBottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: Colors.secondary,
+    borderColor: Colors.border,
   },
   expiringSection: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     marginHorizontal: 20,
     marginTop: -10,
     borderRadius: 16,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
     marginTop: 50,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     marginHorizontal: 20,
     borderRadius: 16,
     shadowColor: '#000',
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   quickAddOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 25,
@@ -592,7 +592,7 @@ export default function InventoryScreen() {
               </View>
             </View>
           </View>
-          <ScrollView style={{ maxHeight: 300, backgroundColor: 'rgba(255,255,255,0.96)' }} contentContainerStyle={{ padding: 12 }}>
+          <ScrollView style={{ maxHeight: 300, backgroundColor: Colors.card }} contentContainerStyle={{ padding: 12 }}>
             {detectedItems.map((it, idx) => (
               <View key={`det-${idx}`} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
                 <TouchableOpacity onPress={() => toggleSelect(idx)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -605,7 +605,7 @@ export default function InventoryScreen() {
                     <TextInput
                       value={editableItems[idx]?.name}
                       onChangeText={(v) => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, name: v } : e))}
-                      style={{ backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
+                      style={{ backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -614,7 +614,7 @@ export default function InventoryScreen() {
                       keyboardType="numeric"
                       value={editableItems[idx]?.quantity}
                       onChangeText={(v) => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, quantity: v.replace(/[^0-9.]/g, '') } : e))}
-                      style={{ backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
+                      style={{ backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -725,7 +725,7 @@ export default function InventoryScreen() {
 
       {/* Enhanced Hero Header */}
       <ExpoLinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={[Colors.background, Colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
@@ -746,17 +746,17 @@ export default function InventoryScreen() {
         {/* Quick Stats */}
         <View style={styles.inventoryStats}>
           <StatCard 
-            icon={<Package size={20} color="#667eea" />} 
+            icon={<Package size={20} color={Colors.primary} />} 
             label="Total Items" 
             value={inventory.length.toString()} 
           />
           <StatCard 
-            icon={<AlertCircle size={20} color="#FF6B6B" />} 
+            icon={<AlertCircle size={20} color={Colors.error} />} 
             label="Expiring Soon" 
             value={expiring.length.toString()} 
           />
           <StatCard 
-            icon={<TrendingUp size={20} color="#4ECDC4" />} 
+            icon={<TrendingUp size={20} color={Colors.primary} />} 
             label="Categories" 
             value={groupedInventory.length.toString()} 
           />
@@ -784,7 +784,7 @@ export default function InventoryScreen() {
         <View style={styles.expiringSection}>
           <View style={styles.expiringHeader}>
             <View style={styles.expiringTitleRow}>
-              <AlertCircle size={20} color="#FF6B6B" />
+              <AlertCircle size={20} color={Colors.error} />
               <Text style={styles.expiringTitle}>Expiring Soon</Text>
             </View>
             <Text style={styles.expiringCount}>{expiring.length} items</Text>

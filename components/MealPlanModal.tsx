@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import {
   View,
   Text,
@@ -13,6 +14,7 @@ import {
 import { X, Calendar, Clock, Users, Search, ChefHat, Plus, Minus } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
+
 import { PlannedMeal, MealType, Recipe, Meal } from '@/types';
 import { useMeals } from '@/hooks/useMealsStore';
 
@@ -109,7 +111,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   dateTimeContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: Colors.border,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
   },
   mealTypeButtonActive: {
     backgroundColor: Colors.primary + '15',
@@ -153,7 +155,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGray,
+    backgroundColor: Colors.secondary,
     borderRadius: 8,
     paddingHorizontal: 12,
     marginBottom: 12,
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -255,7 +257,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cancelButton: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderWidth: 2,
     borderColor: Colors.border,
   },
@@ -365,9 +367,9 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          {/* Enhanced Header with Gradient */}
+          {/* Dark Header Gradient matching global theme */}
           <ExpoLinearGradient
-            colors={['#667eea', '#764ba2', '#f093fb']}
+            colors={[Colors.background, Colors.card, Colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.header}

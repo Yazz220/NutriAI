@@ -7,7 +7,8 @@ import {
   Modal, 
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  Vibration
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
@@ -225,7 +226,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                           styles.modernUnitButton,
                           unit === u && styles.selectedModernUnitButton
                         ]}
-                        onPress={() => setUnit(u)}
+                        onPress={() => { try { Vibration.vibrate(10); } catch {}; setUnit(u); }}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: unit === u }}
                         accessibilityLabel={`${u} unit`}
@@ -259,7 +260,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                       styles.modernCategoryButton,
                       category === cat && styles.selectedModernCategoryButton
                     ]}
-                    onPress={() => setCategory(cat)}
+                    onPress={() => { try { Vibration.vibrate(10); } catch {}; setCategory(cat); }}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: category === cat }}
                     accessibilityLabel={`${cat} category`}
@@ -300,7 +301,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
           
           <Button
             title={isSubmitting ? "Adding..." : "Add Item"}
-            onPress={handleAdd}
+            onPress={() => { try { Vibration.vibrate(10); } catch {}; handleAdd(); }}
             disabled={isSubmitting}
             loading={isSubmitting}
             style={styles.addButton}
@@ -408,16 +409,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modernUnitButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.background,
-    borderWidth: 2,
+    borderRadius: 16,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
     borderColor: Colors.border,
   },
   selectedModernUnitButton: {
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: Colors.card,
     borderColor: Colors.primary,
   },
   modernUnitButtonText: {
@@ -435,16 +436,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modernCategoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: Colors.background,
-    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 8,
   },
   selectedModernCategoryButton: {
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: Colors.card,
     borderColor: Colors.primary,
   },
   modernCategoryButtonText: {
@@ -460,6 +461,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 10,
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
 });

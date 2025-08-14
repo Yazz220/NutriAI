@@ -73,7 +73,7 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Enhanced Hero Header */}
         <ExpoLinearGradient
-          colors={['#4facfe', '#00f2fe']}
+          colors={[Colors.background, Colors.background]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -93,9 +93,9 @@ export default function ProfileScreen() {
 
           {/* Quick Stats */}
           <View style={styles.quickStats}>
-            <StatCard icon={<Scale size={20} color="#4facfe" />} label="Weight" value={local.weightKg ? `${local.weightKg} kg` : '--'} />
-            <StatCard icon={<Ruler size={20} color="#4facfe" />} label="Height" value={local.heightCm ? `${local.heightCm} cm` : '--'} />
-            <StatCard icon={<Target size={20} color="#4facfe" />} label="Goal" value={local.goalType || '--'} />
+            <StatCard icon={<Scale size={20} color={Colors.primary} />} label="Weight" value={local.weightKg ? `${local.weightKg} kg` : '--'} />
+            <StatCard icon={<Ruler size={20} color={Colors.primary} />} label="Height" value={local.heightCm ? `${local.heightCm} cm` : '--'} />
+            <StatCard icon={<Target size={20} color={Colors.primary} />} label="Goal" value={local.goalType || '--'} />
           </View>
         </ExpoLinearGradient>
 
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   statCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     paddingTop: 30,
   },
   enhancedCard: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 20,
     marginBottom: 20,
     shadowColor: '#000',
@@ -481,15 +481,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B6B15',
+    backgroundColor: Colors.error + '15',
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#FF6B6B30',
+    borderColor: Colors.error + '30',
   },
   signOutText: {
-    color: '#FF6B6B',
+    color: Colors.error,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,

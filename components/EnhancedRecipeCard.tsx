@@ -50,7 +50,7 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
             <Image source={{ uri: recipe.image }} style={styles.image} />
           ) : (
             <View style={styles.placeholderImage}>
-              <BookOpen size={40} color={Colors.gray[400]} />
+              <BookOpen size={40} color={Colors.lightText} />
             </View>
           )}
           
@@ -87,13 +87,13 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
           <View style={styles.metaInfo}>
             {recipe.prepTime && (
               <View style={styles.metaItem}>
-                <Clock size={14} color={Colors.gray[500]} />
+                <Clock size={14} color={Colors.lightText} />
                 <Text style={styles.metaText}>{recipe.prepTime} min</Text>
               </View>
             )}
             {recipe.servings && (
               <View style={styles.metaItem}>
-                <Users size={14} color={Colors.gray[500]} />
+                <Users size={14} color={Colors.lightText} />
                 <Text style={styles.metaText}>{recipe.servings} servings</Text>
               </View>
             )}
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   placeholderImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.gray[100],
+    backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h2,
-    color: Colors.gray[900],
+    color: Colors.text,
     marginBottom: Spacing.sm,
     fontWeight: '600',
   },
@@ -216,12 +216,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...Typography.body,
-    color: Colors.gray[600],
+    color: Colors.lightText,
     marginLeft: 4,
   },
   nutritionContainer: {
     flexDirection: 'row',
-    backgroundColor: Colors.gray[50],
+    backgroundColor: Colors.secondary,
     borderRadius: 12,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
@@ -232,22 +232,22 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: {
     ...Typography.caption,
-    color: Colors.gray[600],
+    color: Colors.lightText,
     marginBottom: 2,
   },
   nutritionValue: {
     ...Typography.h4,
-    color: Colors.gray[900],
+    color: Colors.text,
     fontWeight: '600',
   },
   nutritionDivider: {
     width: 1,
-    backgroundColor: Colors.gray[200],
+    backgroundColor: Colors.border,
     marginHorizontal: Spacing.xs,
   },
   description: {
     ...Typography.body,
-    color: Colors.gray[600],
+    color: Colors.lightText,
     lineHeight: 20,
   },
 });

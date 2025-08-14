@@ -10,7 +10,8 @@ import {
   Modal as RNModal,
   TextInput,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Vibration
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Meal, Recipe, RecipeAvailability, RecipeIngredient } from '@/types';
@@ -196,15 +197,15 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                 {/* Enhanced Meta Info */}
                 <View style={styles.heroMetaContainer}>
                   <View style={styles.heroMetaItem}>
-                    <Clock size={16} color="rgba(255,255,255,0.9)" />
+                    <Clock size={16} color={Colors.lightText} />
                     <Text style={styles.heroMetaText}>{totalTime} min</Text>
                   </View>
                   <View style={styles.heroMetaItem}>
-                    <Users size={16} color="rgba(255,255,255,0.9)" />
+                    <Users size={16} color={Colors.lightText} />
                     <Text style={styles.heroMetaText}>{meal.servings} servings</Text>
                   </View>
                   <View style={styles.heroMetaItem}>
-                    <Star size={16} color="#FFD93D" />
+                    <Star size={16} color={Colors.warning} />
                     <Text style={styles.heroMetaText}>4.8</Text>
                   </View>
                 </View>
@@ -212,6 +213,15 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
             </View>
 
             <View style={styles.content}>
+              {/* Primary Action Bar */}
+              <View style={styles.primaryActions}>
+                <ActionPill icon={<ChefHat size={16} color={Colors.white} />} label="Cook" onPress={handleCook} />
+                <ActionPill icon={<Calendar size={16} color={Colors.white} />} label="Plan" onPress={handleAddToMealPlan} />
+                {!!recipeAvailability && recipeAvailability.missingIngredients.length > 0 && (
+                  <ActionPill icon={<ShoppingBag size={16} color={Colors.white} />} label={`Missing (${recipeAvailability.missingIngredients.length})`} onPress={handleAddMissingToList} />
+                )}
+                <ActionPill icon={<MessageCircle size={16} color={Colors.white} />} label="Ask" onPress={() => setActiveTab('chat')} />
+              </View>
               {/* Enhanced Tab Navigation */}
               <View style={styles.modernTabContainer}>
                 <TouchableOpacity 
@@ -245,9 +255,9 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                   <View style={styles.availabilityHeader}>
                     <View style={styles.availabilityIconContainer}>
                       {recipeAvailability.availabilityPercentage === 100 ? (
-                        <CheckCircle size={24} color="#4ECDC4" />
+                        <CheckCircle size={24} color={Colors.fresh} />
                       ) : (
-                        <AlertTriangle size={24} color="#FF6B6B" />
+                        <AlertTriangle size={24} color={Colors.error} />
                       )}
                     </View>
                     <View style={styles.availabilityTextContainer}>
@@ -306,39 +316,23 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                         );
 
                         return (
-                          <View key={index} style={styles.modernIngredientItem}>
-                            <View style={styles.ingredientContent}>
-                              <View style={[
-                                styles.ingredientStatusDot,
-                                isMissing ? styles.missingDot : 
-                                isExpiring ? styles.expiringDot : styles.availableDot
-                              ]} />
-                              <Text style={styles.modernIngredientText}>
-                                <Text style={styles.ingredientQuantity}>
-                                  {ingredient.quantity} {ingredient.unit}
-                                </Text>
-                                {' '}
-                                <Text style={styles.ingredientName}>
-                                  {ingredient.name}
-                                </Text>
-                                {'optional' in ingredient && (ingredient as any).optional && (
-                                  <Text style={styles.optionalText}> (optional)</Text>
-                                )}
-                              </Text>
-                            </View>
+                          <View key={index} style={styles.rowItem}>
+                            <View style={[styles.statusDot, isMissing ? styles.missingDot : isExpiring ? styles.expiringDot : styles.availableDot]} />
+                            <Text style={styles.rowText}>
+                              <Text style={styles.ingredientQuantity}>{ingredient.quantity} {ingredient.unit}</Text>
+                              {' '}
+                              <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                              {'optional' in ingredient && (ingredient as any).optional && (
+                                <Text style={styles.optionalText}> (optional)</Text>
+                              )}
+                            </Text>
                             <View style={styles.modernIngredientStatus}>
-                              {isMissing && (
-                                <View style={styles.statusBadge}>
-                                  <Text style={styles.missingBadgeText}>Missing</Text>
-                                </View>
-                              )}
-                              {isExpiring && !isMissing && (
-                                <View style={[styles.statusBadge, styles.expiringBadge]}>
-                                  <Text style={styles.expiringBadgeText}>Expiring</Text>
-                                </View>
-                              )}
-                              {!isMissing && !isExpiring && (
-                                <CheckCircle size={20} color="#4ECDC4" />
+                              {isMissing ? (
+                                <View style={styles.statusBadge}><Text style={styles.missingBadgeText}>Missing</Text></View>
+                              ) : isExpiring ? (
+                                <View style={[styles.statusBadge, styles.expiringBadge]}><Text style={styles.expiringBadgeText}>Expiring</Text></View>
+                              ) : (
+                                <CheckCircle size={18} color={Colors.fresh} />
                               )}
                             </View>
                           </View>
@@ -355,11 +349,9 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                     </View>
                     <View style={styles.stepsContainer}>
                       {steps.map((step, index) => (
-                        <View key={index} style={styles.modernStepItem}>
-                          <View style={styles.modernStepNumber}>
-                            <Text style={styles.stepNumberText}>{index + 1}</Text>
-                          </View>
-                          <Text style={styles.modernStepText}>{step}</Text>
+                        <View key={index} style={styles.rowItem}>
+                          <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{index + 1}</Text></View>
+                          <Text style={styles.rowText}>{step}</Text>
                         </View>
                       ))}
                     </View>
@@ -436,7 +428,7 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* Enhanced Action Buttons */}
+          {/* Bottom Action Buttons (keep functionality, new visuals) */}
           <View style={styles.modernButtonContainer}>
             <View style={styles.buttonRow}>
               {/* Add to Meal Plan Button */}
@@ -593,15 +585,12 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   modernTabContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 4,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   modernTab: {
     flex: 1,
@@ -659,14 +648,11 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   ingredientsContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   modernIngredientItem: {
     flexDirection: 'row',
@@ -738,14 +724,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepsContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   modernStepItem: {
     flexDirection: 'row',
@@ -779,15 +762,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   modernAvailabilityContainer: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   availabilityGood: {
     borderLeftWidth: 4,
@@ -863,12 +843,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modernChip: {
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: Colors.secondary,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.primary + '30',
+    borderColor: Colors.border,
   },
   modernChipText: {
     color: Colors.primary,
@@ -883,17 +863,12 @@ const styles = StyleSheet.create({
   },
   modernInputContainer: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderRadius: 20,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
   },
   modernInput: {
     fontSize: 16,
@@ -916,9 +891,9 @@ const styles = StyleSheet.create({
   modernButtonContainer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     borderTopWidth: 1,
-    borderTopColor: Colors.border + '30',
+    borderTopColor: Colors.border,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -933,15 +908,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: Colors.white,
-    borderWidth: 2,
-    borderColor: Colors.primary + '30',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
     gap: 8,
   },
   modernSecondaryButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.primary,
+    color: Colors.text,
   },
   modernPrimaryButton: {
     flexDirection: 'row',
@@ -985,10 +960,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
   },
   msgCoach: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: Colors.border + '50',
+    borderColor: Colors.border,
     borderBottomLeftRadius: 8,
   },
   msgText: {
@@ -1008,12 +983,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   inlineActionBtn: {
-    backgroundColor: Colors.primary + '15',
+    backgroundColor: Colors.secondary,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.primary + '30',
+    borderColor: Colors.border,
   },
   inlineActionText: {
     color: Colors.primary,
@@ -1024,5 +999,87 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     fontStyle: 'italic',
     fontSize: 15,
+  },
+  primaryActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  rowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  rowText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  stepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeText: {
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  label: {
+    color: Colors.text,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+});
+
+// Small pill-like action button for top bar
+const ActionPill = ({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress?: () => void }) => {
+  const handlePress = () => {
+    try { Vibration.vibrate(10); } catch {}
+    onPress?.();
+  };
+  return (
+    <TouchableOpacity onPress={handlePress} style={pillStyles.pill}>
+      <View style={pillStyles.icon}>{icon}</View>
+      <Text style={pillStyles.label}>{label}</Text>
+    </TouchableOpacity>
+  );
+};
+
+const pillStyles = StyleSheet.create({
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  icon: {
+    width: 18,
+    alignItems: 'center',
+  },
+  label: {
+    color: Colors.text,
+    fontWeight: '600',
+    fontSize: 13,
   },
 });

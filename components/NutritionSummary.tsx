@@ -10,7 +10,9 @@ interface NutritionSummaryProps {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',

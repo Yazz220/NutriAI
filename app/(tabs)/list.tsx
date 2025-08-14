@@ -126,7 +126,7 @@ export default function ShoppingListScreen() {
       <View style={styles.container}>
         {/* Enhanced Hero Header */}
         <ExpoLinearGradient
-          colors={['#11998e', '#38ef7d']}
+          colors={[Colors.background, Colors.background]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -147,17 +147,17 @@ export default function ShoppingListScreen() {
           {/* Quick Stats */}
           <View style={styles.shoppingStats}>
             <StatCard 
-              icon={<ShoppingCart size={20} color="#11998e" />} 
+              icon={<ShoppingCart size={20} color={Colors.primary} />} 
               label="Total Items" 
               value={totalItems.toString()} 
             />
             <StatCard 
-              icon={<CheckCircle size={20} color="#4ECDC4" />} 
+              icon={<CheckCircle size={20} color={Colors.primary} />} 
               label="Completed" 
               value={checkedItems.toString()} 
             />
             <StatCard 
-              icon={<Clock size={20} color="#FF6B6B" />} 
+              icon={<Clock size={20} color={Colors.error} />} 
               label="Remaining" 
               value={uncheckedItems.toString()} 
             />
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   statCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -380,8 +380,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.white,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -395,8 +395,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
-    backgroundColor: Colors.white,
+    borderColor: Colors.error,
+    backgroundColor: Colors.card,
     justifyContent: 'center',
     alignItems: 'center',
   },

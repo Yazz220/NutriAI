@@ -42,18 +42,43 @@ export const ExportShoppingModal: React.FC<ExportShoppingModalProps> = ({ visibl
   }, [groupByCategory]);
 
   const itemsToExport = useMemo(() => {
-    return shoppingList.filter(i => includeChecked ? true : !i.checked);
+    return shoppingList.filter(i => (includeChecked ? true : !i.checked));
   }, [shoppingList, includeChecked]);
 
+  // Deduplicate by name+unit+category and sum numeric quantities
+  const dedupedItems = useMemo(() => {
+    const map = new Map<string, any>();
+    itemsToExport.forEach((raw) => {
+      const name = (raw.name || '').trim();
+      const unit = (raw.unit || '').trim();
+      const category = raw.category || 'Other';
+      const key = `${name.toLowerCase()}|${unit.toLowerCase()}|${category.toLowerCase()}`;
+      const existing = map.get(key);
+      const qtyNum = typeof raw.quantity === 'number' ? raw.quantity : Number(raw.quantity);
+      if (existing) {
+        if (!Number.isNaN(qtyNum) && typeof existing.quantity === 'number') {
+          existing.quantity = existing.quantity + qtyNum;
+        } else if (!Number.isNaN(qtyNum) && Number.isFinite(qtyNum) && (existing.quantity === undefined || existing.quantity === null || existing.quantity === '')) {
+          existing.quantity = qtyNum;
+        }
+      } else {
+        map.set(key, { ...raw, name, unit, category, quantity: Number.isNaN(qtyNum) ? raw.quantity : qtyNum });
+      }
+    });
+    return Array.from(map.values());
+  }, [itemsToExport]);
+
   const byCategory = useMemo(() => {
-    const grouped: Record<string, typeof itemsToExport> = {};
-    itemsToExport.forEach(i => {
+    const grouped: Record<string, typeof dedupedItems> = {} as any;
+    dedupedItems.forEach((i) => {
       const key = i.category || 'Other';
       if (!grouped[key]) grouped[key] = [] as any;
       grouped[key].push(i);
     });
+    // Sort items alphabetically within categories
+    Object.keys(grouped).forEach((k) => grouped[k].sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     return grouped;
-  }, [itemsToExport]);
+  }, [dedupedItems]);
 
   const categoryEmoji: Record<string, string> = {
     Produce: '🥬',
@@ -67,32 +92,64 @@ export const ExportShoppingModal: React.FC<ExportShoppingModalProps> = ({ visibl
     Other: '🛒',
   };
 
+  const trimNumber = (n: number) => {
+    return Number.isInteger(n) ? `${n}` : `${Number(n.toFixed(2))}`;
+  };
+
+  const formatItemLine = (i: any): string => {
+    const name = (i.name || '').trim();
+    const qty = i.quantity;
+    const unit = (i.unit || '').trim();
+    const qtyStr = typeof qty === 'number' ? `${trimNumber(qty)}` : (qty ? String(qty).trim() : '');
+    const parts = [name];
+    const meta: string[] = [];
+    if (qtyStr) meta.push(qtyStr);
+    if (unit) meta.push(unit);
+    if (meta.length) parts.push('— ' + meta.join(' '));
+    return `• ${parts.join(' ')}`;
+  };
+
   const buildText = (): string => {
     const lines: string[] = [];
     lines.push('Shopping List');
     lines.push(new Date().toLocaleString());
     lines.push('');
     if (groupByCategory) {
-      Object.entries(byCategory).forEach(([cat, items]) => {
+      // Deterministic category order
+      const categoryOrder = ['Produce', 'Dairy', 'Meat', 'Seafood', 'Bakery', 'Pantry', 'Frozen', 'Beverages', 'Other'];
+      const categories = Object.keys(byCategory)
+        .sort((a, b) => {
+          const ia = categoryOrder.indexOf(a);
+          const ib = categoryOrder.indexOf(b);
+          return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b);
+        });
+      categories.forEach((cat) => {
+        const items = byCategory[cat] || [];
+        if (!items.length) return;
         const title = cat || 'Other';
         const emoji = categoryEmoji[title] || categoryEmoji.Other;
         lines.push(`${emoji} ${title}`);
-        items.forEach(i => {
-          lines.push(`• ${i.name} — ${i.quantity} ${i.unit}`);
+        items.forEach((i) => {
+          lines.push(formatItemLine(i));
         });
         lines.push('');
       });
     } else {
-      itemsToExport.forEach(i => {
+      dedupedItems
+        .slice()
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        .forEach((i) => {
         const cat = i.category || 'Other';
         const emoji = categoryEmoji[cat] || categoryEmoji.Other;
-        lines.push(`• ${i.name} — ${i.quantity} ${i.unit} (${emoji} ${cat})`);
+        const base = formatItemLine(i);
+        lines.push(`${base} (${emoji} ${cat})`);
       });
     }
     return lines.join('\n');
   };
 
-  const content = useMemo(() => buildText(), [itemsToExport, byCategory, groupByCategory]);
+  const content = useMemo(() => buildText(), [dedupedItems, byCategory, groupByCategory]);
+
 
   const handleShare = async () => {
     try {
@@ -158,7 +215,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontWeight: '600', color: Colors.text, marginBottom: Spacing.sm },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md },
   toggleLabel: { color: Colors.text },
-  previewBox: { padding: Spacing.md, backgroundColor: Colors.white, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
+  previewBox: { padding: Spacing.md, backgroundColor: Colors.card, borderRadius: 8, borderWidth: 1, borderColor: Colors.border },
   previewText: { color: Colors.text, fontFamily: 'monospace' as any },
   actions: { marginTop: Spacing.lg },
   cancelBtn: { alignSelf: 'center', padding: Spacing.md },

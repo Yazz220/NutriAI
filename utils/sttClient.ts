@@ -47,9 +47,8 @@ export async function transcribeFromUri(
 ): Promise<TranscribeResponse> {
   ensureConfigured();
   const form = new FormData();
-  // React Native fetch supports { uri, name, type }
-  form.append('file', {
-    // @ts-ignore - RN FormData file shape
+  // React Native fetch supports { uri, name, type }. Cast to relax TS DOM types.
+  (form as unknown as { append: (name: string, value: any) => void }).append('file', {
     uri,
     name: filename || 'audio.mp4',
     type: mime || 'application/octet-stream',

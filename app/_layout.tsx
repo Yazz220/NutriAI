@@ -18,6 +18,8 @@ import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
 import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
+import { Colors } from "@/constants/colors";
+import { StatusBar } from "expo-status-bar";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -33,15 +35,17 @@ function RootLayoutNav() {
 
   if (initializing) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-        <Text style={{ marginTop: 8 }}>Loading…</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
+        <StatusBar style="light" />
+        <ActivityIndicator color={Colors.primary} />
+        <Text style={{ marginTop: 8, color: Colors.lightText }}>Loading…</Text>
       </View>
     );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
+      <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         {devBypass || session ? (
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

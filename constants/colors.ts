@@ -1,52 +1,50 @@
 export const Colors = {
-    primary: "#7EA172", // Sage green
-    secondary: "#F2E8CF", // Beige
-    background: "#FAFAF9", // Off-white
-    text: "#333333",
-    lightText: "#666666",
-    white: "#FFFFFF",
-    border: "#E0E0E0",
-    shadow: "rgba(0, 0, 0, 0.1)",
-    lightGray: "#F0F0F0",
-    card: "#FFFFFF",
-    
-    // Freshness indicators
-    fresh: "#7EA172", // Green
-    aging: "#F0C75E", // Yellow
-    expiring: "#E07A5F", // Red
-    danger: "#E57373",
-    
-    // Tab colors
-    tabBackground: "#FFFFFF",
-    tabIconInactive: "#AAAAAA",
-    tabIconActive: "#7EA172",
-    
-    // Additional colors for components
-    success: "#4CAF50", // Green for success states
-    warning: "#FF9800", // Orange for warning states
-    error: "#F44336", // Red for error states
-    info: "#2196F3", // Blue for info states
-    
-    // Gray scale for enhanced components
-    gray: {
-      50: "#F9FAFB",
-      100: "#F3F4F6",
-      200: "#E5E7EB",
-      300: "#D1D5DB",
-      400: "#9CA3AF",
-      500: "#6B7280",
-      600: "#4B5563",
-      700: "#374151",
-      800: "#1F2937",
-      900: "#111827",
-    },
-    
-    // Additional colors for enhanced components
-    red: {
-      500: "#EF4444",
-    },
-    orange: {
-      500: "#F97316",
-    },
-    black: "#000000",
-  };
+  // Interactive accent
+  primary: "#FF9500", // Vibrant orange accent
+  secondary: "#2C2C2E", // Dark secondary surface
+
+  // Backgrounds
+  background: "#000000", // True black
+  card: "#1C1C1E", // Surface cards and modals
+  tabBackground: "#1C1C1E",
+
+  // Text
+  text: "#FFFFFF",
+  lightText: "#8A8A8E",
+  white: "#FFFFFF",
+
+  // Borders and shadows
+  border: "rgba(255,255,255,0.08)",
+  shadow: "rgba(255,149,0,0.30)", // subtle glow accent for primary
+  lightGray: "#2C2C2E",
+
+  // Status & semantic
+  success: "#28A745",
+  warning: "#FFD93D",
+  error: "#F44336",
+  info: "#45B7D1",
+
+  // Freshness indicators (retained, adapted to dark)
+  fresh: "#4ECDC4",
+  aging: "#F0C75E",
+  expiring: "#E07A5F",
+  danger: "#E57373",
+
+  // Gray scale (used sparingly in dark mode)
+  gray: {
+    50: "#1C1C1E",
+    100: "#2C2C2E",
+    200: "#3A3A3C",
+    300: "#48484A",
+    400: "#636366",
+    500: "#8A8A8E",
+    600: "#C7C7CC",
+    700: "#D1D1D6",
+    800: "#E5E5EA",
+    900: "#F2F2F7",
+  },
+
+  red: { 500: "#EF4444" },
+  orange: { 500: "#FF9500" },
+  black: "#000000",
+};

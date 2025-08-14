@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 8,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.secondary,
     ...Shadows.sm,
   },
   inputContainerFocused: {

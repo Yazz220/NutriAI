@@ -20,16 +20,13 @@ interface RecipeRecommendationsProps {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.card,
     marginHorizontal: 16,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
