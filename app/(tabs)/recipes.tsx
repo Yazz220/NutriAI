@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plus, BookOpen, ChefHat, Search, Brain } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
@@ -21,16 +22,17 @@ import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { EnhancedRecipeCard } from '@/components/EnhancedRecipeCard';
 import { ImportRecipeModal } from '@/components/ImportRecipeModal';
+import { MealPlanModal } from '@/components/MealPlanModal';
 import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
-import { RecipeProviderInitializer } from '@/components/RecipeProviderInitializer';
-import { ExternalRecipe } from '@/utils/recipeProvider';
+import { ExternalRecipe } from '@/types/external';
 import { Meal } from '@/types';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
-import { FolderCard } from '@/components/folders/FolderCard';
+// { FolderCard } removed in favor of RecipeFolderCard grid
 import { NewFolderModal } from '@/components/folders/NewFolderModal';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
+import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
 import RecipeChatInterface from '@/components/RecipeChatInterface';
 
 export default function RecipesScreen() {
@@ -49,6 +51,8 @@ export default function RecipesScreen() {
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [addToFolderVisible, setAddToFolderVisible] = useState(false);
   const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
+  const [showMealPlanModal, setShowMealPlanModal] = useState(false);
+  const [selectedPlanRecipeId, setSelectedPlanRecipeId] = useState<string | null>(null);
 
   // Favorites (persisted locally)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
@@ -88,13 +92,12 @@ export default function RecipesScreen() {
 
   // Use meals from the meals store for local recipes
   const { meals: localRecipes, addMeal, removeMeal, updateMeal } = useMeals();
-  const { folders, createFolder, renameFolder, deleteFolder, getFoldersForRecipe, removeRecipeFromFolder } = useRecipeFolders();
+  const { folders, createFolder, renameFolder, deleteFolder, getFoldersForRecipe, removeRecipeFromAllFolders, toggleRecipeInFolder, addRecipeToFolder } = useRecipeFolders();
 
   const {
     searchRecipes,
     getTrendingRecipes,
     getRandomRecipes,
-    recipeProvider,
   } = useRecipeStore();
 
   // Meal planner integration will be reintroduced when local modal returns
@@ -103,11 +106,6 @@ export default function RecipesScreen() {
 
   // Handle refresh
   const handleRefresh = async () => {
-    if (!recipeProvider) {
-      // Avoid triggering store actions before provider is ready
-      setRefreshing(false);
-      return;
-    }
     setRefreshing(true);
     try {
       await Promise.all([
@@ -127,6 +125,11 @@ export default function RecipesScreen() {
   };
 
   const handleLongPressRecipe = (recipe: Meal) => {
+    if (activeFolderId) {
+      // Quick toggle membership in the active folder
+      toggleRecipeInFolder(activeFolderId, recipe.id);
+      return;
+    }
     setSelectedForFolderRecipeId(recipe.id);
     setAddToFolderVisible(true);
   };
@@ -168,12 +171,21 @@ export default function RecipesScreen() {
       prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
       cookTime: recipe.cookingMinutes || 0,
       servings: recipe.servings || 1,
+      sourceUrl: recipe.sourceUrl,
       // Nutrition array varies by provider; skip unless available via nutrients mapping
       nutritionPerServing: undefined,
     };
 
-    addMeal(newMeal);
-    Alert.alert('Recipe Saved', `${recipe.title} has been added to your recipes.`);
+    const newId = addMeal(newMeal);
+    // If a folder is active, drop it in immediately; else prompt via AddToFolderSheet
+    if (activeFolderId) {
+      addRecipeToFolder(activeFolderId, newId);
+      Alert.alert('Saved', `${recipe.title} was added to your recipes and placed in the selected folder.`);
+    } else {
+      setSelectedForFolderRecipeId(newId);
+      setAddToFolderVisible(true);
+      Alert.alert('Recipe Saved', `${recipe.title} has been added to your recipes. Choose a folder to organize it.`);
+    }
   };
   
   // (Optional) Remove-saved-recipe could be implemented in store later
@@ -199,14 +211,9 @@ export default function RecipesScreen() {
         { text: 'Delete', style: 'destructive', onPress: () => {
             // Remove from local meals
             removeMeal(recipe.id);
-            // Also remove references from any folders
-            folders.forEach(f => {
-              if (f.recipeIds.includes(recipe.id)) {
-                removeRecipeFromFolder(f.id, recipe.id);
-              }
-            });
-          }
-        }
+            // Remove references from all folders in one pass (handles id normalization)
+            removeRecipeFromAllFolders(recipe.id);
+          }}
       ]
     );
   };
@@ -253,43 +260,45 @@ export default function RecipesScreen() {
   // Render local recipes with enhanced cards and folders
   const renderLocalRecipes = () => (
     <View style={styles.tabContent}>
-      {/* Folders header */}
-      <View style={styles.foldersHeaderRow}>
-        <Text style={styles.sectionTitle}>Recipe Folders</Text>
-        <TouchableOpacity style={styles.newFolderBtn} onPress={openCreateFolder}>
-          <Text style={styles.newFolderText}>+ New Folder</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Folders list */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 4 }}
-        style={{ marginBottom: Spacing.md }}
-      >
-        <TouchableOpacity
-          style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive]}
-          onPress={() => setActiveFolderId(null)}
-        >
-          <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All Recipes</Text>
-        </TouchableOpacity>
-        {folders.map((f) => (
-          <FolderCard
-            key={f.id}
-            name={f.name}
-            count={f.recipeIds.length}
-            onPress={() => setActiveFolderId(f.id)}
-            onMore={() => {
-              Alert.alert(f.name, undefined, [
-                { text: 'Rename', onPress: () => requestRenameFolder(f.id) },
-                { text: 'Delete', style: 'destructive', onPress: () => requestDeleteFolder(f.id, f.name) },
-                { text: 'Cancel', style: 'cancel' },
-              ]);
-            }}
-          />
-        ))}
-      </ScrollView>
+
+      {/* Folders grid */}
+      <View style={{ marginBottom: Spacing.md }}>
+        <View style={styles.foldersHeaderRowLarge}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.newFolderBtn} onPress={openCreateFolder}>
+              <Text style={styles.newFolderText}>+ New Folder</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive, { marginLeft: Spacing.sm }]} onPress={() => setActiveFolderId(null)}>
+              <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All recipes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.foldersGrid}>
+          {folders.length === 0 ? (
+            <View style={{ padding: Spacing.md }}>
+              <Text style={{ color: Colors.lightText }}>You haven't created any folders yet — use New Folder to get started.</Text>
+            </View>
+          ) : (
+            folders.map((f) => (
+              <View key={f.id} style={styles.folderGridItem}>
+                <RecipeFolderCard
+                  name={f.name}
+                  recipeCount={f.recipeIds.length}
+                  color={Colors.primary}
+                  onPress={() => setActiveFolderId(f.id)}
+                  onMore={() => Alert.alert(f.name, undefined, [
+                    { text: 'Rename', onPress: () => requestRenameFolder(f.id) },
+                    { text: 'Delete', style: 'destructive', onPress: () => requestDeleteFolder(f.id, f.name) },
+                    { text: 'Cancel', style: 'cancel' },
+                  ])}
+                />
+              </View>
+            ))
+          )}
+        </View>
+      </View>
 
       {/* Recipes list */}
       {localRecipes.length === 0 ? (
@@ -307,16 +316,24 @@ export default function RecipesScreen() {
           {(activeFolderId
             ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
             : localRecipes
-          ).map((recipe) => (
-            <EnhancedRecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              onPress={() => handleRecipePress(recipe)}
-              onLongPress={() => handleLongPressRecipe(recipe)}
-              onFavorite={() => toggleFavorite(recipe.id)}
-              isFavorite={favoriteIds.has(recipe.id)}
-            />
-          ))}
+          ).map((recipe) => {
+            const inActiveFolder = activeFolderId
+              ? !!folders.find(f => f.id === activeFolderId)?.recipeIds.includes(recipe.id)
+              : false;
+            return (
+              <EnhancedRecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                onPress={() => handleRecipePress(recipe)}
+                onLongPress={() => handleLongPressRecipe(recipe)}
+                onFavorite={() => toggleFavorite(recipe.id)}
+                isFavorite={favoriteIds.has(recipe.id)}
+                accessoryLabel={activeFolderId ? (inActiveFolder ? 'Remove' : 'Add') : undefined}
+                onAccessoryPress={activeFolderId ? () => toggleRecipeInFolder(activeFolderId, recipe.id) : undefined}
+                onPlan={() => { setSelectedPlanRecipeId(recipe.id); setShowMealPlanModal(true); }}
+              />
+            );
+          })}
         </View>
       )}
     </View>
@@ -335,8 +352,7 @@ export default function RecipesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Recipe Provider Initializer */}
-      <RecipeProviderInitializer />
+      <Stack.Screen options={{ title: '', headerShown: false }} />
 
       {/* Enhanced Hero Header */}
       <ExpoLinearGradient
@@ -347,7 +363,7 @@ export default function RecipesScreen() {
       >
         <View style={styles.statusBarSpacer} />
         
-        {/* Header */}
+        {/* Header (icon + title on left, + on right for consistency) */}
         <View style={styles.heroHeader}>
           <View style={styles.heroTitleRow}>
             <ChefHat size={28} color={Colors.white} />
@@ -413,6 +429,19 @@ export default function RecipesScreen() {
       )}
 
       {/* Import Recipe Modal */}
+      {/* MealPlanModal for quick-plan from recipe cards */}
+      <MealPlanModal
+        visible={showMealPlanModal}
+        selectedDate={new Date().toISOString().split('T')[0]}
+        initialRecipeId={selectedPlanRecipeId ?? undefined}
+  initialFolderId={activeFolderId ?? undefined}
+        onClose={() => { setShowMealPlanModal(false); setSelectedPlanRecipeId(null); }}
+        onSave={async (planned) => {
+          setShowMealPlanModal(false);
+          setSelectedPlanRecipeId(null);
+          Alert.alert('Planned', 'Recipe added to your meal plan.');
+        }}
+      />
       <ImportRecipeModal
         visible={showImportModal}
         onClose={() => setShowImportModal(false)}
@@ -490,7 +519,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    marginTop: 6,
+    marginTop: 10,
   },
   heroTitleRow: {
     flexDirection: 'row',
@@ -606,4 +635,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     alignItems: 'center',
   },
+  foldersHeaderRowLarge: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm },
+  foldersGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: Spacing.lg },
+  folderGridItem: { width: '48%', margin: '1%' },
 });

@@ -31,6 +31,7 @@ export interface InventoryItem {
     prepTime: number; // in minutes
     cookTime: number; // in minutes
     servings: number;
+    sourceUrl?: string;
     nutritionPerServing?: {
       calories: number;
       protein: number; // grams
@@ -70,6 +71,7 @@ export interface InventoryItem {
     ingredients: RecipeIngredient[];
     instructions: string[];
     notes?: string;
+    sourceUrl?: string;
   }
 
   export interface UserPreferences {
@@ -173,3 +175,117 @@ export interface InventoryItem {
   }
   
   export type RecipeFolderMap = Record<string, RecipeFolder>;
+
+  // Onboarding Types
+  export enum OnboardingStep {
+    WELCOME = 0,
+    AUTH = 1,
+    DIETARY_PREFERENCES = 2,
+    COOKING_HABITS = 3,
+    INVENTORY_KICKSTART = 4,
+    AI_COACH_INTRO = 5,
+    COMPLETION = 6,
+  }
+
+  export type AuthMethod = 'email' | 'google' | 'apple' | 'guest';
+  export type CookingSkill = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  export type CookingTime = '15min' | '30min' | '45min+';
+  export type ShoppingFrequency = 'daily' | 'weekly' | 'biweekly';
+
+  export interface OnboardingUserData {
+    authMethod?: AuthMethod;
+    dietaryPreferences?: string[];
+    allergies?: string[];
+    goals?: string[];
+    cookingSkill?: CookingSkill;
+    cookingTime?: CookingTime;
+    shoppingFrequency?: ShoppingFrequency;
+    initialInventory?: string[];
+  }
+
+  export interface OnboardingAnalytics {
+    sessionId: string;
+    startTime: Date;
+    events: AnalyticsEvent[];
+    completionRate: number;
+    dropOffPoint?: number;
+    timeSpentPerStep: Record<number, number>;
+  }
+
+  export interface AnalyticsEvent {
+    type: 'step_viewed' | 'step_completed' | 'step_skipped' | 'option_selected' | 'error_occurred';
+    step: OnboardingStep;
+    timestamp: Date;
+    data?: Record<string, any>;
+  }
+
+  export interface OnboardingState {
+    currentStep: OnboardingStep;
+    completedSteps: Set<OnboardingStep>;
+    userData: OnboardingUserData;
+    skippedSteps: Set<OnboardingStep>;
+    startTime: Date;
+    analytics: OnboardingAnalytics;
+    isCompleted: boolean;
+  }
+
+  export interface OnboardingContextType {
+    state: OnboardingState;
+    updateUserData: (data: Partial<OnboardingUserData>) => void;
+    nextStep: () => void;
+    skipStep: () => void;
+    goToStep: (step: OnboardingStep) => void;
+    completeOnboarding: () => void;
+    trackEvent: (event: Omit<AnalyticsEvent, 'timestamp'>) => void;
+  }
+
+  // Extended UserPreferences for onboarding
+  export interface OnboardingUserPreferences extends UserPreferences {
+    onboardingCompleted: boolean;
+    onboardingVersion: string;
+    completedAt?: Date;
+    skippedSteps: OnboardingStep[];
+    initialSetupSource: 'onboarding' | 'manual' | 'import';
+  }
+
+  // Inventory starter items for onboarding
+  export interface StarterItem {
+    id: string;
+    name: string;
+    category: ItemCategory;
+    icon: string;
+    commonUnit: string;
+    defaultQuantity: number;
+    popularity: number; // For sorting
+  }
+
+  // Multi-select chip component types
+  export interface ChipOption {
+    id: string;
+    label: string;
+    value: string;
+    icon?: string;
+    description?: string;
+  }
+
+  export interface MultiSelectChipsProps {
+    options: ChipOption[];
+    selectedValues: string[];
+    onSelectionChange: (values: string[]) => void;
+    maxSelections?: number;
+    searchable?: boolean;
+    placeholder?: string;
+  }
+
+  // Onboarding layout component types
+  export interface OnboardingLayoutProps {
+    children: React.ReactNode;
+    title: string;
+    subtitle?: string;
+    showProgress?: boolean;
+    showSkip?: boolean;
+    onSkip?: () => void;
+    skipWarning?: string;
+    currentStep?: OnboardingStep;
+    totalSteps?: number;
+  }

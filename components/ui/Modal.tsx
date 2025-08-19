@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,9 +40,10 @@ export const Modal: React.FC<ModalProps> = ({
 
   const content = scrollable ? (
     <ScrollView
-      style={styles.scrollView}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[styles.content, { paddingBottom: Spacing.xl * 2 }]}
+      style={{ maxHeight: '100%' }}
     >
       {children}
     </ScrollView>
@@ -55,29 +57,31 @@ export const Modal: React.FC<ModalProps> = ({
       transparent={size !== 'full'}
       animationType={size === 'full' ? 'slide' : 'fade'}
       onRequestClose={onClose}
-      statusBarTranslucent
+      statusBarTranslucent={false}
       presentationStyle={size === 'full' ? 'fullScreen' : 'overFullScreen'}
     >
       <View style={size === 'full' ? styles.fullOverlay : styles.overlay}>
-        <SafeAreaView style={modalStyle} edges={size === 'full' ? ['top', 'left', 'right'] : undefined}>
-          {hasHeader && (
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
-              {showCloseButton && (
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={onClose}
-                  accessibilityLabel="Close modal"
-                  accessibilityRole="button"
-                >
-                  <X size={24} color={Colors.text} />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+        <SafeAreaView style={modalStyle} edges={['top','bottom','left','right']}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={size === 'full' ? { flex: 1 } : undefined}>
+            {hasHeader && (
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                {showCloseButton && (
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={onClose}
+                    accessibilityLabel="Close modal"
+                    accessibilityRole="button"
+                  >
+                    <X size={24} color={Colors.text} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
-          {/* Content */}
-          {content}
+            {/* Content */}
+            {content}
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </View>
     </RNModal>
@@ -101,7 +105,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: Colors.card,
     borderRadius: 16,
-    maxHeight: '90%',
+    maxHeight: '95%',
     ...Shadows.lg,
   },
   sm: {

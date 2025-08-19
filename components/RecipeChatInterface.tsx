@@ -3,14 +3,15 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboa
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Brain, Send } from 'lucide-react-native';
-import { useCoachChat } from '@/hooks/useCoachChat';
+import { useChefChat } from '@/hooks/useChefChat';
+import { StructuredMessage } from '@/components/StructuredMessage';
 
 // A dedicated chat interface for the Recipes tab that leverages the same
 // AI meal-planning logic as the Coach page. Dark-theme, high-contrast
 // styling aligned with the global design tokens.
 
 export const RecipeChatInterface: React.FC = () => {
-  const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
+  const { messages, sendMessage, performInlineAction, isTyping } = useChefChat('');
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
@@ -45,7 +46,7 @@ export const RecipeChatInterface: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Brain size={20} color={Colors.primary} />
-          <Text style={styles.headerTitle}>Meal Generator</Text>
+          <Text style={styles.headerTitle}>AI Chef</Text>
         </View>
       </View>
 
@@ -70,21 +71,10 @@ export const RecipeChatInterface: React.FC = () => {
 
         {messages.map((m) => (
           <View key={m.id} style={[styles.bubble, m.role === 'user' ? styles.bubbleUser : styles.bubbleAI]}>
-            {!!m.text && <Text style={styles.bubbleText}>{m.text}</Text>}
-            {!!m.summary && <Text style={styles.bubbleText}>{m.summary}</Text>}
-            {/* Inline actions */}
-            {!!m.actions && m.actions.length > 0 && (
-              <View style={styles.actionsRow}>
-                {m.actions.map((a, idx) => (
-                  <TouchableOpacity
-                    key={`${m.id}-a-${idx}`}
-                    onPress={() => performInlineAction(a, m.meals)}
-                    style={styles.actionBtn}
-                  >
-                    <Text style={styles.actionBtnText}>{a.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            {m.structuredData ? (
+              <StructuredMessage data={m.structuredData} />
+            ) : (
+              !!m.text && <Text style={styles.bubbleText}>{m.text}</Text>
             )}
           </View>
         ))}

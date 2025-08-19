@@ -18,7 +18,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         setIsLoading(true);
         if (user && !OFFLINE_ONLY) {
           let data: any[] | null = null;
-          // First attempt: full select including notes
+          // First attempt: full select including optional columns
           let { data: d1, error: e1 } = await supabase
             .schema('nutriai')
             .from('meal_plans')
@@ -27,7 +27,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
             .order('date', { ascending: true })
             .order('meal_type', { ascending: true });
           if (e1 && (e1 as any).code === '42703') {
-            // Retry without notes column if it doesn't exist yet
+            // Retry without notes if missing
             const { data: d2, error: e2 } = await supabase
               .schema('nutriai')
               .from('meal_plans')
@@ -35,8 +35,22 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
               .eq('user_id', user.id)
               .order('date', { ascending: true })
               .order('meal_type', { ascending: true });
-            if (e2) throw e2;
-            data = d2 ?? [];
+            if (e2 && (e2 as any).code === '42703') {
+              // Retry minimal set without completion fields
+              const { data: d3, error: e3 } = await supabase
+                .schema('nutriai')
+                .from('meal_plans')
+                .select('id, recipe_id, date, meal_type, servings, created_at')
+                .eq('user_id', user.id)
+                .order('date', { ascending: true })
+                .order('meal_type', { ascending: true });
+              if (e3) throw e3;
+              data = d3 ?? [];
+            } else if (e2) {
+              throw e2;
+            } else {
+              data = d2 ?? [];
+            }
           } else if (e1) {
             throw e1;
           } else {
@@ -49,8 +63,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
             mealType: r.meal_type as MealType,
             servings: Number(r.servings ?? 1),
             notes: (r as any).notes ?? undefined,
-            isCompleted: !!r.is_completed,
-            completedAt: r.completed_at ?? undefined,
+            isCompleted: !!(r as any).is_completed,
+            completedAt: (r as any).completed_at ?? undefined,
             // created_at unused by UI but fetched for ordering predictability
           }));
           setPlannedMeals(rows);
@@ -101,7 +115,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at')
         .single();
       if (ins.error && (ins.error as any).code === '42703') {
-        const { data: data2, error: err2 } = await supabase
+        // Retry without notes
+        let { data: data2, error: err2 } = await supabase
           .schema('nutriai')
           .from('meal_plans')
           .insert({
@@ -115,8 +130,27 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
           })
           .select('id, recipe_id, date, meal_type, servings, is_completed, completed_at')
           .single();
-        if (err2) throw err2;
-        ins = { data: data2, error: null } as any;
+        if (err2 && (err2 as any).code === '42703') {
+          // Retry minimal without completion fields
+          const { data: data3, error: err3 } = await supabase
+            .schema('nutriai')
+            .from('meal_plans')
+            .insert({
+              user_id: user.id,
+              recipe_id: meal.recipeId,
+              date: meal.date,
+              meal_type: meal.mealType,
+              servings: meal.servings ?? 1,
+            })
+            .select('id, recipe_id, date, meal_type, servings')
+            .single();
+          if (err3) throw err3;
+          ins = { data: data3, error: null } as any;
+        } else if (err2) {
+          throw err2;
+        } else {
+          ins = { data: data2, error: null } as any;
+        }
       } else if (ins.error) {
         throw ins.error;
       }
@@ -156,7 +190,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         })
         .eq('id', updatedMeal.id);
       if (error && (error as any).code === '42703') {
-        const r2 = await supabase
+        // Retry without notes
+        let r2 = await supabase
           .schema('nutriai')
           .from('meal_plans')
           .update({
@@ -168,7 +203,22 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
             completed_at: updatedMeal.completedAt ?? null,
           })
           .eq('id', updatedMeal.id);
-        error = r2.error as any;
+        if (r2.error && (r2.error as any).code === '42703') {
+          // Retry minimal without completion fields
+          const r3 = await supabase
+            .schema('nutriai')
+            .from('meal_plans')
+            .update({
+              recipe_id: updatedMeal.recipeId,
+              date: updatedMeal.date,
+              meal_type: updatedMeal.mealType,
+              servings: updatedMeal.servings,
+            })
+            .eq('id', updatedMeal.id);
+          error = r3.error as any;
+        } else {
+          error = r2.error as any;
+        }
       }
       if (error) console.error('Failed to update planned meal:', error);
     }
@@ -203,11 +253,15 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
     const completedAt = new Date().toISOString();
     setPlannedMeals(prev => prev.map(meal => meal.id === id ? { ...meal, isCompleted: true, completedAt } : meal));
     if (user && !OFFLINE_ONLY) {
-      const { error } = await supabase
+      let { error } = await supabase
         .schema('nutriai')
         .from('meal_plans')
         .update({ is_completed: true, completed_at: completedAt })
         .eq('id', id);
+      if (error && (error as any).code === '42703') {
+        // Column not present; ignore completion update gracefully
+        error = null as any;
+      }
       if (error) console.error('Failed to complete planned meal:', error);
     }
   };

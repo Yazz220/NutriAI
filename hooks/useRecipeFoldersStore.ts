@@ -9,13 +9,25 @@ export const [RecipeFoldersProvider, useRecipeFolders] = createContextHook(() =>
   const [folders, setFolders] = useState<RecipeFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const toId = (v: string | number) => String(v);
+
   useEffect(() => {
     const load = async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) setFolders(parsed);
+          if (Array.isArray(parsed)) {
+            // Defensive normalization in case of legacy data
+            const norm: RecipeFolder[] = parsed.map((f: any) => ({
+              id: toId(f.id),
+              name: (f.name ?? '').trim(),
+              recipeIds: Array.isArray(f.recipeIds) ? f.recipeIds.map(toId) : [],
+              createdAt: f.createdAt || new Date().toISOString(),
+              updatedAt: f.updatedAt || new Date().toISOString(),
+            }));
+            setFolders(norm);
+          }
         }
       } catch (e) {
         console.warn('[RecipeFolders] Failed to load, starting empty', e);
@@ -35,9 +47,17 @@ export const [RecipeFoldersProvider, useRecipeFolders] = createContextHook(() =>
 
   const createFolder = (name: string) => {
     const now = new Date().toISOString();
+    const trimmed = name.trim();
+    // Prevent duplicate names (case-insensitive)
+    const exists = folders.find((f) => f.name.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      // Touch updatedAt and return existing id for UX continuity
+      setFolders((prev) => prev.map((f) => (f.id === exists.id ? { ...f, updatedAt: now } : f)));
+      return exists.id;
+    }
     const folder: RecipeFolder = {
       id: Date.now().toString(),
-      name: name.trim(),
+      name: trimmed,
       recipeIds: [],
       createdAt: now,
       updatedAt: now,
@@ -56,28 +76,53 @@ export const [RecipeFoldersProvider, useRecipeFolders] = createContextHook(() =>
     setFolders((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const addRecipeToFolder = (folderId: string, recipeId: string) => {
+  const addRecipeToFolder = (folderId: string, recipeId: string | number) => {
+    const rid = toId(recipeId);
     setFolders((prev) =>
       prev.map((f) =>
-        f.id === folderId && !f.recipeIds.includes(recipeId)
-          ? { ...f, recipeIds: [...f.recipeIds, recipeId], updatedAt: new Date().toISOString() }
+        f.id === folderId && !f.recipeIds.includes(rid)
+          ? { ...f, recipeIds: [...f.recipeIds, rid], updatedAt: new Date().toISOString() }
           : f
       )
     );
   };
 
-  const removeRecipeFromFolder = (folderId: string, recipeId: string) => {
+  const removeRecipeFromFolder = (folderId: string, recipeId: string | number) => {
+    const rid = toId(recipeId);
     setFolders((prev) =>
       prev.map((f) =>
         f.id === folderId
-          ? { ...f, recipeIds: f.recipeIds.filter((r) => r !== recipeId), updatedAt: new Date().toISOString() }
+          ? { ...f, recipeIds: f.recipeIds.filter((r) => r !== rid), updatedAt: new Date().toISOString() }
+          : f
+      )
+    );
+  };
+
+  const toggleRecipeInFolder = (folderId: string, recipeId: string | number) => {
+    const rid = toId(recipeId);
+    const target = folders.find((f) => f.id === folderId);
+    if (!target) return;
+    if (target.recipeIds.includes(rid)) {
+      removeRecipeFromFolder(folderId, rid);
+    } else {
+      addRecipeToFolder(folderId, rid);
+    }
+  };
+
+  const removeRecipeFromAllFolders = (recipeId: string | number) => {
+    const rid = toId(recipeId);
+    setFolders((prev) =>
+      prev.map((f) =>
+        f.recipeIds.includes(rid)
+          ? { ...f, recipeIds: f.recipeIds.filter((r) => r !== rid), updatedAt: new Date().toISOString() }
           : f
       )
     );
   };
 
   const getFoldersForRecipe = (recipeId: string) => {
-    return folders.filter((f) => f.recipeIds.includes(recipeId));
+    const rid = toId(recipeId);
+    return folders.filter((f) => f.recipeIds.includes(rid));
   };
 
   const byId = useMemo(() => Object.fromEntries(folders.map((f) => [f.id, f])), [folders]);
@@ -91,6 +136,8 @@ export const [RecipeFoldersProvider, useRecipeFolders] = createContextHook(() =>
     deleteFolder,
     addRecipeToFolder,
     removeRecipeFromFolder,
+    removeRecipeFromAllFolders,
+    toggleRecipeInFolder,
     getFoldersForRecipe,
   };
 });

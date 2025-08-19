@@ -17,7 +17,19 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { RecipeSearchParams, ExternalRecipe } from '@/utils/recipeProvider';
+import { ExternalRecipe } from '@/types/external';
+
+// Dataset-only search params used by the store's searchRecipes
+export interface RecipeSearchParams {
+  query?: string;
+  cuisine?: string;
+  diet?: string;
+  intolerances?: string[];
+  maxReadyTime?: number;
+  minProtein?: number;
+  maxCalories?: number;
+  type?: string;
+}
 
 interface RecipeSearchProps {
   onSearch: (params: RecipeSearchParams) => Promise<void>;

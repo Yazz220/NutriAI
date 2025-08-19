@@ -1,70 +1,91 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Folder, MoreHorizontal } from 'lucide-react-native';
+import { MoreHorizontal } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 
-interface FolderCardProps {
+export interface FolderCardProps {
   name: string;
   count: number;
   onPress?: () => void;
   onMore?: () => void;
+  active?: boolean;
 }
 
-export const FolderCard: React.FC<FolderCardProps> = ({ name, count, onPress, onMore }) => {
+export const FolderCard: React.FC<FolderCardProps> = ({ name, count, onPress, onMore, active }) => {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <View style={styles.iconWrap}>
-        <Folder size={20} color={Colors.primary} />
+    <TouchableOpacity style={[styles.container, active && styles.containerActive]} onPress={onPress} activeOpacity={0.9}>
+      <Text style={[styles.name, active && styles.nameActive]} numberOfLines={1}>{name}</Text>
+      <View style={styles.rightSide}>
+        <View style={[styles.countBadge, active && styles.countBadgeActive]}>
+          <Text style={[styles.countText, active && styles.countTextActive]}>{count}</Text>
+        </View>
+        {onMore && (
+          <TouchableOpacity onPress={onMore} style={styles.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MoreHorizontal size={16} color={active ? Colors.white : Colors.lightText} />
+          </TouchableOpacity>
+        )}
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
-        <Text style={styles.count}>{count} {count === 1 ? 'recipe' : 'recipes'}</Text>
-      </View>
-      {onMore && (
-        <TouchableOpacity onPress={onMore} style={styles.moreBtn}>
-          <MoreHorizontal size={18} color={Colors.lightText} />
-        </TouchableOpacity>
-      )}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: Colors.card,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     marginRight: Spacing.sm,
+    minHeight: 36,
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#EAF7F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.sm,
+  containerActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   name: {
-    fontSize: 16,
+    maxWidth: 140,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.text,
   },
-  count: {
-    fontSize: 12,
+  nameActive: {
+    color: Colors.white,
+  },
+  rightSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+  },
+  countBadge: {
+    minWidth: 22,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  countBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  countText: {
+    fontSize: 11,
     color: Colors.lightText,
-    marginTop: 2,
+    fontWeight: '600',
+  },
+  countTextActive: {
+    color: Colors.white,
   },
   moreBtn: {
-    marginLeft: Spacing.sm,
-    padding: 6,
+    padding: 4,
+    marginLeft: Spacing.xs,
   },
 });

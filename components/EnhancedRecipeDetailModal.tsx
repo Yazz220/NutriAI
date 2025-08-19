@@ -12,6 +12,7 @@ import {
   Share,
   Alert,
   Image,
+  Linking,
 } from 'react-native';
 import {
   X,
@@ -26,16 +27,20 @@ import {
   Shuffle,
   MessageCircle,
   CheckCircle,
+  ExternalLink,
 } from 'lucide-react-native';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { Colors } from '../constants/colors';
-import { ExternalRecipe, RecipeInformationResponse } from '../utils/recipeProvider';
+import { ExternalRecipe } from '../types/external';
 import { useRecipeStore } from '../hooks/useRecipeStore';
 import { Meal } from '../types';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Vibration } from 'react-native';
+import { MealPlanModal } from './MealPlanModal';
+import { useMealPlanner } from '@/hooks/useMealPlanner';
+import { trackEvent } from '@/utils/analytics';
 
 interface EnhancedRecipeDetailModalProps {
   visible: boolean;
@@ -48,12 +53,15 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   onClose,
   recipe,
 }) => {
-  const [recipeDetails, setRecipeDetails] = useState<RecipeInformationResponse | null>(null);
+  const { addPlannedMeal } = useMealPlanner();
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [recipeDetails, setRecipeDetails] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
-  const { saveExternalRecipe, removeLocalRecipe, localRecipes, recipeProvider } = useRecipeStore();
+  const { saveExternalRecipe, removeLocalRecipe, localRecipes } = useRecipeStore();
 
   // Load recipe details when modal opens
   useEffect(() => {
@@ -61,6 +69,11 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
       loadRecipeDetails();
     }
   }, [recipe, recipeDetails]);
+
+  // Reset image error on recipe change
+  useEffect(() => {
+    setImageFailed(false);
+  }, [recipe?.image]);
 
   // Check if recipe is saved
   useEffect(() => {
@@ -72,18 +85,11 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
 
   const loadRecipeDetails = async () => {
     if (!recipe) return;
-    if (!recipeProvider) {
-      setError('Recipe provider not initialized.');
-      return;
-    }
-    
     try {
       setIsLoading(true);
-      // Load detailed recipe information via shared provider (preserves proxy & logging)
-      const details = await recipeProvider.getRecipeInformation(recipe.id);
-      if (details) {
-        setRecipeDetails(details);
-      }
+      // Dataset-only: rely on fields present on the recipe object; no external fetch
+      setRecipeDetails(null);
+      setError(null);
     } catch (error) {
       console.error('Error loading recipe details:', error);
       setError('Failed to load recipe details');
@@ -190,9 +196,25 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
           contentContainerStyle={{ paddingBottom: 24 }}
         >
           {/* Hero Image with subtle overlay */}
-          {recipe.image && (
+          {recipe.image ? (
             <View style={styles.imageContainer}>
-              <Image source={{ uri: recipe.image }} style={styles.image} />
+              {!imageFailed ? (
+                <Image
+                  source={{ uri: recipe.image }}
+                  style={styles.image}
+                  onError={() => setImageFailed(true)}
+                />
+              ) : (
+                <View style={[styles.image, { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.card }]}> 
+                  <Text style={{ color: Colors.lightText }}>Image unavailable</Text>
+                  <View style={{ marginTop: 8 }}>
+                    <Button
+                      title="Open Image"
+                      onPress={() => Linking.openURL(recipe.image).catch(() => {})}
+                    />
+                  </View>
+                </View>
+              )}
               <ExpoLinearGradient
                 colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.6)"]}
                 start={{ x: 0, y: 0 }}
@@ -200,7 +222,7 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                 style={styles.imageOverlay}
               />
             </View>
-          )}
+          ) : null}
           <View style={styles.header}>
             <Text style={styles.title}>{recipe.title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -217,7 +239,14 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
               {/* Primary Action Bar */}
               <View style={styles.primaryActions}>
                 <ActionPill icon={<Utensils size={16} color={Colors.white} />} label="Cook" onPress={() => {}} />
-                <ActionPill icon={<BookmarkPlus size={16} color={Colors.white} />} label="Plan" onPress={handleSaveRecipe} />
+                <ActionPill
+                  icon={<BookmarkPlus size={16} color={Colors.white} />}
+                  label="Plan"
+                  onPress={() => {
+                    trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
+                    setShowPlanModal(true);
+                  }}
+                />
                 <ActionPill icon={<Shuffle size={16} color={Colors.white} />} label="Remix" onPress={() => {}} />
                 <ActionPill icon={<MessageCircle size={16} color={Colors.white} />} label="Ask" onPress={() => { Alert.alert('AI', 'Open AI chat from Recipes tab > AI Chat'); }} />
               </View>
@@ -282,6 +311,19 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                   <Share2 size={20} color={Colors.white} />
                   <Text style={styles.actionButtonText}>Share</Text>
                 </TouchableOpacity>
+
+                {((recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
+                      if (url) Linking.openURL(url).catch(() => {});
+                    }}
+                    style={[styles.actionButton, styles.sourceButton]}
+                  >
+                    <ExternalLink size={20} color={Colors.white} />
+                    <Text style={styles.actionButtonText}>View Source</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Recipe Summary */}
@@ -301,7 +343,9 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                   {(recipeDetails?.ingredients || recipe.ingredients || []).map((ingredient: any, index: number) => (
                     <View key={index} style={styles.rowItem}>
                       <CheckCircle size={16} color={Colors.border} />
-                      <Text style={styles.rowText}>{ingredient.original}</Text>
+                      <Text style={styles.rowText}>
+                        {ingredient?.original || [ingredient?.amount, ingredient?.unit, ingredient?.name].filter(Boolean).join(' ')}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -325,6 +369,33 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                 </View>
               ) : null}
 
+              {/* Fallback: show helpful message and source link if no details */}
+              {!(
+                recipeDetails?.instructions ||
+                recipe.instructions ||
+                recipeDetails?.analyzedInstructions?.length ||
+                recipe.analyzedInstructions?.length ||
+                (recipeDetails?.ingredients?.length || recipe.ingredients?.length)
+              ) && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>No details available</Text>
+                  <Text style={styles.summaryText}>
+                    This recipe currently has limited information in the dataset. You can still save it or open the source if available.
+                  </Text>
+                  {((recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl) && (
+                    <View style={{ marginTop: 12 }}>
+                      <Button
+                        title="Open Source"
+                        onPress={() => {
+                          const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
+                          if (url) Linking.openURL(url).catch(() => {});
+                        }}
+                      />
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Nutrition Info */}
               {recipeDetails?.nutrition?.nutrients && (
                 <View style={styles.section}>
@@ -343,6 +414,31 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                   </View>
                 </View>
               )}
+
+              {/* Meal Plan Modal (for Plan action) */}
+              <MealPlanModal
+                visible={showPlanModal}
+                selectedDate={new Date().toISOString().split('T')[0]}
+                initialRecipeId={String(recipe.id)}
+                onClose={() => setShowPlanModal(false)}
+                onSave={async (planned) => {
+                  try {
+                    await addPlannedMeal({
+                      recipeId: planned.recipeId,
+                      date: planned.date,
+                      mealType: planned.mealType,
+                      servings: planned.servings,
+                      notes: planned.notes,
+                      isCompleted: planned.isCompleted ?? false,
+                    });
+                    setShowPlanModal(false);
+                    Alert.alert('Planned', 'Recipe added to your meal plan.');
+                  } catch (err) {
+                    console.error('Failed to add planned meal:', err);
+                    Alert.alert('Error', 'Unable to add recipe to plan.');
+                  }
+                }}
+              />
             </>
           )}
         </ScrollView>
@@ -436,6 +532,11 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     backgroundColor: Colors.info,
+  },
+  sourceButton: {
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   actionButtonText: {
     color: Colors.white,

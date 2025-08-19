@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Clock, Users, Flame, BookOpen, Heart } from 'lucide-react-native';
 import { Card } from '@/components/ui/Card';
+import { trackEvent } from '@/utils/analytics';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Meal } from '@/types';
@@ -26,6 +27,9 @@ interface EnhancedRecipeCardProps {
   onFavorite?: () => void;
   isFavorite?: boolean;
   onLongPress?: () => void;
+  accessoryLabel?: string;
+  onAccessoryPress?: () => void;
+  onPlan?: () => void;
 }
 
 export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
@@ -34,6 +38,9 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
   onFavorite,
   isFavorite = false,
   onLongPress,
+  accessoryLabel,
+  onAccessoryPress,
+  onPlan,
 }) => {
   const nutrition = recipe.nutritionPerServing;
   const calories = nutrition?.calories || 0;
@@ -82,6 +89,27 @@ export const EnhancedRecipeCard: React.FC<EnhancedRecipeCardProps> = ({
           <Text style={styles.title} numberOfLines={2}>
             {recipe.name}
           </Text>
+
+          {/* Top-right action group (favorite, accessory, plan) */}
+          <View style={styles.topActions} pointerEvents="box-none">
+            {accessoryLabel && onAccessoryPress && (
+              <TouchableOpacity style={styles.smallAction} onPress={onAccessoryPress}>
+                <Text style={styles.smallActionText}>{accessoryLabel}</Text>
+              </TouchableOpacity>
+            )}
+
+            {onPlan && (
+              <TouchableOpacity
+                style={styles.smallAction}
+                onPress={() => {
+                  trackEvent({ type: 'plan_button_tap', data: { source: 'card', recipeId: recipe.id } });
+                  onPlan();
+                }}
+              >
+                <Text style={styles.smallActionText}>Plan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Recipe Meta Info */}
           <View style={styles.metaInfo}>
@@ -198,6 +226,43 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.md,
+  },
+  accessoryButton: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.primary + '20',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  topActions: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  smallAction: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.primary + '20',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  smallActionText: {
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  accessoryText: {
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   title: {
     ...Typography.h2,

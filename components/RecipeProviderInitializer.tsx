@@ -15,16 +15,20 @@ export const RecipeProviderInitializer: React.FC<RecipeProviderInitializerProps>
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warmedUp, setWarmedUp] = useState(false);
-  const { initializeRecipeProvider, getTrendingRecipes, recipeProvider } = useRecipeStore();
+  // The recipe store was refactored to use dataset-only and no longer
+  // exposes initializeRecipeProvider or recipeProvider. Use available
+  // methods from the store instead.
+  const { getTrendingRecipes } = useRecipeStore();
+  const IS_DATASET = (process.env.EXPO_PUBLIC_RECIPE_SOURCE || 'mealdb') === 'dataset';
 
   useEffect(() => {
     doInitialize();
   }, []);
 
-  // Once provider is available, warm up trending once
+  // Warm up trending once. In dataset mode, do not require provider.
   useEffect(() => {
     const warm = async () => {
-      if (!recipeProvider || warmedUp) return;
+      if (warmedUp) return;
       try {
         console.log('[RecipeProviderInitializer] Warming up trending recipes...');
         await getTrendingRecipes();
@@ -32,13 +36,11 @@ export const RecipeProviderInitializer: React.FC<RecipeProviderInitializerProps>
         setWarmedUp(true);
         setIsInitialized(true);
         setError(null);
-        console.log('[RecipeProviderInitializer] Provider fully initialized');
         onInitialized?.();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to warm up trending';
         setError(errorMessage);
         console.error('[RecipeProviderInitializer] Warmup error:', err);
-        
         // Show user-friendly error but don't block the app
         Alert.alert(
           'Recipe Service Warning',
@@ -48,38 +50,32 @@ export const RecipeProviderInitializer: React.FC<RecipeProviderInitializerProps>
       }
     };
     warm();
-  }, [recipeProvider, warmedUp, getTrendingRecipes, onInitialized]);
+  }, [warmedUp, getTrendingRecipes, onInitialized, IS_DATASET]);
 
   const doInitialize = async () => {
     try {
       console.log('[RecipeProviderInitializer] Starting initialization...');
-      
-      // Use env-driven API key for TheMealDB (defaults to "1" free tier)
-      const apiKey = process.env.EXPO_PUBLIC_MEALDB_API_KEY || '1';
-      const providerType = 'mealdb' as const;
-      
-      console.log('[RecipeProviderInitializer] Initializing with:', { apiKey, providerType });
-      
-      initializeRecipeProvider(apiKey, providerType);
-      setIsInitialized(true);
-      
-      console.log('[RecipeProviderInitializer] Provider initialized successfully');
-      
-      // Wait a bit for the provider to be set in the store
-      setTimeout(async () => {
-        try {
-          console.log('[RecipeProviderInitializer] Warming up provider...');
-          await getTrendingRecipes();
-          setWarmedUp(true);
-          console.log('[RecipeProviderInitializer] Provider warmed up successfully');
-        } catch (warmupError) {
-          console.error('[RecipeProviderInitializer] Warmup failed:', warmupError);
-          setError(warmupError instanceof Error ? warmupError.message : 'Warmup failed');
-        }
-      }, 1000);
-      
-      if (onInitialized) {
-        onInitialized();
+      if (IS_DATASET) {
+        // No external provider needed; trigger a warmup fetch directly
+        await getTrendingRecipes();
+        setIsInitialized(true);
+        setWarmedUp(true);
+        console.log('[RecipeProviderInitializer] Dataset mode warmed up successfully');
+        onInitialized?.();
+        return;
+      }
+
+      // Dataset-only mode: no external provider initialization is required.
+      // Still attempt to warm up trending data for a responsive UX.
+      console.log('[RecipeProviderInitializer] Skipping external provider initialization; using dataset mode');
+      try {
+        await getTrendingRecipes();
+        setWarmedUp(true);
+        setIsInitialized(true);
+        onInitialized?.();
+      } catch (warmupError) {
+        console.error('[RecipeProviderInitializer] Warmup failed:', warmupError);
+        setError(warmupError instanceof Error ? warmupError.message : 'Warmup failed');
       }
     } catch (error) {
       console.error('[RecipeProviderInitializer] Initialization failed:', error);

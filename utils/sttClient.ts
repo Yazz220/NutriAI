@@ -14,22 +14,27 @@ const BASE = process.env.EXPO_PUBLIC_STT_API_BASE;
 const KEY = process.env.EXPO_PUBLIC_STT_API_KEY;
 
 function ensureConfigured() {
-  if (!BASE || !KEY) {
+  if (!BASE) {
     throw new Error(
-      'Speech-to-Text is not configured. Set EXPO_PUBLIC_STT_API_BASE and EXPO_PUBLIC_STT_API_KEY in your .env to enable video/audio transcription.'
+      'Speech-to-Text is not configured. Set EXPO_PUBLIC_STT_API_BASE (to your proxy or provider) in your .env to enable video/audio transcription.'
     );
   }
 }
 
 export async function transcribeFromUrl(url: string, options: TranscribeOptions = {}): Promise<TranscribeResponse> {
   ensureConfigured();
-  const res = await fetch(`${BASE}/transcribe/url`, {
+  const form = new FormData();
+  // Lemonfox accepts a public URL string in the 'file' field
+  form.append('file', url);
+  if (options.language) form.append('language', options.language);
+  if (options.response_format) form.append('response_format', options.response_format);
+
+  // If no KEY, we assume BASE is a proxy function that accepts POST directly
+  const endpoint = KEY ? `${BASE}/audio/transcriptions` : `${BASE}`;
+  const res = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${KEY}`,
-    },
-    body: JSON.stringify({ url, ...options }),
+    headers: KEY ? { Authorization: `Bearer ${KEY}` } : undefined,
+    body: form as any,
   });
   if (!res.ok) {
     const msg = await safeText(res);
@@ -45,7 +50,13 @@ export async function transcribeFromUri(
   mime: string,
   options: TranscribeOptions = {}
 ): Promise<TranscribeResponse> {
-  ensureConfigured();
+  // For file uploads we require provider KEY (proxy does not support raw file uploads)
+  if (!BASE) {
+    throw new Error('Speech-to-Text is not configured. Set EXPO_PUBLIC_STT_API_BASE.');
+  }
+  if (!KEY) {
+    throw new Error('Speech-to-Text upload not supported without provider key. Set EXPO_PUBLIC_STT_API_KEY to upload files.');
+  }
   const form = new FormData();
   // React Native fetch supports { uri, name, type }. Cast to relax TS DOM types.
   (form as unknown as { append: (name: string, value: any) => void }).append('file', {
@@ -56,11 +67,9 @@ export async function transcribeFromUri(
   if (options.language) form.append('language', options.language);
   if (options.response_format) form.append('response_format', options.response_format);
 
-  const res = await fetch(`${BASE}/transcribe/file`, {
+  const res = await fetch(`${BASE}/audio/transcriptions`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${KEY}`,
-    },
+    headers: KEY ? { Authorization: `Bearer ${KEY}` } : undefined,
     body: form as any,
   });
   if (!res.ok) {

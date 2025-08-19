@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/utils/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -9,18 +9,19 @@ import { User, Mail, Lock, LogIn } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SignInScreen() {
+  const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { session } = useAuth();
 
+  // Prefill email if provided via navigation params (e.g., after sign-up)
   useEffect(() => {
-    if (session) {
-      // If already authenticated (including guest), leave auth flow
-      router.replace('/(tabs)');
+    if (typeof params.email === 'string' && params.email) {
+      setEmail(params.email);
     }
-  }, [session]);
+  }, [params.email]);
 
   const onSignIn = async () => {
     setError(null);
@@ -30,9 +31,24 @@ export default function SignInScreen() {
     }
     setLoading(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) throw authError;
-      // Navigation is handled by auth state in RootLayout; nothing else to do.
+      // Clear any stale session first (safety in dev)
+      try { await supabase.auth.signOut(); } catch {}
+
+      console.log('[Auth] Signing in with password', { email });
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) {
+        console.warn('[Auth] signInWithPassword error', authError);
+        throw authError;
+      }
+      if (!data?.session) {
+        console.warn('[Auth] signInWithPassword returned no session', data);
+        setError('Sign-in did not return a session. Please try again or use Magic Link.');
+        Alert.alert('Sign-in issue', 'We could not establish a session. Try again or use Magic Link.');
+        return;
+      }
+      console.log('[Auth] Signed in, session received');
+      // Force navigation to tabs (especially helpful on web)
+      router.replace('/(tabs)');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sign in';
       setError(msg);
@@ -181,13 +197,14 @@ export default function SignInScreen() {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-        <Text style={styles.footerText}>Don’t have an account?</Text>
-        <Link href="/(auth)/sign-up" asChild>
-          <TouchableOpacity>
-            <Text style={styles.link}>Sign Up</Text>
-          </TouchableOpacity>
-        </Link>
+          <Text style={styles.footerText}>Don’t have an account?</Text>
+          <Link href="/(auth)/sign-up" asChild>
+            <TouchableOpacity>
+              <Text style={styles.link}>Sign Up</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
+
       </View>
     </View>
   );

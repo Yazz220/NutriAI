@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { supabase } from '@/utils/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -27,7 +27,9 @@ export default function SignUpScreen() {
       const { data, error: authError } = await supabase.auth.signUp({ email, password });
       if (authError) throw authError;
       if (data?.user && !data.session) {
-        Alert.alert('Verify your email', 'We sent you a confirmation link. Please verify and then sign in.');
+        Alert.alert('Verify your email', 'We sent you a confirmation link. Please verify, then sign in.');
+        // Navigate to sign-in with email prefilled
+        router.replace({ pathname: '/(auth)/sign-in', params: { email } });
       }
       // If session is returned, RootLayout will switch to (tabs) automatically.
     } catch (err) {

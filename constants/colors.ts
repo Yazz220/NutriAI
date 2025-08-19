@@ -1,21 +1,21 @@
 export const Colors = {
   // Interactive accent
-  primary: "#FF9500", // Vibrant orange accent
-  secondary: "#2C2C2E", // Dark secondary surface
+  primary: "#F1828D", // Pink-orange accent
+  secondary: "#FFF1E6", // Light secondary surface
 
   // Backgrounds
-  background: "#000000", // True black
-  card: "#1C1C1E", // Surface cards and modals
-  tabBackground: "#1C1C1E",
+  background: "#FEFAD4", // Soft light background
+  card: "#FCD0BA", // Surface cards and modals
+  tabBackground: "#FFFFFF",
 
   // Text
-  text: "#FFFFFF",
-  lightText: "#8A8A8E",
+  text: "#2B2B2B",
+  lightText: "#6B7280",
   white: "#FFFFFF",
 
   // Borders and shadows
-  border: "rgba(255,255,255,0.08)",
-  shadow: "rgba(255,149,0,0.30)", // subtle glow accent for primary
+  border: "rgba(0,0,0,0.08)",
+  shadow: "rgba(241,130,141,0.30)", // subtle glow accent for primary
   lightGray: "#2C2C2E",
 
   // Status & semantic
@@ -45,6 +45,6 @@ export const Colors = {
   },
 
   red: { 500: "#EF4444" },
-  orange: { 500: "#FF9500" },
+  orange: { 500: "#F1828D" },
   black: "#000000",
 };

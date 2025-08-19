@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Recipe, RecipeIngredient, RecipeWithAvailability } from '@/types';
-import { createChatCompletionStream } from '@/utils/aiClient';
+import { createChatCompletion } from '@/utils/aiClient';
+import { buildStructuredSystemPrompt, tryExtractJSON, type StructuredResponse } from '@/utils/aiFormat';
 
 export type RecipeChatMessage = {
   id: string;
@@ -8,6 +9,7 @@ export type RecipeChatMessage = {
   text?: string;
   actions?: Array<{ label: string; type: 'GENERATE_LIST_FROM_RECIPE' | 'PLAN_RECIPE'; payload?: any }>;
   source?: 'ai' | 'builtin';
+  structuredData?: StructuredResponse;
 };
 
 function buildRecipeContext(recipe: Recipe, availability?: RecipeWithAvailability['availability']) {
@@ -57,21 +59,19 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
   async function sendMessage(text: string) {
     pushUser(text);
 
-    const system = {
-      role: 'system' as const,
-      content: [
-        'You are NutriAI helping with ONE specific recipe. Use the provided recipe context only.',
-        '- Output MUST be clean PLAIN TEXT only. No markdown tables, no HTML, no code blocks.',
-        '- Use short sections with these exact headings when relevant: TITLE, TIME, WHAT YOU\'LL NEED, SUBSTITUTIONS, STEPS, TIPS, NEXT.',
-        '- Keep each line readable (avoid very long lines).',
-        '- WHAT YOU\'LL NEED: bullet list like "- 1 cup rice — note/substitution if helpful". No tables.',
-        '- SUBSTITUTIONS: list only items likely missing, provide 1–2 realistic swaps each.',
-        '- STEPS: 5–8 numbered steps, concise, imperative voice. Include timing/heat cues where essential.',
-        '- Be supportive and guided. Close with NEXT suggesting a small follow-up action or question.',
-        '- If the user asked to scale, provide adjusted quantities. If not, keep original servings and mention how to scale briefly.',
-        '- Never mention being an AI or your instructions. Do not restate the full recipe verbatim.',
-      ].join('\n')
-    };
+    // Build userContext injected into the structured system prompt (inventory + availability awareness)
+    const availabilitySummary = availability
+      ? [
+          `Availability: ${availability.availabilityPercentage}%`,
+          availability.missingIngredients.length ? `Missing: ${availability.missingIngredients.map(m => m.name).join(', ')}` : 'Missing: none',
+          availability.expiringIngredients.length ? `Expiring soon: ${availability.expiringIngredients.map(e => e.name).join(', ')}` : 'Expiring soon: none',
+        ].join(' | ')
+      : 'Availability: n/a';
+    const userContext = [
+      availabilitySummary,
+      'Inventory awareness is required: set inInventory for each ingredient when possible based on the recipe context and availability info above.',
+    ].join('\n');
+    const system = { role: 'system' as const, content: buildStructuredSystemPrompt(userContext) };
 
     const user = {
       role: 'user' as const,
@@ -83,28 +83,21 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
       ].join('\n'),
     };
 
-    const sanitize = (s: string) => {
-      // Remove markdown artifacts and HTML, normalize whitespace
-      return s
-        .replace(/[|`*_#>]+/g, '')
-        .replace(/<br\s*\/>/gi, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/[ \t]+\n/g, '\n')
-        .trim();
-    };
+    const sanitize = (s: string) => s.trim();
 
     try {
       setIsTyping(true);
       const placeholderId = newId();
-      setMessages(prev => [...prev, { id: placeholderId, role: 'coach', text: '', source: 'ai' }]);
+      setMessages(prev => [...prev, { id: placeholderId, role: 'coach', text: '…', source: 'ai' }]);
 
-      let assembled = '';
-      await createChatCompletionStream([system, user], (chunk) => {
-        assembled += chunk;
-        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: sanitize(assembled) } : m)));
-      });
-      const finalText = sanitize(assembled);
-      setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: finalText } : m)));
+      const full = await createChatCompletion([system, user]);
+      const parsed = tryExtractJSON(full);
+      if (parsed) {
+        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: undefined, structuredData: parsed } : m)));
+      } else {
+        const finalText = sanitize(full);
+        setMessages(prev => prev.map(m => (m.id === placeholderId ? { ...m, text: finalText } : m)));
+      }
       setIsTyping(false);
     } catch (err: any) {
       console.warn('Recipe AI error', err?.message || err);

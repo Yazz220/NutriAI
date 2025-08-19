@@ -32,13 +32,13 @@ export interface ValidationResult {
 // Platform detection patterns
 const PLATFORM_PATTERNS = {
   tiktok: [
-    /(?:https?:\/\/)?(?:www\.)?(?:vm\.)?tiktok\.com/i,
-    /(?:https?:\/\/)?(?:www\.)?tiktok\.com\/.*\/video\//i,
-    /(?:https?:\/\/)?vm\.tiktok\.com\/[A-Za-z0-9]+/i
+    /(?:https?:\/\/)?(?:www\.)?tiktok\.com\/@[^\/]+\/video\/[^\/]+/i, // Full video URL
+    /(?:https?:\/\/)?vm\.tiktok\.com\/[A-Za-z0-9]+/i // Shortened URL
   ],
   instagram: [
-    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel|reels)\//i,
-    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/stories\//i
+    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/reel\/[^\/]+/i, // Reels
+    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/p\/[^\/]+/i, // Posts (can be video)
+    /(?:https?:\/\/)?(?:www\.)?instagram\.com\/stories\/[^\/]+\/[^\/]+/i // Stories
   ],
   youtube: [
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=/i,
@@ -59,7 +59,8 @@ const PLATFORM_PATTERNS = {
 // Video URL patterns for social media platforms
 const VIDEO_URL_PATTERNS = [
   ...PLATFORM_PATTERNS.tiktok,
-  ...PLATFORM_PATTERNS.instagram.filter(p => p.source.includes('reel')),
+  /(?:https?:\/\/)?(?:www\.)?instagram\.com\/reel\/[^\/]+/i, // Reels
+  /(?:https?:\/\/)?(?:www\.)?instagram\.com\/p\/[^\/]+/i,    // Posts (can also be video)
   ...PLATFORM_PATTERNS.youtube,
   ...PLATFORM_PATTERNS.facebook
 ];

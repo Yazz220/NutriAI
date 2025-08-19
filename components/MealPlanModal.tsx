@@ -17,12 +17,16 @@ import { Colors } from '@/constants/colors';
 
 import { PlannedMeal, MealType, Recipe, Meal } from '@/types';
 import { useMeals } from '@/hooks/useMealsStore';
+import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+import { trackEvent } from '@/utils/analytics';
 
 interface MealPlanModalProps {
   visible: boolean;
   selectedDate: string;
   selectedMealType?: MealType;
   existingMeal?: PlannedMeal;
+  initialRecipeId?: string;
+  initialFolderId?: string;
   onSave: (plannedMeal: Omit<PlannedMeal, 'id'>) => void;
   onClose: () => void;
 }
@@ -33,6 +37,18 @@ const MEAL_TYPES: { value: MealType; label: string }[] = [
   { value: 'dinner', label: 'Dinner' },
   { value: 'snack', label: 'Snack' },
 ];
+
+function inferMealTypeByTime(): MealType {
+  try {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'breakfast';
+    if (hour < 15) return 'lunch';
+    if (hour < 20) return 'dinner';
+    return 'snack';
+  } catch (err) {
+    return 'dinner';
+  }
+}
 
 const styles = StyleSheet.create({
   modalOverlay: {
@@ -168,7 +184,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   recipeList: {
-    maxHeight: 200,
+    maxHeight: 420,
   },
   recipeItem: {
     flexDirection: 'row',
@@ -290,19 +306,24 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   selectedDate,
   selectedMealType,
   existingMeal,
+  initialRecipeId,
+  initialFolderId,
   onSave,
   onClose,
 }) => {
   const { meals } = useMeals();
-  const [mealType, setMealType] = useState<MealType>(selectedMealType || 'dinner');
+  const { folders } = useRecipeFolders();
+  const [mealType, setMealType] = useState<MealType>(selectedMealType || inferMealTypeByTime());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | Meal | null>(null);
-  const [servings, setServings] = useState(2);
+  const [servings, setServings] = useState<number>(2);
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Reset form when modal opens/closes or when existingMeal changes
   useEffect(() => {
     if (visible) {
+  // Analytics: modal opened
+  trackEvent({ type: 'plan_modal_open', data: { source: initialRecipeId ? 'quick_plan' : 'manual', recipeId: initialRecipeId || null } });
       if (existingMeal) {
         setMealType(existingMeal.mealType);
         setServings(existingMeal.servings);
@@ -310,10 +331,23 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
         // Find the recipe for the existing meal
         const recipe = meals.find(m => m.id === existingMeal.recipeId);
         setSelectedRecipe(recipe || null);
+      } else if (initialRecipeId) {
+        // Pre-select a recipe when provided (e.g., from a "Plan" action)
+        const recipe = meals.find(m => m.id === initialRecipeId);
+  setSelectedRecipe(recipe || null);
+  // If the recipe specifies servings, use it as a sensible default
+  if (recipe && typeof (recipe as any).servings === 'number') setServings((recipe as any).servings || 2);
+      } else if (initialFolderId) {
+        // If opened scoped to a folder, pre-select the first recipe in that folder if available
+        const folder = folders.find(f => f.id === initialFolderId);
+        if (folder) {
+          const existingMealInFolder = meals.find(m => folder.recipeIds.includes(m.id));
+          if (existingMealInFolder) setSelectedRecipe(existingMealInFolder);
+        }
       } else {
         setMealType(selectedMealType || 'dinner');
         setSelectedRecipe(null);
-        setServings(2);
+  setServings(2);
         setNotes('');
       }
       setSearchQuery('');
@@ -329,10 +363,19 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
     });
   };
 
-  const filteredRecipes = meals.filter(recipe =>
-    recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    recipe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredRecipes = meals
+    .filter((recipe) => {
+      if (initialFolderId) {
+        const folder = folders.find((f) => f.id === initialFolderId);
+        if (!folder) return false;
+        return folder.recipeIds.includes(recipe.id);
+      }
+      return true;
+    })
+    .filter((recipe) =>
+      recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      recipe.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
   const handleSave = () => {
     if (!selectedRecipe) {
@@ -350,7 +393,9 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
     };
 
     onSave(plannedMeal);
-    onClose();
+  // Analytics: plan saved
+  trackEvent({ type: 'plan_saved', data: { recipeId: plannedMeal.recipeId, mealType: plannedMeal.mealType, date: plannedMeal.date, servings: plannedMeal.servings } });
+  onClose();
   };
 
   const adjustServings = (delta: number) => {

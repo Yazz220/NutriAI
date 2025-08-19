@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image, FlatList, Dimensions, Animated } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Star } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -18,6 +18,7 @@ import { StructuredMessage } from '@/components/StructuredMessage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
 export default function CoachScreen() {
+  const insets = useSafeAreaInsets();
   const { loggedMeals, goals } = useNutrition();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
   const { getMealForDateAndType, addPlannedMeal } = useMealPlanner();
@@ -78,43 +79,138 @@ export default function CoachScreen() {
     setDayISO(d.toISOString().split('T')[0]);
   };
 
+  // Shift week by number of weeks (delta can be negative)
+  const shiftWeek = (deltaWeeks: number) => {
+    const d = new Date(dayISO);
+    d.setDate(d.getDate() + deltaWeeks * 7);
+    setDayISO(d.toISOString().split('T')[0]);
+  };
+
+  const getWeekStartISO = (isoDateStr: string) => {
+    const target = new Date(isoDateStr);
+    const dayOfWeek = target.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // treat Sunday as last day
+    const monday = new Date(target);
+    monday.setDate(target.getDate() + mondayOffset);
+    return monday.toISOString().split('T')[0];
+  };
+
+  const formatWeekRange = (anyIsoInWeek: string) => {
+    const startISO = getWeekStartISO(anyIsoInWeek);
+    const start = new Date(startISO);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    const s = start.toLocaleDateString(undefined, opts);
+    const e = end.toLocaleDateString(undefined, opts);
+    return `${s} — ${e}`;
+  };
+
+  // animated week label transition
+  const weekAnim = useRef(new Animated.Value(0)).current;
+  const weekLabelText = useMemo(() => formatWeekRange(dayISO), [dayISO]);
+  useEffect(() => {
+    // simple fade out -> change -> fade in
+    Animated.sequence([
+      Animated.timing(weekAnim, { toValue: 0, duration: 140, useNativeDriver: true }),
+      Animated.timing(weekAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+    ]).start();
+  }, [dayISO]);
+
   const openAddMeal = (type: MealType) => {
     setSelectedMealType(type);
     setShowMealPlanModal(true);
+  };
+
+  // Centered, clickable horizontal date picker using FlatList for snapping and consistent centering
+  const DateCarousel: React.FC<{ selectedDate: string; onSelectDate: (d: string) => void; daysToShow?: number }> = ({ selectedDate, onSelectDate, daysToShow = 7 }) => {
+    const listRef = React.useRef<FlatList<Date> | null>(null);
+    const itemWidth = 64; // width of the day bubble
+    const itemMargin = 8;
+    const totalItemSize = itemWidth + itemMargin * 2;
+    const windowWidth = Dimensions.get('window').width;
+    const centerIndex = Math.floor(daysToShow / 2);
+
+  const buildDates = () => {
+      const center = new Date(selectedDate);
+      const arr: Date[] = [];
+      for (let i = -centerIndex; i <= centerIndex; i++) {
+        const d = new Date(center);
+        d.setDate(center.getDate() + i);
+        arr.push(d);
+      }
+      return arr;
+    };
+
+    const dates = React.useMemo(buildDates, [selectedDate, daysToShow]);
+
+    useEffect(() => {
+      // always scroll so the selected item sits at the center position
+      // using viewPosition 0.5 centers the item in the viewport
+      listRef.current?.scrollToIndex({ index: centerIndex, animated: true, viewPosition: 0.5 });
+    }, [selectedDate]);
+
+    return (
+      <FlatList
+        ref={(r) => { listRef.current = r; }}
+        horizontal
+        data={dates}
+        keyExtractor={(d) => d.toISOString()}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Math.max(12, (windowWidth - itemWidth) / 2 - itemMargin) }}
+        renderItem={({ item }) => {
+          const d = item;
+          const iso = d.toISOString().split('T')[0];
+          const isSel = iso === selectedDate;
+          // Use Array.from to correctly grab the first grapheme cluster for localized/RTL weekdays
+          const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
+          const weekdayInitial = Array.from(weekday)[0] ?? weekday.charAt(0);
+          const dayNum = d.getDate();
+          return (
+            <TouchableOpacity
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${weekday} ${dayNum}`}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={[styles.carouselItem, isSel && styles.carouselItemSelected]}
+              onPress={() => onSelectDate(iso)}
+            >
+              <Text style={[styles.carouselWeekday, isSel && styles.carouselWeekdaySelected]}>{weekdayInitial.toUpperCase()}</Text>
+              <View style={[styles.carouselCircle, isSel && styles.carouselCircleSelected]}>
+                <Text style={[styles.carouselDayNumber, isSel && styles.carouselDayNumberSelected]}>{dayNum}</Text>
+              </View>
+              {isSel && <View style={styles.snapIndicator} />}
+            </TouchableOpacity>
+          );
+        }}
+        snapToInterval={totalItemSize}
+        decelerationRate="fast"
+        getItemLayout={(_, index) => ({ length: totalItemSize, offset: totalItemSize * index, index })}
+        initialScrollIndex={centerIndex}
+      />
+    );
   };
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: '',
-          headerShown: false,
+          title: 'Dashboard',
+          headerShown: true,
         }}
       />
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Enhanced Hero Header with Gradient */}
         <ExpoLinearGradient
-          colors={["#000000", "#1C1C1E"]}
+          colors={[Colors.background, Colors.background]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
           {/* Status Bar Spacer */}
           <View style={styles.statusBarSpacer} />
-          
-          {/* Header Controls */}
-          <View style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftDay(-1)}>
-              <ChevronLeft size={20} color="rgba(255,255,255,0.9)" />
-            </TouchableOpacity>
-            <View style={styles.dateContainer}>
-              <Text style={styles.heroDate}>{isToday ? 'Today' : dayLabel}</Text>
-              {isToday && <Text style={styles.heroSubDate}>{dayLabel}</Text>}
-            </View>
-            <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftDay(1)}>
-              <ChevronRight size={20} color="rgba(255,255,255,0.9)" />
-            </TouchableOpacity>
-          </View>
+
+          {/* Screen Title removed to rely on navigation header */}
 
           {/* Enhanced Progress Ring */}
           <View style={styles.heroInner}>
@@ -126,15 +222,15 @@ export default function CoachScreen() {
                     <Stop offset="100%" stopColor="#ffffff" stopOpacity="0.10" />
                   </LinearGradient>
                   <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#FF9500" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#FF9500" stopOpacity="0.9" />
+                    <Stop offset="0%" stopColor="#F1828D" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#F1828D" stopOpacity="0.9" />
                   </LinearGradient>
                 </Defs>
                 <Circle 
                   cx={ringSize/2} 
                   cy={ringSize/2} 
                   r={radius} 
-                  stroke="rgba(255,255,255,0.15)" 
+                  stroke="rgba(0,0,0,0.12)" 
                   strokeWidth={stroke} 
                   fill="none" 
                 />
@@ -142,7 +238,7 @@ export default function CoachScreen() {
                   cx={ringSize/2}
                   cy={ringSize/2}
                   r={radius}
-                  stroke="#FF9500"
+                  stroke="#F1828D"
                   strokeWidth={stroke}
                   strokeDasharray={`${dash}, ${circumference}`}
                   strokeLinecap="round"
@@ -169,20 +265,20 @@ export default function CoachScreen() {
           </View>
 
           {/* Quick Stats Row */}
-          <View style={styles.quickStatsRow}>
+            <View style={styles.quickStatsRow}>
             <View style={styles.quickStat}>
-              <Target size={16} color="rgba(255,255,255,0.8)" />
+              <Target size={16} color={Colors.primary} />
               <Text style={styles.quickStatText}>Goal: {calorieGoal}</Text>
             </View>
             <View style={styles.quickStat}>
-              <Flame size={16} color="rgba(255,255,255,0.8)" />
+              <Flame size={16} color={Colors.primary} />
               <Text style={styles.quickStatText}>Eaten: {eaten}</Text>
             </View>
           </View>
         </ExpoLinearGradient>
 
         {/* Enhanced Macros Section */}
-        <View style={styles.macrosSection}>
+        <View style={styles.macrosSection}> 
           <Text style={styles.sectionTitle}>Nutrition Breakdown</Text>
           <View style={styles.macrosGrid}>
             <EnhancedMacroCard 
@@ -210,6 +306,22 @@ export default function CoachScreen() {
               icon="🥑"
             />
           </View>
+        </View>
+
+        {/* Week Navigation + Date Carousel */}
+        <View style={styles.weekNavRow}>
+          <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftWeek(-1)} accessibilityRole="button" accessibilityLabel="Previous week">
+            <ChevronLeft size={18} color={Colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Animated.Text style={[styles.weekLabel, { opacity: weekAnim }]}>{weekLabelText}</Animated.Text>
+          </View>
+          <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftWeek(1)} accessibilityRole="button" accessibilityLabel="Next week">
+            <ChevronRight size={18} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ paddingHorizontal: 8, marginTop: 8, marginBottom: 16 }}>
+          <DateCarousel selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} />
         </View>
 
         {/* Enhanced Meals Section */}
@@ -256,7 +368,13 @@ export default function CoachScreen() {
       </ScrollView>
 
       {/* Floating Chat Button */}
-      <TouchableOpacity style={styles.fab} onPress={() => setChatOpen(true)}>
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          { bottom: Math.max(16, (insets?.bottom ?? 0) + 12), zIndex: 999, elevation: 20 },
+        ]}
+        onPress={() => setChatOpen(true)}
+      >
         <Brain size={24} color={Colors.white} />
       </TouchableOpacity>
 
@@ -266,27 +384,22 @@ export default function CoachScreen() {
         animationType="slide"
         onRequestClose={() => setChatOpen(false)}
         presentationStyle="fullScreen"
-        statusBarTranslucent
+        statusBarTranslucent={false}
       >
-        <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView edges={['top','bottom']} style={[styles.container, { backgroundColor: Colors.background }]}>
+          <View style={[styles.modalHeader, { paddingTop: (insets?.top ?? 0) + Spacing.sm }] }>
             <Text style={styles.modalTitle}>Coach Chat</Text>
             <TouchableOpacity onPress={() => setChatOpen(false)} style={styles.headerButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ color: Colors.primary, fontWeight: '600' }}>Close</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={{ paddingHorizontal: Spacing.lg }} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xxl }}>
             <View style={styles.chipsRow}>
               {['Plan my day', 'Plan my week', 'Generate shopping list'].map((chip) => (
                 <TouchableOpacity key={chip} style={styles.chip} onPress={() => sendMessage(chip)}>
                   <Text style={styles.chipText}>{chip}</Text>
                 </TouchableOpacity>
               ))}
-              {isTyping && (
-                <View style={[styles.msg, styles.msgCoach]}>
-                  <Text style={styles.typingText}>AI is typing…</Text>
-                </View>
-              )}
             </View>
             <View style={styles.messages}>
               {messages.map((m) => (
@@ -325,6 +438,11 @@ export default function CoachScreen() {
                   )}
                 </View>
               ))}
+              {isTyping && (
+                <View style={[styles.msg, styles.msgCoach]}>
+                  <Text style={styles.typingText}>AI is typing…</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -364,7 +482,7 @@ export default function CoachScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+  backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
@@ -374,6 +492,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     minHeight: 320,
+  },
+  // dashboardTitle removed (using nav header)
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
+    gap: 16,
+  },
+  dateLabel: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   statusBarSpacer: {
     height: Platform.OS === 'ios' ? 44 : 24,
@@ -390,7 +525,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroDate: {
-    color: Colors.white,
+  color: Colors.text,
     fontSize: 20,
     fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.3)',
@@ -398,7 +533,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   heroSubDate: {
-    color: 'rgba(255,255,255,0.8)',
+  color: Colors.lightText,
     fontSize: 14,
     fontWeight: '500',
     marginTop: 2,
@@ -407,11 +542,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  borderColor: Colors.border,
   },
   heroInner: {
     alignItems: 'center',
@@ -429,7 +564,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   kcalNumber: {
-    color: Colors.white,
+  color: Colors.text,
     fontSize: 42,
     fontWeight: '800',
     textShadowColor: 'rgba(0,0,0,0.3)',
@@ -437,7 +572,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   kcalLabel: {
-    color: 'rgba(255,255,255,0.9)',
+  color: Colors.lightText,
     fontSize: 16,
     fontWeight: '600',
     marginTop: 4,
@@ -447,19 +582,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   progressText: {
-    color: 'rgba(255,255,255,0.7)',
+  color: Colors.lightText,
     fontSize: 12,
     fontWeight: '500',
   },
   progressBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  backgroundColor: Colors.card,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     marginTop: 4,
   },
   progressPercent: {
-    color: Colors.white,
+  color: Colors.text,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -472,15 +607,15 @@ const styles = StyleSheet.create({
   quickStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  backgroundColor: Colors.card,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  borderColor: Colors.border,
   },
   quickStatText: {
-    color: 'rgba(255,255,255,0.9)',
+  color: Colors.text,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 6,
@@ -492,7 +627,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+  color: Colors.text,
     marginBottom: 16,
   },
   sectionHeader: {
@@ -504,13 +639,13 @@ const styles = StyleSheet.create({
   sectionAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,149,0,0.15)',
+  backgroundColor: 'rgba(241,130,141,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   sectionActionText: {
-    color: '#FF9500',
+  color: '#F1828D',
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -522,12 +657,12 @@ const styles = StyleSheet.create({
   },
   macroCard: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+  backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+  borderColor: Colors.border,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -542,7 +677,7 @@ const styles = StyleSheet.create({
   macroLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8A8A8E',
+  color: Colors.lightText,
     letterSpacing: 0.5,
   },
   macroProgress: {
@@ -562,12 +697,12 @@ const styles = StyleSheet.create({
   },
   macroUnit: {
     fontSize: 10,
-    color: '#8A8A8E',
+  color: Colors.lightText,
     fontWeight: '600',
   },
   macroGoal: {
     fontSize: 12,
-    color: '#8A8A8E',
+  color: Colors.lightText,
     fontWeight: '500',
   },
   mealsSection: {
@@ -577,17 +712,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mealCard: {
-    backgroundColor: '#1C1C1E',
+  backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+  borderColor: Colors.border,
     shadowOpacity: 0,
     elevation: 0,
   },
   mealCardPlanned: {
-    borderColor: 'rgba(255,149,0,0.30)',
-    backgroundColor: 'rgba(255,149,0,0.05)',
+  borderColor: 'rgba(241,130,141,0.30)',
+  backgroundColor: 'rgba(241,130,141,0.05)',
   },
   mealCardHeader: {
     flexDirection: 'row',
@@ -598,7 +733,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,149,0,0.15)',
+  backgroundColor: 'rgba(241,130,141,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -609,7 +744,7 @@ const styles = StyleSheet.create({
   mealTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+  color: Colors.text,
   },
   mealContent: {
     flexDirection: 'row',
@@ -620,7 +755,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 12,
     marginRight: 12,
-    backgroundColor: '#2C2C2E',
+  backgroundColor: Colors.secondary,
   },
   mealInfo: {
     flex: 1,
@@ -628,7 +763,7 @@ const styles = StyleSheet.create({
   mealName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+  color: Colors.text,
     marginBottom: 4,
   },
   mealStats: {
@@ -647,7 +782,7 @@ const styles = StyleSheet.create({
   },
   emptyMealText: {
     fontSize: 14,
-    color: '#8A8A8E',
+  color: Colors.lightText,
     fontWeight: '500',
     marginTop: 8,
   },
@@ -663,9 +798,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+  backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+  borderColor: Colors.border,
   },
   insightHeader: {
     flexDirection: 'row',
@@ -675,18 +810,18 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+  color: Colors.text,
     marginLeft: 6,
   },
   insightValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+  color: Colors.text,
     marginBottom: 2,
   },
   insightSubtitle: {
     fontSize: 11,
-    color: '#8A8A8E',
+  color: Colors.lightText,
     fontWeight: '500',
   },
   bottomSpacer: {
@@ -699,13 +834,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+  borderBottomWidth: 1,
+  borderBottomColor: Colors.border,
   },
   modalTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: '700',
-    color: '#FFFFFF',
+  color: Colors.text,
   },
   headerButton: { padding: Spacing.sm, marginRight: Spacing.sm },
   metaChip: { backgroundColor: Colors.tabBackground, color: Colors.text, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: Typography.sizes.sm },
@@ -713,27 +848,87 @@ const styles = StyleSheet.create({
   subtitle: { color: Colors.lightText, marginBottom: Spacing.sm },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap' },
   actionBtn: { marginRight: Spacing.sm, marginTop: Spacing.xs },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: { backgroundColor: '#2C2C2E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
-  chipText: { color: '#FFFFFF', fontSize: Typography.sizes.sm },
-  messages: { marginTop: Spacing.sm },
-  msg: { padding: Spacing.md, borderRadius: 12, marginBottom: Spacing.sm },
-  msgUser: { backgroundColor: '#1C1C1E' },
-  msgCoach: { backgroundColor: '#1C1C1E', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  msgText: { color: '#FFFFFF' },
-  msgSummary: { color: '#8A8A8E', marginTop: 4 },
-  msgSource: { color: '#8A8A8E', marginTop: 4, fontSize: Typography.sizes.sm },
-  typingText: { color: '#8A8A8E', fontStyle: 'italic' },
-  inlineCard: { backgroundColor: '#2C2C2E', borderRadius: 8, padding: Spacing.sm, marginTop: Spacing.xs },
-  inlineTitle: { color: '#FFFFFF', fontWeight: '600' },
-  inlineSub: { color: '#8A8A8E', marginTop: 2 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
+  chip: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16 },
+  chipText: { color: Colors.text, fontSize: Typography.sizes.sm },
+  messages: { marginTop: Spacing.md },
+  msg: { padding: Spacing.md, borderRadius: 12, marginBottom: Spacing.md },
+  msgUser: { backgroundColor: Colors.card },
+  msgCoach: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
+  msgText: { color: Colors.text },
+  msgSummary: { color: Colors.lightText, marginTop: 4 },
+  msgSource: { color: Colors.lightText, marginTop: 4, fontSize: Typography.sizes.sm },
+  typingText: { color: Colors.lightText, fontStyle: 'italic' },
+  inlineCard: { backgroundColor: Colors.secondary, borderRadius: 8, padding: Spacing.sm, marginTop: Spacing.xs },
+  inlineTitle: { color: Colors.text, fontWeight: '600' },
+  inlineSub: { color: Colors.lightText, marginTop: 2 },
   inlineActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  composerRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 999, paddingHorizontal: Spacing.md, backgroundColor: '#2C2C2E' },
-  input: { flex: 1, paddingVertical: Spacing.md, color: '#FFFFFF' },
+  composerRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: Spacing.md, backgroundColor: Colors.card },
+  input: { flex: 1, paddingVertical: Spacing.md, color: Colors.text },
   sendBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  sendText: { color: '#FF9500', fontWeight: '600' },
+  sendText: { color: '#F1828D', fontWeight: '600' },
   iconBtn: { padding: Spacing.sm },
-  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: '#FF9500', borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(255,149,0,0.3)', shadowOpacity: 0.6, shadowRadius: 12, elevation: 8 },
+  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: '#F1828D', borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(241,130,141,0.3)', shadowOpacity: 0.6, shadowRadius: 12, elevation: 8 },
+  carouselItem: {
+    width: 64,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
+  carouselItemSelected: {
+    // lift selected item slightly
+    transform: [{ translateY: -8 }],
+  },
+  carouselWeekday: {
+  color: Colors.lightText,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  carouselWeekdaySelected: {
+  color: Colors.text,
+    fontWeight: '700',
+  },
+  carouselCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  backgroundColor: Colors.card,
+  borderWidth: 1,
+  borderColor: Colors.border,
+  },
+  carouselCircleSelected: {
+    // use app accent (orange) so it matches app theme rather than the example screenshot
+  backgroundColor: '#F1828D',
+  borderColor: '#F1828D',
+  },
+  carouselDayNumber: {
+  color: Colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  carouselDayNumberSelected: {
+  color: Colors.white,
+  },
+  weekNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 6,
+  },
+  weekLabel: {
+  color: Colors.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  snapIndicator: {
+    height: 3,
+    width: 28,
+  backgroundColor: '#F1828D',
+    borderRadius: 2,
+    marginTop: 6,
+  },
 });
 
 // --- Enhanced Presentational Components ---

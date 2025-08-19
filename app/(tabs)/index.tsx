@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroTitle: {
-    color: Colors.white,
+  color: Colors.text,
     fontSize: 24,
     fontWeight: '700',
     marginLeft: 12,
@@ -81,11 +81,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+  borderColor: Colors.border,
   },
   inventoryStats: {
     flexDirection: 'row',
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     marginBottom: 0,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.white,
     borderColor: Colors.border,
   },
   expiringSection: {

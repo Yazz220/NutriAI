@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { importRecipeFromUrl, importRecipeFromText, importRecipeFromImage } from '@/utils/recipeImport';
 import { transcribeFromUrl, transcribeFromUri } from '@/utils/sttClient';
 import { smartImport } from '@/utils/universalImport';
+import { getRecentAbstains } from '@/utils/importTelemetry';
 
 import { Meal } from '@/types';
 
@@ -43,6 +44,8 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
   const [provenance, setProvenance] = useState<any | null>(null);
   const [improvedPreview, setImprovedPreview] = useState<typeof preview>(null);
   const [showDiff, setShowDiff] = useState(false);
+  const [showTelemetry, setShowTelemetry] = useState(false);
+  const [recentAbstains, setRecentAbstains] = useState<any[]>([]);
 
   const isLikelyUrl = useMemo(() => {
     const s = url.trim();
@@ -258,15 +261,29 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
         
       } catch (importError) {
         console.error('[ImportRecipeModal] Smart import failed:', importError);
-        const errorMessage = importError instanceof Error ? importError.message : 'Unknown error occurred';
-        Alert.alert('Import Failed', `Could not process this content: ${errorMessage}`);
+        const msg = importError instanceof Error ? importError.message : String(importError || '');
+        // Map abstain reasons to friendly guidance
+        if (msg.includes('ImportAbstain:video:provider_rejected_url')) {
+          Alert.alert('Import Unavailable', 'Your transcription provider rejected this video URL. Try pasting the caption text or attaching a screenshot.');
+        } else if (msg.includes('ImportAbstain:video:transcription_unavailable') || msg.includes('ImportAbstain:video:no_transcript')) {
+          Alert.alert('Import Unavailable', 'We could not transcribe this video automatically. Try pasting the caption text or attaching a screenshot.');
+        } else if (msg.includes('ImportAbstain:video:insufficient_video_evidence')) {
+          Alert.alert('Not Enough Evidence', 'We could not extract enough reliable details from this video. Try a different link, paste the caption, or attach a screenshot.');
+        } else {
+          Alert.alert('Import Failed', `Could not process this content: ${msg}`);
+        }
         return;
       }
       
     } catch (e: any) {
       console.error('[ImportRecipeModal] Smart import failed', e);
-      const msg = e?.message || 'Could not import this recipe. Try another source, transcribing the video, or attaching a screenshot.';
-      Alert.alert('Import failed', msg);
+      const msg = e?.message || '';
+      if (typeof msg === 'string' && (msg.includes('ImportAbstain:video:') || msg.includes('ImportAbstain:text:'))) {
+        // Already handled above, but keep a fallback user-friendly copy
+        Alert.alert('Import Unavailable', 'We could not automatically import this content. Try pasting text or attaching a screenshot.');
+      } else {
+        Alert.alert('Import failed', msg || 'Could not import this recipe. Try another source or attach a screenshot.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -337,17 +354,7 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
       setPreview(null);
       if (isVideo) {
         setPickedVideo(uri);
-        // MVP flow: prompt user to paste caption or take screenshot
-        Alert.alert(
-          'Video detected',
-          'You can transcribe the video to extract the recipe, paste the caption in Text tab, or pick a screenshot.',
-          [
-            { text: 'Transcribe Video', onPress: () => handleTranscribePickedVideo() },
-            { text: 'Paste Caption', onPress: () => setActiveTab('text') },
-            { text: 'Pick Screenshot', onPress: () => setActiveTab('image') },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
+        // No prompts; rely on single Smart Import action to handle transcription under the hood
       } else {
         setActiveTab('image');
         setPickedImage(uri);
@@ -367,6 +374,14 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
         }
       }
     }
+  };
+
+  const handleToggleTelemetry = () => {
+    setShowTelemetry(v => !v);
+    try {
+      const items = getRecentAbstains();
+      setRecentAbstains(items);
+    } catch {}
   };
 
   const handleSave = () => {
@@ -431,23 +446,8 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
             <Image source={{ uri: pickedImage }} style={styles.previewImage} />
           ) : null}
           {!!pickedVideo && (
-            <Text style={styles.helpText}>Video attached. You can also transcribe it for better accuracy.</Text>
+            <Text style={styles.helpText}>Video attached. Tap Smart Import to process automatically.</Text>
           )}
-          {isSocialVideoLink ? (
-            <>
-              <Text style={styles.helpText}>
-                Detected social video link. For best results, use "Transcribe Video" to extract audio, 
-                or copy the recipe text from the video description/comments.
-              </Text>
-              <View style={{ marginTop: Spacing.xs }}>
-                <Button 
-                  title={isTranscribing ? 'Transcribing…' : 'Transcribe Video'} 
-                  onPress={handleTranscribeFromUrl} 
-                  disabled={isTranscribing || !url.trim()} 
-                />
-              </View>
-            </>
-          ) : null}
 
           {(isLoading || isTranscribing) && <ActivityIndicator style={{ marginTop: Spacing.md }} />}
 
@@ -469,6 +469,33 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({ visible, o
                   )}
                   {typeof provenance.confidence === 'number' && (
                     <Text style={styles.provBadge}>Confidence: {provenance.confidence.toFixed(2)}</Text>
+                  )}
+                  {!!provenance.supportRates && (
+                    <Text style={styles.provBadge}>
+                      Support: {Number(provenance.supportRates.ingredient || 0).toFixed(2)} / {Number(provenance.supportRates.step || 0).toFixed(2)}
+                    </Text>
+                  )}
+                  {!!provenance.evidenceSizes && (
+                    <Text style={styles.provBadge}>
+                      Evidence: c{provenance.evidenceSizes.caption||0}/t{provenance.evidenceSizes.transcript||0}/o{provenance.evidenceSizes.ocr||0}
+                    </Text>
+                  )}
+                </View>
+              )}
+              <View style={{ marginTop: Spacing.xs, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <Button title={showTelemetry ? 'Hide Telemetry' : 'View Telemetry'} variant="outline" onPress={handleToggleTelemetry} />
+              </View>
+              {showTelemetry && (
+                <View style={styles.telemetryBox}>
+                  <Text style={styles.telemetryTitle}>Provenance</Text>
+                  <Text style={styles.telemetryText}>{JSON.stringify(provenance || {}, null, 2)}</Text>
+                  {!!recentAbstains?.length && (
+                    <>
+                      <Text style={[styles.telemetryTitle, { marginTop: Spacing.sm }]}>Recent Abstains</Text>
+                      {recentAbstains.slice(0, 5).map((a, idx) => (
+                        <Text key={idx} style={styles.telemetryText}>• [{a.at}] {a.source}: {a.reason} {a.support ? `(ing=${a.support.ingredient?.toFixed?.(2)} step=${a.support.step?.toFixed?.(2)})` : ''}</Text>
+                      ))}
+                    </>
                   )}
                 </View>
               )}
@@ -624,6 +651,23 @@ const styles = StyleSheet.create({
   diffAdded: {
     color: '#065f46',
     marginTop: 4,
+  },
+  telemetryBox: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: Spacing.xs,
+  },
+  telemetryTitle: {
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  telemetryText: {
+    color: Colors.lightText,
+    fontSize: 12,
   },
 });
 

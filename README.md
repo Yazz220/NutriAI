@@ -29,6 +29,10 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Import from URLs (e.g., TikTok/Instagram/websites)
 - Client-side parsing via JSON-LD/Open Graph metadata
 - Preview before save, with smart follow-ups: "Add to Plan", "Add missing ingredients"
+- Centralized, versioned prompts with deterministic AI (temperature=0, top_p=0)
+- Strict policies: conservative | verbatim | enrich; default is conservative (no guessing)
+- Abstain logic on insufficient evidence (video thresholds: ≥70% for ingredients/steps)
+- Telemetry for provenance: policy, support rates, evidence sizes, abstain reasons
 
 ## 🚀 Getting Started
 
@@ -73,6 +77,55 @@ Follow these instructions to get a copy of the project up and running on your lo
      EXPO_PUBLIC_MEALDB_API_KEY=1
      # Optional (usually not needed for TheMealDB, but available for web CORS workarounds)
      EXPO_PUBLIC_RECIPES_PROXY_BASE=
+
+## 🍳 Recipe Import Pipeline (Prompts, Policies, Abstain, Telemetry)
+
+NutriAI standardizes all import flows (text, image, video, URL JSON‑LD, reconciliation) through a centralized prompt registry and deterministic AI settings.
+
+- __Centralized Prompts__: `utils/promptRegistry.ts` generates system prompts with versioning and per‑flow policies.
+- __Deterministic AI__: `utils/aiClient.ts:createChatCompletionDeterministic()` uses temperature=0, top_p=0 for reproducible outputs.
+- __Policies__:
+  - __conservative__ (default): No hallucinations or invention. Only evidence‑supported items.
+  - __verbatim__: Map JSON‑LD/Open Graph exactly to our schema. No enrichment.
+  - __enrich__: Allows AI to enhance if explicitly enabled.
+- __Abstain Logic__: If evidence is insufficient, the importer returns an "abstain" outcome instead of guessing.
+  - For video/shorts, import requires ≥0.7 support for both ingredients and steps.
+- __Reconciliation__: A final AI pass can remove unsupported items and annotate notes.
+- __Telemetry__: `utils/importTelemetry.ts` keeps a ring buffer of recent abstains, and provenance includes:
+  - `policy`, `extractionMethod`, `supportRates` (ingredient, step)
+  - `evidenceSizes` (caption/transcript/ocr) and `confidence`
+
+### UI: ImportRecipeModal
+
+- Paste a URL or text, or attach an image/video.
+- If a social video URL is detected, use "Transcribe Video" for best results.
+- If a video file is attached, a "Transcribe Attached Video" button is shown.
+- Preview shows provenance badges (policy, extraction method, confidence, support, evidence sizes).
+- Dev helper: "View Telemetry" reveals full provenance JSON and recent abstain events (for debugging/audit).
+
+### Environment Variables (Import Pipeline)
+
+Add to `.env` (client‑safe):
+
+```env
+# Centralized import policy. One of: conservative | verbatim | enrich
+EXPO_PUBLIC_IMPORT_POLICY=conservative
+
+# Allow AI enrichment during import (false recommended for reliability)
+EXPO_PUBLIC_IMPORT_ALLOW_ENRICH=false
+
+# Evidence thresholds for video/shorts imports (0.0 - 1.0)
+EXPO_PUBLIC_IMPORT_MIN_ING_SUPPORT=0.7
+EXPO_PUBLIC_IMPORT_MIN_STEP_SUPPORT=0.7
+
+# Telemetry level (basic|verbose). Verbose logs evidence sizes & support rates
+EXPO_PUBLIC_IMPORT_TELEMETRY=basic
+```
+
+### Security
+
+- Avoid placing provider secrets in `EXPO_PUBLIC_…` variables for production. Route AI/STT via a backend proxy (e.g., Supabase Edge Functions) and store secrets there.
+- If you previously added `EXPO_PUBLIC_AI_API_KEY` for local testing, rotate the key and remove it from the client build before shipping.
      ```
 
 ### Recipe Providers
@@ -86,6 +139,62 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 Notes:
 - The web proxy `EXPO_PUBLIC_RECIPES_PROXY_BASE` is supported for CORS-only scenarios on web. Native apps (iOS/Android) call providers directly.
+
+### 📷 Dataset-backed Recipes (S3 Images)
+
+If you use a local dataset (e.g., Epicurious CSV + images), you can host the images on S3 and point the app to HTTPS URLs.
+
+__Assumptions__
+- Table: `public.recipes`
+- Columns: `image_path` holds the base filename (no extension), `image_url` is what the UI reads, optional `image` as a staging column
+- Bucket: `nutriai-recipe-images-prod`
+
+__Populate S3 HTTPS URLs into `image`__
+```sql
+alter table public.recipes add column if not exists image text;
+
+update public.recipes
+set image = 'https://nutriai-recipe-images-prod.s3.amazonaws.com/' || image_path || '.jpg'
+where image_path is not null
+  and (image is null or image = '');
+```
+
+__Make the UI use S3 immediately (copy to `image_url`)__
+```sql
+update public.recipes
+set image_url = image
+where image is not null;
+```
+
+__Optional: Switch to a CDN later (CloudFront)__
+Only do this after your CDN domain works in the browser for a sample image.
+```sql
+update public.recipes
+set image_url = replace(
+  image_url,
+  'https://nutriai-recipe-images-prod.s3.amazonaws.com/',
+  'https://YOUR_CDN_DOMAIN/'
+)
+where image_url like 'https://nutriai-recipe-images-prod.s3.amazonaws.com/%';
+```
+
+__Rollback (if images stop appearing)__
+```sql
+update public.recipes
+set image_url = 'https://nutriai-recipe-images-prod.s3.amazonaws.com/' || image_path || '.jpg'
+where image_path is not null;
+```
+
+__CDN Checklist__
+- Origin → S3 bucket `nutriai-recipe-images-prod.s3.amazonaws.com`
+- Private bucket: set up OAC (Origin Access Control) and bucket policy to allow CloudFront
+- Behavior: allow GET/HEAD; caching/compression on
+- Test: `https://YOUR_CDN_DOMAIN/<image_path>.jpg` returns 200
+
+__Troubleshooting__
+- 403/404 on CDN: origin or bucket policy misconfigured, or propagation not complete (allow 5–15 min)
+- Wrong domain in SQL: verify the exact prefix you replaced
+- Content-Type: S3 objects should have `image/jpeg`
 
 ### Recipe Store Architecture
 

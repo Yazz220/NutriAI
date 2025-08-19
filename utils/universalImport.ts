@@ -1,10 +1,13 @@
 import { importRecipeFromUrl, importRecipeFromText, importRecipeFromImage } from './recipeImport';
 import { extractJsonLdRecipes } from './urlContentExtractor';
 import { transcribeFromUrl, transcribeFromUri } from './sttClient';
-import { createChatCompletion } from './aiClient';
+import { createChatCompletion, createChatCompletionDeterministic } from './aiClient';
 import { detectInputType, validateInput, getPlatformHints } from './inputDetection';
+import { getImportKnobs, buildPrompt } from './promptRegistry';
+import { recordAbstain, getRecentAbstains } from './importTelemetry';
 
 import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 
 export type SmartInput = {
   url?: string | null;
@@ -31,12 +34,108 @@ export type SmartOutput = {
     policy?: ParsePolicy;
     extractionMethod?: 'json-ld' | 'og' | 'scrape' | 'ocr' | 'transcript' | 'caption' | 'mixed';
     sourceByField?: Record<string, 'json-ld' | 'og' | 'ocr' | 'transcript' | 'caption' | 'ai'>;
+    // Telemetry
+    supportRates?: { ingredient: number; step: number };
+    evidenceSizes?: { caption: number; transcript: number; ocr: number };
 
   };
 };
 
 // Parse policy scaffolding for downstream enforcement
 export type ParsePolicy = 'verbatim' | 'conservative' | 'enrich';
+
+// Telemetry helpers imported from importTelemetry.ts
+
+// --- Evidence support computation for video imports (top-level) ---
+function tokenize(s: string): Set<string> {
+  return new Set(
+    (s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s\/\.]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t && t.length > 2)
+  );
+}
+
+// Normalize known video URL variants (e.g., YouTube Shorts -> watch)
+async function normalizeVideoUrl(u: string): Promise<string> {
+  try {
+    // Use the Supabase Edge Function to resolve the URL server-side
+    const supabaseUrl = 'https://wckohtwftlwhyldnfpbz.supabase.co/functions/v1/resolve-url';
+    let finalUrl = u;
+
+    try {
+      const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indja29odHdmdGx3aHlsZG5mcGJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNzA1NjgsImV4cCI6MjA2Nzc0NjU2OH0.uJN5YSIiil3tYm4JBG2UapMaYEROICE33iQvTaIUg68';
+      const response = await fetch(supabaseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({ url: u }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to resolve URL: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.finalUrl) {
+        finalUrl = data.finalUrl;
+      }
+    } catch (fetchError) {
+      console.warn(`[UniversalImport] Could not resolve URL via proxy for ${u}, proceeding with original. Error: ${fetchError}`);
+    }
+
+    const url = new URL(finalUrl);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+
+    // Normalize YouTube Shorts and short links to standard watch URLs
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      if (hostname === 'youtu.be' && url.pathname.length > 1) {
+        const id = url.pathname.slice(1);
+        return `https://www.youtube.com/watch?v=${id}`;
+      }
+      const shortsMatch = url.pathname.match(/\/shorts\/([^/?#]+)/);
+      if (shortsMatch?.[1]) {
+        const id = shortsMatch[1];
+        return `https://www.youtube.com/watch?v=${id}`;
+      }
+    }
+
+    // For other platforms like TikTok and Instagram, the resolved URL is usually sufficient
+    return finalUrl;
+  } catch (e) {
+    console.error(`[UniversalImport] Failed to normalize URL ${u}:`, e);
+    return u; // Return original URL on failure
+  }
+}
+
+export function computeSupportRates(evidenceText: string, recipe: any): { ingredientSupport: number; stepSupport: number } {
+  const ev = tokenize(evidenceText);
+  const ings = Array.isArray(recipe?.ingredients) ? recipe.ingredients : [];
+  const steps = Array.isArray(recipe?.steps) ? recipe.steps : [];
+
+  let ingSupported = 0;
+  for (const ing of ings) {
+    const name = String(ing?.name || '').toLowerCase();
+    const tokens = tokenize(name);
+    const supported = Array.from(tokens).some((t) => ev.has(t));
+    if (supported) ingSupported++;
+  }
+  const ingredientSupport = ings.length ? ingSupported / ings.length : 0;
+
+  let stepSupported = 0;
+  for (const st of steps) {
+    const tokens = tokenize(String(st || ''));
+    const supported = Array.from(tokens).some((t) => ev.has(t));
+    if (supported) stepSupported++;
+  }
+  const stepSupport = steps.length ? stepSupported / steps.length : 0;
+
+  return { ingredientSupport, stepSupport };
+}
 
 function detectKind(input: SmartInput): {
   kind: 'video-url' | 'recipe-url' | 'text' | 'image-file' | 'video-file';
@@ -53,12 +152,14 @@ function detectKind(input: SmartInput): {
     const mockFile = {
       name: input.file.name || 'file',
       type: input.file.mime || '',
-      size: 0 // We don't have size info from SmartInput
+      // Use non-zero size to satisfy validators that disallow empty files
+      size: 1
     } as File;
     inputForDetection = mockFile;
   } else {
     inputForDetection = input.text || '';
   }
+
 
   const detection = detectInputType(inputForDetection);
   const validation = validateInput(inputForDetection, detection);
@@ -221,41 +322,10 @@ function mergeSignals(parts: Array<string | undefined>) {
 }
 
 async function reconcileWithAI(initialJson: any, evidence: string): Promise<{ recipe: any; notes: string[]; confidence: number }> {
-  const system = `You are a CONSERVATIVE recipe data validator. Your job is to MINIMALLY fix the preliminary JSON, NOT to rewrite or improve the recipe.
-
-STRICT RULES - DO NOT DEVIATE:
-1. PRESERVE the preliminary JSON as much as possible
-2. ONLY fix obvious parsing errors, do NOT make creative changes
-3. NEVER change ingredient names unless they are clearly wrong
-4. NEVER change quantities unless they are clearly parsing errors
-5. NEVER add ingredients not in the preliminary JSON
-6. NEVER remove ingredients from the preliminary JSON
-7. BE CONSISTENT - same input should always give same output
-
-FRACTION HANDLING:
-- If you see "2/3" in evidence but "2" in JSON, fix it to "2/3"
-- If you see "1/2" in evidence but "1" in JSON, fix it to "1/2"
-- NEVER convert fractions to decimals or whole numbers
-- Preserve exact fraction format from evidence
-
-UNIT NORMALIZATION ONLY:
-- tablespoon → tbsp
-- teaspoon → tsp  
-- ounces → oz
-- pounds → lb
-- cups → cup (keep singular)
-
-WHAT NOT TO DO:
-- Do NOT simplify recipe names
-- Do NOT change ingredient quantities unless clearly wrong
-- Do NOT add missing ingredients
-- Do NOT rewrite instructions
-- Do NOT make the recipe "better"
-
-Return ONLY: { recipe: <minimally_fixed_json>, notes: [<what_you_fixed>], confidence: <0.8_if_minimal_changes_0.6_if_major_fixes> }`;
+  const { system } = buildPrompt('import.reconcile', 'conservative');
 
   const user = `PRELIMINARY_JSON\n${JSON.stringify(initialJson)}\n\nEVIDENCE\n${evidence}`;
-  const resp = await createChatCompletion([
+  const resp = await createChatCompletionDeterministic([
     { role: 'system', content: system },
     { role: 'user', content: user },
   ]);
@@ -308,8 +378,11 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
 
   // Check validation before proceeding
   if (!validation.isValid) {
-    console.error('[UniversalImport] Input validation failed:', validation.errors);
-    throw new Error(`Input validation failed: ${validation.errors.join(', ')}`);
+    console.warn('[UniversalImport] Input validation failed:', validation.errors, 'kind=', kind);
+    // For text and image-file, proceed best-effort to avoid blocking simple flows
+    if (kind !== 'text' && kind !== 'image-file') {
+      throw new Error(`Input validation failed: ${validation.errors.join(', ')}`);
+    }
   }
 
   const provenance: SmartOutput['provenance'] = {
@@ -321,6 +394,14 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
   } as any;
 
   if (kind === 'recipe-url') {
+    // Guard: if there is no actual URL (e.g., detector flagged URL-like text), fallback to text parsing
+    if (!input.url) {
+      console.warn('[UniversalImport] Detected recipe-url but input.url is missing. Falling back to text parsing.');
+      const recipe = parseRecipeWithRules(preprocess(input.text || ''));
+      const policy: ParsePolicy = 'conservative';
+      const evidenceSizes = { text: (input.text || '').length } as any;
+      return { recipe, provenance: { ...provenance, policy, evidenceSizes, parserNotes: ['URL detection fallback to text'], confidence: 0.9 } };
+    }
     // Heuristic pre-check: detect JSON-LD to set policy and extraction hints
     try {
       let html = '';
@@ -350,44 +431,149 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
       }
     } catch {}
 
-    const recipe = await importRecipeFromUrl(input.url!);
-    return { recipe, provenance };
+    const recipe = await importRecipeFromUrl(input.url!); 
+    recipe.sourceUrl = input.url;
+    // Add basic evidence sizes if available (HTML length unknown here); keep policy/extractionMethod from detection
+    return { recipe, provenance: { ...provenance, confidence: 0.9 } };
   }
 
   if (kind === 'text') {
     // Use deterministic rule-based parsing instead of AI for consistency
     const recipe = parseRecipeWithRules(preprocess(input.text || ''));
-    // For text-only we don’t have extra evidence; still run light reconcile on text
+    // Telemetry: conservative policy, evidence size (text length)
+    const policy: ParsePolicy = 'conservative';
+    const evidenceSizes = { text: (input.text || '').length } as any;
     // Skip AI reconciliation for text imports to ensure consistency
     console.log('[UniversalImport] Using direct text import for consistency');
-    return { recipe, provenance: { ...provenance, parserNotes: ['Rule-based parsing'], confidence: 0.9 } };
+    return { recipe, provenance: { ...provenance, policy, evidenceSizes, parserNotes: ['Rule-based parsing'], confidence: 0.9 } };
   }
 
   if (kind === 'image-file') {
     // Convert to base64 data URL as expected by importRecipeFromImage
     const uri = input.file!.uri;
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-    const ext = uri.split('.').pop()?.toLowerCase();
-    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-    const dataUrl = `data:${mime};base64,${base64}`;
+    let dataUrl: string;
+    if (uri.startsWith('data:')) {
+      dataUrl = uri;
+    } else if (Platform.OS === 'web') {
+      // Web: use fetch -> arrayBuffer -> base64 (avoid direct Node Buffer typings)
+      const res = await fetch(uri);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const g: any = globalThis as any;
+      const base64 = typeof g.btoa === 'function'
+        ? g.btoa(binary)
+        : g.Buffer && typeof g.Buffer.from === 'function'
+          ? g.Buffer.from(binary, 'binary').toString('base64')
+          : '';
+      const ct = res.headers.get('Content-Type') || undefined;
+      const guessedMime = input.file!.mime || ct || 'image/jpeg';
+      dataUrl = `data:${guessedMime};base64,${base64}`;
+    } else {
+      // Native: use expo-file-system
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      const ext = uri.split('.').pop()?.toLowerCase();
+      const mime = input.file!.mime || (ext === 'png' ? 'image/png' : 'image/jpeg');
+      dataUrl = `data:${mime};base64,${base64}`;
+    }
     const recipe = await importRecipeFromImage(dataUrl);
-    return { recipe, provenance };
+    const policy: ParsePolicy = 'conservative';
+    const evidenceSizes = { imageBytes: (dataUrl.length || 0) } as any;
+    return { recipe, provenance: { ...provenance, policy, evidenceSizes } };
   }
 
   if (kind === 'video-url') {
-    provenance.videoUrl = input.url!;
+    const normUrl = await normalizeVideoUrl(input.url!);
+    provenance.videoUrl = normUrl;
 
-    console.log('[UniversalImport] Processing video URL:', input.url);
+    console.log('[UniversalImport] Processing video URL automatically:', input.url);
 
-    // For now, provide a helpful error message for video URLs since transcription might not be available
-    throw new Error(
-      'Video URL processing requires transcription services that may not be currently available.\n\n' +
-      'Please try one of these alternatives:\n' +
-      '• Copy the recipe text from the video description or comments\n' +
-      '• Take a screenshot of the recipe and import that instead\n' +
-      '• Download the video and upload it as a file\n' +
-      '• Use the "Transcribe Video" button if it appears'
-    );
+    // 1) Try reader (r.jina.ai) first for page text/captions
+    try {
+      const readerUrl = `https://r.jina.ai/http/${normUrl.replace(/^https?:\/\//, '')}`;
+      const res = await fetch(readerUrl);
+      const page = await res.text();
+      const evidence = (page || '').slice(0, 200000);
+      if (evidence && evidence.trim().length > 50) {
+        provenance.pageText = evidence.slice(0, 2000);
+        const recipe = parseRecipeWithRules(preprocess(evidence));
+        const knobs = getImportKnobs();
+        const { ingredientSupport, stepSupport } = computeSupportRates(evidence, recipe);
+        const ingOk = ingredientSupport >= knobs.minIngredientSupport;
+        const stepOk = stepSupport >= knobs.minStepSupport;
+        if (ingOk && stepOk) {
+          return {
+            recipe: { ...recipe, sourceUrl: input.url },
+            provenance: {
+              ...provenance,
+              parserNotes: ['Reader first (r.jina.ai) + rule-based parsing'],
+              confidence: 0.6,
+              policy: knobs.policy,
+              extractionMethod: 'scrape',
+              supportRates: { ingredient: ingredientSupport, step: stepSupport } as any,
+              evidenceSizes: { transcript: 0 } as any
+            }
+          };
+        }
+        // continue to STT if evidence insufficient
+      }
+    } catch (readerErr) {
+      console.warn('[UniversalImport] Reader-first failed:', readerErr);
+    }
+
+    // 2) Auto-transcribe from URL under the hood
+    let tx: any;
+    try {
+      tx = await transcribeFromUrl(normUrl, { language: 'english', response_format: 'json' } as any);
+    } catch (e: any) {
+      console.warn('[UniversalImport] transcribeFromUrl failed:', e);
+      const msg = typeof e?.message === 'string' ? e.message : '';
+      const reason = /\(400\)/.test(msg) || /invalid/i.test(msg) ? 'provider_rejected_url' : 'transcription_unavailable';
+      recordAbstain({ source: 'video', reason, support: undefined as any, evidenceSizes: { transcript: 0 } as any, at: '' as any });
+      throw new Error(`ImportAbstain:video:${reason}`);
+    }
+    provenance.transcript = tx?.text;
+
+    if (!tx?.text || tx.text.trim().length < 10) {
+      const reason = 'no_transcript';
+      recordAbstain({ source: 'video', reason, support: undefined as any, evidenceSizes: { transcript: 0 } as any, at: '' as any });
+      throw new Error('ImportAbstain:video:' + reason);
+    }
+
+    // Deterministic parse from transcript
+    const evidence = tx.text;
+    const recipe = parseRecipeWithRules(preprocess(evidence));
+
+    // Enforce thresholds
+    const knobs = getImportKnobs();
+    const { ingredientSupport, stepSupport } = computeSupportRates(evidence, recipe);
+    const ingOk = ingredientSupport >= knobs.minIngredientSupport;
+    const stepOk = stepSupport >= knobs.minStepSupport;
+    if (!(ingOk && stepOk)) {
+      const reason = 'insufficient_video_evidence';
+      recordAbstain({
+        source: 'video',
+        reason,
+        support: { ingredient: ingredientSupport, step: stepSupport },
+        evidenceSizes: { transcript: provenance.transcript?.length || 0 } as any,
+        at: '' as any,
+      });
+      throw new Error(`ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}`);
+    }
+
+    return {
+      recipe,
+      provenance: {
+        ...provenance,
+        parserNotes: ['Auto transcription (URL) + rule-based parsing'],
+        confidence: 0.7,
+        policy: knobs.policy,
+        extractionMethod: 'transcript',
+        supportRates: { ingredient: ingredientSupport, step: stepSupport } as any,
+        evidenceSizes: { transcript: provenance.transcript?.length || 0 } as any
+      }
+    };
   }
 
   // video-file processing with multiple fallback strategies
@@ -425,6 +611,27 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
 
     // Use rule-based parsing for consistency
     const recipe = parseRecipeWithRules(preprocess(evidence));
+
+    // Enforce evidence thresholds
+    const knobs = getImportKnobs();
+    const { ingredientSupport, stepSupport } = computeSupportRates(evidence, recipe);
+    const ingOk = ingredientSupport >= knobs.minIngredientSupport;
+    const stepOk = stepSupport >= knobs.minStepSupport;
+    if (!(ingOk && stepOk)) {
+      const reason = 'insufficient_video_evidence';
+      recordAbstain({
+        source: 'video',
+        reason,
+        support: { ingredient: ingredientSupport, step: stepSupport },
+        evidenceSizes: {
+          caption: provenance.caption?.length,
+          transcript: provenance.transcript?.length,
+          ocr: provenance.ocrText?.length,
+        },
+        at: '' as any,
+      });
+      throw new Error(`ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}`);
+    }
     console.log('[UniversalImport] Enhanced video extraction successful');
 
     return {
@@ -432,7 +639,15 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
       provenance: {
         ...provenance,
         parserNotes: ['Enhanced video extraction + rule-based parsing', ...videoResult.metadata.extractionMethods],
-        confidence: Math.max(0.8, videoResult.metadata.confidence)
+        confidence: Math.max(0.8, videoResult.metadata.confidence),
+        policy: knobs.policy,
+        extractionMethod: 'mixed',
+        supportRates: { ingredient: ingredientSupport, step: stepSupport } as any,
+        evidenceSizes: {
+          caption: provenance.caption?.length || 0,
+          transcript: provenance.transcript?.length || 0,
+          ocr: provenance.ocrText?.length || 0
+        } as any
       }
     };
 
@@ -457,14 +672,43 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
 
       // Use rule-based parsing for consistency
       const recipe = parseRecipeWithRules(preprocess(tx.text));
+
+      // Enforce evidence thresholds on audio transcript
+      const knobs = getImportKnobs();
+      const { ingredientSupport, stepSupport } = computeSupportRates(tx.text, recipe);
+      const ingOk = ingredientSupport >= knobs.minIngredientSupport;
+      const stepOk = stepSupport >= knobs.minStepSupport;
+      if (!(ingOk && stepOk)) {
+        const reason = 'insufficient_video_evidence';
+        recordAbstain({
+          source: 'video',
+          reason,
+          support: { ingredient: ingredientSupport, step: stepSupport },
+          evidenceSizes: {
+            caption: provenance.caption?.length,
+            transcript: provenance.transcript?.length,
+            ocr: provenance.ocrText?.length,
+          },
+          at: '' as any,
+        });
+        throw new Error(`ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}`);
+      }
       console.log('[UniversalImport] Audio-only transcription successful');
 
       return {
-        recipe,
+        recipe: { ...recipe, sourceUrl: input.url },
         provenance: {
           ...provenance,
           parserNotes: ['Audio-only transcription + rule-based parsing'],
-          confidence: 0.7
+          confidence: 0.7,
+          policy: knobs.policy,
+          extractionMethod: 'transcript',
+          supportRates: { ingredient: ingredientSupport, step: stepSupport } as any,
+          evidenceSizes: {
+            caption: provenance.caption?.length || 0,
+            transcript: provenance.transcript?.length || 0,
+            ocr: provenance.ocrText?.length || 0
+          } as any
         }
       };
 

@@ -1,0 +1,2 @@
+[functions.resolve-url]
+verify_jwt = false

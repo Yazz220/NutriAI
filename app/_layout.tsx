@@ -20,6 +20,7 @@ import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
 import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
+// (onboarding) stack remains accessible but not forced by root
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -29,9 +30,13 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   const { initializing, session } = useAuth();
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
+  // No onboarding gating in root; keep it simple while we iterate on importing flow
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
+
+  // No onboarding checks
 
   if (initializing) {
     return (

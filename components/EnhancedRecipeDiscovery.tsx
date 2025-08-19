@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
-  Platform,
 } from 'react-native';
 import { TrendingUp, Search, Sparkles, Clock, Users, Heart, Star } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -19,7 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
-import { ExternalRecipe } from '@/utils/recipeProvider';
+import { ExternalRecipe } from '@/types/external';
 import { RecipeSearch } from './RecipeSearch';
 
 interface EnhancedRecipeDiscoveryProps {
@@ -43,8 +42,8 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
     searchResults,
     isSearching,
     error,
-    recipeProvider,
   } = useRecipeStore();
+  
 
   const [showSearch, setShowSearch] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,38 +58,37 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
     sortDirection?: 'asc' | 'desc';
   }>({ sort: 'popularity', sortDirection: 'desc' });
 
-  // Load after provider is initialized
+  // Load discovery data (dataset-only)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        if (!recipeProvider) return;
-        if (Platform.OS !== 'web') {
-          if (trendingRecipes.length === 0) {
-            await getTrendingRecipes();
-          }
-          if (externalRecipes.length === 0) {
-            await getRandomRecipes(['main course', 'healthy'], 12, true);
-          }
+        if (trendingRecipes.length === 0) {
+          await getTrendingRecipes();
+        }
+        if (externalRecipes.length === 0) {
+          await getRandomRecipes(['main course', 'healthy'], 12, true);
         }
       } catch (e) {
         console.error('[EnhancedDiscovery] Failed to load discovery lists', e);
       }
     })();
     return () => { cancelled = true; };
-  }, [recipeProvider, getTrendingRecipes, trendingRecipes.length, externalRecipes.length, getRandomRecipes]);
+  }, [getTrendingRecipes, trendingRecipes.length, externalRecipes.length, getRandomRecipes]);
+
+  // Debug: log when data changes
+  useEffect(() => {
+    console.log('[Discovery] lengths changed', { trending: trendingRecipes.length, external: externalRecipes.length, isLoading });
+  }, [trendingRecipes.length, externalRecipes.length, isLoading]);
 
   // Handle refresh
   const handleRefresh = async () => {
-    if (!recipeProvider) return;
     setRefreshing(true);
     try {
-      if (Platform.OS !== 'web') {
-        await Promise.all([
-          getTrendingRecipes(),
-          getRandomRecipes(['main course', 'healthy'], 10),
-        ]);
-      }
+      await Promise.all([
+        getTrendingRecipes(),
+        getRandomRecipes(['main course', 'healthy'], 10),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -98,7 +96,6 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
 
   // Open search with pre-filled filters
   const openSearchWith = async (params: Partial<typeof filters>) => {
-    if (!recipeProvider) return;
     const next = { ...filters, ...params };
     setFilters(next);
     setShowSearch(true);
@@ -228,30 +225,25 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
             </View>
             <TouchableOpacity
               style={styles.searchButton}
-              onPress={() => recipeProvider && setShowSearch(true)}
+              onPress={() => setShowSearch(true)}
             >
               <Search size={20} color={Colors.primary} />
             </TouchableOpacity>
           </View>
           <Text style={styles.headerDescription}>
-            Discover thousands of professional recipes with nutrition data and smart recommendations
+            Explore curated recipes with nutrition details. Data currently sourced from our in‑app dataset for a smooth experience.
           </Text>
-          {Platform.OS === 'web' && (
-            <Text style={{ color: '#888', marginTop: 4 }}>
-              Discovery sections are limited on web due to CORS. Use search or run the app on a device.
-            </Text>
-          )}
         </Card>
         {/* Minimal layout ends here. All category and counter sections removed for a clean look. */}
 
         {/* Minimal Feed */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Explore Recipes</Text>
+            <Text style={styles.sectionTitle}>Explore Dataset Recipes</Text>
           </View>
 
           {isLoading && externalRecipes.length === 0 && trendingRecipes.length === 0 ? (
-            <LoadingSpinner text="Loading recipes..." />
+            <LoadingSpinner text="Loading recipes…" />
           ) : (
             <View style={styles.recipeGrid}>
               {(externalRecipes.length ? externalRecipes : trendingRecipes).map((recipe, idx) => (
@@ -263,8 +255,8 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
           <View style={{ marginTop: Spacing.sm }}>
             <Button
               title={isLoading ? 'Loading…' : 'Load more'}
-              onPress={() => recipeProvider && getRandomRecipes(undefined, 12, true)}
-              disabled={isLoading || !recipeProvider}
+              onPress={() => getRandomRecipes(undefined, 12, true)}
+              disabled={isLoading}
             />
           </View>
         </Card>

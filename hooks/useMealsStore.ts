@@ -158,13 +158,14 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     }
   }, [meals, isLoading]);
 
-  // Add a new meal
-  const addMeal = (meal: Omit<Meal, 'id'>) => {
+  // Add a new meal (returns new id)
+  const addMeal = (meal: Omit<Meal, 'id'>): string => {
     const newMeal: Meal = {
       ...meal,
       id: Date.now().toString(),
     };
     setMeals(prev => [...prev, newMeal]);
+    return newMeal.id;
   };
 
   // Update an existing meal

@@ -32,6 +32,11 @@ export async function createChatCompletion(messages: ChatMessage[]): Promise<str
   return await requestWithRetry(messages, false);
 }
 
+// Deterministic variant for import flows
+export async function createChatCompletionDeterministic(messages: ChatMessage[]): Promise<string> {
+  return await requestWithRetryCustom(messages, { stream: false, temperature: 0, top_p: 0 });
+}
+
 export async function createChatCompletionStream(
   messages: ChatMessage[],
   onDelta: (chunk: string) => void
@@ -108,6 +113,71 @@ async function requestWithRetry(messages: ChatMessage[], stream: boolean, maxRet
 }
 
 class RetryableError extends Error {}
+
+// Customizable requester used by deterministic flows (temperature/top_p)
+async function requestWithRetryCustom(
+  messages: ChatMessage[],
+  opts: { stream: boolean; temperature: number; top_p?: number },
+  maxRetries = 2
+): Promise<string> {
+  if (!isAiConfigured()) {
+    throw new Error(
+      'AI is not configured. Set EXPO_PUBLIC_AI_PROXY_BASE (recommended) or EXPO_PUBLIC_AI_API_KEY in your env and restart Expo.'
+    );
+  }
+  const base = AI_PROXY_BASE || AI_API_BASE;
+  const url = `${base.replace(/\/$/, '')}/chat/completions`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (!AI_PROXY_BASE && AI_API_KEY) {
+    headers['Authorization'] = `Bearer ${AI_API_KEY}`;
+    headers['HTTP-Referer'] = 'https://nutriai.app';
+    headers['X-Title'] = 'NutriAI';
+  }
+
+  const body: any = {
+    model: AI_MODEL,
+    messages,
+    temperature: opts.temperature,
+    stream: opts.stream,
+  };
+  if (typeof opts.top_p === 'number') body.top_p = opts.top_p;
+
+  let attempt = 0;
+  let lastErr: any;
+  while (attempt <= maxRetries) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        if (res.status === 429 || res.status >= 500) {
+          throw new RetryableError(`AI request failed (${res.status}): ${text}`);
+        }
+        throw new Error(`AI request failed (${res.status}): ${text}`);
+      }
+      const json = await res.json();
+      const content = json?.choices?.[0]?.message?.content;
+      if (typeof content !== 'string') {
+        throw new Error('AI response missing content');
+      }
+      return content.trim();
+    } catch (err) {
+      lastErr = err;
+      const isRetryable = err instanceof RetryableError;
+      if (!isRetryable || attempt === maxRetries) break;
+      const delayMs = Math.pow(2, attempt) * 500;
+      await new Promise((r) => setTimeout(r, delayMs));
+      attempt++;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
 
 // ---------------------------------------------------------------------------
 // Secure path used in production: call our Supabase Edge Function ai-chat.

@@ -11,16 +11,18 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Vibration
+  Vibration,
+  Linking
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Meal, Recipe, RecipeAvailability, RecipeIngredient } from '@/types';
-import { Clock, Users, ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X, MessageCircle, BookOpen, Star, Send } from 'lucide-react-native';
+import { Clock, Users, ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X, MessageCircle, BookOpen, Star, Send, ExternalLink } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
 import { useRecipeChat } from '@/hooks/useRecipeChat';
+import { StructuredMessage } from '@/components/StructuredMessage';
 
 interface MealDetailModalProps {
   visible: boolean;
@@ -221,6 +223,9 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                   <ActionPill icon={<ShoppingBag size={16} color={Colors.white} />} label={`Missing (${recipeAvailability.missingIngredients.length})`} onPress={handleAddMissingToList} />
                 )}
                 <ActionPill icon={<MessageCircle size={16} color={Colors.white} />} label="Ask" onPress={() => setActiveTab('chat')} />
+                {(meal as Meal).sourceUrl && (
+                  <ActionPill icon={<ExternalLink size={16} color={Colors.white} />} label="Source" onPress={() => Linking.openURL((meal as Meal).sourceUrl!)} />
+                )}
               </View>
               {/* Enhanced Tab Navigation */}
               <View style={styles.modernTabContainer}>
@@ -378,7 +383,11 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
                     <View style={{ marginTop: 12 }}>
                       {messages.map((m) => (
                         <View key={m.id} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
-                          {!!m.text && <Text style={styles.msgText}>{m.text}</Text>}
+                          {m.structuredData ? (
+                            <StructuredMessage data={m.structuredData} />
+                          ) : (
+                            !!m.text && <Text style={styles.msgText}>{m.text}</Text>
+                          )}
                           {m.role === 'coach' && !!m.source && (
                             <Text style={styles.msgSource}>{m.source === 'ai' ? 'AI' : 'Built-in'}</Text>
                           )}
@@ -544,21 +553,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.white,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+  fontSize: 28,
+  fontWeight: '800',
+  color: Colors.text,
+  marginBottom: 8,
+  textShadowColor: 'rgba(0,0,0,0.07)',
+  textShadowOffset: { width: 0, height: 2 },
+  textShadowRadius: 4,
   },
   heroDescription: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 16,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  fontSize: 16,
+  color: Colors.text,
+  marginBottom: 16,
+  textShadowColor: 'rgba(0,0,0,0.05)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 2,
   },
   heroMetaContainer: {
     flexDirection: 'row',

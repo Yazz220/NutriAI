@@ -11,6 +11,7 @@ export interface ImportedRecipe {
   prepTime?: number;
   cookTime?: number;
   servings?: number;
+  sourceUrl?: string;
 }
 
 // Score JSON-LD candidates by completeness
@@ -167,35 +168,27 @@ function enforceTokenFidelity(parsed: ImportedRecipe, sourceText: string): Impor
 }
 
 // AI fallback import from free-form text (copied recipe, transcript, etc.)
-import { createChatCompletion } from './aiClient';
+import { createChatCompletion, createChatCompletionDeterministic } from './aiClient';
+import { buildPrompt } from './promptRegistry';
+import { recordAbstain } from './importTelemetry';
 import { extractJsonLdRecipes, RecipeJsonLd } from './urlContentExtractor';
 
 export async function importRecipeFromText(text: string): Promise<ImportedRecipe> {
-  const sys = `You are a precise recipe parser. Given unstructured recipe text (may include headings, ads, fluff), extract a STRICT JSON with fields:
-{
-  "name": string,
-  "description"?: string,
-  "imageUrl"?: string,
-  "ingredients": [{ "name": string, "quantity": number, "unit": string, "optional": boolean }],
-  "steps": string[],
-  "tags": string[],
-  "prepTime"?: number, // minutes
-  "cookTime"?: number, // minutes
-  "servings"?: number
-}
-Rules (MANDATORY):
-- Always extract BOTH ingredients and steps. Never return empty arrays; if missing, infer reasonable values from context and mark uncertain with ~ in quantity and optional: true.
-- Do not include commentary/ads. Use concise step sentences (5-12 steps typical; split long instructions).
-- Quantities must be numbers when known; use short units (g, ml, tbsp, tsp, cup, pcs). Normalize synonyms.
-- Never invent items that are not implied by the text.
-- Return ONLY minified JSON.`;
+  const { system: sys } = buildPrompt('import.text', 'conservative');
   const user = text.slice(0, 8000);
-  const raw = await createChatCompletion([
+  const raw = await createChatCompletionDeterministic([
     { role: 'system', content: sys },
     { role: 'user', content: user },
   ]);
   const jsonStr = raw.trim().replace(/^```json\s*|```$/g, '');
   const data = JSON.parse(jsonStr);
+  if (data && data.abstain) {
+    const reason = typeof data.reason === 'string' ? data.reason : 'abstain';
+    try {
+      recordAbstain({ source: 'text', reason, at: '' as any });
+    } catch {}
+    throw new Error(`ImportAbstain:text:${reason}`);
+  }
   return normalizeImportedRecipe(data);
 }
 
@@ -535,12 +528,7 @@ export async function importRecipeFromImage(imageDataUrl: string): Promise<Impor
     headers['X-Title'] = 'NutriAI';
   }
 
-  const system = [
-    'You parse a photo/screenshot of a recipe (webpage, social video frame, notes).',
-    'Return ONLY minified JSON matching:',
-    '{"name": string, "description"?: string, "imageUrl"?: string, "ingredients": [{"name": string, "quantity": number, "unit": string, "optional": boolean}], "steps": string[], "tags": string[], "prepTime"?: number, "cookTime"?: number, "servings"?: number }',
-    'Make reasonable guesses. Use short units (g, ml, tbsp, tsp, cup, pcs). Steps should be concise.'
-  ].join('\n');
+  const { system } = buildPrompt('import.image', 'conservative');
 
   const body = {
     model: VISION_MODEL,
@@ -551,7 +539,7 @@ export async function importRecipeFromImage(imageDataUrl: string): Promise<Impor
         { type: 'image_url', image_url: { url: imageDataUrl } },
       ]}
     ],
-    temperature: 0.2,
+    temperature: 0,
   } as const;
 
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -565,5 +553,12 @@ export async function importRecipeFromImage(imageDataUrl: string): Promise<Impor
   const match = content.match(/\{[\s\S]*\}/);
   const toParse = match ? match[0] : content;
   const data = JSON.parse(toParse);
+  if (data && data.abstain) {
+    const reason = typeof data.reason === 'string' ? data.reason : 'abstain';
+    try {
+      recordAbstain({ source: 'image', reason, at: '' as any });
+    } catch {}
+    throw new Error(`ImportAbstain:image:${reason}`);
+  }
   return normalizeImportedRecipe(data);
 }
