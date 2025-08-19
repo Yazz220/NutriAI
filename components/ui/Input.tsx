@@ -113,23 +113,21 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   required: {
-    color: Colors.expiring,
+    color: Colors.error,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    backgroundColor: Colors.secondary,
-    ...Shadows.sm,
+    borderColor: Colors.border, // divider
+    borderRadius: 8, // shape.radius.sm from JSON (8)
+    backgroundColor: Colors.background, // field default bg = surface
   },
   inputContainerFocused: {
     borderColor: Colors.primary,
-    ...Shadows.md,
   },
   inputContainerError: {
-    borderColor: Colors.expiring,
+    borderColor: Colors.error,
   },
   input: {
     flex: 1,
@@ -157,7 +155,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.expiring,
+    color: Colors.error,
     marginLeft: Spacing.xs,
     flex: 1,
   },

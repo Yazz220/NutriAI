@@ -1,10 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
-import { Brain, Send } from 'lucide-react-native';
+import { Brain } from 'lucide-react-native';
 import { useChefChat } from '@/hooks/useChefChat';
 import { StructuredMessage } from '@/components/StructuredMessage';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
 // A dedicated chat interface for the Recipes tab that leverages the same
 // AI meal-planning logic as the Coach page. Dark-theme, high-contrast
@@ -14,19 +16,9 @@ export const RecipeChatInterface: React.FC = () => {
   const { messages, sendMessage, performInlineAction, isTyping } = useChefChat('');
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
-  const quickChips = useMemo(
-    () => [
-      'Breakfast Ideas',
-      'Low Carb',
-      '30-min Meals',
-      'Vegetarian',
-      'Comfort Food',
-      'Healthy Snacks',
-      'Dinner Tonight',
-    ],
-    []
-  );
+  // Quick chat chips removed per request
 
   const onSend = () => {
     const text = input.trim();
@@ -36,25 +28,28 @@ export const RecipeChatInterface: React.FC = () => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  const TAB_BAR_HEIGHT = 56;
+  const TAB_BAR_OFFSET = 12;
+  const composerBottomOffset = TAB_BAR_HEIGHT + TAB_BAR_OFFSET + Math.max(insets.bottom, 0);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Brain size={20} color={Colors.primary} />
-          <Text style={styles.headerTitle}>AI Chef</Text>
-        </View>
-      </View>
+      {/* Header aligned with Coach */}
+      <ScreenHeader title="AI Chef" icon={<Brain size={28} color={Colors.text} />} />
 
       {/* Messages */}
       <ScrollView
         ref={scrollRef}
         style={styles.messages}
-        contentContainerStyle={{ padding: Spacing.lg }}
+        contentContainerStyle={{
+          padding: Spacing.lg,
+          // Ensure last messages are never hidden behind chips/composer/tab bar
+          paddingBottom: Spacing.lg + 64 /* composer est. */ + composerBottomOffset,
+        }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         showsVerticalScrollIndicator={false}
       >
@@ -74,7 +69,11 @@ export const RecipeChatInterface: React.FC = () => {
             {m.structuredData ? (
               <StructuredMessage data={m.structuredData} />
             ) : (
-              !!m.text && <Text style={styles.bubbleText}>{m.text}</Text>
+              !!m.text && (
+                <Text style={[styles.bubbleText, m.role === 'user' && styles.bubbleTextOnPrimary]}>
+                  {m.text}
+                </Text>
+              )
             )}
           </View>
         ))}
@@ -86,22 +85,21 @@ export const RecipeChatInterface: React.FC = () => {
         )}
       </ScrollView>
 
-      {/* Quick chips */}
-      <ScrollView
-        style={styles.chipsBar}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm, alignItems: 'center' }}
-      >
-        {quickChips.map((c) => (
-          <TouchableOpacity key={c} style={styles.chip} onPress={() => sendMessage(c)}>
-            <Text style={styles.chipText}>{c}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Quick chips removed */}
 
       {/* Composer */}
-      <View style={styles.composer}>
+      <View style={[
+        styles.composer,
+        {
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: composerBottomOffset,
+          zIndex: 100,
+          // keep comfortable touch target spacing inside
+          paddingBottom: Spacing.lg,
+        },
+      ]}>
         <TextInput
           style={styles.input}
           placeholder="Ask your AI Chef for meal ideas…"
@@ -112,7 +110,7 @@ export const RecipeChatInterface: React.FC = () => {
           returnKeyType="send"
         />
         <TouchableOpacity style={styles.sendBtn} onPress={onSend}>
-          <Send size={18} color={Colors.white} />
+          <Text style={styles.sendText}>Send</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -162,6 +160,9 @@ const styles = StyleSheet.create({
   bubbleText: {
     color: Colors.text,
   },
+  bubbleTextOnPrimary: {
+    color: Colors.white,
+  },
   bubbleMeta: {
     marginTop: 4,
     color: Colors.lightText,
@@ -185,52 +186,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipsBar: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.border,
-    paddingVertical: 6,
-    maxHeight: 56,
-    flexGrow: 0,
+    // removed
   },
   chip: {
-    backgroundColor: Colors.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    height: 36,
-    justifyContent: 'center',
-    alignSelf: 'center',
+    // removed
   },
   chipText: {
-    color: Colors.text,
-    fontWeight: '600',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+    // removed
   },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.lg,
     gap: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.secondary,
+    paddingVertical: Spacing.md,
     color: Colors.text,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: 'transparent',
   },
   sendBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
+  sendText: { color: Colors.primary, fontWeight: '600' },
 });
 
 export default RecipeChatInterface;

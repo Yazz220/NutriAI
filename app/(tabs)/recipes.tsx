@@ -7,23 +7,28 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
-  Platform,
+  Image,
+  FlatList,
+  LayoutChangeEvent,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Plus, BookOpen, ChefHat, Search, Brain } from 'lucide-react-native';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { BookOpen, ChefHat, Search, Brain, Plus } from 'lucide-react-native';
+// Removed gradient header in favor of ScreenHeader
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
-import { EnhancedRecipeCard } from '@/components/EnhancedRecipeCard';
-import { ImportRecipeModal } from '@/components/ImportRecipeModal';
+// Replace elevated cards with OutlinePanel stack rows
+import { ImportMenu, ImportType } from '@/components/ImportMenu';
+import { ImportFlowModal } from '@/components/ImportFlowModal';
 import { MealPlanModal } from '@/components/MealPlanModal';
 import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
+// Removed TileSquare/Rule in favor of FlatList grid tiles
 import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
 import { ExternalRecipe } from '@/types/external';
@@ -31,28 +36,55 @@ import { Meal } from '@/types';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
 // { FolderCard } removed in favor of RecipeFolderCard grid
 import { NewFolderModal } from '@/components/folders/NewFolderModal';
+import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
+import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
 import RecipeChatInterface from '@/components/RecipeChatInterface';
+import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RecipesScreen() {
-  const [showImportModal, setShowImportModal] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [showImportFlow, setShowImportFlow] = useState(false);
+  const [selectedImportType, setSelectedImportType] = useState<ImportType | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const [showEnhancedRecipeDetail, setShowEnhancedRecipeDetail] = useState(false);
   // Local recipe detail modal removed temporarily (mismatch with ExternalRecipe modal)
   const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [activeTab, setActiveTab] = useState<'local' | 'discovery' | 'chat'>('discovery');
+  const tabs: { key: 'discovery' | 'chat' | 'local'; label: string }[] = [
+    { key: 'discovery', label: 'Discover' },
+    { key: 'chat', label: 'AI Chat' },
+    { key: 'local', label: 'Recipes' },
+  ];
+  const activeIndex = tabs.findIndex(t => t.key === activeTab);
+  const TAB_BAR_HEIGHT = 56; // bottom pill tab bar height
+  const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
   const [refreshing, setRefreshing] = useState(false);
   // Folders UI state
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showCreateFolderSheet, setShowCreateFolderSheet] = useState(false);
+  const [showRenameFolderSheet, setShowRenameFolderSheet] = useState(false);
   const [folderModalMode, setFolderModalMode] = useState<'create' | 'rename'>('create');
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [addToFolderVisible, setAddToFolderVisible] = useState(false);
   const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [selectedPlanRecipeId, setSelectedPlanRecipeId] = useState<string | null>(null);
+  // Grid-only layout (list option removed)
+  const [gridWidth, setGridWidth] = useState(0);
+  const GUTTER = 16;
+  const COLUMN_GAP = 16;
+  const ROW_GAP = 20;
+  const onGridLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && Math.floor(w) !== Math.floor(gridWidth)) setGridWidth(Math.floor(w));
+  };
 
   // Favorites (persisted locally)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
@@ -99,6 +131,110 @@ export default function RecipesScreen() {
     getTrendingRecipes,
     getRandomRecipes,
   } = useRecipeStore();
+
+  // Import handlers from universalImport
+  // We import inline to avoid top clutter when not used in other tabs
+  const {
+    importRecipeFromUrlHandler,
+    importRecipeFromTextHandler,
+    importRecipeFromImageHandler,
+    importRecipeFromVideoUrlHandler,
+  } = require('@/utils/universalImport') as typeof import('@/utils/universalImport');
+  const ImagePicker = require('expo-image-picker');
+
+  const mapImportedToMeal = (recipe: any): Omit<Meal, 'id'> => {
+    return {
+      name: recipe?.name || 'Imported Recipe',
+      description: recipe?.description || 'Imported recipe',
+      ingredients: Array.isArray(recipe?.ingredients)
+        ? recipe.ingredients.map((ing: any) => ({
+            name: String(ing?.name || 'Ingredient'),
+            quantity: typeof ing?.quantity === 'number' || typeof ing?.quantity === 'string' ? ing.quantity : 1,
+            unit: String(ing?.unit || 'unit'),
+            optional: !!ing?.optional,
+          }))
+        : [],
+      steps: Array.isArray(recipe?.steps) ? recipe.steps.map((s: any) => String(s)) : [],
+      image: recipe?.image,
+      tags: Array.isArray(recipe?.tags) ? recipe.tags : [],
+      prepTime: typeof recipe?.prepTime === 'number' ? recipe.prepTime : undefined,
+      cookTime: typeof recipe?.cookTime === 'number' ? recipe.cookTime : 0,
+      servings: typeof recipe?.servings === 'number' ? recipe.servings : 1,
+      sourceUrl: recipe?.sourceUrl,
+      nutritionPerServing: undefined,
+    };
+  };
+
+  const handleOpenImportMenu = () => setShowImportMenu(true);
+  const handleSelectImportType = (type: ImportType) => {
+    setSelectedImportType(type);
+    setShowImportMenu(false);
+    setShowImportFlow(true);
+  };
+
+  const handlePerformImport = async (type: ImportType, data: any) => {
+    try {
+      setIsImporting(true);
+      if (type === 'link') {
+        if (!data || typeof data !== 'string') {
+          Alert.alert('Invalid Link', 'Please enter a valid recipe URL.');
+          return;
+        }
+        const { recipe } = await importRecipeFromUrlHandler(data.trim());
+        const meal = mapImportedToMeal({ ...recipe, sourceUrl: data.trim() });
+        const id = addMeal(meal);
+        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+      } else if (type === 'text') {
+        if (!data || typeof data !== 'string') {
+          Alert.alert('Invalid Text', 'Please paste recipe text to import.');
+          return;
+        }
+        const { recipe } = await importRecipeFromTextHandler(data);
+        const meal = mapImportedToMeal(recipe);
+        addMeal(meal);
+        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+      } else if (type === 'image') {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.9,
+          base64: false,
+        });
+        if (result.canceled || !result.assets?.length) {
+          return; // user canceled
+        }
+        const asset = result.assets[0];
+        const file = { uri: asset.uri, mime: asset.mimeType || 'image/jpeg', name: asset.fileName || 'image.jpg' };
+        const { recipe } = await importRecipeFromImageHandler(file);
+        const meal = mapImportedToMeal(recipe);
+        addMeal(meal);
+        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+      } else if (type === 'video') {
+        if (!data || typeof data !== 'string') {
+          Alert.alert('Invalid Video URL', 'Please enter a valid video URL.');
+          return;
+        }
+        const { recipe } = await importRecipeFromVideoUrlHandler(data.trim());
+        const meal = mapImportedToMeal({ ...recipe, sourceUrl: data.trim() });
+        addMeal(meal);
+        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+      }
+      setShowImportFlow(false);
+      setSelectedImportType(null);
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : 'Something went wrong.';
+      // Tailored error title per type
+      const titles: Record<ImportType, string> = {
+        link: 'Link Import Failed',
+        text: 'Text Import Failed',
+        image: 'Image Import Failed',
+        video: 'Video Import Failed',
+      };
+      Alert.alert(titles[(selectedImportType || 'link') as ImportType], msg);
+      console.error('[Import Error]', e);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Meal planner integration will be reintroduced when local modal returns
 
@@ -228,23 +364,20 @@ export default function RecipesScreen() {
   const openCreateFolder = () => {
     setFolderModalMode('create');
     setRenameFolderId(null);
-    setShowFolderModal(true);
+    setShowCreateFolderSheet(true);
   };
 
   const handleSubmitFolder = (name: string) => {
-    if (folderModalMode === 'create') {
-      const id = createFolder(name);
-      setActiveFolderId(id);
-    } else if (folderModalMode === 'rename' && renameFolderId) {
+    if (folderModalMode === 'rename' && renameFolderId) {
       renameFolder(renameFolderId, name);
+      setShowFolderModal(false);
     }
-    setShowFolderModal(false);
   };
 
   const requestRenameFolder = (id: string) => {
     setFolderModalMode('rename');
     setRenameFolderId(id);
-    setShowFolderModal(true);
+    setShowRenameFolderSheet(true);
   };
 
   const requestDeleteFolder = (id: string, name: string) => {
@@ -266,9 +399,14 @@ export default function RecipesScreen() {
       <View style={{ marginBottom: Spacing.md }}>
         <View style={styles.foldersHeaderRowLarge}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity style={styles.newFolderBtn} onPress={openCreateFolder}>
-              <Text style={styles.newFolderText}>+ New Folder</Text>
-            </TouchableOpacity>
+            <Button
+              title="New Folder"
+              onPress={openCreateFolder}
+              variant="outline"
+              size="sm"
+              icon={<Plus size={16} color={Colors.primary} />}
+              style={{ marginRight: Spacing.sm }}
+            />
             <TouchableOpacity style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive, { marginLeft: Spacing.sm }]} onPress={() => setActiveFolderId(null)}>
               <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All recipes</Text>
             </TouchableOpacity>
@@ -307,33 +445,52 @@ export default function RecipesScreen() {
           <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
           <Button
             title="Import Recipe"
-            onPress={() => setShowImportModal(true)}
+            onPress={handleOpenImportMenu}
             style={styles.importButton}
+            icon={<Plus size={16} color={Colors.white} />}
           />
         </Card>
       ) : (
-        <View style={styles.recipesList}>
-          {(activeFolderId
-            ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
-            : localRecipes
-          ).map((recipe) => {
-            const inActiveFolder = activeFolderId
-              ? !!folders.find(f => f.id === activeFolderId)?.recipeIds.includes(recipe.id)
-              : false;
-            return (
-              <EnhancedRecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                onPress={() => handleRecipePress(recipe)}
-                onLongPress={() => handleLongPressRecipe(recipe)}
-                onFavorite={() => toggleFavorite(recipe.id)}
-                isFavorite={favoriteIds.has(recipe.id)}
-                accessoryLabel={activeFolderId ? (inActiveFolder ? 'Remove' : 'Add') : undefined}
-                onAccessoryPress={activeFolderId ? () => toggleRecipeInFolder(activeFolderId, recipe.id) : undefined}
-                onPlan={() => { setSelectedPlanRecipeId(recipe.id); setShowMealPlanModal(true); }}
-              />
-            );
-          })}
+        <View onLayout={onGridLayout}>
+          <FlatList
+            data={(activeFolderId
+              ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
+              : localRecipes)}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 24 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item, index }) => {
+              // compute item width from available container width
+              const containerInner = Math.max(gridWidth - (GUTTER * 2), 0);
+              const rawWidth = (containerInner - COLUMN_GAP) / 2;
+              const itemWidth = Math.floor(rawWidth);
+              if (!itemWidth) return null;
+              const imageHeight = Math.floor(itemWidth * 0.75); // 4:3 aspect
+
+              const macros = item.nutritionPerServing as any | undefined;
+              const calories = typeof macros?.calories === 'number' ? Math.round(macros.calories) : undefined;
+
+              const isLeft = index % 2 === 0;
+              return (
+                <View style={{ width: itemWidth, marginRight: isLeft ? COLUMN_GAP : 0, marginBottom: ROW_GAP }}>
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => handleRecipePress(item)} onLongPress={() => handleLongPressRecipe(item)}>
+                    <View style={[styles.gridImageContainer, { width: itemWidth, height: imageHeight }] }>
+                      {!!item.image && (
+                        <Image source={{ uri: String(item.image) }} style={styles.gridImage} />
+                      )}
+                    </View>
+                    <View style={styles.gridInfoBox}>
+                      <Text style={styles.gridTitle} numberOfLines={2} ellipsizeMode="tail">{item.name}</Text>
+                      {!!calories && (
+                        <Text style={styles.gridMeta}>{calories} kcal</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
+          />
         </View>
       )}
     </View>
@@ -354,60 +511,38 @@ export default function RecipesScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: '', headerShown: false }} />
 
-      {/* Enhanced Hero Header */}
-      <ExpoLinearGradient
-        colors={[Colors.background, Colors.background]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={styles.statusBarSpacer} />
-        
-        {/* Header (icon + title on left, + on right for consistency) */}
-        <View style={styles.heroHeader}>
-          <View style={styles.heroTitleRow}>
-            <ChefHat size={28} color={Colors.white} />
-            <Text style={styles.heroTitle}>Recipes</Text>
-          </View>
-          <TouchableOpacity style={styles.importButton} onPress={() => setShowImportModal(true)}>
-            <Plus size={24} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
+      {/* Unified Screen Header */}
+      <ScreenHeader
+        title="Recipes"
+        icon={<ChefHat size={28} color={Colors.text} />}
+        rightAction={
+          <Button
+            title="Import"
+            onPress={handleOpenImportMenu}
+            variant="outline"
+            size="sm"
+            icon={<Plus size={16} color={Colors.primary} />}
+          />
+        }
+      />
 
-        {/* Stats row removed */}
-      </ExpoLinearGradient>
-
-      {/* Enhanced Tab Navigation */}
-      <View style={styles.tabNavigation}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'discovery' && styles.activeTab]}
-          onPress={() => setActiveTab('discovery')}
-        >
-          <Search size={20} color={activeTab === 'discovery' ? Colors.primary : Colors.lightText} />
-          <Text style={[styles.tabText, activeTab === 'discovery' && styles.activeTabText]}>
-            Discovery
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
-          onPress={() => setActiveTab('chat')}
-        >
-          <Brain size={20} color={activeTab === 'chat' ? Colors.primary : Colors.lightText} />
-          <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>
-            AI Chat
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'local' && styles.activeTab]}
-          onPress={() => setActiveTab('local')}
-        >
-          <BookOpen size={20} color={activeTab === 'local' ? Colors.primary : Colors.lightText} />
-          <Text style={[styles.tabText, activeTab === 'local' && styles.activeTabText]}>
-            My Recipes
-          </Text>
-        </TouchableOpacity>
+      {/* Top Tabs */}
+      <View style={styles.topTabsBar}>
+        {tabs.map((t) => {
+          const isActive = t.key === activeTab;
+          return (
+            <TouchableOpacity key={t.key} style={styles.topTabItem} onPress={() => setActiveTab(t.key)}>
+              <Text style={[TopTabsTheme.label, { color: isActive ? Colors.text : Colors.lightText, fontWeight: isActive ? '700' as const : '500' as const }]}>{t.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        <View
+          style={[
+            TopTabsTheme.indicator,
+            styles.topTabIndicator,
+            { left: `${(activeIndex * 100) / tabs.length}%`, width: `${100 / tabs.length}%` },
+          ]}
+        />
       </View>
 
       {/* Tab Content */}
@@ -417,18 +552,105 @@ export default function RecipesScreen() {
       ) : activeTab === 'chat' ? (
         <RecipeChatInterface />
       ) : (
-        <ScrollView
-          style={styles.content}
+        <FlatList
+          onLayout={onGridLayout}
+          data={(activeFolderId
+            ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
+            : localRecipes)}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: bottomPad }}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          ListHeaderComponent={
+            <View style={{ marginBottom: Spacing.md }}>
+              <View style={styles.foldersHeaderRowLarge}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Button
+                    title="New Folder"
+                    onPress={openCreateFolder}
+                    variant="outline"
+                    size="sm"
+                    icon={<Plus size={16} color={Colors.primary} />}
+                    style={{ marginRight: Spacing.sm }}
+                  />
+                  <TouchableOpacity style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive, { marginLeft: Spacing.sm }]} onPress={() => setActiveFolderId(null)}>
+                    <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All recipes</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.foldersGrid}>
+                {folders.length === 0 ? (
+                  <View style={{ padding: Spacing.md }}>
+                    <Text style={{ color: Colors.lightText }}>You haven't created any folders yet — use New Folder to get started.</Text>
+                  </View>
+                ) : (
+                  folders.map((f) => (
+                    <View key={f.id} style={styles.folderGridItem}>
+                      <RecipeFolderCard
+                        name={f.name}
+                        recipeCount={f.recipeIds.length}
+                        color={Colors.primary}
+                        onPress={() => setActiveFolderId(f.id)}
+                        onMore={() => Alert.alert(f.name, undefined, [
+                          { text: 'Rename', onPress: () => requestRenameFolder(f.id) },
+                          { text: 'Delete', style: 'destructive', onPress: () => requestDeleteFolder(f.id, f.name) },
+                          { text: 'Cancel', style: 'cancel' },
+                        ])}
+                      />
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
           }
-        >
-          {renderLocalRecipes()}
-        </ScrollView>
+          ListEmptyComponent={
+            <Card style={styles.emptyState}>
+              <BookOpen size={48} color={Colors.lightText} />
+              <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
+              <Button
+                title="Import Recipe"
+                onPress={handleOpenImportMenu}
+                style={styles.importButton}
+                icon={<Plus size={16} color={Colors.white} />}
+              />
+            </Card>
+          }
+          renderItem={({ item, index }) => {
+            // compute item width from available container width
+            const containerInner = Math.max(gridWidth - (GUTTER * 2), 0);
+            const rawWidth = (containerInner - COLUMN_GAP) / 2;
+            const itemWidth = Math.floor(rawWidth);
+            if (!itemWidth) return null;
+            const imageHeight = Math.floor(itemWidth * 0.75); // 4:3 aspect
+
+            const macros = item.nutritionPerServing as any | undefined;
+            const calories = typeof macros?.calories === 'number' ? Math.round(macros.calories) : undefined;
+
+            const isLeft = index % 2 === 0;
+            return (
+              <View style={{ width: itemWidth, marginRight: isLeft ? COLUMN_GAP : 0, marginBottom: ROW_GAP }}>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => handleRecipePress(item)} onLongPress={() => handleLongPressRecipe(item)}>
+                  <View style={[styles.gridImageContainer, { width: itemWidth, height: imageHeight }] }>
+                    {!!item.image && (
+                      <Image source={{ uri: String(item.image) }} style={styles.gridImage} />
+                    )}
+                  </View>
+                  <View style={styles.gridInfoBox}>
+                    <Text style={styles.gridTitle} numberOfLines={2} ellipsizeMode="tail">{item.name}</Text>
+                    {!!calories && (
+                      <Text style={styles.gridMeta}>{calories} kcal</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
       )}
 
-      {/* Import Recipe Modal */}
       {/* MealPlanModal for quick-plan from recipe cards */}
       <MealPlanModal
         visible={showMealPlanModal}
@@ -442,23 +664,44 @@ export default function RecipesScreen() {
           Alert.alert('Planned', 'Recipe added to your meal plan.');
         }}
       />
-      <ImportRecipeModal
-        visible={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onSave={(meal) => {
-          addMeal(meal);
-          setShowImportModal(false);
-          Alert.alert('Recipe Imported', `${meal.name} has been successfully imported!`);
+      {/* New modular Import Menu + Flow */}
+      <ImportMenu
+        visible={showImportMenu}
+        onClose={() => setShowImportMenu(false)}
+        onSelect={handleSelectImportType}
+      />
+      <ImportFlowModal
+        visible={showImportFlow}
+        importType={selectedImportType}
+        onClose={() => { setShowImportFlow(false); setSelectedImportType(null); }}
+        onImport={handlePerformImport}
+        isLoading={isImporting}
+      />
+
+      {/* Create Folder Bottom Sheet */}
+      <CreateFolderSheet
+        visible={showCreateFolderSheet}
+        onClose={() => setShowCreateFolderSheet(false)}
+        existingNames={folders.map(f => f.name)}
+        onCreate={(name) => {
+          const id = createFolder(name);
+          setActiveFolderId(id);
+          setShowCreateFolderSheet(false);
         }}
       />
 
-      {/* New/Rename Folder Modal */}
-      <NewFolderModal
-        visible={showFolderModal}
-        mode={folderModalMode}
+      {/* Rename Folder Bottom Sheet */}
+      <RenameFolderSheet
+        visible={showRenameFolderSheet}
         defaultName={folderModalMode === 'rename' && renameFolderId ? (folders.find(f => f.id === renameFolderId)?.name || '') : ''}
-        onClose={() => setShowFolderModal(false)}
-        onSubmit={handleSubmitFolder}
+        onClose={() => setShowRenameFolderSheet(false)}
+        onRename={(name) => {
+          if (renameFolderId) {
+            renameFolder(renameFolderId, name);
+          }
+          setShowRenameFolderSheet(false);
+        }}
+        existingNames={folders.map(f => f.name)}
       />
 
       {/* Add To Folder Sheet */}
@@ -506,43 +749,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  hero: {
-    paddingBottom: 12,
-    paddingHorizontal: 20,
-    minHeight: 180,
-  },
-  statusBarSpacer: {
-    height: Platform.OS === 'ios' ? 44 : 24,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 10,
-  },
-  heroTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroTitle: {
-    color: Colors.white,
-    fontSize: 24,
-    fontWeight: '700',
-    marginLeft: 12,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
   importButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   // stats styles removed
   // Folders UI
@@ -587,38 +797,25 @@ const styles = StyleSheet.create({
   allFolderTextActive: {
     color: Colors.white,
   },
-  tabNavigation: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    marginTop: -8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
+  topTabsBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    position: 'relative',
+  },
+  topTabItem: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
   },
-  activeTab: {
-    backgroundColor: Colors.primary + '15',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.lightText,
-  },
-  activeTabText: {
-    color: Colors.primary,
-    fontWeight: '700',
+  topTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
   },
   content: {
     flex: 1,
@@ -631,11 +828,34 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xl * 2,
     gap: Spacing.lg,
   },
-  recipesList: {
-    gap: Spacing.md,
-    alignItems: 'center',
-  },
   foldersHeaderRowLarge: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: Spacing.lg, marginBottom: Spacing.sm },
   foldersGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: Spacing.lg },
   folderGridItem: { width: '48%', margin: '1%' },
+  // Grid items
+  gridImageContainer: {
+    backgroundColor: Colors.surfaceTile,
+    borderRadius: 0,
+    overflow: 'hidden',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 0,
+  },
+  gridInfoBox: {
+    marginTop: 8,
+  },
+  gridTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  gridMeta: {
+    marginTop: 2,
+    color: Colors.lightText,
+    fontSize: 13,
+    lineHeight: 18,
+  },
 });

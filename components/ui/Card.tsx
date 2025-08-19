@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Text, StyleProp } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Shadows } from '@/constants/spacing';
+import { Spacing, Shadows, Radii } from '@/constants/spacing';
 
 interface CardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   padding?: keyof typeof Spacing;
-  shadow?: 'sm' | 'md' | 'lg';
+  shadow?: 'none' | 'sm' | 'md' | 'lg';
   onPress?: () => void;
 }
 
@@ -15,12 +15,12 @@ export const Card: React.FC<CardProps> = ({
   children,
   style,
   padding = 'lg',
-  shadow = 'md',
+  shadow = 'none',
 }) => {
   const cardStyle = [
     styles.card,
     { padding: Spacing[padding] },
-    Shadows[shadow],
+    shadow !== 'none' ? Shadows[shadow] : Shadows.level0,
     style,
   ];
 
@@ -42,9 +42,9 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: Radii.md, // shape.radius.card per paper/line system
     marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border + '30',
+    borderColor: Colors.border, // divider
   },
 });

@@ -1,7 +1,7 @@
 // Enhanced Recipe Detail Modal
 // Shows comprehensive recipe information from external APIs
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
   Alert,
   Image,
   Linking,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   X,
@@ -28,19 +31,21 @@ import {
   MessageCircle,
   CheckCircle,
   ExternalLink,
+  Send,
 } from 'lucide-react-native';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { LoadingSpinner } from './ui/LoadingSpinner';
 import { Colors } from '../constants/colors';
+import { Typography } from '../constants/spacing';
 import { ExternalRecipe } from '../types/external';
 import { useRecipeStore } from '../hooks/useRecipeStore';
-import { Meal } from '../types';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { Vibration } from 'react-native';
+import { Meal, Recipe, RecipeIngredient } from '../types';
 import { MealPlanModal } from './MealPlanModal';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { trackEvent } from '@/utils/analytics';
+import { useRecipeChat } from '@/hooks/useRecipeChat';
+import { StructuredMessage } from '@/components/StructuredMessage';
 
 interface EnhancedRecipeDetailModalProps {
   visible: boolean;
@@ -60,8 +65,35 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'chat'>('details');
+  const [chatInput, setChatInput] = useState('');
 
   const { saveExternalRecipe, removeLocalRecipe, localRecipes } = useRecipeStore();
+
+  // Build Recipe shape for chat context
+  const recipeForChat: Recipe = useMemo(() => {
+    const ingredients = (recipeDetails?.ingredients || recipe.ingredients || []).map((ing: any) => ({
+      name: ing?.name || ing?.original || '',
+      quantity: typeof ing?.amount === 'number' ? ing.amount : (ing?.amount || 0),
+      unit: ing?.unit || '',
+    })) as RecipeIngredient[];
+    const steps: string[] = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
+      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
+      || (recipeDetails?.instructions || recipe.instructions || '').split('\n').filter(Boolean);
+    return {
+      id: String(recipe.id),
+      name: recipe.title,
+      image: recipe.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+      tags: (recipe as any)?.diets || [],
+      prepTime: String(recipe.readyInMinutes || ''),
+      cookTime: '',
+      servings: recipe.servings || 0,
+      ingredients,
+      instructions: steps,
+    } as Recipe;
+  }, [recipe, recipeDetails]);
+
+  const { messages, isTyping, sendMessage, quickChips, performInlineAction } = useRecipeChat(recipeForChat);
 
   // Load recipe details when modal opens
   useEffect(() => {
@@ -195,7 +227,7 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          {/* Hero Image with subtle overlay */}
+          {/* Hero Image */}
           {recipe.image ? (
             <View style={styles.imageContainer}>
               {!imageFailed ? (
@@ -215,12 +247,6 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                   </View>
                 </View>
               )}
-              <ExpoLinearGradient
-                colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.6)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.imageOverlay}
-              />
             </View>
           ) : null}
           <View style={styles.header}>
@@ -236,19 +262,20 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
             <Text style={styles.errorText}>{error}</Text>
           ) : (
             <>
-              {/* Primary Action Bar */}
+              {/* Primary Action Bar (Cook removed in favor of bottom primary button) */}
               <View style={styles.primaryActions}>
-                <ActionPill icon={<Utensils size={16} color={Colors.white} />} label="Cook" onPress={() => {}} />
-                <ActionPill
-                  icon={<BookmarkPlus size={16} color={Colors.white} />}
-                  label="Plan"
+                <Button
+                  title="Plan"
                   onPress={() => {
                     trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
                     setShowPlanModal(true);
                   }}
+                  size="sm"
+                  variant="secondary"
+                  icon={<BookmarkPlus size={16} color={Colors.primary} />}
                 />
-                <ActionPill icon={<Shuffle size={16} color={Colors.white} />} label="Remix" onPress={() => {}} />
-                <ActionPill icon={<MessageCircle size={16} color={Colors.white} />} label="Ask" onPress={() => { Alert.alert('AI', 'Open AI chat from Recipes tab > AI Chat'); }} />
+                <Button title="Remix" onPress={() => {}} size="sm" variant="secondary" icon={<Shuffle size={16} color={Colors.primary} />} />
+                <Button title="Ask" onPress={() => setActiveTab('chat')} size="sm" variant="secondary" icon={<MessageCircle size={16} color={Colors.primary} />} />
               </View>
 
               {/* Recipe Stats */}
@@ -326,6 +353,8 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                 )}
               </View>
 
+              {activeTab === 'details' && (
+              <>
               {/* Recipe Summary */}
               {(recipeDetails?.instructions || recipe.instructions) && (
                 <View style={styles.section}>
@@ -415,6 +444,69 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
                 </View>
               )}
 
+              </>
+              )}
+
+              {activeTab === 'chat' && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>AI Recipe Assistant</Text>
+                  <Text style={styles.summaryText}>
+                    Ask about substitutions, scaling, cooking tips, or nutrition.
+                  </Text>
+                  <View style={styles.chatChipsRow}>
+                    {quickChips.map((chip) => (
+                      <TouchableOpacity key={chip} style={styles.chatChip} onPress={() => sendMessage(chip)}>
+                        <Text style={styles.chatChipText}>{chip}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={{ marginTop: 12 }}>
+                    {messages.map((m) => (
+                      <View key={m.id} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
+                        {m.structuredData ? (
+                          <StructuredMessage data={m.structuredData} />
+                        ) : (
+                          !!m.text && <Text style={styles.msgText}>{m.text}</Text>
+                        )}
+                        {!!m.actions && (
+                          <View style={styles.inlineActions}>
+                            {m.actions.map((a, idx) => (
+                              <TouchableOpacity key={`${m.id}-act-${idx}`} style={styles.inlineActionBtn} onPress={() => performInlineAction(a)}>
+                                <Text style={styles.inlineActionText}>{a.label}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                    {isTyping && (
+                      <View style={[styles.msg, styles.msgCoach]}>
+                        <Text style={styles.typingText}>AI is typing…</Text>
+                      </View>
+                    )}
+                  </View>
+                  <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={styles.composerRow}>
+                      <View style={styles.inputContainer}>
+                        <TextInput
+                          placeholder="Ask about this recipe…"
+                          placeholderTextColor={Colors.lightText}
+                          style={styles.input}
+                          value={chatInput}
+                          onChangeText={setChatInput}
+                          onSubmitEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v) { sendMessage(v); setChatInput(''); } }}
+                          returnKeyType="send"
+                          multiline
+                        />
+                      </View>
+                      <TouchableOpacity style={styles.sendBtn} onPress={() => { const v = chatInput.trim(); if (v) { sendMessage(v); setChatInput(''); } }}>
+                        <Send size={20} color={Colors.white} />
+                      </TouchableOpacity>
+                    </View>
+                  </KeyboardAvoidingView>
+                </View>
+              )}
+
               {/* Meal Plan Modal (for Plan action) */}
               <MealPlanModal
                 visible={showPlanModal}
@@ -442,6 +534,13 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
             </>
           )}
         </ScrollView>
+        {/* Bottom Action: primary Cook button */}
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity style={styles.bottomPrimaryButton} onPress={() => { /* TODO: implement cook flow for external recipe */ }}>
+            <Utensils size={24} color={Colors.white} />
+            <Text style={styles.bottomPrimaryButtonText}>Cook This Recipe</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
@@ -463,7 +562,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     flex: 1,
     marginRight: 16,
@@ -484,9 +583,7 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -541,7 +638,31 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: Colors.white,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
+  },
+  bottomButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.background,
+  },
+  bottomPrimaryButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  bottomPrimaryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.white,
   },
   section: {
     paddingHorizontal: 16,
@@ -549,7 +670,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: 12,
   },
@@ -586,7 +707,7 @@ const styles = StyleSheet.create({
   stepBadgeText: {
     color: Colors.white,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   nutritionGrid: {
     flexDirection: 'row',
@@ -609,7 +730,7 @@ const styles = StyleSheet.create({
   },
   nutritionValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   errorText: {
@@ -618,41 +739,99 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
   },
-});
-
-// Small pill-like action button with subtle haptics
-const ActionPill = ({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress?: () => void }) => {
-  const handlePress = async () => {
-    try { Vibration.vibrate(10); } catch {}
-    onPress?.();
-  };
-  return (
-    <TouchableOpacity onPress={handlePress} style={pillStyles.pill}>
-      <View style={pillStyles.icon}>{icon}</View>
-      <Text style={pillStyles.label}>{label}</Text>
-    </TouchableOpacity>
-  );
-};
-
-const pillStyles = StyleSheet.create({
-  pill: {
+  // Chat styles (aligned with system design minimal set)
+  chatChipsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  chatChip: {
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  chatChipText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: Typography.weights.medium,
+  },
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginTop: 12,
+  },
+  inputContainer: {
+    flex: 1,
     backgroundColor: Colors.card,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 8,
+    paddingVertical: 10,
   },
-  icon: {
-    width: 18,
-    alignItems: 'center',
-  },
-  label: {
+  input: {
+    fontSize: 16,
     color: Colors.text,
-    fontWeight: '600',
-    fontSize: 13,
+    maxHeight: 100,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  msg: {
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 10,
+    maxWidth: '85%',
+  },
+  msgUser: {
+    backgroundColor: Colors.primary,
+    alignSelf: 'flex-end',
+  },
+  msgCoach: {
+    backgroundColor: Colors.card,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  msgText: {
+    color: Colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  inlineActionBtn: {
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  inlineActionText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: Typography.weights.medium,
+  },
+  typingText: {
+    color: Colors.lightText,
+    fontStyle: 'italic',
+    fontSize: 14,
   },
 });
+
+// Removed custom ActionPill in favor of shared Button component

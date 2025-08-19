@@ -14,6 +14,7 @@ import {
 import { X, Calendar, Clock, Users, Search, ChefHat, Plus, Minus } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
+import { Typography } from '@/constants/spacing';
 
 import { PlannedMeal, MealType, Recipe, Meal } from '@/types';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.white,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
@@ -122,7 +123,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginLeft: 8,
   },
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
   dateTimeText: {
     fontSize: 16,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
     textAlign: 'center',
   },
   mealTypeContainer: {
@@ -161,12 +162,12 @@ const styles = StyleSheet.create({
   },
   mealTypeText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
   mealTypeTextActive: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
   },
   recipeName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
   recipeNameSelected: {
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
   },
   servingsText: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginHorizontal: 20,
   },
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   cancelButtonText: {
     color: Colors.text,

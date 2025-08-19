@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
+import { Typography } from '@/constants/spacing';
 
 type Goals = {
   dailyCalories: number;
@@ -143,12 +144,12 @@ const styles = StyleSheet.create({
   },
   caloriesValue: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   caloriesUnit: {
     color: Colors.lightText,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
   },
   goalText: {
     color: Colors.lightText,
@@ -171,12 +172,12 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     color: Colors.lightText,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
   },
   legendValue: {
     marginLeft: 'auto',
     color: Colors.text,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   macrosRow: {
     flexDirection: 'row',
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   },
   macroValue: {
     color: Colors.text,
-    fontWeight: '800',
+    fontWeight: Typography.weights.semibold,
   },
   macroGoal: {
     color: Colors.lightText,
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     color: Colors.lightText,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     marginTop: 6,
   },
 });

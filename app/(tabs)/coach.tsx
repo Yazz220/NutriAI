@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image, FlatList, Dimensions, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Star } from 'lucide-react-native';
+import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,9 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StructuredMessage } from '@/components/StructuredMessage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Rule } from '@/components/ui/Rule';
+import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
 
 export default function CoachScreen() {
   const insets = useSafeAreaInsets();
@@ -122,6 +125,69 @@ export default function CoachScreen() {
     setShowMealPlanModal(true);
   };
 
+  // Reusable DayCell component (Design A: progress ring cell)
+  const DayCell: React.FC<{
+    date: Date;
+    selected: boolean;
+    isToday: boolean;
+    isYesterday: boolean;
+    isFuture: boolean;
+    // Optional status: only computed for selected to avoid new logic pathways
+    status?: 'met' | 'missed';
+    onPress: () => void;
+  }> = ({ date, selected, isToday, isYesterday, isFuture, status, onPress }) => {
+    const size = 44; // 40–44dp circle, choose 44 for better tap target
+    const ringStroke = 2; // 2dp outer progress ring
+    const radius = (size - ringStroke) / 2;
+    const cx = size / 2;
+    const cy = size / 2;
+    const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
+    const weekdayInitial = Array.from(weekday)[0] ?? weekday.charAt(0);
+    const dayNum = date.getDate();
+
+    // Visual state colors (tokens)
+    const baseRing = Colors.border;
+    const selectedFill = Colors.primary;
+    const todayOutline = Colors.primary;
+    const textColor = Colors.text;
+    const subText = Colors.lightText;
+
+    // Progress ring: keep subtle unless selected; no new data logic introduced
+    const ringColor = selected ? Colors.primary : baseRing;
+
+    return (
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`${weekday} ${dayNum}${isToday ? ', Today' : ''}${selected ? ', Selected' : ''}`}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        onPress={onPress}
+        style={[styles.carouselItem, selected && styles.carouselItemSelected]}
+      >
+        <Text style={[styles.dayWeekLabel, selected && styles.dayWeekLabelSelected]}>
+          {weekdayInitial.toUpperCase()}
+        </Text>
+        <View style={[styles.dayCircleContainer, isToday && styles.dayCircleToday]}>
+          <Svg width={size} height={size}>
+            <Circle cx={cx} cy={cy} r={radius} stroke={baseRing} strokeWidth={ringStroke} fill="transparent" />
+            {/* Outer progress ring – visual only; highlight when selected */}
+            <Circle cx={cx} cy={cy} r={radius} stroke={ringColor} strokeWidth={ringStroke} fill="none" opacity={selected ? 1 : 0.4} />
+          </Svg>
+          <View style={styles.dayCircleInner} pointerEvents="none">
+            <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{dayNum}</Text>
+          </View>
+        </View>
+        {/* Mini activity bar – decorative only to avoid logic changes */}
+        <View style={[styles.dayMiniBar, selected && styles.dayMiniBarSelected, isFuture && styles.dayMiniBarFuture]} />
+        {/* Optional status text tint – only if provided (e.g., for selected via existing ringPct) */}
+        {!!status && (
+          <Text style={[styles.dayStatus, status === 'met' ? styles.dayStatusMet : styles.dayStatusMissed]}>
+            {status === 'met' ? 'Met' : 'Missed'}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   // Centered, clickable horizontal date picker using FlatList for snapping and consistent centering
   const DateCarousel: React.FC<{ selectedDate: string; onSelectDate: (d: string) => void; daysToShow?: number }> = ({ selectedDate, onSelectDate, daysToShow = 7 }) => {
     const listRef = React.useRef<FlatList<Date> | null>(null);
@@ -162,25 +228,30 @@ export default function CoachScreen() {
           const d = item;
           const iso = d.toISOString().split('T')[0];
           const isSel = iso === selectedDate;
-          // Use Array.from to correctly grab the first grapheme cluster for localized/RTL weekdays
-          const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
-          const weekdayInitial = Array.from(weekday)[0] ?? weekday.charAt(0);
-          const dayNum = d.getDate();
+          const todayISO = new Date().toISOString().split('T')[0];
+          const isToday = iso === todayISO;
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayISO = yesterday.toISOString().split('T')[0];
+          const isYesterday = iso === yesterdayISO;
+          const isFuture = new Date(iso) > new Date(todayISO);
+
+          // Optional status for the selected day only, driven by existing daily state
+          let status: 'met' | 'missed' | undefined;
+          if (isSel) {
+            status = (calorieGoal > 0 && eaten >= calorieGoal) ? 'met' : undefined;
+          }
+
           return (
-            <TouchableOpacity
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={`${weekday} ${dayNum}`}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={[styles.carouselItem, isSel && styles.carouselItemSelected]}
+            <DayCell
+              date={d}
+              selected={isSel}
+              isToday={isToday}
+              isYesterday={isYesterday}
+              isFuture={isFuture}
+              status={status}
               onPress={() => onSelectDate(iso)}
-            >
-              <Text style={[styles.carouselWeekday, isSel && styles.carouselWeekdaySelected]}>{weekdayInitial.toUpperCase()}</Text>
-              <View style={[styles.carouselCircle, isSel && styles.carouselCircleSelected]}>
-                <Text style={[styles.carouselDayNumber, isSel && styles.carouselDayNumberSelected]}>{dayNum}</Text>
-              </View>
-              {isSel && <View style={styles.snapIndicator} />}
-            </TouchableOpacity>
+            />
           );
         }}
         snapToInterval={totalItemSize}
@@ -195,11 +266,20 @@ export default function CoachScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Dashboard',
-          headerShown: true,
+          title: '',
+          headerShown: false,
         }}
       />
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Unified Screen Header */}
+      <ScreenHeader
+        title="Coach"
+        icon={<Brain size={28} color={Colors.text} />}
+      />
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 32 }}
+      >
         {/* Enhanced Hero Header with Gradient */}
         <ExpoLinearGradient
           colors={[Colors.background, Colors.background]}
@@ -207,10 +287,7 @@ export default function CoachScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          {/* Status Bar Spacer */}
-          <View style={styles.statusBarSpacer} />
-
-          {/* Screen Title removed to rely on navigation header */}
+          {/* Header spacer removed; ScreenHeader provides spacing */}
 
           {/* Enhanced Progress Ring */}
           <View style={styles.heroInner}>
@@ -218,19 +295,19 @@ export default function CoachScreen() {
               <Svg width={ringSize} height={ringSize}>
                 <Defs>
                   <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
-                    <Stop offset="100%" stopColor="#ffffff" stopOpacity="0.10" />
+                    <Stop offset="0%" stopColor={Colors.white} stopOpacity="0.15" />
+                    <Stop offset="100%" stopColor={Colors.white} stopOpacity="0.10" />
                   </LinearGradient>
                   <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#F1828D" stopOpacity="1" />
-                    <Stop offset="100%" stopColor="#F1828D" stopOpacity="0.9" />
+                    <Stop offset="0%" stopColor={Colors.primary} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={Colors.primary} stopOpacity="0.9" />
                   </LinearGradient>
                 </Defs>
                 <Circle 
                   cx={ringSize/2} 
                   cy={ringSize/2} 
                   r={radius} 
-                  stroke="rgba(0,0,0,0.12)" 
+                  stroke={Colors.border} 
                   strokeWidth={stroke} 
                   fill="none" 
                 />
@@ -238,7 +315,7 @@ export default function CoachScreen() {
                   cx={ringSize/2}
                   cy={ringSize/2}
                   r={radius}
-                  stroke="#F1828D"
+                  stroke={Colors.primary}
                   strokeWidth={stroke}
                   strokeDasharray={`${dash}, ${circumference}`}
                   strokeLinecap="round"
@@ -264,15 +341,17 @@ export default function CoachScreen() {
             </View>
           </View>
 
-          {/* Quick Stats Row */}
-            <View style={styles.quickStatsRow}>
-            <View style={styles.quickStat}>
+          {/* StatRow: Goal / Eaten (outline pills, no cards) */}
+          <View style={styles.statRow}>
+            <View style={styles.statPill}>
               <Target size={16} color={Colors.primary} />
-              <Text style={styles.quickStatText}>Goal: {calorieGoal}</Text>
+              <Text style={styles.statPillValue}>{calorieGoal}</Text>
+              <Text style={styles.statPillLabel}>Goal</Text>
             </View>
-            <View style={styles.quickStat}>
+            <View style={styles.statPill}>
               <Flame size={16} color={Colors.primary} />
-              <Text style={styles.quickStatText}>Eaten: {eaten}</Text>
+              <Text style={styles.statPillValue}>{eaten}</Text>
+              <Text style={styles.statPillLabel}>Eaten</Text>
             </View>
           </View>
         </ExpoLinearGradient>
@@ -314,31 +393,87 @@ export default function CoachScreen() {
             <ChevronLeft size={18} color={Colors.text} />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Animated.Text style={[styles.weekLabel, { opacity: weekAnim }]}>{weekLabelText}</Animated.Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Animated.Text style={[styles.weekLabel, { opacity: weekAnim }]}>{weekLabelText}</Animated.Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Jump to Today"
+                onPress={() => setDayISO(new Date().toISOString().split('T')[0])}
+                style={styles.todayChip}
+              >
+                <Text style={styles.todayChipText}>Today</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftWeek(1)} accessibilityRole="button" accessibilityLabel="Next week">
             <ChevronRight size={18} color={Colors.text} />
           </TouchableOpacity>
         </View>
         <View style={{ paddingHorizontal: 8, marginTop: 8, marginBottom: 16 }}>
-          <DateCarousel selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} />
+          <DateCarousel
+            selectedDate={dayISO}
+            onSelectDate={(iso) => setDayISO(iso)}
+            daysToShow={Platform.OS === 'ios' ? 5 : 7}
+          />
         </View>
 
         {/* Enhanced Meals Section */}
         <View style={styles.mealsSection}>
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader}> 
             <Text style={styles.sectionTitle}>Today's Meals</Text>
-            <TouchableOpacity style={styles.sectionAction}>
-              <Star size={16} color={Colors.primary} />
-              <Text style={styles.sectionActionText}>Plan All</Text>
-            </TouchableOpacity>
+            <Button title="Plan All" variant="outline" size="sm" onPress={() => setShowMealPlanModal(true)} />
           </View>
-          
-          <View style={styles.mealsGrid}>
-            <EnhancedMealCard title="Breakfast" type="breakfast" dayISO={dayISO} onAdd={openAddMeal} icon="🌅" />
-            <EnhancedMealCard title="Lunch" type="lunch" dayISO={dayISO} onAdd={openAddMeal} icon="☀️" />
-            <EnhancedMealCard title="Dinner" type="dinner" dayISO={dayISO} onAdd={openAddMeal} icon="🌙" />
-            <EnhancedMealCard title="Snack" type="snack" dayISO={dayISO} onAdd={openAddMeal} icon="🍎" />
+          <Rule />
+
+          {/* Meal rows: 60–64dp, emoji + title, sublabel, trailing optional icon button */}
+          <View>
+            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('breakfast')}>
+              <Text style={styles.mealRowIcon}>🌅</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mealRowTitle}>Breakfast</Text>
+                <Text style={styles.mealRowSub}>Add breakfast</Text>
+              </View>
+              <IconButtonSquare accessibilityLabel="Plan breakfast">
+                <Plus size={16} color={Colors.text} />
+              </IconButtonSquare>
+            </TouchableOpacity>
+            <Rule />
+
+            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('lunch')}>
+              <Text style={styles.mealRowIcon}>☀️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mealRowTitle}>Lunch</Text>
+                <Text style={styles.mealRowSub}>Add lunch</Text>
+              </View>
+              <IconButtonSquare accessibilityLabel="Plan lunch">
+                <Plus size={16} color={Colors.text} />
+              </IconButtonSquare>
+            </TouchableOpacity>
+            <Rule />
+
+            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('dinner')}>
+              <Text style={styles.mealRowIcon}>🌙</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mealRowTitle}>Dinner</Text>
+                <Text style={styles.mealRowSub}>Add dinner</Text>
+              </View>
+              <IconButtonSquare accessibilityLabel="Plan dinner">
+                <Plus size={16} color={Colors.text} />
+              </IconButtonSquare>
+            </TouchableOpacity>
+            <Rule />
+
+            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('snack')}>
+              <Text style={styles.mealRowIcon}>🍎</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mealRowTitle}>Snack</Text>
+                <Text style={styles.mealRowSub}>Add snack</Text>
+              </View>
+              <IconButtonSquare accessibilityLabel="Plan snack">
+                <Plus size={16} color={Colors.text} />
+              </IconButtonSquare>
+            </TouchableOpacity>
+            <Rule />
           </View>
         </View>
 
@@ -350,15 +485,15 @@ export default function CoachScreen() {
               title="Streak" 
               value="7 days" 
               subtitle="Keep it up!" 
-              icon={<Award size={20} color="#FFD93D" />}
-              color="#FFF3CD"
+              icon={<Award size={20} color={Colors.primary} />}
+              color={Colors.card}
             />
             <InsightCard 
               title="Progress" 
               value={`${Math.round(ringPct * 100)}%`} 
               subtitle="of daily goal" 
-              icon={<TrendingUp size={20} color="#28A745" />}
-              color="#D4EDDA"
+              icon={<TrendingUp size={20} color={Colors.primary} />}
+              color={Colors.card}
             />
           </View>
         </View>
@@ -371,7 +506,7 @@ export default function CoachScreen() {
       <TouchableOpacity
         style={[
           styles.fab,
-          { bottom: Math.max(16, (insets?.bottom ?? 0) + 12), zIndex: 999, elevation: 20 },
+          { bottom: Math.max(20, (insets?.bottom ?? 0) + 56 + 24), zIndex: 999, elevation: 20 },
         ]}
         onPress={() => setChatOpen(true)}
       >
@@ -506,7 +641,7 @@ const styles = StyleSheet.create({
   dateLabel: {
     color: Colors.text,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: Typography.weights.medium,
     textAlign: 'center',
     flexShrink: 1,
   },
@@ -527,7 +662,7 @@ const styles = StyleSheet.create({
   heroDate: {
   color: Colors.text,
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
@@ -566,7 +701,7 @@ const styles = StyleSheet.create({
   kcalNumber: {
   color: Colors.text,
     fontSize: 42,
-    fontWeight: '800',
+    fontWeight: Typography.weights.semibold,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
@@ -596,7 +731,7 @@ const styles = StyleSheet.create({
   progressPercent: {
   color: Colors.text,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: Typography.weights.medium,
   },
   quickStatsRow: {
     flexDirection: 'row',
@@ -620,13 +755,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    gap: 6,
+  },
+  statPillValue: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  statPillLabel: {
+    color: Colors.lightText,
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
   macrosSection: {
     padding: 20,
     paddingTop: 30,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   color: Colors.text,
     marginBottom: 16,
   },
@@ -639,13 +805,13 @@ const styles = StyleSheet.create({
   sectionAction: {
     flexDirection: 'row',
     alignItems: 'center',
-  backgroundColor: 'rgba(241,130,141,0.15)',
+    backgroundColor: Colors.tints.brandTintSoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   sectionActionText: {
-  color: '#F1828D',
+    color: Colors.primary,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -653,38 +819,43 @@ const styles = StyleSheet.create({
   macrosGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 14,
   },
   macroCard: {
     flex: 1,
-  backgroundColor: Colors.card,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-  borderColor: Colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   macroHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 10,
   },
   macroIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: Typography.weights.medium,
   },
   macroLabel: {
+    color: Colors.lightText,
     fontSize: 11,
-    fontWeight: '700',
-  color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
     letterSpacing: 0.5,
   },
   macroProgress: {
-    position: 'relative',
+    marginVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
   macroCenter: {
     position: 'absolute',
@@ -692,116 +863,120 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   macroValue: {
-    fontSize: 18,
-    fontWeight: '800',
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+    lineHeight: 18,
   },
   macroUnit: {
-    fontSize: 10,
-  color: Colors.lightText,
+    color: Colors.lightText,
+    fontSize: 11,
     fontWeight: '600',
   },
   macroGoal: {
-    fontSize: 12,
-  color: Colors.lightText,
-    fontWeight: '500',
+    color: Colors.lightText,
+    fontSize: 11,
+    marginTop: 6,
   },
+  // ... (rest of the styles remain the same)
+
   mealsSection: {
     padding: 20,
   },
+  // Flat meal rows with Rules
+  mealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 60,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  mealRowIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+    marginRight: 12,
+  },
+  mealRowTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: Typography.weights.semibold,
+  },
+  mealRowSub: {
+    color: Colors.lightText,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 2,
+  },
   mealsGrid: {
-    gap: 12,
+    gap: 14,
   },
   mealCard: {
-  backgroundColor: Colors.card,
+    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-  borderColor: Colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   mealCardPlanned: {
-  borderColor: 'rgba(241,130,141,0.30)',
-  backgroundColor: 'rgba(241,130,141,0.05)',
+    borderColor: Colors.primary,
   },
   mealCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   mealIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  backgroundColor: 'rgba(241,130,141,0.15)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    backgroundColor: Colors.tabBackground,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 8,
   },
-  mealIcon: {
-    fontSize: 18,
-  },
-  mealTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  color: Colors.text,
-  },
-  mealContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  mealImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    marginRight: 12,
-  backgroundColor: Colors.secondary,
-  },
-  mealInfo: {
-    flex: 1,
-  },
-  mealName: {
-    fontSize: 14,
-    fontWeight: '600',
-  color: Colors.text,
-    marginBottom: 4,
-  },
-  mealStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  mealKcal: {
-    fontSize: 12,
-    color: '#FF9500',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  emptyMealContent: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyMealText: {
-    fontSize: 14,
-  color: Colors.lightText,
-    fontWeight: '500',
-    marginTop: 8,
-  },
+  mealIcon: { color: Colors.text, fontWeight: Typography.weights.medium },
+  mealTitle: { color: Colors.text, fontSize: 16, fontWeight: Typography.weights.semibold },
+  mealContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mealImage: { width: 64, height: 64, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
+  mealInfo: { flex: 1 },
+  mealName: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  mealStats: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  mealKcal: { color: Colors.text, fontSize: 12, fontWeight: '600' },
+  emptyMealContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  emptyMealText: { color: Colors.lightText, fontSize: 14, fontWeight: '500' },
+  // ... (rest of the styles remain the same)
+
   insightsSection: {
     padding: 20,
   },
   insightsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
   },
   insightCard: {
     flex: 1,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-  backgroundColor: Colors.card,
+    backgroundColor: Colors.card,
     borderWidth: 1,
-  borderColor: Colors.border,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
+  // ... (rest of the styles remain the same)
   insightHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -815,7 +990,7 @@ const styles = StyleSheet.create({
   },
   insightValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: Typography.weights.semibold,
   color: Colors.text,
     marginBottom: 2,
   },
@@ -839,7 +1014,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: Typography.sizes.xl,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   color: Colors.text,
   },
   headerButton: { padding: Spacing.sm, marginRight: Spacing.sm },
@@ -866,9 +1041,9 @@ const styles = StyleSheet.create({
   composerRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: Spacing.md, backgroundColor: Colors.card },
   input: { flex: 1, paddingVertical: Spacing.md, color: Colors.text },
   sendBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  sendText: { color: '#F1828D', fontWeight: '600' },
+  sendText: { color: Colors.primary, fontWeight: '600' },
   iconBtn: { padding: Spacing.sm },
-  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: '#F1828D', borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(241,130,141,0.3)', shadowOpacity: 0.6, shadowRadius: 12, elevation: 8 },
+  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, backgroundColor: Colors.primary, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.shadow, shadowOpacity: 0.25, shadowRadius: 12, elevation: 8 },
   carouselItem: {
     width: 64,
     alignItems: 'center',
@@ -885,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   carouselWeekdaySelected: {
   color: Colors.text,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   carouselCircle: {
     width: 44,
@@ -899,17 +1074,34 @@ const styles = StyleSheet.create({
   },
   carouselCircleSelected: {
     // use app accent (orange) so it matches app theme rather than the example screenshot
-  backgroundColor: '#F1828D',
-  borderColor: '#F1828D',
+  backgroundColor: Colors.primary,
+  borderColor: Colors.primary,
   },
   carouselDayNumber: {
   color: Colors.text,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   carouselDayNumberSelected: {
   color: Colors.white,
   },
+  // Design A DayCell styles
+  dayWeekLabel: { color: Colors.lightText, fontSize: 12, marginBottom: 6 },
+  dayWeekLabelSelected: { color: Colors.text, fontWeight: Typography.weights.semibold },
+  dayCircleContainer: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  dayCircleToday: { },
+  dayCircleInner: { position: 'absolute', alignItems: 'center', justifyContent: 'center', width: 44, height: 44 },
+  dayNumber: { color: Colors.text, fontSize: 16, fontWeight: Typography.weights.semibold },
+  dayNumberSelected: { color: Colors.white },
+  dayMiniBar: { marginTop: 6, height: 3, width: 24, backgroundColor: Colors.border, borderRadius: 2 },
+  dayMiniBarSelected: { backgroundColor: Colors.primary },
+  dayMiniBarFuture: { opacity: 0.6 },
+  dayStatus: { marginTop: 4, fontSize: 10, color: Colors.lightText },
+  dayStatusMet: { color: Colors.primary, fontWeight: '600' },
+  dayStatusMissed: { color: Colors.warning, fontWeight: '600' },
+  // Today chip
+  todayChip: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  todayChipText: { color: Colors.text, fontSize: Typography.sizes.sm, fontWeight: '600' },
   weekNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -919,13 +1111,13 @@ const styles = StyleSheet.create({
   },
   weekLabel: {
   color: Colors.text,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     fontSize: 14,
   },
   snapIndicator: {
     height: 3,
     width: 28,
-  backgroundColor: '#F1828D',
+    backgroundColor: Colors.primary,
     borderRadius: 2,
     marginTop: 6,
   },

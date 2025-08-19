@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   image: {
     width: 56,
     height: 56,
-    borderRadius: 10,
+    borderRadius: 0,
   },
   placeholderImage: {
     backgroundColor: Colors.secondary,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     top: -6,
     right: -6,
     backgroundColor: Colors.card,
-    borderRadius: 10,
+    borderRadius: 6,
     padding: 3,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -154,20 +154,20 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: 4,
   },
   quantity: {
     fontSize: 14,
     color: Colors.lightText,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     marginBottom: 2,
   },
   category: {
     fontSize: 12,
     color: Colors.lightText,
-    fontWeight: '500',
+    fontWeight: Typography.weights.semibold,
     backgroundColor: Colors.secondary,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -189,6 +189,6 @@ const styles = StyleSheet.create({
   useUpText: {
     fontSize: 12,
     color: Colors.text,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
 });

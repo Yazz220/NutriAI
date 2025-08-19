@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   filtersTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   clearFiltersText: {
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: Typography.sizes.md,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.sm,
   },
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   resultsTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   recipeGrid: {
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   recipeImagePlaceholder: {
     fontSize: Typography.sizes.xl,
-    fontWeight: 'bold',
+    fontWeight: Typography.weights.semibold,
     color: Colors.primary,
   },
   recipeInfo: {
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   },
   recipeTitle: {
     fontSize: Typography.sizes.md,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
   },
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.sm,
   },

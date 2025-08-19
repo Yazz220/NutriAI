@@ -1,50 +1,60 @@
 export const Colors = {
-  // Interactive accent
-  primary: "#F1828D", // Pink-orange accent
-  secondary: "#FFF1E6", // Light secondary surface
+  // Brand & actions (New system)
+  primary: "#1E463B", // brandPrimary
+  secondary: "#6B8E23", // brandAccent (selected/secondary actions)
+  brandSecondary: "#B9D56A", // promotional highlight
 
   // Backgrounds
-  background: "#FEFAD4", // Soft light background
-  card: "#FCD0BA", // Surface cards and modals
-  tabBackground: "#FFFFFF",
+  background: "#F6F1E7", // surface (warm cream)
+  card: "#F6F1E7", // cards rely on surface background per spec
+  surfaceMuted: "#EFE7DB", // section backgrounds / subtle panels
+  surfaceTile: "#E9DFD3", // product tiles, ingredient chips (beige)
+  tabBackground: "#F6F1E7",
 
   // Text
-  text: "#2B2B2B",
-  lightText: "#6B7280",
+  text: "#1A1A1A", // textPrimary
+  lightText: "#6B6B6B", // textSecondary
   white: "#FFFFFF",
+  textInverse: "#FFFFFF",
 
-  // Borders and shadows
-  border: "rgba(0,0,0,0.08)",
-  shadow: "rgba(241,130,141,0.30)", // subtle glow accent for primary
-  lightGray: "#2C2C2E",
+  // Borders and elevation overlay
+  border: "rgba(0,0,0,0.12)", // divider hairline
+  shadow: "rgba(0,0,0,0.04)", // elevationOverlay (kept subtle)
+  lightGray: "#8A8A8A",
 
   // Status & semantic
-  success: "#28A745",
-  warning: "#FFD93D",
+  success: "#4CAF50",
+  warning: "#FFC107",
   error: "#F44336",
-  info: "#45B7D1",
+  info: "#2196F3",
 
-  // Freshness indicators (retained, adapted to dark)
+  // Freshness indicators (retain but harmonize)
   fresh: "#4ECDC4",
   aging: "#F0C75E",
   expiring: "#E07A5F",
   danger: "#E57373",
 
-  // Gray scale (used sparingly in dark mode)
-  gray: {
-    50: "#1C1C1E",
-    100: "#2C2C2E",
-    200: "#3A3A3C",
-    300: "#48484A",
-    400: "#636366",
-    500: "#8A8A8E",
-    600: "#C7C7CC",
-    700: "#D1D1D6",
-    800: "#E5E5EA",
-    900: "#F2F2F7",
+  // Additional tints
+  tints: {
+    brandTintSoft: "#EBF0EB",
+    brandTintStrong: "#5F735F",
   },
 
-  red: { 500: "#EF4444" },
-  orange: { 500: "#F1828D" },
+  // Gray scale (keep neutral set)
+  gray: {
+    50: "#F8F9FA",
+    100: "#F1F3F5",
+    200: "#E9ECEF",
+    300: "#DEE2E6",
+    400: "#CED4DA",
+    500: "#ADB5BD",
+    600: "#868E96",
+    700: "#495057",
+    800: "#343A40",
+    900: "#212529",
+  },
+
+  red: { 500: "#F44336" },
+  orange: { 500: "#FFC107" },
   black: "#000000",
 };

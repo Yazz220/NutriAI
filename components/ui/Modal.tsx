@@ -24,6 +24,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   scrollable?: boolean;
   hasHeader?: boolean;
+  variant?: 'elevated' | 'outline';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -35,8 +36,13 @@ export const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
   scrollable = true,
   hasHeader = true,
+  variant = 'elevated',
 }) => {
-  const modalStyle = [styles.modalContent, styles[size]];
+  const modalStyle = [
+    styles.modalContent,
+    styles[size],
+    variant === 'elevated' ? styles.elevated : styles.outline,
+  ];
 
   const content = scrollable ? (
     <ScrollView
@@ -61,7 +67,12 @@ export const Modal: React.FC<ModalProps> = ({
       presentationStyle={size === 'full' ? 'fullScreen' : 'overFullScreen'}
     >
       <View style={size === 'full' ? styles.fullOverlay : styles.overlay}>
-        <SafeAreaView style={modalStyle} edges={['top','bottom','left','right']}>
+        <SafeAreaView
+          style={modalStyle}
+          edges={['top','bottom','left','right']}
+          accessibilityLabel={title}
+          accessibilityViewIsModal
+        >
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={size === 'full' ? { flex: 1 } : undefined}>
             {hasHeader && (
               <View style={styles.header}>
@@ -103,10 +114,16 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   modalContent: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
     maxHeight: '95%',
+  },
+  elevated: {
     ...Shadows.lg,
+  },
+  outline: {
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   sm: {
     width: '80%',

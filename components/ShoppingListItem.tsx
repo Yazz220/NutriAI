@@ -24,13 +24,15 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onTogg
   
   return (
     <View 
-      style={[styles.container, item.checked && styles.checkedContainer]}
+      style={[styles.container]}
       testID={`shopping-item-${item.id}`}
     >
       <TouchableOpacity 
         style={[styles.checkbox, item.checked && styles.checkedCheckbox]}
         onPress={handleToggle}
         testID={`toggle-item-${item.id}`}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.checked }}
       >
         {item.checked && <Check size={16} color={Colors.white} />}
       </TouchableOpacity>
@@ -48,9 +50,10 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onTogg
       </View>
       
       <TouchableOpacity 
-        style={styles.deleteButton}
+        style={styles.iconButtonSquare}
         onPress={handleDelete}
         testID={`delete-item-${item.id}`}
+        accessibilityLabel={`Delete ${item.name}`}
       >
         <Trash2 size={16} color={Colors.expiring} />
       </TouchableOpacity>
@@ -62,16 +65,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  checkedContainer: {
-    backgroundColor: Colors.secondary,
-    opacity: 0.8,
+    minHeight: 64,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
   },
   checkbox: {
     width: 24,
@@ -103,12 +99,14 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     opacity: 0.7,
   },
-  deleteButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: Colors.card,
+  iconButtonSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-  }
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

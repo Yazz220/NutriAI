@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share, Switch, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/colors';
@@ -18,6 +19,9 @@ export const ExportShoppingModal: React.FC<ExportShoppingModalProps> = ({ visibl
   const [includeChecked, setIncludeChecked] = useState<boolean>(false);
   const [groupByCategory, setGroupByCategory] = useState<boolean>(true);
   const [copied, setCopied] = useState(false);
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = 56; // matches pill bar height in app/(tabs)/_layout.tsx
+  const bottomPadding = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
 
   // Load saved preferences
   useEffect(() => {
@@ -169,8 +173,8 @@ export const ExportShoppingModal: React.FC<ExportShoppingModalProps> = ({ visibl
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.container}>
-        <ScrollView>
+      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 12 }}>
           <Text style={styles.title}>Export / Share</Text>
 
           <Card>

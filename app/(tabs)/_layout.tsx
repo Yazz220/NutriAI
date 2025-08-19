@@ -9,6 +9,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={({ route }) => ({
         tabBarShowLabel: false,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.lightText,
         headerStyle: styles.header,
         headerTitleStyle: styles.headerTitle,
         headerTintColor: Colors.text,
@@ -46,11 +48,17 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen key="tab-coach" name="coach" options={{ title: 'Dashboard' }} />
-      <Tabs.Screen key="tab-inventory" name="index" options={{ title: 'Inventory' }} />
-      <Tabs.Screen key="tab-recipes" name="recipes" options={{ title: 'Recipes' }} />
-      <Tabs.Screen key="tab-list" name="list" options={{ title: 'Shopping List' }} />
-      <Tabs.Screen key="tab-profile" name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="coach" options={{ title: 'Dashboard' }} />
+      <Tabs.Screen name="index" options={{ title: 'Inventory' }} />
+      <Tabs.Screen name="recipes" options={{ title: 'Recipes' }} />
+      <Tabs.Screen name="list" options={{ title: 'Shopping List' }} />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: '',
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }
@@ -63,13 +71,14 @@ const styles = StyleSheet.create({
   bottom: 12,
   height: 56,
   borderRadius: 36,
-  backgroundColor: Colors.tabBackground,
+  backgroundColor: 'rgba(248, 246, 242, 0.85)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 10,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
   },
   iconWrap: {
@@ -81,7 +90,9 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   header: {
-    backgroundColor: Colors.background,
+    backgroundColor: 'rgba(248, 246, 242, 0.85)',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
     fontSize: 20,

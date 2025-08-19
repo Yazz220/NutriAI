@@ -9,8 +9,9 @@ import {
   Platform
 } from 'react-native';
 import { Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock } from 'lucide-react-native';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+// Header now uses ScreenHeader
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
@@ -24,6 +25,8 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ShoppingListItem } from '@/types';
 import { ExportShoppingModal } from '@/components/ExportShoppingModal';
 import { useToast } from '@/contexts/ToastContext';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Rule } from '@/components/ui/Rule';
 
 export default function ShoppingListScreen() {
   const { 
@@ -39,6 +42,9 @@ export default function ShoppingListScreen() {
     clearRecentlyPurchased
   } = useShoppingList();
   const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = 56; // matches pill bar height in app/(tabs)/_layout.tsx
+  const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [expirationModalVisible, setExpirationModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
@@ -124,61 +130,64 @@ export default function ShoppingListScreen() {
       />
       
       <View style={styles.container}>
-        {/* Enhanced Hero Header */}
-        <ExpoLinearGradient
-          colors={[Colors.background, Colors.background]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View style={styles.statusBarSpacer} />
-          
-          {/* Header */}
-          <View style={styles.heroHeader}>
-            <View style={styles.heroTitleRow}>
-              <ShoppingCart size={28} color={Colors.white} />
-              <Text style={styles.heroTitle}>Shopping List</Text>
-            </View>
+        {/* Unified Screen Header */}
+        <ScreenHeader
+          title="Shopping List"
+          icon={<ShoppingCart size={28} color={Colors.text} />}
+          rightAction={
             <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
               <Plus size={24} color={Colors.white} />
             </TouchableOpacity>
-          </View>
+          }
+        />
 
-          {/* Quick Stats */}
-          <View style={styles.shoppingStats}>
-            <StatCard 
-              icon={<ShoppingCart size={20} color={Colors.primary} />} 
-              label="Total Items" 
-              value={totalItems.toString()} 
-            />
-            <StatCard 
-              icon={<CheckCircle size={20} color={Colors.primary} />} 
-              label="Completed" 
-              value={checkedItems.toString()} 
-            />
-            <StatCard 
-              icon={<Clock size={20} color={Colors.error} />} 
-              label="Remaining" 
-              value={uncheckedItems.toString()} 
-            />
-          </View>
-        </ExpoLinearGradient>
+        {/* Quick Stats */}
+        <View style={styles.shoppingStats}>
+          <StatCard 
+            icon={<ShoppingCart size={20} color={Colors.primary} />} 
+            label="Total Items" 
+            value={totalItems.toString()} 
+          />
+          <StatCard 
+            icon={<CheckCircle size={20} color={Colors.primary} />} 
+            label="Completed" 
+            value={checkedItems.toString()} 
+          />
+          <StatCard 
+            icon={<Clock size={20} color={Colors.error} />} 
+            label="Remaining" 
+            value={uncheckedItems.toString()} 
+          />
+        </View>
 
         {/* Enhanced Actions */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.smartListButton} onPress={handleGenerateSmartList}>
-            <Sparkles size={18} color={Colors.white} />
-            <Text style={styles.smartListText}>Smart List</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.exportButton} onPress={() => setExportVisible(true)}>
-            <Text style={styles.exportButtonText}>Export</Text>
-          </TouchableOpacity>
-          
+          <Button
+            title="Smart List"
+            onPress={handleGenerateSmartList}
+            variant="primary"
+            size="md"
+            style={{ flex: 1.2, minWidth: 0, paddingHorizontal: 12 }}
+            icon={<Sparkles size={18} color={Colors.white} />}
+          />
+
+          <Button
+            title="Export"
+            onPress={() => setExportVisible(true)}
+            variant="outline"
+            size="md"
+            style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
+          />
+
           {shoppingList.some(item => item.checked) && (
-            <TouchableOpacity style={styles.clearButton} onPress={clearCheckedItems}>
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>
+            <Button
+              title="Clear"
+              onPress={clearCheckedItems}
+              variant="outline"
+              size="md"
+              style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
+              textStyle={{ color: Colors.error }}
+            />
           )}
         </View>
         
@@ -186,16 +195,23 @@ export default function ShoppingListScreen() {
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ShoppingListItemComponent 
-              item={item} 
-              onToggle={handleToggleItem} 
-            />
+            <View>
+              <ShoppingListItemComponent 
+                item={item} 
+                onToggle={handleToggleItem} 
+              />
+              <Rule />
+            </View>
           )}
           renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.sectionHeader}>{title}</Text>
+            <View>
+              <Text style={styles.sectionHeader}>{title}</Text>
+              <Rule />
+            </View>
           )}
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Your shopping list is empty</Text>
@@ -250,6 +266,9 @@ export default function ShoppingListScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Bottom spacer to ensure content clears the absolute tab bar */}
+        <View style={{ height: bottomPad }} />
         
         <ExpirationDateModal
           visible={expirationModalVisible}
@@ -352,7 +371,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    gap: 12,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   smartListButton: {
     flexDirection: 'row',
@@ -413,7 +433,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: Colors.text,
-    marginTop: 16,
+    marginTop: 24,
     marginBottom: 8,
     backgroundColor: Colors.background,
   },

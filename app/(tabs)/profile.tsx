@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
-import { Card } from '@/components/ui/Card';
+import { Typography } from '@/constants/spacing';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '@/utils/supabaseClient';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { User, Target, Heart, Settings, LogOut, Edit3, Save, Activity, Scale, Ruler } from 'lucide-react-native';
+import { User, Target, Heart, Settings, LogOut, Scale, Ruler } from 'lucide-react-native';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Button } from '@/components/ui/Button';
 
 const dietOptions = ['none','vegan','vegetarian','pescatarian','halal','kosher','gluten_free','keto','paleo'] as const;
 const goalTypes = ['maintain','lose','gain'] as const;
@@ -16,7 +19,9 @@ const activityLevels = ['sedentary','light','moderate','active','athlete'] as co
 const units = ['metric','imperial'] as const;
 
 export default function ProfileScreen() {
-  const { profile, updateBasics, updateGoals, updatePreferences, setUnitSystem } = useUserProfile();
+  const { profile, savePartial } = useUserProfile();
+  const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
 
   const [local, setLocal] = useState(() => ({
     name: profile.basics.name || '',
@@ -38,39 +43,55 @@ export default function ProfileScreen() {
   }));
 
   function saveBasics() {
-    updateBasics({
+    const patch = {
       name: local.name.trim() || undefined,
       age: local.age ? Number(local.age) : undefined,
       sex: local.sex as any,
       heightCm: local.heightCm ? Number(local.heightCm) : undefined,
       weightKg: local.weightKg ? Number(local.weightKg) : undefined,
-    });
+    };
+    savePartial('basics', patch as any);
+    showToast({ message: 'Personal info saved', type: 'success' });
   }
 
   function saveGoals() {
-    updateGoals({
+    const patch = {
       dailyCalories: local.dailyCalories ? Number(local.dailyCalories) : undefined,
       proteinTargetG: local.proteinTargetG ? Number(local.proteinTargetG) : undefined,
       carbsTargetG: local.carbsTargetG ? Number(local.carbsTargetG) : undefined,
       fatsTargetG: local.fatsTargetG ? Number(local.fatsTargetG) : undefined,
       goalType: local.goalType as any,
       activityLevel: local.activityLevel as any,
-    });
+    };
+    savePartial('goals', patch as any);
+    showToast({ message: 'Goals saved', type: 'success' });
   }
 
   function savePreferences() {
-    updatePreferences({
+    const prefs = {
       dietary: local.dietary as any,
       allergies: local.allergies.split(',').map(s => s.trim()).filter(Boolean),
       dislikedIngredients: local.dislikes.split(',').map(s => s.trim()).filter(Boolean),
       preferredCuisines: local.cuisines.split(',').map(s => s.trim()).filter(Boolean),
-    });
-    setUnitSystem(local.unitSystem as any);
+    };
+    savePartial('preferences', prefs as any);
+    savePartial('metrics', { unitSystem: local.unitSystem as any } as any);
+    showToast({ message: 'Preferences saved', type: 'success' });
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container}>
+      <ScreenHeader
+        title="Profile"
+        icon={<User size={28} color={Colors.text} />}
+      />
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: Math.max(24, (insets?.bottom ?? 0) + 24) }}
+      >
         {/* Enhanced Hero Header */}
         <ExpoLinearGradient
           colors={[Colors.background, Colors.background]}
@@ -78,17 +99,14 @@ export default function ProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View style={styles.statusBarSpacer} />
-          
-          {/* Profile Header */}
+          {/* Profile Header (avatar only; title moved to ScreenHeader) */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
                 <User size={32} color={Colors.white} />
               </View>
             </View>
-            <Text style={styles.profileName}>{local.name || 'Your Name'}</Text>
-            <Text style={styles.profileSubtitle}>Nutrition Journey</Text>
+            {/* Name/subtitle removed for unified header */}
           </View>
 
           {/* Quick Stats */}
@@ -105,25 +123,24 @@ export default function ProfileScreen() {
           <EnhancedCard 
             title="Personal Information" 
             icon={<User size={20} color={Colors.primary} />}
-            onSave={saveBasics}
           >
             <View style={styles.inputGroup}>
-              <Input label="Full Name" value={local.name} onChangeText={(t) => setLocal(p => ({ ...p, name: t }))} />
+              <Input label="Full Name" value={local.name} onChangeText={(t) => setLocal(p => ({ ...p, name: t }))} onBlur={saveBasics} />
             </View>
             <View style={styles.row}>
               <View style={styles.halfInput}>
-                <Input label="Age" keyboardType="number-pad" value={local.age} onChangeText={(t) => setLocal(p => ({ ...p, age: t }))} />
+                <Input label="Age" keyboardType="number-pad" value={local.age} onChangeText={(t) => setLocal(p => ({ ...p, age: t }))} onBlur={saveBasics} />
               </View>
               <View style={styles.halfInput}>
-                <Input label="Sex" value={local.sex} onChangeText={(t) => setLocal(p => ({ ...p, sex: t as any }))} />
+                <Input label="Sex" value={local.sex} onChangeText={(t) => setLocal(p => ({ ...p, sex: t as any }))} onBlur={saveBasics} />
               </View>
             </View>
             <View style={styles.row}>
               <View style={styles.halfInput}>
-                <Input label="Height (cm)" keyboardType="number-pad" value={local.heightCm} onChangeText={(t) => setLocal(p => ({ ...p, heightCm: t }))} />
+                <Input label="Height (cm)" keyboardType="number-pad" value={local.heightCm} onChangeText={(t) => setLocal(p => ({ ...p, heightCm: t }))} onBlur={saveBasics} />
               </View>
               <View style={styles.halfInput}>
-                <Input label="Weight (kg)" keyboardType="number-pad" value={local.weightKg} onChangeText={(t) => setLocal(p => ({ ...p, weightKg: t }))} />
+                <Input label="Weight (kg)" keyboardType="number-pad" value={local.weightKg} onChangeText={(t) => setLocal(p => ({ ...p, weightKg: t }))} onBlur={saveBasics} />
               </View>
             </View>
           </EnhancedCard>
@@ -132,20 +149,19 @@ export default function ProfileScreen() {
           <EnhancedCard 
             title="Nutrition Goals" 
             icon={<Target size={20} color={Colors.primary} />}
-            onSave={saveGoals}
           >
             <View style={styles.inputGroup}>
-              <Input label="Daily Calories Target" keyboardType="number-pad" value={local.dailyCalories} onChangeText={(t) => setLocal(p => ({ ...p, dailyCalories: t }))} />
+              <Input label="Daily Calories Target" keyboardType="number-pad" value={local.dailyCalories} onChangeText={(t) => setLocal(p => ({ ...p, dailyCalories: t }))} onBlur={saveGoals} />
             </View>
             <View style={styles.macroRow}>
               <View style={styles.macroInput}>
-                <Input label="Protein (g)" keyboardType="number-pad" value={local.proteinTargetG} onChangeText={(t) => setLocal(p => ({ ...p, proteinTargetG: t }))} />
+                <Input label="Protein (g)" keyboardType="number-pad" value={local.proteinTargetG} onChangeText={(t) => setLocal(p => ({ ...p, proteinTargetG: t }))} onBlur={saveGoals} />
               </View>
               <View style={styles.macroInput}>
-                <Input label="Carbs (g)" keyboardType="number-pad" value={local.carbsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, carbsTargetG: t }))} />
+                <Input label="Carbs (g)" keyboardType="number-pad" value={local.carbsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, carbsTargetG: t }))} onBlur={saveGoals} />
               </View>
               <View style={styles.macroInput}>
-                <Input label="Fats (g)" keyboardType="number-pad" value={local.fatsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, fatsTargetG: t }))} />
+                <Input label="Fats (g)" keyboardType="number-pad" value={local.fatsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, fatsTargetG: t }))} onBlur={saveGoals} />
               </View>
             </View>
             
@@ -153,14 +169,14 @@ export default function ProfileScreen() {
               label="Goal Type" 
               options={goalTypes} 
               selected={local.goalType} 
-              onSelect={(g) => setLocal(p => ({ ...p, goalType: g as typeof goalTypes[number] }))}
+              onSelect={(g) => { setLocal(p => ({ ...p, goalType: g as typeof goalTypes[number] })); savePartial('goals', { goalType: g as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
             />
             
             <ChipSelector 
               label="Activity Level" 
               options={activityLevels} 
               selected={local.activityLevel} 
-              onSelect={(a) => setLocal(p => ({ ...p, activityLevel: a as typeof activityLevels[number] }))}
+              onSelect={(a) => { setLocal(p => ({ ...p, activityLevel: a as typeof activityLevels[number] })); savePartial('goals', { activityLevel: a as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
             />
           </EnhancedCard>
 
@@ -168,30 +184,29 @@ export default function ProfileScreen() {
           <EnhancedCard 
             title="Dietary Preferences" 
             icon={<Heart size={20} color={Colors.primary} />}
-            onSave={savePreferences}
           >
             <ChipSelector 
               label="Dietary Restrictions" 
               options={dietOptions} 
               selected={local.dietary} 
-              onSelect={(d) => setLocal(p => ({ ...p, dietary: d as typeof dietOptions[number] }))}
+              onSelect={(d) => { setLocal(p => ({ ...p, dietary: d as typeof dietOptions[number] })); savePartial('preferences', { dietary: d as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
             />
             
             <View style={styles.inputGroup}>
-              <Input label="Allergies (comma-separated)" value={local.allergies} onChangeText={(t) => setLocal(p => ({ ...p, allergies: t }))} multiline />
+              <Input label="Allergies (comma-separated)" value={local.allergies} onChangeText={(t) => setLocal(p => ({ ...p, allergies: t }))} onBlur={savePreferences} multiline />
             </View>
             <View style={styles.inputGroup}>
-              <Input label="Disliked Ingredients (comma-separated)" value={local.dislikes} onChangeText={(t) => setLocal(p => ({ ...p, dislikes: t }))} multiline />
+              <Input label="Disliked Ingredients (comma-separated)" value={local.dislikes} onChangeText={(t) => setLocal(p => ({ ...p, dislikes: t }))} onBlur={savePreferences} multiline />
             </View>
             <View style={styles.inputGroup}>
-              <Input label="Preferred Cuisines (comma-separated)" value={local.cuisines} onChangeText={(t) => setLocal(p => ({ ...p, cuisines: t }))} multiline />
+              <Input label="Preferred Cuisines (comma-separated)" value={local.cuisines} onChangeText={(t) => setLocal(p => ({ ...p, cuisines: t }))} onBlur={savePreferences} multiline />
             </View>
             
             <ChipSelector 
               label="Unit System" 
               options={units} 
               selected={local.unitSystem} 
-              onSelect={(u) => setLocal(p => ({ ...p, unitSystem: u as typeof units[number] }))}
+              onSelect={(u) => { setLocal(p => ({ ...p, unitSystem: u as typeof units[number] })); savePartial('metrics', { unitSystem: u as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
             />
           </EnhancedCard>
 
@@ -200,16 +215,20 @@ export default function ProfileScreen() {
             title="Account Settings" 
             icon={<Settings size={20} color={Colors.primary} />}
           >
-            <TouchableOpacity style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
-              <LogOut size={20} color="#FF6B6B" />
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
+            <Button
+              title="Sign Out"
+              onPress={() => supabase.auth.signOut()}
+              variant="outline"
+              icon={<LogOut size={18} color={Colors.primary} />}
+              fullWidth
+            />
           </EnhancedCard>
         </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
+      </View>
+    </>
   );
 }
 
@@ -226,12 +245,10 @@ const EnhancedCard = ({
   title, 
   icon, 
   children, 
-  onSave 
 }: { 
   title: string; 
   icon: React.ReactNode; 
   children: React.ReactNode; 
-  onSave?: () => void;
 }) => (
   <View style={styles.enhancedCard}>
     <View style={styles.cardHeader}>
@@ -239,12 +256,6 @@ const EnhancedCard = ({
         <View style={styles.cardIconContainer}>{icon}</View>
         <Text style={styles.cardTitle}>{title}</Text>
       </View>
-      {onSave && (
-        <TouchableOpacity style={styles.saveButton} onPress={onSave}>
-          <Save size={16} color={Colors.primary} />
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
-      )}
     </View>
     <View style={styles.cardContent}>
       {children}
@@ -290,10 +301,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   hero: {
-    paddingBottom: 30,
+    paddingBottom: 20,
     paddingHorizontal: 20,
     alignItems: 'center',
-    minHeight: 280,
+    minHeight: 220,
   },
   statusBarSpacer: {
     height: Platform.OS === 'ios' ? 44 : 24,
@@ -318,7 +329,7 @@ const styles = StyleSheet.create({
   profileName: {
     color: Colors.white,
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
@@ -327,7 +338,7 @@ const styles = StyleSheet.create({
   profileSubtitle: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   quickStats: {
     flexDirection: 'row',
@@ -353,14 +364,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
     color: Colors.lightText,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   sectionsContainer: {
     padding: 20,
@@ -400,7 +411,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   saveButton: {
@@ -414,7 +425,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: Colors.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
     marginLeft: 4,
   },
   cardContent: {
@@ -445,7 +456,7 @@ const styles = StyleSheet.create({
   },
   chipSelectorLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
     marginBottom: 12,
   },
@@ -470,12 +481,12 @@ const styles = StyleSheet.create({
   modernChipText: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     textTransform: 'capitalize',
   },
   modernChipTextActive: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -491,7 +502,7 @@ const styles = StyleSheet.create({
   signOutText: {
     color: Colors.error,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
     marginLeft: 8,
   },
   bottomSpacer: {

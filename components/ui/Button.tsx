@@ -112,8 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    ...Shadows.sm,
+    borderRadius: 6, // more rectangular corners per new spec
   },
   
   // Variants
@@ -121,11 +120,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   secondary: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.background, // surface per JSON patch
+    borderWidth: 2,
+    borderColor: Colors.primary,   // brand stroke
   },
   outline: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.primary,
   },
   ghost: {
@@ -139,8 +140,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   md: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: 24, // spec paddingH
     paddingVertical: Spacing.md,
+    minHeight: 48, // rectangular height
     gap: Spacing.sm,
   },
   lg: {
@@ -151,7 +153,7 @@ const styles = StyleSheet.create({
   
   // States
   disabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   fullWidth: {
     width: '100%',
@@ -159,14 +161,16 @@ const styles = StyleSheet.create({
   
   // Text styles
   text: {
-    fontWeight: Typography.weights.semibold,
+    fontWeight: Typography.weights.medium, // 500 per JSON subtitle weight
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   primaryText: {
     color: Colors.white,
   },
   secondaryText: {
-    color: Colors.text,
+    color: Colors.primary, // fg brand on surface
   },
   outlineText: {
     color: Colors.primary,
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
   },
   mdText: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.lg, // subtitle per JSON labelStyle
   },
   lgText: {
     fontSize: Typography.sizes.lg,

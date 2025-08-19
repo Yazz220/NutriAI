@@ -126,14 +126,14 @@ function formatQty(ing: StructuredIngredient) {
 function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 const styles = StyleSheet.create({
-  title: { fontSize: Typography.sizes.lg, fontWeight: '700', color: Colors.text, marginBottom: Spacing.sm },
-  subheading: { fontWeight: '600', color: Colors.text, marginBottom: Spacing.xs },
+  title: { fontSize: Typography.sizes.lg, fontWeight: Typography.weights.semibold, color: Colors.text, marginBottom: Spacing.sm },
+  subheading: { fontWeight: Typography.weights.semibold, color: Colors.text, marginBottom: Spacing.xs },
   body: { color: Colors.text },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.primary, marginTop: 8 },
   cardSec: { marginTop: Spacing.sm },
   stepBox: { backgroundColor: Colors.tabBackground, borderRadius: 10, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  stepLabel: { color: Colors.text, fontWeight: '600', marginBottom: 6 },
+  stepLabel: { color: Colors.text, fontWeight: Typography.weights.semibold, marginBottom: 6 },
   stepMeta: { color: Colors.lightText, marginTop: 6 },
   stepNav: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.md },
   ingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },

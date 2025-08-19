@@ -6,15 +6,15 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  RefreshControl,
   Image,
+  FlatList,
+  LayoutChangeEvent,
 } from 'react-native';
-import { TrendingUp, Search, Sparkles, Clock, Users, Heart, Star } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Search } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
@@ -32,6 +32,7 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
   onSaveRecipe,
   onSearch,
 }) => {
+  const insets = useSafeAreaInsets();
   const {
     trendingRecipes,
     externalRecipes,
@@ -119,68 +120,15 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
     return Math.round(cal.unit?.toLowerCase() === 'cal' ? cal.amount / 1000 : cal.amount);
   };
 
-  // Render recipe card (image-first, badges)
-  const renderRecipeCard = (recipe: ExternalRecipe, showSaveButton: boolean = true) => (
-    <TouchableOpacity
-      style={styles.recipeCard}
-      onPress={() => handleRecipePress(recipe)}
-    >
-      <Card style={styles.recipeCardContent}>
-        <View style={styles.imageWrapper}>
-          {recipe.image ? (
-            <Image source={{ uri: recipe.image }} style={styles.image} />
-          ) : (
-            <View style={styles.recipeImageContainer}>
-              <Text style={styles.recipeImagePlaceholder}>
-                {recipe.title.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-
-          {/* Top-right save button */}
-          {showSaveButton && (
-            <TouchableOpacity style={styles.fabSave} onPress={() => handleSaveRecipe(recipe)}>
-              <Heart size={16} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-
-          {/* Bottom badges overlay */}
-          <View style={styles.badgesRow}>
-            <View style={[styles.badge, styles.badgeDark]}>
-              <Clock size={12} color={Colors.white} />
-              <Text style={styles.badgeText}>{recipe.readyInMinutes || 0}m</Text>
-            </View>
-            <View style={[styles.badge, styles.badgeDark]}>
-              <Users size={12} color={Colors.white} />
-              <Text style={styles.badgeText}>{recipe.servings || 1}</Text>
-            </View>
-            {getCalories(recipe) !== null && (
-              <View style={[styles.badge, styles.badgeCal]}>
-                <Text style={styles.badgeText}>{getCalories(recipe)} kcal</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.recipeInfo}>
-          <Text style={styles.recipeTitle} numberOfLines={2}>
-            {recipe.title}
-          </Text>
-          <View style={styles.recipeTags}>
-            {recipe.cuisines?.slice(0, 1).map((c, i) => (
-              <View key={i} style={styles.tag}><Text style={styles.tagText}>{c}</Text></View>
-            ))}
-            {recipe.vegetarian && (
-              <View style={[styles.tag, styles.vegetarianTag]}><Text style={styles.tagText}>Veg</Text></View>
-            )}
-            {recipe.veryHealthy && (
-              <View style={[styles.tag, styles.healthyTag]}><Text style={styles.tagText}>Healthy</Text></View>
-            )}
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+  // Grid layout constants/state
+  const [gridWidth, setGridWidth] = useState(0);
+  const GUTTER = 16;
+  const COLUMN_GAP = 16;
+  const ROW_GAP = 20;
+  const onGridLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && Math.floor(w) !== Math.floor(gridWidth)) setGridWidth(Math.floor(w));
+  };
 
   // Show search component if enabled
   if (showSearch) {
@@ -208,50 +156,26 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {/* Discovery Header (now scrolls away) */}
-        <Card style={styles.discoveryHeader}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerLeft}>
-              <Sparkles size={24} color={Colors.primary} />
-              <Text style={styles.headerTitle}>Recipe Discovery</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setShowSearch(true)}
-            >
-              <Search size={20} color={Colors.primary} />
+    <View style={styles.container} onLayout={onGridLayout}>
+      <FlatList
+        data={(externalRecipes.length ? externalRecipes : trendingRecipes)}
+        keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        contentContainerStyle={{
+          paddingHorizontal: GUTTER,
+          paddingTop: 12,
+          // Ensure footer button and last items are not hidden behind tab bar
+          paddingBottom: 24 + Math.max(insets.bottom, 12),
+        }}
+        ListHeaderComponent={
+          <View style={{ marginBottom: Spacing.sm }}>
+            <TouchableOpacity style={styles.searchBar} onPress={() => setShowSearch(true)} activeOpacity={0.85}>
+              <Search size={18} color={Colors.lightText} />
+              <Text style={styles.searchBarText}>Search recipes</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.headerDescription}>
-            Explore curated recipes with nutrition details. Data currently sourced from our in‑app dataset for a smooth experience.
-          </Text>
-        </Card>
-        {/* Minimal layout ends here. All category and counter sections removed for a clean look. */}
-
-        {/* Minimal Feed */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Explore Dataset Recipes</Text>
-          </View>
-
-          {isLoading && externalRecipes.length === 0 && trendingRecipes.length === 0 ? (
-            <LoadingSpinner text="Loading recipes…" />
-          ) : (
-            <View style={styles.recipeGrid}>
-              {(externalRecipes.length ? externalRecipes : trendingRecipes).map((recipe, idx) => (
-                <View key={`feed-${recipe.id}-${idx}`}>{renderRecipeCard(recipe, true)}</View>
-              ))}
-            </View>
-          )}
-
+        }
+        ListFooterComponent={
           <View style={{ marginTop: Spacing.sm }}>
             <Button
               title={isLoading ? 'Loading…' : 'Load more'}
@@ -259,8 +183,38 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
               disabled={isLoading}
             />
           </View>
-        </Card>
-      </ScrollView>
+        }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        renderItem={({ item, index }) => {
+          // compute item width
+          const containerInner = Math.max(gridWidth - (GUTTER * 2), 0);
+          const rawWidth = (containerInner - COLUMN_GAP) / 2;
+          const itemWidth = Math.floor(rawWidth);
+          if (!itemWidth) return null;
+          const imageHeight = Math.floor(itemWidth * 0.75); // 4:3 aspect
+
+          const calories = getCalories(item);
+          const isLeft = index % 2 === 0;
+          return (
+            <View style={{ width: itemWidth, marginRight: isLeft ? COLUMN_GAP : 0, marginBottom: ROW_GAP }}>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => handleRecipePress(item)}>
+                <View style={[styles.gridImageContainer, { width: itemWidth, height: imageHeight }] }>
+                  {!!item.image && (
+                    <Image source={{ uri: String(item.image) }} style={styles.gridImage} />
+                  )}
+                </View>
+                <View style={styles.gridInfoBox}>
+                  <Text style={styles.gridTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+                  {calories !== null && (
+                    <Text style={styles.gridMeta}>{calories} kcal</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+      />
     </View>
   );
 };
@@ -281,7 +235,22 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: Colors.primary,
     fontSize: Typography.sizes.md,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.tabBackground,
+  },
+  searchBarText: {
+    color: Colors.lightText,
+    fontSize: Typography.sizes.md,
   },
   discoveryHeader: {
     marginHorizontal: Spacing.lg,
@@ -300,7 +269,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
   },
   searchButton: {
@@ -333,119 +302,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  recipeGrid: {
-    gap: Spacing.md,
-  },
-  recipeCard: {
-    marginBottom: Spacing.sm,
-  },
-  recipeCardContent: {
-    padding: Spacing.sm,
+  gridImageContainer: {
+    backgroundColor: Colors.surfaceTile,
+    borderRadius: 0,
     overflow: 'hidden',
   },
-  imageWrapper: {
-    height: 180,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: Colors.primary + '10',
-  },
-  image: {
+  gridImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+    borderRadius: 0,
   },
-  recipeImageContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  gridInfoBox: {
+    marginTop: 8,
   },
-  recipeImagePlaceholder: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-  recipeInfo: {
-    flex: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-  },
-  recipeTitle: {
+  gridTitle: {
+    color: Colors.text,
     fontSize: Typography.sizes.md,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
+    lineHeight: 22,
+    fontWeight: Typography.weights.semibold,
   },
-  recipeMeta: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  badgesRow: {
-    position: 'absolute',
-    bottom: Spacing.sm,
-    left: Spacing.sm,
-    right: Spacing.sm,
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  badgeDark: {
-    backgroundColor: '#00000080',
-  },
-  badgeCal: {
-    backgroundColor: Colors.warning,
-  },
-  badgeText: {
-    color: Colors.white,
-    fontSize: Typography.sizes.xs,
-    fontWeight: '600',
-  },
-  recipeTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: Colors.border,
-  },
-  vegetarianTag: {
-    backgroundColor: Colors.secondary + '20',
-  },
-  healthyTag: {
-    backgroundColor: Colors.success + '20',
-  },
-  tagText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text,
-  },
-  fabSave: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#00000080',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveButton: {
-    padding: Spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.tabBackground,
-    borderRadius: 10,
+  gridMeta: {
+    marginTop: 2,
+    color: Colors.lightText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   actionsCard: {
     marginHorizontal: Spacing.lg,
@@ -453,7 +334,7 @@ const styles = StyleSheet.create({
   },
   actionsTitle: {
     fontSize: Typography.sizes.md,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.md,
   },
@@ -472,7 +353,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   sortRow: {
     flexDirection: 'row',
@@ -492,7 +373,7 @@ const styles = StyleSheet.create({
   sortChipText: {
     fontSize: Typography.sizes.xs,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
     textTransform: 'capitalize',
   },
   sortChipTextActive: {
@@ -509,7 +390,7 @@ const styles = StyleSheet.create({
   dirChipText: {
     fontSize: Typography.sizes.xs,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -573,7 +454,7 @@ const styles = StyleSheet.create({
   catChipText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   // 2-column grid tiles
   grid2: {
@@ -594,7 +475,7 @@ const styles = StyleSheet.create({
   calTileText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   // Horizontal meal cards
   mealCard: {
@@ -611,7 +492,7 @@ const styles = StyleSheet.create({
   mealCardText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   // Horizontal method cards
   methodCard: {
@@ -628,7 +509,7 @@ const styles = StyleSheet.create({
   methodCardText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   // Diet tiles
   dietTile: {
@@ -644,7 +525,7 @@ const styles = StyleSheet.create({
   dietTileText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   // Horizontal card wrapper for favorites carousel
   hCardWrapper: {

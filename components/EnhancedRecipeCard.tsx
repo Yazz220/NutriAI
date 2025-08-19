@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     ...Typography.h3,
     color: Colors.white,
     marginLeft: 4,
-    fontWeight: 'bold',
+    fontWeight: Typography.weights.semibold,
   },
   calorieUnit: {
     ...Typography.body,
@@ -256,19 +256,19 @@ const styles = StyleSheet.create({
   },
   smallActionText: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.medium,
     fontSize: 12,
   },
   accessoryText: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.medium,
     fontSize: 12,
   },
   title: {
     ...Typography.h2,
     color: Colors.text,
     marginBottom: Spacing.sm,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   metaInfo: {
     flexDirection: 'row',
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   nutritionValue: {
-    ...Typography.h4,
+    ...Typography.h3,
     color: Colors.text,
     fontWeight: '600',
   },

@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.white,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
@@ -388,13 +388,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginLeft: 8,
   },
   inputLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
     marginBottom: 8,
   },
@@ -423,12 +423,12 @@ const styles = StyleSheet.create({
   },
   modernUnitButtonText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
   selectedModernUnitButtonText: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   modernCategoryContainer: {
     flexDirection: 'row',
@@ -450,12 +450,12 @@ const styles = StyleSheet.create({
   },
   modernCategoryButtonText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     color: Colors.text,
   },
   selectedModernCategoryButtonText: {
     color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   addButton: {
     marginHorizontal: 20,

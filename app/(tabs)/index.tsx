@@ -10,11 +10,12 @@ import {
   Image,
   Animated,
   TextInput,
-  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Plus, AlertCircle, Camera as IconCamera, Barcode, Package, TrendingUp, Filter } from 'lucide-react-native';
+import { Plus, AlertCircle, Camera as IconCamera, Barcode, Package, TrendingUp, Filter, Search } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
@@ -25,19 +26,25 @@ import { useToast } from '@/contexts/ToastContext';
 import { InventoryItemCard } from '@/components/InventoryItemCard';
 import { AddItemModal } from '@/components/AddItemModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Input } from '@/components/ui/Input';
+// Removed Input in favor of inline search bar styling consistent with Discover
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { InventoryItem, ItemCategory, ShoppingListItem } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
+import Rule from '@/components/ui/Rule';
 
-// Enhanced Component Definitions
-const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
-  <View style={styles.statCard}>
-    <View style={styles.statIcon}>{icon}</View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+// StatRow with three outline panels (compact)
+const StatRow = ({ items }: { items: { icon?: React.ReactNode; label: string; value: string }[] }) => (
+  <View style={styles.statRow}>
+    {items.map((it, idx) => (
+      <View key={idx} style={styles.statPill}>
+        {it.icon ? <View style={{ marginRight: 6 }}>{it.icon}</View> : null}
+        <Text style={styles.statPillValue}>{it.value}</Text>
+        <Text style={styles.statPillLabel}>{it.label}</Text>
+      </View>
+    ))}
   </View>
 );
 
@@ -50,84 +57,55 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   hero: {
-    paddingBottom: 20,
+    paddingBottom: 12,
     paddingHorizontal: 20,
-    minHeight: 280,
   },
-  statusBarSpacer: {
-    height: Platform.OS === 'ios' ? 44 : 24,
-  },
-  heroHeader: {
+  
+  statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    gap: 8,
+    paddingHorizontal: 0,
+    marginTop: 8,
+    marginBottom: 16,
   },
-  heroTitleRow: {
+  statPill: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroTitle: {
-  color: Colors.text,
-    fontSize: 24,
-    fontWeight: '700',
-    marginLeft: 12,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  borderColor: Colors.border,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 10,
   },
-  inventoryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 5,
-  },
-  statCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statIcon: {
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
+  statPillValue: {
     color: Colors.text,
-    marginBottom: 2,
+    fontWeight: '700',
+    marginRight: 6,
   },
-  statLabel: {
-    fontSize: 12,
+  statPillLabel: {
     color: Colors.lightText,
     fontWeight: '500',
-    textAlign: 'center',
+    fontSize: 12,
   },
   searchContainer: {
-    marginTop: 10,
+    marginTop: 6,
   },
-  searchInput: {
-    marginBottom: 0,
-    backgroundColor: Colors.white,
+  inventorySearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: Colors.border,
+    backgroundColor: Colors.tabBackground,
+  },
+  inventorySearchInput: {
+    flex: 1,
+    color: Colors.text,
+    paddingVertical: 0,
   },
   expiringSection: {
     backgroundColor: Colors.card,
@@ -175,18 +153,70 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: Colors.text,
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 24, // section gap spec
+    marginBottom: 8,
     paddingHorizontal: 20,
     backgroundColor: Colors.background,
   },
   sectionListContent: {
     paddingBottom: 150,
-    paddingTop: 10,
+    paddingTop: 0,
   },
-  itemCardContainer: {
+  itemRowContainer: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 12,
+  },
+  itemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  tileSquare: {
+    width: 64,
+    height: 64,
+    borderRadius: 0,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 12,
+  },
+  itemTexts: {
+    flexShrink: 1,
+  },
+  itemTitle: {
+    color: Colors.text,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 8,
+  },
+  qtyText: {
+    color: Colors.lightText,
+    fontSize: 12,
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: Colors.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  categoryBadgeText: {
+    color: Colors.text,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  itemRight: {
+    marginLeft: 12,
   },
   emptyContainer: {
     flex: 1,
@@ -301,9 +331,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  stickyHeader: {
+    backgroundColor: Colors.background,
+    zIndex: 2,
+    elevation: 2,
+  },
 });
 
 export default function InventoryScreen() {
+  const insets = useSafeAreaInsets();
   const { inventory, isLoading, addItem, removeItem, refresh } = useInventory();
   const { expiring } = useInventoryByFreshness();
   const { addItem: addToShoppingList } = useShoppingList();
@@ -325,6 +361,32 @@ export default function InventoryScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
+  const quickAddAnim = useRef(new Animated.Value(0)).current; // 0 collapsed, 1 expanded
+  const TAB_BAR_HEIGHT = 56; // pill tab bar height
+  const bottomOffset = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 12; // raise above nav
+
+  const expandQuickAdd = () => {
+    setQuickAddExpanded(true);
+    Animated.timing(quickAddAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const collapseQuickAdd = () => {
+    Animated.timing(quickAddAnim, {
+      toValue: 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setQuickAddExpanded(false);
+    });
+  };
+
+  const toggleQuickAdd = () => {
+    if (isQuickAddExpanded) collapseQuickAdd(); else expandQuickAdd();
+  };
   const [categoryFilter, setCategoryFilter] = useState<ItemCategory | 'Other' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -410,7 +472,7 @@ export default function InventoryScreen() {
       return;
     }
     setCameraOpen(true);
-    setQuickAddExpanded(false);
+    collapseQuickAdd();
   };
 
   const openBarcodeScanner = async () => {
@@ -420,7 +482,7 @@ export default function InventoryScreen() {
       return;
     }
     setBarcodeScannerOpen(true);
-    setQuickAddExpanded(false);
+    collapseQuickAdd();
   };
 
   const handleTakePicture = async () => {
@@ -723,53 +785,41 @@ export default function InventoryScreen() {
         }}
       />
 
-      {/* Enhanced Hero Header */}
+      {/* Header */}
       <ExpoLinearGradient
         colors={[Colors.background, Colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
       >
-        <View style={styles.statusBarSpacer} />
-        
-        {/* Header */}
-        <View style={styles.heroHeader}>
-          <View style={styles.heroTitleRow}>
-            <Package size={28} color={Colors.white} />
-            <Text style={styles.heroTitle}>Inventory</Text>
-          </View>
-          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-            <Plus size={24} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Inventory"
+          icon={<Package size={28} color={Colors.primary} />}
+          includeStatusBarSpacer
+          containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
+        />
+        {/* Stat Row (outline panels) */}
+        <StatRow
+          items={[
+            { icon: <Package size={16} color={Colors.primary} />, label: 'Total', value: inventory.length.toString() },
+            { icon: <AlertCircle size={16} color={Colors.error} />, label: 'Expiring', value: expiring.length.toString() },
+            { icon: <TrendingUp size={16} color={Colors.primary} />, label: 'Categories', value: groupedInventory.length.toString() },
+          ]}
+        />
 
-        {/* Quick Stats */}
-        <View style={styles.inventoryStats}>
-          <StatCard 
-            icon={<Package size={20} color={Colors.primary} />} 
-            label="Total Items" 
-            value={inventory.length.toString()} 
-          />
-          <StatCard 
-            icon={<AlertCircle size={20} color={Colors.error} />} 
-            label="Expiring Soon" 
-            value={expiring.length.toString()} 
-          />
-          <StatCard 
-            icon={<TrendingUp size={20} color={Colors.primary} />} 
-            label="Categories" 
-            value={groupedInventory.length.toString()} 
-          />
-        </View>
-
-        {/* Search Bar */}
+        {/* Search Bar (matches Discover style) */}
         <View style={styles.searchContainer}>
-          <Input
-            placeholder="Search your inventory..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
+          <View style={styles.inventorySearchBar}>
+            <Search size={18} color={Colors.lightText} />
+            <TextInput
+              placeholder="Search your inventory..."
+              placeholderTextColor={Colors.lightText}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.inventorySearchInput}
+              returnKeyType="search"
+            />
+          </View>
         </View>
       </ExpoLinearGradient>
 
@@ -779,7 +829,7 @@ export default function InventoryScreen() {
         onAdd={handleAddItem}
       />
 
-      {/* Enhanced Expiring Section */}
+      {/* Expiring Section (unchanged content) */}
       {expiring.length > 0 && (
         <View style={styles.expiringSection}>
           <View style={styles.expiringHeader}>
@@ -803,18 +853,38 @@ export default function InventoryScreen() {
         sections={groupedInventory}
         keyExtractor={(item) => `section-${item.id}`}
         renderItem={({ item }) => (
-          <View style={styles.itemCardContainer}>
-            <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
+          <View>
+            <View style={styles.itemRowContainer}>
+              <View style={styles.itemLeft}>
+                <View style={styles.tileSquare} />
+                <View style={styles.itemTexts}>
+                  <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
+                  <View style={styles.itemMetaRow}>
+                    <Text style={styles.qtyText}>{item.quantity} {item.unit || 'pcs'}</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.itemRight}>
+                <Button title="Use up" variant="outline" size="sm" onPress={() => handleUseItem(item)} />
+              </View>
+            </View>
+            <Rule />
           </View>
         )}
         renderSectionHeader={({ section: { title } }) => (
-          <Text style={styles.sectionHeader}>{title}</Text>
+          <View style={styles.stickyHeader}>
+            <Text style={styles.sectionHeader}>{title}</Text>
+            <View style={{ paddingHorizontal: 20 }}>
+              <Rule />
+            </View>
+          </View>
         )}
         ListEmptyComponent={renderEmptyComponent}
         contentContainerStyle={styles.sectionListContent}
         showsVerticalScrollIndicator={false}
         refreshing={isRefreshing}
         onRefresh={onRefresh}
+        stickySectionHeadersEnabled
         ListHeaderComponent={
           <>
             <FilterPill />
@@ -822,20 +892,36 @@ export default function InventoryScreen() {
         }
       />
 
-      <View style={styles.quickAddContainer}>
+      {/* Backdrop for outside-tap close */}
+      {isQuickAddExpanded && (
+        <TouchableWithoutFeedback onPress={collapseQuickAdd}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        </TouchableWithoutFeedback>
+      )}
+
+      <View style={[styles.quickAddContainer, { bottom: bottomOffset }]}>
         {isQuickAddExpanded && (
-          <View>
+          <Animated.View
+            style={{
+              opacity: quickAddAnim,
+              transform: [{ scale: quickAddAnim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
+            }}
+          >
+            <TouchableOpacity style={styles.quickAddOption} onPress={() => { setModalVisible(true); collapseQuickAdd(); }}>
+              <Plus size={20} color={Colors.primary} />
+              <Text style={styles.quickAddText}>Add Manually</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
-                <Barcode size={20} color={Colors.primary} />
-                <Text style={styles.quickAddText}>Scan Barcode</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
-                <IconCamera size={20} color={Colors.primary} />
-                <Text style={styles.quickAddText}>Use Camera</Text>
-              </TouchableOpacity>
-          </View>
+              <Barcode size={20} color={Colors.primary} />
+              <Text style={styles.quickAddText}>Scan Barcode</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
+              <IconCamera size={20} color={Colors.primary} />
+              <Text style={styles.quickAddText}>Use Camera</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
-        <TouchableOpacity style={styles.quickAddButton} onPress={() => setQuickAddExpanded(!isQuickAddExpanded)}>
+        <TouchableOpacity style={styles.quickAddButton} onPress={toggleQuickAdd}>
           <Plus size={24} color={Colors.white} />
         </TouchableOpacity>
       </View>

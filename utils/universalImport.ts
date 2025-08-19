@@ -994,3 +994,35 @@ export function testSpecificFraction() {
 }
 
 
+// -----------------------------------------------------------------------------
+// Modular wrapper handlers for explicit import flows
+// These provide a clean, dedicated entrypoint for each import type while
+// reusing the existing smartImport() orchestration and provenance handling.
+// -----------------------------------------------------------------------------
+
+export async function importRecipeFromUrlHandler(url: string): Promise<SmartOutput> {
+  if (!url || typeof url !== 'string') throw new Error('Invalid URL');
+  return smartImport({ url });
+}
+
+export async function importRecipeFromTextHandler(text: string): Promise<SmartOutput> {
+  if (!text || typeof text !== 'string') throw new Error('Invalid text');
+  return smartImport({ text });
+}
+
+export type ImportFile = { uri: string; mime?: string; name?: string };
+
+export async function importRecipeFromImageHandler(file: ImportFile): Promise<SmartOutput> {
+  if (!file?.uri) throw new Error('Invalid image file');
+  return smartImport({ file });
+}
+
+export async function importRecipeFromVideoUrlHandler(url: string): Promise<SmartOutput> {
+  if (!url || typeof url !== 'string') throw new Error('Invalid video URL');
+  return smartImport({ url });
+}
+
+export async function importRecipeFromVideoFileHandler(file: ImportFile): Promise<SmartOutput> {
+  if (!file?.uri) throw new Error('Invalid video file');
+  return smartImport({ file });
+}

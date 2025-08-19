@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator,
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/utils/supabaseClient';
 import { Colors } from '@/constants/colors';
-import { Spacing } from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { User, Mail, Lock, LogIn } from 'lucide-react-native';
 import { useAuth } from '@/hooks/useAuth';
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     color: Colors.white,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   formContainer: {
     flex: 1,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: Colors.text,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: Colors.white,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
     fontSize: 16,
   },
   guestButton: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   guestText: {
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   secondaryButton: {
     marginTop: Spacing.md,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: Colors.text,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   oauthButton: {
     marginTop: Spacing.md,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   },
   oauthText: {
     color: Colors.white,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   footer: {
     flexDirection: 'row',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   link: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold,
   },
   error: {
     color: Colors.error,
