@@ -9,10 +9,21 @@ interface CreateFolderSheetProps {
   visible: boolean;
   onClose: () => void;
   onCreate: (name: string) => void;
+  onAddRecipes?: () => void;
   existingNames?: string[];
+  showEmptyState?: boolean;
+  folderName?: string;
 }
 
-export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({ visible, onClose, onCreate, existingNames = [] }) => {
+export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({
+  visible,
+  onClose,
+  onCreate,
+  onAddRecipes,
+  existingNames = [],
+  showEmptyState = false,
+  folderName = ''
+}) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isValid, setIsValid] = useState(false);
@@ -41,6 +52,31 @@ export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({ visible, o
     setError('');
     onCreate(name.trim());
   };
+
+  if (showEmptyState) {
+    return (
+      <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            <Text style={styles.title}>Folder Created!</Text>
+            <Text style={styles.subtitle}>"{folderName}" is ready</Text>
+            <View style={styles.emptyStateContent}>
+              <Text style={styles.emptyText}>Your folder is empty</Text>
+              <Text style={styles.emptySubtext}>Add recipes from your library to get started</Text>
+            </View>
+            <View style={styles.actions}>
+              <Button
+                title="Add Recipes"
+                onPress={() => onAddRecipes?.()}
+                style={{ marginRight: Spacing.sm }}
+              />
+              <Button title="Done" variant="outline" onPress={onClose} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
@@ -95,6 +131,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: Spacing.md,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: Colors.lightText,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyStateContent: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: Colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: Colors.lightText,
+    textAlign: 'center',
   },
 });
 

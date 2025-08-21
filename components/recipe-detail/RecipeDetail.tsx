@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert } from 'react-native';
 import { X, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle } from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { Button } from '../ui/Button';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
@@ -113,7 +114,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         </View>
 
         {/* Meta Row */}
-        <View style={styles.metaRow}> 
+        <View style={styles.metaRow}>
           {typeof time === 'number' && time > 0 && (
             <View style={styles.metaItem}>
               <Clock size={16} color={Colors.primary} />
@@ -127,6 +128,45 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             </View>
           )}
         </View>
+
+        {/* Enhanced Nutrition Section - Prominently displayed after header */}
+        {!!recipe.nutritionPerServing && (
+          <View style={styles.enhancedNutritionSection}>
+            <Text style={styles.sectionTitle}>Nutrition Facts</Text>
+            <View style={styles.nutritionOverview}>
+              <View style={styles.caloriesCard}>
+                <Text style={styles.caloriesLabel}>Calories</Text>
+                <Text style={styles.caloriesValue}>
+                  {Math.round(nutritionForSelection?.calories || recipe.nutritionPerServing.calories * desiredServings)}
+                </Text>
+                <Text style={styles.caloriesUnit}>kcal</Text>
+              </View>
+              <View style={styles.macrosGrid}>
+                <MacroItem
+                  label="Protein"
+                  value={nutritionForSelection?.protein || (recipe.nutritionPerServing.protein || 0) * desiredServings}
+                  unit="g"
+                  color={Colors.fresh}
+                />
+                <MacroItem
+                  label="Carbs"
+                  value={nutritionForSelection?.carbs || (recipe.nutritionPerServing.carbs || 0) * desiredServings}
+                  unit="g"
+                  color={Colors.info}
+                />
+                <MacroItem
+                  label="Fats"
+                  value={nutritionForSelection?.fats || (recipe.nutritionPerServing.fats || 0) * desiredServings}
+                  unit="g"
+                  color={Colors.warning}
+                />
+              </View>
+            </View>
+            <Text style={styles.nutritionNote}>
+              Per {desiredServings} serving{desiredServings === 1 ? '' : 's'}
+            </Text>
+          </View>
+        )}
 
         {/* Servings (compact) + Calories tracker */}
         <View style={[styles.section, { marginBottom: 12 }]}>
@@ -289,18 +329,15 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           </View>
         )}
 
-        {/* Nutrition (totals for selected servings) */}
+        {/* Nutrition (detailed breakdown - now more concise) */}
         {!!recipe.nutritionPerServing && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nutrition (for {desiredServings} serving{desiredServings === 1 ? '' : 's'})</Text>
-            <View style={styles.nutritionRow}>
-              {renderNutrition('Calories', nutritionForSelection?.calories, 'kcal')}
-              {renderNutrition('Protein', nutritionForSelection?.protein, 'g')}
-              {renderNutrition('Carbs', nutritionForSelection?.carbs, 'g')}
-              {renderNutrition('Fats', nutritionForSelection?.fats, 'g')}
-            </View>
+            <Text style={styles.sectionTitle}>Per Serving Breakdown</Text>
             <Text style={styles.perServingHint}>
-              ≈ Per serving: {renderInlinePerServing(recipe.nutritionPerServing)}
+              {renderInlinePerServing(recipe.nutritionPerServing)}
+            </Text>
+            <Text style={styles.nutritionNote}>
+              * Values scale with servings adjustment above
             </Text>
           </View>
         )}
@@ -349,6 +386,18 @@ const renderInlinePerServing = (per?: CanonicalRecipe['nutritionPerServing']) =>
   return `${fmt(per.calories, ' kcal')} • ${fmt(per.protein, 'g P')} • ${fmt(per.carbs, 'g C')} • ${fmt(per.fats, 'g F')}`;
 };
 
+const MacroItem = ({ label, value, unit, color }: { label: string; value?: number; unit: string; color: string }) => {
+  if (typeof value !== 'number') return null;
+
+  return (
+    <View style={styles.macroItem}>
+      <View style={[styles.macroDot, { backgroundColor: color }]} />
+      <Text style={styles.macroLabel}>{label}</Text>
+      <Text style={styles.macroValue}>{Math.round(value)}{unit}</Text>
+    </View>
+  );
+};
+
 const renderNutrition = (label: string, value?: number, unit?: string) => (
   typeof value === 'number' ? (
     <View style={styles.nutritionItem}>
@@ -393,6 +442,19 @@ const styles = StyleSheet.create({
   perServingHint: { marginTop: 8, fontSize: 12, color: Colors.lightText },
   caloriesBadge: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999 },
   caloriesBadgeText: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  // Enhanced Nutrition Styles
+  enhancedNutritionSection: { paddingHorizontal: 16, marginBottom: 20 },
+  nutritionOverview: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16 },
+  caloriesCard: { backgroundColor: Colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16 },
+  caloriesLabel: { color: Colors.white, fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  caloriesValue: { color: Colors.white, fontSize: 32, fontWeight: '700', marginBottom: 2 },
+  caloriesUnit: { color: Colors.white, fontSize: 14, opacity: 0.8 },
+  macrosGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  macroItem: { alignItems: 'center', flex: 1 },
+  macroDot: { width: 12, height: 12, borderRadius: 6, marginBottom: 6 },
+  macroLabel: { color: Colors.lightText, fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  macroValue: { color: Colors.text, fontSize: 16, fontWeight: '600' },
+  nutritionNote: { textAlign: 'center', fontSize: 12, color: Colors.lightText, marginTop: 8 },
 });
 
 export default RecipeDetail;

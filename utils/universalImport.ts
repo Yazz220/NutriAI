@@ -5,6 +5,7 @@ import { createChatCompletion, createChatCompletionDeterministic } from './aiCli
 import { detectInputType, validateInput, getPlatformHints } from './inputDetection';
 import { getImportKnobs, buildPrompt } from './promptRegistry';
 import { recordAbstain, getRecentAbstains } from './importTelemetry';
+import { getVideoImportErrorMessage } from './videoContentExtractor';
 
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
@@ -531,7 +532,7 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
       const msg = typeof e?.message === 'string' ? e.message : '';
       const reason = /\(400\)/.test(msg) || /invalid/i.test(msg) ? 'provider_rejected_url' : 'transcription_unavailable';
       recordAbstain({ source: 'video', reason, support: undefined as any, evidenceSizes: { transcript: 0 } as any, at: '' as any });
-      throw new Error(`ImportAbstain:video:${reason}`);
+      throw new Error(getVideoImportErrorMessage(e));
     }
     provenance.transcript = tx?.text;
 
@@ -559,7 +560,7 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
         evidenceSizes: { transcript: provenance.transcript?.length || 0 } as any,
         at: '' as any,
       });
-      throw new Error(`ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}`);
+      throw new Error(getVideoImportErrorMessage({ message: `ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}` }));
     }
 
     return {
@@ -630,7 +631,7 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
         },
         at: '' as any,
       });
-      throw new Error(`ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}`);
+      throw new Error(getVideoImportErrorMessage({ message: `ImportAbstain:video:${reason}:ing=${ingredientSupport.toFixed(2)};step=${stepSupport.toFixed(2)}` }));
     }
     console.log('[UniversalImport] Enhanced video extraction successful');
 
@@ -716,12 +717,12 @@ export async function smartImport(input: SmartInput): Promise<SmartOutput> {
       console.error('[UniversalImport] Audio transcription also failed:', audioError);
 
       // Strategy 3: Final fallback - ask user to provide text or screenshot
-      throw new Error(
-        'Unable to process video content. Please try one of these alternatives:\n' +
+      throw new Error(getVideoImportErrorMessage({
+        message: 'Unable to process video content. Please try one of these alternatives:\n' +
         '1. Paste the recipe text from the video caption\n' +
         '2. Take a screenshot of the recipe and import that instead\n' +
         '3. Use a different video with clearer audio or captions'
-      );
+      }));
     }
   }
 }

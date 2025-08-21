@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image, FlatList, Dimensions, Animated } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar } from 'lucide-react-native';
@@ -15,11 +15,20 @@ import { MealType } from '@/types';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import FitnessRing, { RingSpec } from '@/components/ui/FitnessRing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StructuredMessage } from '@/components/StructuredMessage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
+import { StructuredMessage } from '@/components/StructuredMessage';
+import { DayCell, DateCarousel, WeekRings, ChatModal, CoachErrorBoundary } from '@/components/coach';
+import {
+  getWeekStartISO,
+  formatWeekRange,
+  shiftDate,
+  shiftWeek,
+  isToday as isTodayUtil,
+  getDayLabel
+} from '@/utils/coach/dateUtils';
 
 export default function CoachScreen() {
   const insets = useSafeAreaInsets();
@@ -107,25 +116,6 @@ export default function CoachScreen() {
     setDayISO(d.toISOString().split('T')[0]);
   };
 
-  const getWeekStartISO = (isoDateStr: string) => {
-    const target = new Date(isoDateStr);
-    const dayOfWeek = target.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // treat Sunday as last day
-    const monday = new Date(target);
-    monday.setDate(target.getDate() + mondayOffset);
-    return monday.toISOString().split('T')[0];
-  };
-
-  const formatWeekRange = (anyIsoInWeek: string) => {
-    const startISO = getWeekStartISO(anyIsoInWeek);
-    const start = new Date(startISO);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-    const s = start.toLocaleDateString(undefined, opts);
-    const e = end.toLocaleDateString(undefined, opts);
-    return `${s} — ${e}`;
-  };
 
   // animated week label transition
   const weekAnim = useRef(new Animated.Value(0)).current;
@@ -151,224 +141,8 @@ export default function CoachScreen() {
     setShowMealPlanModal(true);
   };
 
-  // Reusable DayCell component (Design A: progress ring cell)
-  const DayCell: React.FC<{
-    date: Date;
-    selected: boolean;
-    isToday: boolean;
-    isYesterday: boolean;
-    isFuture: boolean;
-    // Optional status: only computed for selected to avoid new logic pathways
-    status?: 'met' | 'missed';
-    rings?: RingSpec[];
-    onPress: () => void;
-  }> = ({ date, selected, isToday, isYesterday, isFuture, status, rings, onPress }) => {
-    const size = 44; // 40–44dp circle, choose 44 for better tap target
-    const ringStroke = 2; // default outer ring stroke for fallback
-    const radius = (size - ringStroke) / 2;
-    const cx = size / 2;
-    const cy = size / 2;
-    const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
-    const weekdayInitial = Array.from(weekday)[0] ?? weekday.charAt(0);
-    const dayNum = date.getDate();
 
-    // Visual state colors (tokens)
-    const baseRing = Colors.border;
-    const selectedFill = Colors.primary;
-    const todayOutline = Colors.primary;
-    const textColor = Colors.text;
-    const subText = Colors.lightText;
 
-    // Progress ring: keep subtle unless selected; no new data logic introduced
-    const ringColor = selected ? Colors.primary : baseRing;
-
-    return (
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={`${weekday} ${dayNum}${isToday ? ', Today' : ''}${selected ? ', Selected' : ''}`}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        onPress={onPress}
-        style={[styles.carouselItem, selected && styles.carouselItemSelected]}
-      >
-        <Text style={[styles.dayWeekLabel, selected && styles.dayWeekLabelSelected]}>
-          {weekdayInitial.toUpperCase()}
-        </Text>
-        <View style={[styles.dayCircleContainer, isToday && styles.dayCircleToday]}>
-          {rings && rings.length > 0 ? (
-            <FitnessRing size={size} stroke={3} gap={2} backgroundColor={baseRing} rings={rings} />
-          ) : (
-            <Svg width={size} height={size}>
-              <Circle cx={cx} cy={cy} r={radius} stroke={baseRing} strokeWidth={ringStroke} fill="transparent" />
-              {/* Outer progress ring – visual only; highlight when selected */}
-              <Circle cx={cx} cy={cy} r={radius} stroke={ringColor} strokeWidth={ringStroke} fill="none" opacity={selected ? 1 : 0.4} />
-            </Svg>
-          )}
-          <View style={styles.dayCircleInner} pointerEvents="none">
-            <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{dayNum}</Text>
-          </View>
-        </View>
-        {/* Mini activity bar – decorative only to avoid logic changes */}
-        <View style={[styles.dayMiniBar, selected && styles.dayMiniBarSelected, isFuture && styles.dayMiniBarFuture]} />
-        {/* Optional status text tint – only if provided (e.g., for selected via existing ringPct) */}
-        {!!status && (
-          <Text style={[styles.dayStatus, status === 'met' ? styles.dayStatusMet : styles.dayStatusMissed]}>
-            {status === 'met' ? 'Met' : 'Missed'}
-          </Text>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  // Centered, clickable horizontal date picker using FlatList for snapping and consistent centering
-  const DateCarousel: React.FC<{ selectedDate: string; onSelectDate: (d: string) => void; daysToShow?: number }> = ({ selectedDate, onSelectDate, daysToShow = 7 }) => {
-    const listRef = React.useRef<FlatList<Date> | null>(null);
-    const itemWidth = 64; // width of the day bubble
-    const itemMargin = 8;
-    const totalItemSize = itemWidth + itemMargin * 2;
-    const windowWidth = Dimensions.get('window').width;
-    const centerIndex = Math.floor(daysToShow / 2);
-
-  const buildDates = () => {
-      const center = new Date(selectedDate);
-      const arr: Date[] = [];
-      for (let i = -centerIndex; i <= centerIndex; i++) {
-        const d = new Date(center);
-        d.setDate(center.getDate() + i);
-        arr.push(d);
-      }
-      return arr;
-    };
-
-    const dates = React.useMemo(buildDates, [selectedDate, daysToShow]);
-
-    useEffect(() => {
-      // always scroll so the selected item sits at the center position
-      // using viewPosition 0.5 centers the item in the viewport
-      listRef.current?.scrollToIndex({ index: centerIndex, animated: true, viewPosition: 0.5 });
-    }, [selectedDate]);
-
-    return (
-      <FlatList
-        ref={(r) => { listRef.current = r; }}
-        horizontal
-        data={dates}
-        keyExtractor={(d) => d.toISOString()}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: Math.max(12, (windowWidth - itemWidth) / 2 - itemMargin) }}
-        renderItem={({ item }) => {
-          const d = item;
-          const iso = d.toISOString().split('T')[0];
-          const isSel = iso === selectedDate;
-          const todayISO = new Date().toISOString().split('T')[0];
-          const isToday = iso === todayISO;
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayISO = yesterday.toISOString().split('T')[0];
-          const isYesterday = iso === yesterdayISO;
-          const isFuture = new Date(iso) > new Date(todayISO);
-
-          // Optional status for the selected day only, driven by existing daily state
-          let status: 'met' | 'missed' | undefined;
-          if (isSel) {
-            status = (calorieGoal > 0 && eaten >= calorieGoal) ? 'met' : undefined;
-          }
-
-          // Build per-day macro rings (outer->inner): Carbs, Protein, Fat
-          const dayMacros = loggedMeals
-            .filter((m) => m.date === iso)
-            .reduce(
-              (acc, m) => ({
-                carbs: acc.carbs + m.carbs,
-                protein: acc.protein + m.protein,
-                fats: acc.fats + m.fats,
-              }),
-              { carbs: 0, protein: 0, fats: 0 }
-            );
-          const carbGoal = goals?.carbs || 0;
-          const proteinGoal = goals?.protein || 0;
-          const fatGoal = goals?.fats || 0;
-          const rings: RingSpec[] = [
-            { pct: carbGoal ? Math.min(1, dayMacros.carbs / carbGoal) : 0, color: '#FF6B6B' },
-            { pct: proteinGoal ? Math.min(1, dayMacros.protein / proteinGoal) : 0, color: '#4ECDC4' },
-            { pct: fatGoal ? Math.min(1, dayMacros.fats / fatGoal) : 0, color: '#45B7D1' },
-          ];
-
-          return (
-            <DayCell
-              date={d}
-              selected={isSel}
-              isToday={isToday}
-              isYesterday={isYesterday}
-              isFuture={isFuture}
-              status={status}
-              rings={rings}
-              onPress={() => onSelectDate(iso)}
-            />
-          );
-        }}
-        snapToInterval={totalItemSize}
-        decelerationRate="fast"
-        getItemLayout={(_, index) => ({ length: totalItemSize, offset: totalItemSize * index, index })}
-        initialScrollIndex={centerIndex}
-      />
-    );
-  };
-
-  // Static week rings (Mon–Sun) like the reference design
-  const WeekRings: React.FC<{ selectedDate: string; onSelectDate: (iso: string) => void }> = ({ selectedDate, onSelectDate }) => {
-    const startISO = getWeekStartISO(selectedDate);
-    const start = new Date(startISO);
-    const days: { date: Date; iso: string }[] = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return { date: d, iso: d.toISOString().split('T')[0] };
-    });
-
-    const todayISO = new Date().toISOString().split('T')[0];
-    const ringColor = Colors.primary; // use theme primary for consistency
-
-    return (
-      <View style={styles.weekRingsContainer}>
-        {/* Weekday initials row */}
-        <View style={styles.weekInitialsRow}>
-          {days.map(({ date, iso }) => {
-            const isSel = iso === selectedDate;
-            const w = date.toLocaleDateString(undefined, { weekday: 'short' });
-            const initial = Array.from(w)[0]?.toUpperCase() ?? w.charAt(0).toUpperCase();
-            return (
-              <View key={`winit-${iso}`} style={styles.weekInitialCell}>
-                <Text style={[styles.weekInitial, isSel && styles.weekInitialSelected]}>{initial}</Text>
-              </View>
-            );
-          })}
-        </View>
-        {/* Rings row */}
-        <View style={styles.weekRingsRow}>
-          {days.map(({ iso, date }) => {
-            const isFuture = new Date(iso) > new Date(todayISO);
-            const totals = loggedMeals
-              .filter((m) => m.date === iso)
-              .reduce((acc, m) => ({ calories: acc.calories + m.calories }), { calories: 0 });
-            const pct = calorieGoal ? Math.min(1, totals.calories / calorieGoal) : 0;
-            const ring: RingSpec = { pct, color: ringColor };
-            return (
-              <TouchableOpacity
-                key={`wr-${iso}`}
-                style={styles.weekRingCell}
-                onPress={() => onSelectDate(iso)}
-                accessibilityRole="button"
-                accessibilityLabel={`Select ${date.toDateString()}`}
-              >
-                <View style={{ opacity: isFuture ? 0.35 : 1 }}>
-                  <FitnessRing size={40} stroke={4} gap={2} backgroundColor={Colors.border} rings={[ring]} />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -612,93 +386,10 @@ export default function CoachScreen() {
       </TouchableOpacity>
 
       {/* Chat Modal */}
-      <Modal
+      <ChatModal
         visible={chatOpen}
-        animationType="slide"
-        onRequestClose={() => setChatOpen(false)}
-        presentationStyle="fullScreen"
-        statusBarTranslucent={false}
-      >
-        <SafeAreaView edges={['top','bottom']} style={[styles.container, { backgroundColor: Colors.background }]}>
-          <View style={[styles.modalHeader, { paddingTop: (insets?.top ?? 0) + Spacing.sm }] }>
-            <Text style={styles.modalTitle}>Coach Chat</Text>
-            <TouchableOpacity onPress={() => setChatOpen(false)} style={styles.headerButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ color: Colors.primary, fontWeight: '600' }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xxl }}>
-            <View style={styles.chipsRow}>
-              {['Plan my day', 'Plan my week', 'Generate shopping list'].map((chip) => (
-                <TouchableOpacity key={chip} style={styles.chip} onPress={() => sendMessage(chip)}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.messages}>
-              {messages.map((m) => (
-                <View key={m.id} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
-                  {m.role !== 'user' && m.structured ? (
-                    <StructuredMessage data={m.structured} />
-                  ) : (
-                    <>
-                      {!!m.text && <Text style={styles.msgText}>{m.text}</Text>}
-                      {!!m.summary && <Text style={styles.msgSummary}>{m.summary}</Text>}
-                    </>
-                  )}
-                  {m.role === 'coach' && !!m.source && (
-                    <Text style={styles.msgSource}>
-                      {m.source === 'ai' ? 'AI' : m.source === 'heuristic' ? 'Suggestion' : 'Built-in'}
-                    </Text>
-                  )}
-                  {!!m.meals && m.meals.length > 0 && (
-                    <View style={{ marginTop: Spacing.sm }}>
-                      {m.meals.map(({ recipe, mealType }, idx) => (
-                        <View key={`${m.id}-${idx}`} style={styles.inlineCard}>
-                          <Text style={styles.inlineTitle}>{mealType ? `${mealType}: ` : ''}{recipe.name}</Text>
-                          <Text style={styles.inlineSub}>
-                            {recipe.availability.availabilityPercentage}% available • Missing {recipe.availability.missingIngredients.length}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {!!m.actions && (
-                    <View style={styles.inlineActions}>
-                      {m.actions.map((a, idx) => (
-                        <Button key={`${m.id}-act-${idx}`} title={a.label} size="sm" onPress={() => performInlineAction(a, m.meals)} />
-                      ))}
-                    </View>
-                  )}
-                </View>
-              ))}
-              {isTyping && (
-                <View style={[styles.msg, styles.msgCoach]}>
-                  <Text style={styles.typingText}>AI is typing…</Text>
-                </View>
-              )}
-            </View>
-          </ScrollView>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={[styles.composerRow, { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md }]}> 
-              <TextInput
-                placeholder="Ask me to plan your day or week…"
-                placeholderTextColor={Colors.lightText}
-                style={styles.input}
-                value={inputText}
-                onChangeText={setInputText}
-                onSubmitEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v) { sendMessage(v); setInputText(''); } }}
-                returnKeyType="send"
-              />
-              <TouchableOpacity
-                style={styles.sendBtn}
-                onPress={() => { const v = inputText.trim(); if (v) { sendMessage(v); setInputText(''); } }}
-              >
-                <Text style={styles.sendText}>Send</Text>
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Modal>
+        onClose={() => setChatOpen(false)}
+      />
 
       {/* Calendar Modal */}
       <Modal

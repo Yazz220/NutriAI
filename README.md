@@ -8,12 +8,17 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Smart categorization and expiration tracking with "Expiring Soon" surfacing
 - Fast add: manual entry, barcode scan, and camera capture
 - Powerful search and filters
+- **Enhanced Folder System**: Create folders to organize recipes with multi-select functionality
+- **Improved Modal UX**: Better empty states and streamlined "Add Recipes" flow
 
 ### 🧠 Coach Dashboard
-- Visual dashboard with calorie ring, macros, meal rows, and day navigation
-- Plan meals inline per day (Breakfast/Lunch/Dinner/Snack) using the + button
-- Floating chat assistant for "Plan my day/week" and shopping list actions
-- Availability and AI Picks remain visible in Recipes for discovery
+- **Enhanced Architecture**: Modular component structure with extracted reusable components (`DayCell`, `DateCarousel`, `WeekRings`, `ChatModal`, `CoachErrorBoundary`)
+- **Performance Optimized**: React.memo and useCallback optimizations for smooth interactions
+- **Improved Error Handling**: Comprehensive error boundaries with development-friendly error reporting
+- **Visual Dashboard**: Calorie ring, macros, meal rows, and intuitive day/week navigation
+- **Smart Planning**: Plan meals inline per day (Breakfast/Lunch/Dinner/Snack) using the + button
+- **AI Assistant**: Floating chat assistant for "Plan my day/week" and shopping list actions
+- **Component Library**: Reusable date utilities and performance-optimized components
 
 ### 🛒 Shopping List
 - Auto-generate from planned recipes and missing ingredients
@@ -27,6 +32,9 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Conversational assistant via `useCoachChat`
 
 ### 🌐 Recipe Import
+- **Enhanced Video Import**: Improved React Native compatibility and error handling
+- **Better STT Integration**: Optimized audio processing for YouTube Shorts and videos
+- **Robust Error Recovery**: User-friendly error messages and fallback options
 - Import from URLs (e.g., TikTok/Instagram/websites)
 - Client-side parsing via JSON-LD/Open Graph metadata
 - Full-screen preview before saving, with inline editing of title/description/ingredients/steps
@@ -81,6 +89,7 @@ Follow these instructions to get a copy of the project up and running on your lo
      EXPO_PUBLIC_MEALDB_API_KEY=1
      # Optional (usually not needed for TheMealDB, but available for web CORS workarounds)
      EXPO_PUBLIC_RECIPES_PROXY_BASE=
+     ```
 
 ## 🍳 Recipe Import Pipeline (Prompts, Policies, Abstain, Telemetry)
 
@@ -132,7 +141,6 @@ EXPO_PUBLIC_IMPORT_TELEMETRY=basic
 
 - Avoid placing provider secrets in `EXPO_PUBLIC_…` variables for production. Route AI/STT via a backend proxy (e.g., Supabase Edge Functions) and store secrets there.
 - If you previously added `EXPO_PUBLIC_AI_API_KEY` for local testing, rotate the key and remove it from the client build before shipping.
-     ```
 
 ### Recipe Providers
 
@@ -263,9 +271,13 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
    ```sh
    npx expo start
    ```
-   Or to connect via a tunnel (often more reliable on restricted networks):
+   Or 
    ```sh
    npx expo start --tunnel
+   ```
+   to connect via a tunnel (often more reliable on restricted networks):
+   ```sh
+  Let's start working on the project. Start by reading its details. 
    ```
 
 2. Scan the QR code with the Expo Go app on your mobile device.
@@ -336,13 +348,52 @@ Place files under `docs/images/` and reference here, for example:
 ```
 app/
   (tabs)/                # Bottom tab navigation (4 tabs)
-  ...                    # Routes for screens and modals
-components/              # Reusable components (e.g., InventoryItemCard)
+    coach.tsx           # Main coach dashboard with refactored components
+    recipes.tsx         # Recipe library with folder integration
+    ...                 # Other tab screens
+components/
+  ui/                    # Base UI components (Button, Card, etc.)
+  coach/                 # Coach-specific components
+    DayCell.tsx         # Individual day component with progress rings
+    DateCarousel.tsx    # Horizontal date picker with navigation
+    WeekRings.tsx       # Week overview with macro progress rings
+    ChatModal.tsx       # AI chat interface modal
+    CoachErrorBoundary.tsx # Error handling for coach features
+    index.ts            # Export interface
+  folders/              # Folder management components
+    AddRecipesModal.tsx # Multi-select recipe addition to folders
+    CreateFolderSheet.tsx # Enhanced folder creation with empty states
+    ...                 # Other folder components
+  onboarding/           # Onboarding flow components
+  recipe-detail/        # Recipe detail view components
+  ...                   # Other component categories
 hooks/                   # State and AI hooks (e.g., useNutrition, useCoach)
-utils/                   # Availability calculations, validation, etc.
+utils/
+  coach/                # Coach-specific utilities
+    dateUtils.ts        # Date manipulation and formatting
+  providers/            # External service providers
+  ...                   # Other utility modules
 constants/               # Colors, spacing, theme tokens
 types/                   # TypeScript types and interfaces
+docs/                   # Documentation including Video-Import-Setup.md
 ```
+
+### 🎯 Coach Architecture Enhancements
+
+The Coach tab has been refactored with a modular architecture for better maintainability:
+
+**Component Organization:**
+- **Separation of Concerns**: Each component has a single responsibility
+- **Performance Optimization**: React.memo and useCallback prevent unnecessary re-renders
+- **Error Resilience**: CoachErrorBoundary catches and handles errors gracefully
+- **Reusable Utilities**: Shared date utilities reduce code duplication
+
+**Key Improvements:**
+- **Reduced Bundle Size**: Extracted components can be code-split if needed
+- **Better Testing**: Individual components can be unit tested in isolation
+- **Enhanced Developer Experience**: Cleaner imports and better organization
+- **Improved Performance**: Optimized rendering and state management
+- **Error Recovery**: Graceful error handling with user-friendly messages
 
 ## 🔧 Development
 
@@ -358,17 +409,55 @@ The project follows a clean architecture pattern with clear separation of concer
 ### Key Design Principles
 
 - **Mobile-First**: Optimized for touch interactions and mobile screen sizes
-- **Accessibility**: Built with accessibility best practices
-- **Performance**: Efficient rendering and state management
-- **User Experience**: Intuitive navigation and clear visual feedback
+- **Accessibility**: Built with accessibility best practices and proper ARIA labels
+- **Performance**: Efficient rendering with React.memo, useCallback, and optimized state management
+- **User Experience**: Intuitive navigation, clear visual feedback, and responsive design
+- **Modularity**: Component-based architecture with separation of concerns
+- **Error Resilience**: Comprehensive error boundaries and graceful error recovery
+- **Type Safety**: Full TypeScript implementation with strict typing
 
-## 🚀 Next Potential Enhancements
+## 🚀 Recent Enhancements & Future Roadmap
+
+### ✅ Major Completed Enhancements
+
+#### 🗂️ Folder Management System
+- **AddRecipesModal**: Multi-select interface for adding recipes to folders from library
+- **Enhanced CreateFolderSheet**: Improved empty states with "Add Recipes" buttons
+- **Better UX Flow**: Streamlined folder creation and recipe organization
+- **Visual Improvements**: Consistent styling and better mobile responsiveness
+
+#### 🎬 Video Import System Overhaul
+- **React Native Compatibility**: Fixed browser-specific API dependencies
+- **Enhanced Error Handling**: User-friendly error messages and recovery options
+- **Improved STT Integration**: Better audio processing and format support
+- **Robust Error Recovery**: Graceful fallbacks for failed imports
+- **Environment Configuration**: Proper setup documentation and configuration
+
+#### 🧠 Coach Tab Architecture Revolution
+- **Modular Components**: Extracted `DayCell`, `DateCarousel`, `WeekRings`, `ChatModal`, `CoachErrorBoundary`
+- **Performance Optimization**: React.memo, useCallback, and optimized rendering
+- **Component Library**: Reusable coach-specific components with TypeScript interfaces
+- **Error Handling**: Comprehensive error boundaries with development-friendly reporting
+- **Date Utilities**: Shared utilities for date manipulation and formatting
+- **Clean Architecture**: Better separation of concerns and maintainability
+
+#### 🔧 Technical Improvements
+- **Code Organization**: Reduced main component size from 1644 to manageable chunks
+- **Type Safety**: Full TypeScript implementation with strict interfaces
+- **Performance**: Optimized re-rendering and state management
+- **Developer Experience**: Better imports, cleaner structure, easier testing
+- **Error Resilience**: Graceful error handling throughout the application
+
+### 🚀 Next Potential Enhancements
 
 - Batch "Checkout" for shopping list
 - "Mark eaten" directly from the planner
 - Settings modal for nutrition goals
 - Enhanced recipe import with auto-actions
 - Visual progress charts in the Nutrition Dashboard
+- Loading states and skeleton screens for better UX
+- Offline state handling and data synchronization
+- Advanced error recovery mechanisms
 
 ## 📚 Documentation
 

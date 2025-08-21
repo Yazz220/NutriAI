@@ -45,6 +45,7 @@ import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
 import RecipeChatInterface from '@/components/RecipeChatInterface';
 import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AddRecipesModal } from '@/components/folders/AddRecipesModal';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
@@ -86,6 +87,11 @@ export default function RecipesScreen() {
   const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [selectedPlanRecipeId, setSelectedPlanRecipeId] = useState<string | null>(null);
+  // New folder flow state
+  const [showAddRecipesModal, setShowAddRecipesModal] = useState(false);
+  const [newFolderId, setNewFolderId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showCreateFolderEmptyState, setShowCreateFolderEmptyState] = useState(false);
   // Grid-only layout (list option removed)
   const [gridWidth, setGridWidth] = useState(0);
   const GUTTER = 16;
@@ -171,7 +177,7 @@ export default function RecipesScreen() {
       cookTime: typeof recipe?.cookTime === 'number' ? recipe.cookTime : 0,
       servings: typeof recipe?.servings === 'number' ? recipe.servings : 1,
       sourceUrl: recipe?.sourceUrl,
-      nutritionPerServing: undefined,
+      nutritionPerServing: recipe?.nutritionPerServing,
     };
   };
 
@@ -318,7 +324,7 @@ export default function RecipesScreen() {
       cookTime: recipe.cookingMinutes || 0,
       servings: recipe.servings || 1,
       sourceUrl: recipe.sourceUrl,
-      // Nutrition array varies by provider; skip unless available via nutrients mapping
+      // Nutrition data will be populated by AI parsing when available
       nutritionPerServing: undefined,
     };
 
@@ -375,6 +381,7 @@ export default function RecipesScreen() {
     setFolderModalMode('create');
     setRenameFolderId(null);
     setShowCreateFolderSheet(true);
+    setShowCreateFolderEmptyState(false);
   };
 
   const handleSubmitFolder = (name: string) => {
@@ -398,6 +405,30 @@ export default function RecipesScreen() {
         deleteFolder(id);
       } },
     ]);
+  };
+
+  const handleCreateFolder = (name: string) => {
+    const folderId = createFolder(name);
+    setNewFolderId(folderId);
+    setNewFolderName(name);
+    setActiveFolderId(folderId);
+    setShowCreateFolderEmptyState(true);
+  };
+
+  const handleAddRecipesToNewFolder = () => {
+    setShowCreateFolderSheet(false);
+    setShowAddRecipesModal(true);
+  };
+
+  const handleAddRecipesToFolder = (recipeIds: string[]) => {
+    const targetFolderId = newFolderId || activeFolderId;
+    if (targetFolderId && recipeIds.length > 0) {
+      recipeIds.forEach(recipeId => addRecipeToFolder(targetFolderId, recipeId));
+    }
+    setShowAddRecipesModal(false);
+    setShowCreateFolderEmptyState(false);
+    setNewFolderId(null);
+    setNewFolderName('');
   };
 
   // Render discovery tab
@@ -513,14 +544,33 @@ export default function RecipesScreen() {
           ListEmptyComponent={
             <Card style={styles.emptyState}>
               <BookOpen size={48} color={Colors.lightText} />
-              <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
-              <Button
-                title="Import Recipe"
-                onPress={handleOpenImportMenu}
-                size="xs"
-                style={styles.importButton}
-                icon={<Plus size={14} color={Colors.white} />}
-              />
+              {activeFolderId ? (
+                <LoadingSpinner text={`"${folders.find(f => f.id === activeFolderId)?.name}" is empty. Add recipes to get started!`} />
+              ) : (
+                <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
+              )}
+              {activeFolderId ? (
+                <Button
+                  title="Add Recipes"
+                  onPress={() => {
+                    setNewFolderId(activeFolderId);
+                    const folder = folders.find(f => f.id === activeFolderId);
+                    setNewFolderName(folder?.name || '');
+                    setShowAddRecipesModal(true);
+                  }}
+                  size="md"
+                  style={{ paddingHorizontal: 24, paddingVertical: 12 }}
+                  icon={<Plus size={16} color={Colors.white} />}
+                />
+              ) : (
+                <Button
+                  title="Import Recipe"
+                  onPress={handleOpenImportMenu}
+                  size="xs"
+                  style={styles.importButton}
+                  icon={<Plus size={14} color={Colors.white} />}
+                />
+              )}
             </Card>
           }
           renderItem={({ item, index }) => {
@@ -586,13 +636,15 @@ export default function RecipesScreen() {
       {/* Create Folder Bottom Sheet */}
       <CreateFolderSheet
         visible={showCreateFolderSheet}
-        onClose={() => setShowCreateFolderSheet(false)}
-        existingNames={folders.map(f => f.name)}
-        onCreate={(name) => {
-          const id = createFolder(name);
-          setActiveFolderId(id);
+        onClose={() => {
           setShowCreateFolderSheet(false);
+          setShowCreateFolderEmptyState(false);
         }}
+        existingNames={folders.map(f => f.name)}
+        onCreate={handleCreateFolder}
+        onAddRecipes={handleAddRecipesToNewFolder}
+        showEmptyState={showCreateFolderEmptyState}
+        folderName={newFolderName}
       />
 
       {/* Rename Folder Bottom Sheet */}
@@ -643,6 +695,20 @@ export default function RecipesScreen() {
           }}
         />
       )}
+
+      {/* Add Recipes Modal */}
+      <AddRecipesModal
+        visible={showAddRecipesModal}
+        folderId={newFolderId || activeFolderId || ''}
+        folderName={newFolderName || folders.find(f => f.id === (newFolderId || activeFolderId))?.name || ''}
+        availableRecipes={localRecipes}
+        existingRecipeIds={(newFolderId || activeFolderId) ? folders.find(f => f.id === (newFolderId || activeFolderId))?.recipeIds || [] : []}
+        onClose={() => {
+          setShowAddRecipesModal(false);
+          setShowCreateFolderEmptyState(false);
+        }}
+        onAddRecipes={handleAddRecipesToFolder}
+      />
 
       {/* Import Preview Modal (before save) */}
       {importPreviewMeal && (
@@ -702,7 +768,7 @@ export default function RecipesScreen() {
                         const ings = (importPreviewMeal.ingredients || []).map(i => `${i.quantity ?? ''} ${i.unit ?? ''} ${i.name}`.trim()).join('\n');
                         const steps = (importPreviewMeal.steps || []).map((s, idx) => `${idx + 1}. ${String(s)}`).join('\n');
                         const content = [title, desc, 'Ingredients:', ings, 'Instructions:', steps].filter(Boolean).join('\n');
-                        const parsed = await parseRecipeWithAI(content, { includeNutrition: false, strictValidation: true, useMultiStage: true });
+                        const parsed = await parseRecipeWithAI(content, { includeNutrition: true, strictValidation: true, useMultiStage: true });
                         const nextMeal: Omit<Meal, 'id'> = {
                           ...importPreviewMeal,
                           name: parsed.title || importPreviewMeal.name,
@@ -717,6 +783,7 @@ export default function RecipesScreen() {
                           prepTime: parsed.prepTime ?? importPreviewMeal.prepTime,
                           cookTime: parsed.cookTime ?? importPreviewMeal.cookTime,
                           servings: parsed.servings ?? importPreviewMeal.servings,
+                          nutritionPerServing: (parsed as any).nutritionPerServing || importPreviewMeal.nutritionPerServing,
                         };
                         setImportPreviewMeal(nextMeal);
                         // seed editors with improved values

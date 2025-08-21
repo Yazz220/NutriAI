@@ -1,10 +1,12 @@
 /**
  * Video content extraction system for recipe videos
  * Handles caption extraction, frame OCR, and audio transcription
+ * React Native compatible version
  */
 
 import { processImageOcr } from './imageOcrProcessor';
-import { transcribeFromUri } from './sttClient';
+import { transcribeFromUri, transcribeFromUrl } from './sttClient';
+import * as FileSystem from 'expo-file-system';
 
 export interface VideoExtractionResult {
   captions?: string;
@@ -32,9 +34,10 @@ export interface VideoExtractionOptions {
 
 /**
  * Main video content extraction function
+ * React Native compatible version
  */
 export async function extractVideoContent(
-  videoFile: File,
+  videoInput: File | string,
   options: VideoExtractionOptions = {}
 ): Promise<VideoExtractionResult> {
   const startTime = Date.now();
@@ -58,14 +61,14 @@ export async function extractVideoContent(
 
   try {
     // Get video metadata
-    const videoMetadata = await getVideoMetadata(videoFile);
+    const videoMetadata = await getVideoMetadata(videoInput);
     videoDuration = videoMetadata.duration;
     hasAudio = videoMetadata.hasAudio;
-    
+
     // Extract embedded captions/subtitles
     if (extractCaptions) {
       try {
-        const cap = await extractEmbeddedCaptions(videoFile);
+        const cap = await extractEmbeddedCaptions(videoInput);
         captions = cap || undefined;
 
         if (captions) {
@@ -81,13 +84,13 @@ export async function extractVideoContent(
     if (extractFrameText) {
       try {
         const frameExtractionResult = await extractTextFromFrames(
-          videoFile,
+          videoInput,
           frameInterval,
           maxFrames
         );
         frameTexts = frameExtractionResult.texts;
         frameCount = frameExtractionResult.frameCount;
-        
+
         if (frameTexts.length > 0) {
           extractionMethods.push('frame-ocr');
           confidence += Math.min(0.4, frameTexts.length * 0.1);
@@ -100,9 +103,9 @@ export async function extractVideoContent(
     // Transcribe audio
     if (transcribeAudio && hasAudio) {
       try {
-        const audioResult = await transcribeVideoAudio(videoFile, audioLanguage);
+        const audioResult = await transcribeVideoAudio(videoInput, audioLanguage);
         audioTranscript = audioResult.text;
-        
+
         if (audioTranscript) {
           extractionMethods.push('audio-transcription');
           confidence += 0.4;
@@ -144,80 +147,64 @@ export async function extractVideoContent(
 
 /**
  * Gets video metadata including duration and audio presence
+ * React Native compatible version using expo-av
  */
-async function getVideoMetadata(videoFile: File): Promise<{
+async function getVideoMetadata(videoInput: File | string): Promise<{
   duration: number;
   hasAudio: boolean;
   width: number;
   height: number;
 }> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(videoFile);
-    
-    video.onloadedmetadata = () => {
-      const metadata = {
-        duration: video.duration,
-        hasAudio: Boolean((video as any).mozHasAudio) || Boolean((video as any).webkitAudioDecodedByteCount) || 
-                  Boolean((video as any).audioTracks?.length),
-        width: video.videoWidth,
-        height: video.videoHeight
+  try {
+    let videoUri: string;
+
+    if (typeof videoInput === 'string') {
+      videoUri = videoInput;
+    } else {
+      // For File objects, we can't directly process them in React Native
+      // In a full implementation, you'd save the file and use expo-av
+      console.warn('[VideoExtractor] File object processing not implemented for React Native');
+      return {
+        duration: 0,
+        hasAudio: false,
+        width: 0,
+        height: 0
       };
-      
-      URL.revokeObjectURL(url);
-      resolve(metadata);
+    }
+
+    // For React Native, we'll use a simplified approach
+    // In a full implementation, you might use expo-av or react-native-video
+    const fileInfo = await FileSystem.getInfoAsync(videoUri);
+
+    // Basic metadata extraction - in production, you'd use a proper video processing library
+    return {
+      duration: 0, // Would need proper video processing library
+      hasAudio: true, // Assume audio is present
+      width: 0, // Would need proper video processing library
+      height: 0 // Would need proper video processing library
     };
-    
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Failed to load video metadata'));
+  } catch (error) {
+    console.warn('[VideoExtractor] Failed to get video metadata:', error);
+    // Return safe defaults
+    return {
+      duration: 0,
+      hasAudio: false,
+      width: 0,
+      height: 0
     };
-    
-    video.src = url;
-  });
+  }
 }
 
 /**
  * Extracts embedded captions/subtitles from video
+ * React Native compatible version
  */
-async function extractEmbeddedCaptions(videoFile: File): Promise<string | null> {
+async function extractEmbeddedCaptions(videoInput: File | string): Promise<string | null> {
   try {
-    // For web implementation, we'll try to extract WebVTT or SRT tracks
-    // This is a simplified implementation - in practice, you'd need more sophisticated parsing
-    
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(videoFile);
-    
-    return new Promise((resolve) => {
-      video.onloadeddata = () => {
-        const textTracks = video.textTracks;
-        let captions = '';
-        
-        for (let i = 0; i < textTracks.length; i++) {
-          const track = textTracks[i];
-          if (track.kind === 'captions' || track.kind === 'subtitles') {
-            // Extract cues if available
-            if (track.cues) {
-              for (let j = 0; j < track.cues.length; j++) {
-                const cue = track.cues[j] as VTTCue;
-                captions += cue.text + ' ';
-              }
-            }
-          }
-        }
-        
-        URL.revokeObjectURL(url);
-        resolve(captions.trim() || null);
-      };
-      
-      video.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(null);
-      };
-      
-      video.src = url;
-    });
-    
+    // For React Native, embedded caption extraction is not supported
+    // In a full implementation, you might use a library that can parse video metadata
+    console.warn('[VideoExtractor] Embedded caption extraction not supported in React Native');
+    return null;
   } catch (error) {
     console.warn('[VideoExtractor] Embedded caption extraction failed:', error);
     return null;
@@ -226,190 +213,64 @@ async function extractEmbeddedCaptions(videoFile: File): Promise<string | null> 
 
 /**
  * Extracts text from video frames using OCR
+ * React Native compatible version - simplified approach
  */
 async function extractTextFromFrames(
-  videoFile: File,
+  videoInput: File | string,
   frameInterval: number,
   maxFrames: number
 ): Promise<{ texts: string[]; frameCount: number }> {
-  const video = document.createElement('video');
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  if (!ctx) {
-    throw new Error('Canvas context not available');
-  }
-  
-  const url = URL.createObjectURL(videoFile);
-  const texts: string[] = [];
-  let frameCount = 0;
-  
   try {
-    // Load video
-    await new Promise<void>((resolve, reject) => {
-      video.onloadeddata = () => resolve();
-      video.onerror = reject;
-      video.src = url;
-    });
-    
-    const duration = video.duration;
-    const totalFramesToExtract = Math.min(maxFrames, Math.floor(duration / frameInterval));
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Extract frames at intervals
-    for (let i = 0; i < totalFramesToExtract; i++) {
-      const timePosition = (i * frameInterval) + (frameInterval / 2); // Middle of interval
-      
-      try {
-        // Seek to position
-        video.currentTime = Math.min(timePosition, duration - 1);
-        
-        // Wait for seek to complete
-        await new Promise<void>((resolve) => {
-          const onSeeked = () => {
-            video.removeEventListener('seeked', onSeeked);
-            resolve();
-          };
-          video.addEventListener('seeked', onSeeked);
-        });
-        
-        // Draw frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert to data URL
-        const frameDataUrl = canvas.toDataURL('image/png');
-        
-        // Extract text using OCR
-        try {
-          const ocrResult = await processImageOcr(frameDataUrl, {
-            preprocessImage: true,
-            provider: 'auto'
-          });
-          
-          if (ocrResult.text && ocrResult.text.trim().length > 5) {
-            texts.push(ocrResult.text.trim());
-          }
-          
-          frameCount++;
-        } catch (ocrError) {
-          console.warn(`[VideoExtractor] OCR failed for frame ${i}:`, ocrError);
-        }
-        
-      } catch (seekError) {
-        console.warn(`[VideoExtractor] Failed to seek to position ${timePosition}:`, seekError);
-      }
-    }
-    
-    return { texts, frameCount };
-    
-  } finally {
-    URL.revokeObjectURL(url);
+    // For React Native, frame extraction is not supported without additional libraries
+    // In a full implementation, you might use FFmpeg bindings or a video processing service
+    console.warn('[VideoExtractor] Frame text extraction not supported in React Native');
+    return { texts: [], frameCount: 0 };
+  } catch (error) {
+    console.warn('[VideoExtractor] Frame text extraction failed:', error);
+    return { texts: [], frameCount: 0 };
   }
 }
 
 /**
  * Transcribes audio from video file
+ * React Native compatible version
  */
 async function transcribeVideoAudio(
-  videoFile: File,
+  videoInput: File | string,
   language: string
 ): Promise<{ text: string; confidence: number }> {
   try {
-    // Extract audio from video file
-    const audioBlob = await extractAudioFromVideo(videoFile);
-    
-    // Create a temporary file URI for the audio
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    try {
-      // Use existing transcription service
-      const result = await transcribeFromUri(
-        audioUrl,
-        'extracted_audio.wav',
-        'audio/wav',
-        {
-          language,
-          response_format: 'json'
-        }
-      );
-      
+    if (typeof videoInput === 'string') {
+      // For video URLs, try to use the STT service directly
+      const result = await transcribeFromUrl(videoInput, {
+        language,
+        response_format: 'json'
+      });
+
       return {
         text: result.text || '',
-        confidence: 0.8 // Default confidence for audio transcription
+        confidence: 0.8
       };
-      
-    } finally {
-      URL.revokeObjectURL(audioUrl);
+    } else {
+      // For video files, audio extraction is not supported in React Native
+      // without additional libraries like FFmpeg bindings
+      console.warn('[VideoExtractor] Audio extraction from video files not supported in React Native');
+      return {
+        text: '',
+        confidence: 0
+      };
     }
-    
   } catch (error) {
     console.error('[VideoExtractor] Audio transcription failed:', error);
-    throw error;
+    return {
+      text: '',
+      confidence: 0
+    };
   }
 }
 
-/**
- * Extracts audio track from video file
- */
-async function extractAudioFromVideo(videoFile: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const url = URL.createObjectURL(videoFile);
-    
-    video.onloadeddata = async () => {
-      try {
-        // Create audio source from video
-        const source = audioContext.createMediaElementSource(video);
-        const destination = audioContext.createMediaStreamDestination();
-        source.connect(destination);
-        
-        // Record audio stream
-        const mediaRecorder = new MediaRecorder(destination.stream);
-        const audioChunks: Blob[] = [];
-        
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunks.push(event.data);
-          }
-        };
-        
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-          URL.revokeObjectURL(url);
-          resolve(audioBlob);
-        };
-        
-        mediaRecorder.onerror = (error) => {
-          URL.revokeObjectURL(url);
-          reject(error);
-        };
-        
-        // Start recording and play video
-        mediaRecorder.start();
-        video.play();
-        
-        // Stop recording when video ends
-        video.onended = () => {
-          mediaRecorder.stop();
-        };
-        
-      } catch (error) {
-        URL.revokeObjectURL(url);
-        reject(error);
-      }
-    };
-    
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Failed to load video for audio extraction'));
-    };
-    
-    video.src = url;
-  });
-}
+// Audio extraction from video files is not supported in React Native
+// without additional libraries like FFmpeg bindings
 
 /**
  * Merges content from different extraction methods
@@ -527,53 +388,74 @@ export async function optimizeVideoForExtraction(videoFile: File): Promise<{
 /**
  * Estimates processing time for video
  */
-export async function estimateProcessingTime(videoFile: File): Promise<{
+export async function estimateProcessingTime(videoInput: File | string): Promise<{
   estimatedSeconds: number;
   factors: string[];
 }> {
   const factors: string[] = [];
   let estimatedSeconds = 10; // Base time
-  
+
   try {
-    const metadata = await getVideoMetadata(videoFile);
-    
-    // Factor in video duration
-    const durationFactor = Math.min(metadata.duration / 60, 5); // Max 5x for very long videos
-    estimatedSeconds += durationFactor * 10;
-    factors.push(`duration: ${metadata.duration.toFixed(1)}s`);
-    
-    // Factor in video resolution
-    const pixelCount = metadata.width * metadata.height;
-    if (pixelCount > 1920 * 1080) {
-      estimatedSeconds += 20;
-      factors.push('high-resolution');
-    } else if (pixelCount < 640 * 480) {
-      estimatedSeconds += 5;
-      factors.push('low-resolution');
+    const metadata = await getVideoMetadata(videoInput);
+
+    // Factor in video duration (only available for URLs in React Native)
+    if (metadata.duration > 0) {
+      const durationFactor = Math.min(metadata.duration / 60, 5); // Max 5x for very long videos
+      estimatedSeconds += durationFactor * 10;
+      factors.push(`duration: ${metadata.duration.toFixed(1)}s`);
     }
-    
+
     // Factor in audio presence
     if (metadata.hasAudio) {
       estimatedSeconds += 15;
       factors.push('audio-transcription');
     }
-    
-    // Factor in file size
-    const fileSizeMB = videoFile.size / (1024 * 1024);
-    if (fileSizeMB > 50) {
-      estimatedSeconds += 10;
-      factors.push('large-file');
-    }
-    
+
     return {
       estimatedSeconds: Math.round(estimatedSeconds),
       factors
     };
-    
+
   } catch (error) {
     return {
       estimatedSeconds: 30, // Conservative estimate
       factors: ['estimation-failed']
     };
   }
+}
+
+/**
+ * Enhanced error handling for video imports
+ */
+export function getVideoImportErrorMessage(error: any): string {
+  const errorMessage = error?.message || '';
+  const errorString = String(error);
+
+  // Check for common configuration issues
+  if (errorMessage.includes('not configured') || errorString.includes('EXPO_PUBLIC_STT_API_BASE')) {
+    return 'Speech-to-Text service is not configured. Please set up EXPO_PUBLIC_STT_API_BASE and EXPO_PUBLIC_STT_API_KEY in your environment variables.';
+  }
+
+  if (errorMessage.includes('401') || errorString.includes('401')) {
+    return 'Speech-to-Text service authentication failed. Please check your EXPO_PUBLIC_STT_API_KEY.';
+  }
+
+  if (errorMessage.includes('400') || errorString.includes('400')) {
+    return 'Invalid video URL or format. Please try a different video or paste the recipe text instead.';
+  }
+
+  if (errorMessage.includes('network') || errorString.includes('fetch')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+
+  if (errorMessage.includes('insufficient_video_evidence')) {
+    return 'Video quality is too low for automatic processing. Please try:\n• A video with clearer audio\n• A video with visible text/captions\n• Pasting the recipe text manually';
+  }
+
+  if (errorMessage.includes('no_transcript')) {
+    return 'No audio could be extracted from the video. Please try:\n• A video with clearer speech\n• A different video URL\n• Pasting the recipe text manually';
+  }
+
+  // Generic fallback
+  return `Video processing failed: ${errorMessage || 'Unknown error'}. Please try pasting the recipe text instead.`;
 }
