@@ -27,15 +27,18 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
   - Conversational chat interface via `useCoachChat`
 
 ### 3) Recipe Import Feature
-- New ImportRecipeModal: paste recipe URLs (TikTok, Instagram, websites)
+- New full-screen ImportRecipeModal: paste recipe URLs (TikTok, Instagram, websites)
 - Client-side parsing using JSON-LD/Open Graph metadata
-- Preview and save imported recipes to personal library
+- Preview-before-save with inline editing of title/description/ingredients/steps
+- Optional "Improve with AI" refinement (deterministic) before saving
+- Save options: "Save" and "Save & Add to Folder" (folder picker)
 - Smart follow-ups: "Add to Plan" and "Add missing ingredients"
 
 ### 4) Enhanced Shopping List Flow
 - "Mark as Purchased" prompts for expiry date when checking items
 - Seamless transfer from Shopping List to Inventory
 - Toast notifications with Undo for safe rollback
+ - Restored one-tap "Add missing ingredients" button on the recipe detail action bar (Discover/Library)
 
 ## 🛠 Technical Improvements
 

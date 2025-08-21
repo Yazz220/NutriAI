@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, Image, FlatList, Dimensions, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame } from 'lucide-react-native';
+import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import { useMeals } from '@/hooks/useMealsStore';
 import { MealPlanModal } from '@/components/MealPlanModal';
 import { MealType } from '@/types';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import FitnessRing, { RingSpec } from '@/components/ui/FitnessRing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StructuredMessage } from '@/components/StructuredMessage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
@@ -24,13 +25,20 @@ export default function CoachScreen() {
   const insets = useSafeAreaInsets();
   const { loggedMeals, goals } = useNutrition();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
-  const { getMealForDateAndType, addPlannedMeal } = useMealPlanner();
+  const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal } = useMealPlanner();
   const { meals } = useMeals();
   const [inputText, setInputText] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [dayISO, setDayISO] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
+  const [selectedExistingMeal, setSelectedExistingMeal] = useState<ReturnType<typeof getMealForDateAndType> | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const d = new Date(dayISO);
+    d.setDate(1);
+    return d;
+  });
 
   // Persist last viewed day
   useEffect(() => {
@@ -82,6 +90,16 @@ export default function CoachScreen() {
     setDayISO(d.toISOString().split('T')[0]);
   };
 
+  // Keep calendar month in sync when changing day via other controls
+  useEffect(() => {
+    const d = new Date(dayISO);
+    if (d.getFullYear() !== calendarMonth.getFullYear() || d.getMonth() !== calendarMonth.getMonth()) {
+      const first = new Date(d);
+      first.setDate(1);
+      setCalendarMonth(first);
+    }
+  }, [dayISO]);
+
   // Shift week by number of weeks (delta can be negative)
   const shiftWeek = (deltaWeeks: number) => {
     const d = new Date(dayISO);
@@ -122,6 +140,14 @@ export default function CoachScreen() {
 
   const openAddMeal = (type: MealType) => {
     setSelectedMealType(type);
+    setSelectedExistingMeal(undefined);
+    setShowMealPlanModal(true);
+  };
+
+  const openEditMeal = (type: MealType) => {
+    const existing = getMealForDateAndType(dayISO, type);
+    setSelectedMealType(type);
+    setSelectedExistingMeal(existing);
     setShowMealPlanModal(true);
   };
 
@@ -134,10 +160,11 @@ export default function CoachScreen() {
     isFuture: boolean;
     // Optional status: only computed for selected to avoid new logic pathways
     status?: 'met' | 'missed';
+    rings?: RingSpec[];
     onPress: () => void;
-  }> = ({ date, selected, isToday, isYesterday, isFuture, status, onPress }) => {
+  }> = ({ date, selected, isToday, isYesterday, isFuture, status, rings, onPress }) => {
     const size = 44; // 40–44dp circle, choose 44 for better tap target
-    const ringStroke = 2; // 2dp outer progress ring
+    const ringStroke = 2; // default outer ring stroke for fallback
     const radius = (size - ringStroke) / 2;
     const cx = size / 2;
     const cy = size / 2;
@@ -167,11 +194,15 @@ export default function CoachScreen() {
           {weekdayInitial.toUpperCase()}
         </Text>
         <View style={[styles.dayCircleContainer, isToday && styles.dayCircleToday]}>
-          <Svg width={size} height={size}>
-            <Circle cx={cx} cy={cy} r={radius} stroke={baseRing} strokeWidth={ringStroke} fill="transparent" />
-            {/* Outer progress ring – visual only; highlight when selected */}
-            <Circle cx={cx} cy={cy} r={radius} stroke={ringColor} strokeWidth={ringStroke} fill="none" opacity={selected ? 1 : 0.4} />
-          </Svg>
+          {rings && rings.length > 0 ? (
+            <FitnessRing size={size} stroke={3} gap={2} backgroundColor={baseRing} rings={rings} />
+          ) : (
+            <Svg width={size} height={size}>
+              <Circle cx={cx} cy={cy} r={radius} stroke={baseRing} strokeWidth={ringStroke} fill="transparent" />
+              {/* Outer progress ring – visual only; highlight when selected */}
+              <Circle cx={cx} cy={cy} r={radius} stroke={ringColor} strokeWidth={ringStroke} fill="none" opacity={selected ? 1 : 0.4} />
+            </Svg>
+          )}
           <View style={styles.dayCircleInner} pointerEvents="none">
             <Text style={[styles.dayNumber, selected && styles.dayNumberSelected]}>{dayNum}</Text>
           </View>
@@ -242,6 +273,26 @@ export default function CoachScreen() {
             status = (calorieGoal > 0 && eaten >= calorieGoal) ? 'met' : undefined;
           }
 
+          // Build per-day macro rings (outer->inner): Carbs, Protein, Fat
+          const dayMacros = loggedMeals
+            .filter((m) => m.date === iso)
+            .reduce(
+              (acc, m) => ({
+                carbs: acc.carbs + m.carbs,
+                protein: acc.protein + m.protein,
+                fats: acc.fats + m.fats,
+              }),
+              { carbs: 0, protein: 0, fats: 0 }
+            );
+          const carbGoal = goals?.carbs || 0;
+          const proteinGoal = goals?.protein || 0;
+          const fatGoal = goals?.fats || 0;
+          const rings: RingSpec[] = [
+            { pct: carbGoal ? Math.min(1, dayMacros.carbs / carbGoal) : 0, color: '#FF6B6B' },
+            { pct: proteinGoal ? Math.min(1, dayMacros.protein / proteinGoal) : 0, color: '#4ECDC4' },
+            { pct: fatGoal ? Math.min(1, dayMacros.fats / fatGoal) : 0, color: '#45B7D1' },
+          ];
+
           return (
             <DayCell
               date={d}
@@ -250,6 +301,7 @@ export default function CoachScreen() {
               isYesterday={isYesterday}
               isFuture={isFuture}
               status={status}
+              rings={rings}
               onPress={() => onSelectDate(iso)}
             />
           );
@@ -259,6 +311,62 @@ export default function CoachScreen() {
         getItemLayout={(_, index) => ({ length: totalItemSize, offset: totalItemSize * index, index })}
         initialScrollIndex={centerIndex}
       />
+    );
+  };
+
+  // Static week rings (Mon–Sun) like the reference design
+  const WeekRings: React.FC<{ selectedDate: string; onSelectDate: (iso: string) => void }> = ({ selectedDate, onSelectDate }) => {
+    const startISO = getWeekStartISO(selectedDate);
+    const start = new Date(startISO);
+    const days: { date: Date; iso: string }[] = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return { date: d, iso: d.toISOString().split('T')[0] };
+    });
+
+    const todayISO = new Date().toISOString().split('T')[0];
+    const ringColor = Colors.primary; // use theme primary for consistency
+
+    return (
+      <View style={styles.weekRingsContainer}>
+        {/* Weekday initials row */}
+        <View style={styles.weekInitialsRow}>
+          {days.map(({ date, iso }) => {
+            const isSel = iso === selectedDate;
+            const w = date.toLocaleDateString(undefined, { weekday: 'short' });
+            const initial = Array.from(w)[0]?.toUpperCase() ?? w.charAt(0).toUpperCase();
+            return (
+              <View key={`winit-${iso}`} style={styles.weekInitialCell}>
+                <Text style={[styles.weekInitial, isSel && styles.weekInitialSelected]}>{initial}</Text>
+              </View>
+            );
+          })}
+        </View>
+        {/* Rings row */}
+        <View style={styles.weekRingsRow}>
+          {days.map(({ iso, date }) => {
+            const isFuture = new Date(iso) > new Date(todayISO);
+            const totals = loggedMeals
+              .filter((m) => m.date === iso)
+              .reduce((acc, m) => ({ calories: acc.calories + m.calories }), { calories: 0 });
+            const pct = calorieGoal ? Math.min(1, totals.calories / calorieGoal) : 0;
+            const ring: RingSpec = { pct, color: ringColor };
+            return (
+              <TouchableOpacity
+                key={`wr-${iso}`}
+                style={styles.weekRingCell}
+                onPress={() => onSelectDate(iso)}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${date.toDateString()}`}
+              >
+                <View style={{ opacity: isFuture ? 0.35 : 1 }}>
+                  <FitnessRing size={40} stroke={4} gap={2} backgroundColor={Colors.border} rings={[ring]} />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
     );
   };
 
@@ -409,12 +517,19 @@ export default function CoachScreen() {
             <ChevronRight size={18} color={Colors.text} />
           </TouchableOpacity>
         </View>
-        <View style={{ paddingHorizontal: 8, marginTop: 8, marginBottom: 16 }}>
-          <DateCarousel
-            selectedDate={dayISO}
-            onSelectDate={(iso) => setDayISO(iso)}
-            daysToShow={Platform.OS === 'ios' ? 5 : 7}
-          />
+        <View style={styles.weekHeaderRow}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={styles.modernIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Open calendar"
+            onPress={() => setCalendarOpen(true)}
+          >
+            <Calendar size={18} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ paddingHorizontal: 16, marginTop: 4, marginBottom: 16 }}>
+          <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} />
         </View>
 
         {/* Enhanced Meals Section */}
@@ -425,55 +540,38 @@ export default function CoachScreen() {
           </View>
           <Rule />
 
-          {/* Meal rows: 60–64dp, emoji + title, sublabel, trailing optional icon button */}
+          {/* Meal rows: show current plan if set; otherwise prompt to add */}
           <View>
-            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('breakfast')}>
-              <Text style={styles.mealRowIcon}>🌅</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mealRowTitle}>Breakfast</Text>
-                <Text style={styles.mealRowSub}>Add breakfast</Text>
-              </View>
-              <IconButtonSquare accessibilityLabel="Plan breakfast">
-                <Plus size={16} color={Colors.text} />
-              </IconButtonSquare>
-            </TouchableOpacity>
-            <Rule />
-
-            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('lunch')}>
-              <Text style={styles.mealRowIcon}>☀️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mealRowTitle}>Lunch</Text>
-                <Text style={styles.mealRowSub}>Add lunch</Text>
-              </View>
-              <IconButtonSquare accessibilityLabel="Plan lunch">
-                <Plus size={16} color={Colors.text} />
-              </IconButtonSquare>
-            </TouchableOpacity>
-            <Rule />
-
-            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('dinner')}>
-              <Text style={styles.mealRowIcon}>🌙</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mealRowTitle}>Dinner</Text>
-                <Text style={styles.mealRowSub}>Add dinner</Text>
-              </View>
-              <IconButtonSquare accessibilityLabel="Plan dinner">
-                <Plus size={16} color={Colors.text} />
-              </IconButtonSquare>
-            </TouchableOpacity>
-            <Rule />
-
-            <TouchableOpacity style={styles.mealRow} onPress={() => openAddMeal('snack')}>
-              <Text style={styles.mealRowIcon}>🍎</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mealRowTitle}>Snack</Text>
-                <Text style={styles.mealRowSub}>Add snack</Text>
-              </View>
-              <IconButtonSquare accessibilityLabel="Plan snack">
-                <Plus size={16} color={Colors.text} />
-              </IconButtonSquare>
-            </TouchableOpacity>
-            <Rule />
+            {(['breakfast','lunch','dinner','snack'] as MealType[]).map((type) => {
+              const planned = getMealForDateAndType(dayISO, type);
+              const recipe = planned ? meals.find((m:any) => m.id === planned.recipeId) : undefined;
+              const icon = type === 'breakfast' ? '🌅' : type === 'lunch' ? '☀️' : type === 'dinner' ? '🌙' : '🍎';
+              const label = type.charAt(0).toUpperCase() + type.slice(1);
+              return (
+                <React.Fragment key={type}>
+                  <TouchableOpacity style={styles.mealRow} onPress={() => (planned ? openEditMeal(type) : openAddMeal(type))}>
+                    <Text style={styles.mealRowIcon}>{icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mealRowTitle}>{label}</Text>
+                      {planned ? (
+                        <View style={styles.mealRowSubRow}>
+                          {recipe?.image ? (
+                            <Image source={{ uri: recipe.image }} style={styles.mealRowThumb} />
+                          ) : null}
+                          <Text style={styles.mealRowSub}>{recipe?.name ?? 'Planned'}</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.mealRowSub}>Add {type}</Text>
+                      )}
+                    </View>
+                    <IconButtonSquare accessibilityLabel={planned ? `Edit ${type}` : `Plan ${type}`}>
+                      {planned ? <Pencil size={16} color={Colors.text} /> : <Plus size={16} color={Colors.text} />}
+                    </IconButtonSquare>
+                  </TouchableOpacity>
+                  <Rule />
+                </React.Fragment>
+              );
+            })}
           </View>
         </View>
 
@@ -602,13 +700,152 @@ export default function CoachScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* Calendar Modal */}
+      <Modal
+        visible={calendarOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCalendarOpen(false)}
+      >
+        <View style={styles.calendarBackdrop}>
+          <View style={styles.calendarSheet}>
+            {/* Header */}
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity
+                style={styles.modernIconBtn}
+                onPress={() => {
+                  const d = new Date(calendarMonth);
+                  d.setMonth(d.getMonth() - 1);
+                  setCalendarMonth(d);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+              >
+                <ChevronLeft size={18} color={Colors.text} />
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthLabel}>
+                {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+              </Text>
+              <TouchableOpacity
+                style={styles.modernIconBtn}
+                onPress={() => {
+                  const d = new Date(calendarMonth);
+                  d.setMonth(d.getMonth() + 1);
+                  setCalendarMonth(d);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+              >
+                <ChevronRight size={18} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Weekday Row (Mon–Sun) */}
+            <View style={styles.calendarWeekdaysRow}>
+              {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d) => (
+                <Text key={d} style={styles.calendarWeekdayText}>{d}</Text>
+              ))}
+            </View>
+
+            {/* Grid */}
+            <View style={styles.calendarGrid}>
+              {(() => {
+                const items: React.ReactNode[] = [];
+                const first = new Date(calendarMonth);
+                const month = first.getMonth();
+                const year = first.getFullYear();
+                const firstWeekday = (() => {
+                  // Convert JS Sunday(0)..Saturday(6) to Mon(1)..Sun(7)
+                  const js = new Date(year, month, 1).getDay();
+                  return js === 0 ? 7 : js;
+                })();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const todayISO = new Date().toISOString().split('T')[0];
+                const selectedISO = dayISO;
+                // leading blanks for Mon-based grid
+                const lead = firstWeekday - 1; // 0..6
+                for (let i = 0; i < lead; i++) {
+                  items.push(<View key={`blank-${i}`} style={styles.calendarCell} />);
+                }
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const d = new Date(year, month, day);
+                  const iso = d.toISOString().split('T')[0];
+                  const isSelected = iso === selectedISO;
+                  const isToday = iso === todayISO;
+                  // daily calories progress for ring (like home screen)
+                  const totals = loggedMeals
+                    .filter((m) => m.date === iso)
+                    .reduce((acc, m) => ({ calories: acc.calories + m.calories }), { calories: 0 });
+                  const pct = (goals?.dailyCalories ?? 0) > 0 ? Math.min(1, totals.calories / (goals?.dailyCalories ?? 1)) : 0;
+                  const isFuture = new Date(iso) > new Date(todayISO);
+                  items.push(
+                    <TouchableOpacity
+                      key={`d-${iso}`}
+                      style={[styles.calendarCell, isSelected && styles.calendarCellSelected, isToday && styles.calendarCellToday]}
+                      onPress={() => {
+                        setDayISO(iso);
+                        setCalendarOpen(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select ${d.toDateString()}`}
+                      disabled={false}
+                    >
+                      <View style={{ opacity: isFuture ? 0.35 : 1 }}>
+                        <FitnessRing size={40} stroke={4} gap={2} backgroundColor={Colors.border} rings={[{ pct, color: Colors.primary }]} />
+                      </View>
+                      <View style={styles.calendarCellInner} pointerEvents="none">
+                        <Text style={[styles.calendarCellText, isSelected && styles.calendarCellTextSelected]}>{day}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }
+                // trailing to complete rows (optional)
+                const total = lead + daysInMonth;
+                const trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+                for (let i = 0; i < trailing; i++) {
+                  items.push(<View key={`trail-${i}`} style={styles.calendarCell} />);
+                }
+                return items;
+              })()}
+            </View>
+
+            {/* Footer actions */}
+            <View style={styles.calendarFooter}>
+              <TouchableOpacity onPress={() => setCalendarOpen(false)} style={styles.calendarCancelBtn}>
+                <Text style={styles.calendarCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setDayISO(today);
+                  const m = new Date(); m.setDate(1); setCalendarMonth(m);
+                  setCalendarOpen(false);
+                }}
+                style={styles.calendarTodayBtn}
+              >
+                <Text style={styles.calendarTodayText}>Today</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Plan Meal Modal */}
       <MealPlanModal
         visible={showMealPlanModal}
         selectedDate={dayISO}
         selectedMealType={selectedMealType}
-        onSave={(plannedMeal) => { addPlannedMeal(plannedMeal); setShowMealPlanModal(false); }}
-        onClose={() => setShowMealPlanModal(false)}
+        existingMeal={selectedExistingMeal}
+        onSave={(plannedMeal) => {
+          if (selectedExistingMeal) {
+            updatePlannedMeal({ ...selectedExistingMeal, ...plannedMeal });
+          } else {
+            addPlannedMeal(plannedMeal);
+          }
+          setShowMealPlanModal(false);
+          setSelectedExistingMeal(undefined);
+        }}
+        onClose={() => { setShowMealPlanModal(false); setSelectedExistingMeal(undefined); }}
       />
     </View>
   );
@@ -909,6 +1146,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 2,
   },
+  mealRowSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  mealRowThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
   mealsGrid: {
     gap: 14,
   },
@@ -1102,6 +1354,45 @@ const styles = StyleSheet.create({
   // Today chip
   todayChip: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   todayChipText: { color: Colors.text, fontSize: Typography.sizes.sm, fontWeight: '600' },
+  // Week rings header (calendar icon)
+  weekHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 6,
+  },
+  // Week rings block
+  weekRingsContainer: {
+    width: '100%',
+  },
+  weekInitialsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  weekInitialCell: {
+    width: 40,
+    alignItems: 'center',
+  },
+  weekInitial: {
+    color: Colors.lightText,
+    fontSize: 12,
+  },
+  weekInitialSelected: {
+    color: Colors.text,
+    fontWeight: Typography.weights.semibold,
+  },
+  weekRingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  weekRingCell: {
+    width: 40,
+    alignItems: 'center',
+  },
   weekNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1121,6 +1412,93 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 6,
   },
+  // Calendar modal styles
+  calendarBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  calendarSheet: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  calendarMonthLabel: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+  },
+  calendarWeekdaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  calendarWeekdayText: {
+    width: 40,
+    textAlign: 'center',
+    color: Colors.lightText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  calendarCell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  calendarCellToday: {
+    borderColor: Colors.primary,
+  },
+  calendarCellSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  calendarCellText: {
+    color: Colors.text,
+    fontWeight: Typography.weights.semibold,
+  },
+  calendarCellTextSelected: {
+    color: Colors.white,
+    fontWeight: Typography.weights.semibold,
+  },
+  calendarCellInner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  calendarCancelBtn: { padding: 10 },
+  calendarCancelText: { color: Colors.lightText, fontWeight: '600' },
+  calendarTodayBtn: { padding: 10, backgroundColor: Colors.card, borderRadius: 999, borderWidth: 1, borderColor: Colors.border },
+  calendarTodayText: { color: Colors.text, fontWeight: '700' },
 });
 
 // --- Enhanced Presentational Components ---

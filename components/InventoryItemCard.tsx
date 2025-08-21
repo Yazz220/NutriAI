@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Animated } from 'react-native';
+import InventoryIcon from '@/components/InventoryIcon';
 import { InventoryItem } from '@/types';
 import { FreshnessIndicator } from './FreshnessIndicator';
 import { useInventory } from '@/hooks/useInventoryStore';
@@ -82,7 +83,14 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.image, styles.placeholderImage]} />
+          <View style={[styles.image, styles.placeholderImage, styles.placeholderCenter]}>
+            <InventoryIcon
+              category={item.category}
+              size={22}
+              color={Colors.text}
+              background="subtle"
+            />
+          </View>
         )}
         <View style={styles.freshnessContainer}>
           <FreshnessIndicator status={indicatorStatus} />
@@ -136,6 +144,10 @@ const styles = StyleSheet.create({
   },
   placeholderImage: {
     backgroundColor: Colors.secondary,
+  },
+  placeholderCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   freshnessContainer: {
     position: 'absolute',

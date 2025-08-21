@@ -19,6 +19,7 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Auto-generate from planned recipes and missing ingredients
 - "Mark as Purchased" flow prompts for expiry, then moves items to Inventory
 - Toast notifications with Undo for safe, reversible actions
+- One-tap "Add Missing Ingredients" from the recipe page action bar
 
 ### 📊 Nutrition Dashboard
 - Daily macro totals vs goals and weekly trend snapshots
@@ -28,7 +29,10 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 ### 🌐 Recipe Import
 - Import from URLs (e.g., TikTok/Instagram/websites)
 - Client-side parsing via JSON-LD/Open Graph metadata
-- Preview before save, with smart follow-ups: "Add to Plan", "Add missing ingredients"
+- Full-screen preview before saving, with inline editing of title/description/ingredients/steps
+- "Improve with AI" button to refine parsed content (deterministic, user-controlled)
+- Save actions: "Save" and "Save & Add to Folder" (with folder selection)
+- Smart follow-ups: "Add to Plan", "Add missing ingredients"
 - Centralized, versioned prompts with deterministic AI (temperature=0, top_p=0)
 - Strict policies: conservative | verbatim | enrich; default is conservative (no guessing)
 - Abstain logic on insufficient evidence (video thresholds: ≥70% for ingredients/steps)
@@ -100,6 +104,8 @@ NutriAI standardizes all import flows (text, image, video, URL JSON‑LD, reconc
 - Paste a URL or text, or attach an image/video.
 - If a social video URL is detected, use "Transcribe Video" for best results.
 - If a video file is attached, a "Transcribe Attached Video" button is shown.
+- Preview modal supports inline editing and an optional "Improve with AI" step powered by `utils/aiRecipeParser.ts`.
+- Save options include "Save" and "Save & Add to Folder"; the latter opens the folder picker.
 - Preview shows provenance badges (policy, extraction method, confidence, support, evidence sizes).
 - Dev helper: "View Telemetry" reveals full provenance JSON and recent abstain events (for debugging/audit).
 
@@ -287,8 +293,9 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 
 ### Smart Shopping
 1. Plan your meals for the week
-2. Review or auto-generate your Shopping List from missing ingredients
-3. Check off items as you shop; marking as purchased prompts expiry and transfers to Inventory
+2. From any recipe page, tap "Add missing (N)" in the action bar to send missing ingredients to the Shopping List
+3. Review or auto-generate your Shopping List from planned meals and missing ingredients
+4. Check off items as you shop; marking as purchased prompts expiry and transfers to Inventory
 
 ## 📱 App Structure
 

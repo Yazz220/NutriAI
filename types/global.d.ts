@@ -13,3 +13,6 @@ declare global {
 }
 
 export {};
+
+// Ambient module declarations for optional Expo packages used at runtime
+declare module 'expo-haptics';

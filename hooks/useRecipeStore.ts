@@ -6,6 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExternalRecipe } from '@/types/external';
 import { Meal, RecipeWithAvailability } from '@/types';
 import { supabase } from '@/utils/supabaseClient';
+import { edamamSearchRecipes } from '@/utils/providers/edamam';
+
+// Source selection
+const RECIPE_SOURCE = (process.env.EXPO_PUBLIC_RECIPE_SOURCE || 'dataset').toLowerCase();
 
 // Dataset configuration (Supabase)
 // Storage bucket for dataset images
@@ -20,6 +24,53 @@ const hashToNumber = (str: string): number => {
   // Ensure non-zero
   return hash || 1;
 };
+
+// Map a minimal Canonical-like recipe (from Edamam mapper) to ExternalRecipe
+const mapEdamamCanonicalToExternal = (r: any): ExternalRecipe => {
+  // r is CanonicalRecipe from utils/providers/edamam.ts
+  const servings = typeof r.servings === 'number' && r.servings > 0 ? r.servings : 1;
+  return {
+    id: typeof r.id === 'number' ? r.id : (r.id ? Math.abs(hashCode(String(r.id))) : Date.now()),
+    title: r.title || '',
+    image: r.image || '',
+    servings,
+    readyInMinutes: r.totalTimeMinutes || 0,
+    sourceUrl: r.sourceUrl,
+    cuisines: [],
+    dishTypes: r.tags || [],
+    nutrition: r.nutritionPerServing
+      ? {
+          nutrients: [
+            { name: 'Calories', amount: r.nutritionPerServing.calories || 0, unit: 'kcal' },
+            { name: 'Protein', amount: r.nutritionPerServing.protein || 0, unit: 'g' },
+            { name: 'Carbohydrates', amount: r.nutritionPerServing.carbs || 0, unit: 'g' },
+            { name: 'Fat', amount: r.nutritionPerServing.fats || 0, unit: 'g' },
+          ],
+        }
+      : undefined,
+    ingredients: Array.isArray(r.ingredients)
+      ? r.ingredients.map((ing: any) => ({
+          name: ing.name || ing.original || '',
+          amount: ing.quantity || ing.amount || 0,
+          unit: ing.unit || '',
+          original: ing.original || undefined,
+        }))
+      : undefined,
+    analyzedInstructions: Array.isArray(r.steps)
+      ? [{ name: 'Steps', steps: r.steps.map((s: string, i: number) => ({ number: i + 1, step: s })) }]
+      : undefined,
+    summary: r.description || undefined,
+  } as ExternalRecipe;
+};
+
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+}
 
 // Map a Supabase recipe row to ExternalRecipe shape
 type DBRecipeRow = {
@@ -218,6 +269,13 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const searchRecipes = useCallback(async (params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
     setState(prev => ({ ...prev, isSearching: true, error: null }));
     try {
+      if (RECIPE_SOURCE === 'edamam') {
+        const q = params.query && params.query.trim().length > 0 ? params.query.trim() : 'healthy';
+        const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(params.number || 20, 20) });
+        const mapped = results.map(mapEdamamCanonicalToExternal);
+        setState(prev => ({ ...prev, searchResults: mapped, isSearching: false }));
+        return;
+      }
       // Supabase full-text or title search
       let query = supabase
         .from('recipes')
@@ -247,6 +305,14 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getTrendingRecipes = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
+      if (RECIPE_SOURCE === 'edamam') {
+        const seedTerms = ['healthy', 'high protein', 'salad', 'bowl', 'mediterranean', 'low carb'];
+        const q = seedTerms[new Date().getDay() % seedTerms.length];
+        const results = await edamamSearchRecipes({ q, from: 0, to: 12 });
+        const mapped = results.map(mapEdamamCanonicalToExternal);
+        setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
+        return;
+      }
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
@@ -267,6 +333,13 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getRecipeRecommendations = useCallback(async (ingredients: string[]) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
+      if (RECIPE_SOURCE === 'edamam') {
+        const q = ingredients.filter(Boolean).join(' ') || 'chicken';
+        const results = await edamamSearchRecipes({ q, from: 0, to: 10 });
+        const mapped = results.map(mapEdamamCanonicalToExternal);
+        setState(prev => ({ ...prev, externalRecipes: mapped, isLoading: false }));
+        return;
+      }
       const q = ingredients[0]?.trim();
       let query = supabase.from('recipes').select('*').limit(10);
       if (q) query = query.ilike('title', `%${q}%`);
@@ -286,6 +359,20 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getRandomRecipes = useCallback(async (tags?: string[], count: number = 10, append: boolean = true) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
+      if (RECIPE_SOURCE === 'edamam') {
+        const seeds = ['healthy', 'quick', 'high protein', 'veggie', 'pasta', 'soup', 'stir fry'];
+        const q = tags && tags.length ? tags.join(' ') : seeds[(Date.now() / 3600000) % seeds.length | 0];
+        const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(count, 20) });
+        const mapped = results.map(mapEdamamCanonicalToExternal);
+        setState(prev => ({
+          ...prev,
+          externalRecipes: append
+            ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
+            : mapped,
+          isLoading: false,
+        }));
+        return;
+      }
       const offset = append ? (externalCountRef.current || 0) : 0;
       const { data, error } = await supabase
         .from('recipes')

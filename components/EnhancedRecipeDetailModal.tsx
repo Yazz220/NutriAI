@@ -32,6 +32,7 @@ import {
   CheckCircle,
   ExternalLink,
   Send,
+  Bot,
 } from 'lucide-react-native';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -39,6 +40,9 @@ import { LoadingSpinner } from './ui/LoadingSpinner';
 import { Colors } from '../constants/colors';
 import { Typography } from '../constants/spacing';
 import { ExternalRecipe } from '../types/external';
+import { RecipeProviderType } from '../types';
+import { toCanonicalFromExternal } from '@/utils/recipeCanonical';
+import { RecipeDetail } from './recipe-detail/RecipeDetail';
 import { useRecipeStore } from '../hooks/useRecipeStore';
 import { Meal, Recipe, RecipeIngredient } from '../types';
 import { MealPlanModal } from './MealPlanModal';
@@ -219,328 +223,123 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
 
   if (!recipe) return null;
 
+  // Canonical mapping for unified detail UI
+  const providerType: RecipeProviderType = 'mealdb';
+  const canonical = useMemo(() => toCanonicalFromExternal(recipe, providerType), [recipe]);
+
   return (
     <Modal visible={visible} onClose={onClose} title="Recipe Details" size="full" hasHeader={false}>
       <View style={styles.modal}>
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24 }}
-        >
-          {/* Hero Image */}
-          {recipe.image ? (
-            <View style={styles.imageContainer}>
-              {!imageFailed ? (
-                <Image
-                  source={{ uri: recipe.image }}
-                  style={styles.image}
-                  onError={() => setImageFailed(true)}
-                />
-              ) : (
-                <View style={[styles.image, { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.card }]}> 
-                  <Text style={{ color: Colors.lightText }}>Image unavailable</Text>
-                  <View style={{ marginTop: 8 }}>
-                    <Button
-                      title="Open Image"
-                      onPress={() => Linking.openURL(recipe.image).catch(() => {})}
-                    />
-                  </View>
-                </View>
-              )}
+        {activeTab === 'details' ? (
+          <RecipeDetail
+            onClose={onClose}
+            recipe={canonical}
+            mode="discover"
+            isSaved={isSaved}
+            onSave={async () => handleSaveRecipe()}
+            onRemove={async () => handleRemoveRecipe()}
+            onPlan={() => {
+              trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
+              setShowPlanModal(true);
+            }}
+            onShare={() => handleShareRecipe()}
+            onOpenSource={() => {
+              const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
+              if (url) Linking.openURL(url).catch(() => {});
+            }}
+            onAskAI={() => setActiveTab('chat')}
+          />
+        ) : (
+          <View style={{ flex: 1, padding: 16 }}>
+            <View style={[styles.header, { paddingHorizontal: 0 }]}> 
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Bot size={18} color={Colors.primary} />
+                <Text style={styles.title}>Ask AI about {canonical.title}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setActiveTab('details')} style={styles.closeButton}>
+                <X size={22} color={Colors.text} />
+              </TouchableOpacity>
             </View>
-          ) : null}
-          <View style={styles.header}>
-            <Text style={styles.title}>{recipe.title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : (
-            <>
-              {/* Primary Action Bar (Cook removed in favor of bottom primary button) */}
-              <View style={styles.primaryActions}>
-                <Button
-                  title="Plan"
-                  onPress={() => {
-                    trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
-                    setShowPlanModal(true);
-                  }}
-                  size="sm"
-                  variant="secondary"
-                  icon={<BookmarkPlus size={16} color={Colors.primary} />}
-                />
-                <Button title="Remix" onPress={() => {}} size="sm" variant="secondary" icon={<Shuffle size={16} color={Colors.primary} />} />
-                <Button title="Ask" onPress={() => setActiveTab('chat')} size="sm" variant="secondary" icon={<MessageCircle size={16} color={Colors.primary} />} />
-              </View>
-
-              {/* Recipe Stats */}
-              <View style={styles.statsContainer}>
-                {(() => {
-                  const mins = (recipeDetails?.readyInMinutes ?? recipe.readyInMinutes ?? 0);
-                  return mins > 0 ? (
-                    <View style={styles.stat}>
-                      <Clock size={16} color={Colors.primary} />
-                      <Text style={styles.statText}>{mins} min</Text>
-                    </View>
-                  ) : null;
-                })()}
-                {(() => {
-                  const sv = (recipeDetails?.servings ?? recipe.servings ?? 0);
-                  return sv > 0 ? (
-                    <View style={styles.stat}>
-                      <Users size={16} color={Colors.primary} />
-                      <Text style={styles.statText}>{sv} servings</Text>
-                    </View>
-                  ) : null;
-                })()}
-                {typeof recipeDetails?.aggregateLikes === 'number' && (
-                  <View style={styles.stat}>
-                    <Heart size={16} color={Colors.primary} />
-                    <Text style={styles.statText}>{recipeDetails.aggregateLikes} likes</Text>
-                  </View>
-                )}
-                {typeof recipeDetails?.spoonacularScore === 'number' && (
-                  <View style={styles.stat}>
-                    <Star size={16} color={Colors.primary} />
-                    <Text style={styles.statText}>{Math.round(recipeDetails.spoonacularScore)}%</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Action Buttons */}
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={isSaved ? handleRemoveRecipe : handleSaveRecipe}
-                  style={[styles.actionButton, isSaved ? styles.savedButton : styles.saveButton]}
-                >
-                  {isSaved ? (
-                    <>
-                      <Bookmark size={20} color={Colors.white} />
-                      <Text style={styles.actionButtonText}>Saved</Text>
-                    </>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
+              {messages.map((m, idx: number) => (
+                <View key={idx} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
+                  {m.structuredData ? (
+                    <StructuredMessage data={m.structuredData} />
                   ) : (
-                    <>
-                      <BookmarkPlus size={20} color={Colors.white} />
-                      <Text style={styles.actionButtonText}>Save Recipe</Text>
-                    </>
+                    <Text style={styles.msgText}>{m.text}</Text>
                   )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleShareRecipe}
-                  style={[styles.actionButton, styles.shareButton]}
-                >
-                  <Share2 size={20} color={Colors.white} />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </TouchableOpacity>
-
-                {((recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl) && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
-                      if (url) Linking.openURL(url).catch(() => {});
-                    }}
-                    style={[styles.actionButton, styles.sourceButton]}
-                  >
-                    <ExternalLink size={20} color={Colors.white} />
-                    <Text style={styles.actionButtonText}>View Source</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {activeTab === 'details' && (
-              <>
-              {/* Recipe Summary */}
-              {(recipeDetails?.instructions || recipe.instructions) && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Summary</Text>
-                  <Text style={styles.summaryText}>
-                    {(recipeDetails?.instructions || recipe.instructions || '').replace(/<[^>]*>/g, '')}
-                  </Text>
-                </View>
-              )}
-
-              {/* Ingredients */}
-              {(recipeDetails?.ingredients?.length || recipe.ingredients?.length) ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Ingredients</Text>
-                  {(recipeDetails?.ingredients || recipe.ingredients || []).map((ingredient: any, index: number) => (
-                    <View key={index} style={styles.rowItem}>
-                      <CheckCircle size={16} color={Colors.border} />
-                      <Text style={styles.rowText}>
-                        {ingredient?.original || [ingredient?.amount, ingredient?.unit, ingredient?.name].filter(Boolean).join(' ')}
-                      </Text>
+                  {m.actions?.length ? (
+                    <View style={styles.inlineActions}>
+                      {m.actions.map((a: any, i: number) => (
+                        <TouchableOpacity key={i} style={styles.inlineActionBtn} onPress={() => performInlineAction(a)}>
+                          <Text style={styles.inlineActionText}>{a.label}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
+                  ) : null}
+                </View>
+              ))}
+              {isTyping ? <Text style={styles.typingText}>AI is typing…</Text> : null}
+              {quickChips?.length ? (
+                <View style={styles.chatChipsRow}>
+                  {quickChips.map((chip: string, i: number) => (
+                    <TouchableOpacity key={i} style={styles.chatChip} onPress={() => sendMessage(chip)}>
+                      <Text style={styles.chatChipText}>{chip}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
               ) : null}
-
-              {/* Instructions */}
-              {(recipeDetails?.analyzedInstructions?.length || recipe.analyzedInstructions?.length || recipe.instructions) ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Instructions</Text>
-                  {(() => {
-                    const steps: string[] = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-                      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-                      || (recipeDetails?.instructions || recipe.instructions || '').split('\n').filter(Boolean);
-                    return steps.map((step: string, index: number) => (
-                      <View key={index} style={styles.rowItem}>
-                        <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{index + 1}</Text></View>
-                        <Text style={styles.rowText}>{step}</Text>
-                      </View>
-                    ));
-                  })()}
-                </View>
-              ) : null}
-
-              {/* Fallback: show helpful message and source link if no details */}
-              {!(
-                recipeDetails?.instructions ||
-                recipe.instructions ||
-                recipeDetails?.analyzedInstructions?.length ||
-                recipe.analyzedInstructions?.length ||
-                (recipeDetails?.ingredients?.length || recipe.ingredients?.length)
-              ) && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>No details available</Text>
-                  <Text style={styles.summaryText}>
-                    This recipe currently has limited information in the dataset. You can still save it or open the source if available.
-                  </Text>
-                  {((recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl) && (
-                    <View style={{ marginTop: 12 }}>
-                      <Button
-                        title="Open Source"
-                        onPress={() => {
-                          const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
-                          if (url) Linking.openURL(url).catch(() => {});
-                        }}
-                      />
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Nutrition Info */}
-              {recipeDetails?.nutrition?.nutrients && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Nutrition</Text>
-                  <View style={styles.nutritionGrid}>
-                    {recipeDetails.nutrition.nutrients
-                      .filter((nutrient: any) => ['Calories', 'Protein', 'Carbohydrates', 'Total Fat', 'Fiber'].includes(nutrient.name))
-                      .map((nutrient: any, index: number) => (
-                        <View key={index} style={styles.nutritionItem}>
-                          <Text style={styles.nutritionLabel}>{nutrient.name}</Text>
-                          <Text style={styles.nutritionValue}>
-                            {Math.round(nutrient.amount)}{nutrient.unit}
-                          </Text>
-                        </View>
-                      ))}
-                  </View>
-                </View>
-              )}
-
-              </>
-              )}
-
-              {activeTab === 'chat' && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>AI Recipe Assistant</Text>
-                  <Text style={styles.summaryText}>
-                    Ask about substitutions, scaling, cooking tips, or nutrition.
-                  </Text>
-                  <View style={styles.chatChipsRow}>
-                    {quickChips.map((chip) => (
-                      <TouchableOpacity key={chip} style={styles.chatChip} onPress={() => sendMessage(chip)}>
-                        <Text style={styles.chatChipText}>{chip}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={{ marginTop: 12 }}>
-                    {messages.map((m) => (
-                      <View key={m.id} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
-                        {m.structuredData ? (
-                          <StructuredMessage data={m.structuredData} />
-                        ) : (
-                          !!m.text && <Text style={styles.msgText}>{m.text}</Text>
-                        )}
-                        {!!m.actions && (
-                          <View style={styles.inlineActions}>
-                            {m.actions.map((a, idx) => (
-                              <TouchableOpacity key={`${m.id}-act-${idx}`} style={styles.inlineActionBtn} onPress={() => performInlineAction(a)}>
-                                <Text style={styles.inlineActionText}>{a.label}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        )}
-                      </View>
-                    ))}
-                    {isTyping && (
-                      <View style={[styles.msg, styles.msgCoach]}>
-                        <Text style={styles.typingText}>AI is typing…</Text>
-                      </View>
-                    )}
-                  </View>
-                  <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <View style={styles.composerRow}>
-                      <View style={styles.inputContainer}>
-                        <TextInput
-                          placeholder="Ask about this recipe…"
-                          placeholderTextColor={Colors.lightText}
-                          style={styles.input}
-                          value={chatInput}
-                          onChangeText={setChatInput}
-                          onSubmitEditing={(e) => { const v = e.nativeEvent.text.trim(); if (v) { sendMessage(v); setChatInput(''); } }}
-                          returnKeyType="send"
-                          multiline
-                        />
-                      </View>
-                      <TouchableOpacity style={styles.sendBtn} onPress={() => { const v = chatInput.trim(); if (v) { sendMessage(v); setChatInput(''); } }}>
-                        <Send size={20} color={Colors.white} />
-                      </TouchableOpacity>
-                    </View>
-                  </KeyboardAvoidingView>
-                </View>
-              )}
-
-              {/* Meal Plan Modal (for Plan action) */}
-              <MealPlanModal
-                visible={showPlanModal}
-                selectedDate={new Date().toISOString().split('T')[0]}
-                initialRecipeId={String(recipe.id)}
-                onClose={() => setShowPlanModal(false)}
-                onSave={async (planned) => {
-                  try {
-                    await addPlannedMeal({
-                      recipeId: planned.recipeId,
-                      date: planned.date,
-                      mealType: planned.mealType,
-                      servings: planned.servings,
-                      notes: planned.notes,
-                      isCompleted: planned.isCompleted ?? false,
-                    });
-                    setShowPlanModal(false);
-                    Alert.alert('Planned', 'Recipe added to your meal plan.');
-                  } catch (err) {
-                    console.error('Failed to add planned meal:', err);
-                    Alert.alert('Error', 'Unable to add recipe to plan.');
-                  }
+            </ScrollView>
+            <View style={styles.composerRow}>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Ask about substitutions, steps, or variations…"
+                  placeholderTextColor={Colors.lightText}
+                  style={styles.input}
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  multiline
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.sendBtn}
+                onPress={() => {
+                  const text = chatInput.trim();
+                  if (!text) return;
+                  sendMessage(text);
+                  setChatInput('');
                 }}
-              />
-            </>
-          )}
-        </ScrollView>
-        {/* Bottom Action: primary Cook button */}
-        <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity style={styles.bottomPrimaryButton} onPress={() => { /* TODO: implement cook flow for external recipe */ }}>
-            <Utensils size={24} color={Colors.white} />
-            <Text style={styles.bottomPrimaryButtonText}>Cook This Recipe</Text>
-          </TouchableOpacity>
-        </View>
+              >
+                <Send size={18} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Plan Modal preserved */}
+        <MealPlanModal
+          visible={showPlanModal}
+          selectedDate={new Date().toISOString().split('T')[0]}
+          initialRecipeId={String(recipe.id)}
+          onClose={() => setShowPlanModal(false)}
+          onSave={async (planned) => {
+            try {
+              await addPlannedMeal({
+                recipeId: planned.recipeId,
+                date: planned.date,
+                mealType: planned.mealType,
+                servings: planned.servings,
+                notes: planned.notes,
+                isCompleted: planned.isCompleted ?? false,
+              });
+              setShowPlanModal(false);
+              Alert.alert('Planned', 'Recipe added to your meal plan.');
+            } catch (err) {
+              console.error('Failed to add planned meal:', err);
+              Alert.alert('Error', 'Unable to add recipe to plan.');
+            }
+          }}
+        />
       </View>
     </Modal>
   );

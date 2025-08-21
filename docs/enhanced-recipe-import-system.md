@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Enhanced Universal Recipe Import System provides a seamless, intelligent way to import recipes from any source with automatic content detection, AI-powered gap filling, and comprehensive validation.
+The Enhanced Universal Recipe Import System provides a seamless, intelligent way to import recipes from any source with automatic content detection, AI-powered refinement (optional), a full-screen preview-before-save flow with inline editing, and comprehensive validation.
 
 ## Key Features
 
@@ -48,9 +48,10 @@ The Enhanced Universal Recipe Import System provides a seamless, intelligent way
    - **Image OCR** (`utils/imageOcrProcessor.ts`): Enhanced text extraction from images
    - **AI Parser** (`utils/aiRecipeParser.ts`): Structured recipe parsing with validation
 
-4. **Enhanced Import Modal (`components/EnhancedImportRecipeModal.tsx`)**
-   - User-friendly interface
-   - Real-time processing feedback
+4. **Import Modal (`components/ImportRecipeModal.tsx`)**
+   - Full-screen preview-before-save UI
+   - Inline editing of title, description, ingredients, and steps
+   - Optional "Improve with AI" refinement step (deterministic)
    - Quality indicators and validation summaries
 
 ### Processing Pipeline
@@ -109,16 +110,19 @@ console.log('Quality Score:', result.provenance.qualityMetrics?.overallScore);
 console.log('Processing Steps:', result.provenance.processingSteps);
 ```
 
-### Using the Enhanced Modal
+### Using the Import Modal
 
 ```typescript
-import { EnhancedImportRecipeModal } from '@/components/EnhancedImportRecipeModal';
+import { ImportRecipeModal } from '@/components/ImportRecipeModal';
 
-<EnhancedImportRecipeModal
+<ImportRecipeModal
   visible={showModal}
   onClose={() => setShowModal(false)}
   onSave={(recipe) => saveRecipe(recipe)}
 />
+
+// The preview modal supports an "Improve with AI" action that seeds
+// the editable fields with refined content. Users can review/edit before saving.
 ```
 
 ## Quality Metrics

@@ -11,6 +11,11 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   const { user } = useAuth();
   const OFFLINE_ONLY = process.env.EXPO_PUBLIC_OFFLINE_ONLY === 'true';
 
+  // Simple UUID v4-ish validator (accepts canonical 36-char form)
+  const isUuid = (v: any): boolean => {
+    return typeof v === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
+  };
+
   // Load planned meals from Supabase or AsyncStorage on mount and auth change
   useEffect(() => {
     const loadPlannedMeals = async () => {
@@ -93,10 +98,22 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
     }
   }, [plannedMeals, isLoading]);
 
-  // Add a new planned meal
+  // Add a new planned meal (optimistic)
   const addPlannedMeal = async (meal: Omit<PlannedMeal, 'id'>) => {
-    const local: PlannedMeal = { ...meal, id: Date.now().toString() };
-    if (user && !OFFLINE_ONLY) {
+    // Create a local optimistic item so UI updates immediately
+    const local: PlannedMeal = { ...meal, id: `local-${Date.now()}` };
+    setPlannedMeals(prev => [...prev, local]);
+
+    // If offline/no user OR recipeId is not a UUID (local/MealDB ids like "1"),
+    // keep the local entry only to avoid Supabase 22P02 errors.
+    if (!user || OFFLINE_ONLY || !isUuid(meal.recipeId)) {
+      if (user && !OFFLINE_ONLY && !isUuid(meal.recipeId)) {
+        console.warn('[MealPlanner] Skipping server sync: non-UUID recipeId', meal.recipeId);
+      }
+      return;
+    }
+
+    try {
       const payload = {
         user_id: user.id,
         recipe_id: meal.recipeId,
@@ -107,6 +124,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         is_completed: meal.isCompleted ?? false,
         completed_at: meal.completedAt ?? null,
       } as const;
+
       // Try insert including notes; if column missing, retry without it
       let ins = await supabase
         .schema('nutriai')
@@ -114,6 +132,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         .insert(payload)
         .select('id, recipe_id, date, meal_type, servings, notes, is_completed, completed_at')
         .single();
+
       if (ins.error && (ins.error as any).code === '42703') {
         // Retry without notes
         let { data: data2, error: err2 } = await supabase
@@ -154,6 +173,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
       } else if (ins.error) {
         throw ins.error;
       }
+
       const d = ins.data as any;
       const created: PlannedMeal = {
         id: String(d.id),
@@ -165,16 +185,20 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         isCompleted: !!d.is_completed,
         completedAt: d.completed_at ?? undefined,
       };
-      setPlannedMeals(prev => [...prev, created]);
-    } else {
-      setPlannedMeals(prev => [...prev, local]);
+
+      // Replace the optimistic item with the server-created item
+      setPlannedMeals(prev => prev.map(m => (m.id === local.id ? created : m)));
+    } catch (error) {
+      // Keep the optimistic item; log the error so we can surface later if needed
+      console.error('Failed to sync planned meal to server. Keeping local copy.', error);
     }
   };
 
   // Update an existing planned meal
   const updatePlannedMeal = async (updatedMeal: PlannedMeal) => {
     setPlannedMeals(prev => prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal));
-    if (user && !OFFLINE_ONLY) {
+    // Skip server sync if recipeId isn't a UUID (local ids), or when offline/no user
+    if (user && !OFFLINE_ONLY && isUuid(updatedMeal.recipeId)) {
       // Try update including notes; if missing column, retry without it
       let { error } = await supabase
         .schema('nutriai')
@@ -221,6 +245,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
         }
       }
       if (error) console.error('Failed to update planned meal:', error);
+    } else if (user && !OFFLINE_ONLY) {
+      console.warn('[MealPlanner] Skipping server update: non-UUID recipeId', updatedMeal.recipeId);
     }
   };
 

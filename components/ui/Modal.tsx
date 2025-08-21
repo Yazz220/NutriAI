@@ -38,23 +38,26 @@ export const Modal: React.FC<ModalProps> = ({
   hasHeader = true,
   variant = 'elevated',
 }) => {
-  const modalStyle = [
-    styles.modalContent,
-    styles[size],
-    variant === 'elevated' ? styles.elevated : styles.outline,
-  ];
+  const isFull = size === 'full';
+  const modalStyle = isFull
+    ? [styles.fullContent]
+    : [
+        styles.modalContent,
+        styles[size],
+        variant === 'elevated' ? styles.elevated : styles.outline,
+      ];
 
   const content = scrollable ? (
     <ScrollView
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={[styles.content, { paddingBottom: Spacing.xl * 2 }]}
+      contentContainerStyle={[styles.content, isFull && styles.fullContentPadding, { paddingBottom: Spacing.xl * 2 }]}
       style={{ maxHeight: '100%' }}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.content}>{children}</View>
+    <View style={[styles.content, isFull && styles.fullContentPadding]}>{children}</View>
   );
 
   return (
@@ -66,14 +69,14 @@ export const Modal: React.FC<ModalProps> = ({
       statusBarTranslucent={false}
       presentationStyle={size === 'full' ? 'fullScreen' : 'overFullScreen'}
     >
-      <View style={size === 'full' ? styles.fullOverlay : styles.overlay}>
+      <View style={isFull ? styles.fullOverlay : styles.overlay}>
         <SafeAreaView
           style={modalStyle}
           edges={['top','bottom','left','right']}
           accessibilityLabel={title}
           accessibilityViewIsModal
         >
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={size === 'full' ? { flex: 1 } : undefined}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={isFull ? { flex: 1 } : undefined}>
             {hasHeader && (
               <View style={styles.header}>
                 <Text style={styles.title}>{title}</Text>
@@ -117,6 +120,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 12,
     maxHeight: '95%',
+  },
+  fullContent: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    width: '100%',
+    height: '100%',
   },
   elevated: {
     ...Shadows.lg,
@@ -169,5 +178,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: Spacing.xl,
+  },
+  fullContentPadding: {
+    padding: 0,
   },
 });

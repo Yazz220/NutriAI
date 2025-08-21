@@ -166,16 +166,16 @@ export default function ShoppingListScreen() {
             title="Smart List"
             onPress={handleGenerateSmartList}
             variant="primary"
-            size="md"
+            size="xs"
             style={{ flex: 1.2, minWidth: 0, paddingHorizontal: 12 }}
-            icon={<Sparkles size={18} color={Colors.white} />}
+            icon={<Sparkles size={14} color={Colors.white} />}
           />
 
           <Button
             title="Export"
             onPress={() => setExportVisible(true)}
             variant="outline"
-            size="md"
+            size="xs"
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
           />
 
@@ -184,7 +184,7 @@ export default function ShoppingListScreen() {
               title="Clear"
               onPress={clearCheckedItems}
               variant="outline"
-              size="md"
+              size="xs"
               style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
               textStyle={{ color: Colors.error }}
             />
@@ -223,14 +223,14 @@ export default function ShoppingListScreen() {
                   style={[styles.emptyButton, styles.emptySmartButton]}
                   onPress={handleGenerateSmartList}
                 >
-                  <Sparkles size={16} color={Colors.white} />
+                  <Sparkles size={14} color={Colors.white} />
                   <Text style={styles.emptySmartButtonText}>Smart List</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.emptyButton, styles.emptyAddButton]}
                   onPress={() => setAddModalVisible(true)}
                 >
-                  <Plus size={16} color={Colors.white} />
+                  <Plus size={14} color={Colors.white} />
                   <Text style={styles.emptyAddButtonText}>Add Items</Text>
                 </TouchableOpacity>
               </View>

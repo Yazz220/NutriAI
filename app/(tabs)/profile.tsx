@@ -278,15 +278,14 @@ const ChipSelector = ({
     <Text style={styles.chipSelectorLabel}>{label}</Text>
     <View style={styles.chipsRow}>
       {options.map(option => (
-        <TouchableOpacity 
-          key={option} 
-          style={[styles.modernChip, selected === option && styles.modernChipActive]} 
+        <Button
+          key={option}
+          title={option}
           onPress={() => onSelect(option)}
-        >
-          <Text style={[styles.modernChipText, selected === option && styles.modernChipTextActive]}>
-            {option}
-          </Text>
-        </TouchableOpacity>
+          variant={selected === option ? 'primary' : 'outline'}
+          size="sm"
+          style={{ marginRight: 8, marginBottom: 8 }}
+        />
       ))}
     </View>
   </View>

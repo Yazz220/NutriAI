@@ -15,6 +15,7 @@ import {
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Plus, AlertCircle, Camera as IconCamera, Barcode, Package, TrendingUp, Filter, Search } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import InventoryIcon from '@/components/InventoryIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
@@ -183,6 +184,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     marginRight: 12,
+  },
+  tileCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemTexts: {
     flexShrink: 1,
@@ -756,7 +761,8 @@ export default function InventoryScreen() {
       <Button
         title="Add First Item"
         onPress={() => setModalVisible(true)}
-        icon={<Plus size={20} color={Colors.white} />}
+        icon={<Plus size={14} color={Colors.white} />}
+        size="xs"
       />
     </View>
   );
@@ -810,7 +816,7 @@ export default function InventoryScreen() {
         {/* Search Bar (matches Discover style) */}
         <View style={styles.searchContainer}>
           <View style={styles.inventorySearchBar}>
-            <Search size={18} color={Colors.lightText} />
+            <Search size={14} color={Colors.lightText} />
             <TextInput
               placeholder="Search your inventory..."
               placeholderTextColor={Colors.lightText}
@@ -856,7 +862,14 @@ export default function InventoryScreen() {
           <View>
             <View style={styles.itemRowContainer}>
               <View style={styles.itemLeft}>
-                <View style={styles.tileSquare} />
+                <View style={[styles.tileSquare, styles.tileCenter]}>
+                  <InventoryIcon
+                    category={item.category}
+                    size={26}
+                    color={Colors.text}
+                    background="subtle"
+                  />
+                </View>
                 <View style={styles.itemTexts}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
                   <View style={styles.itemMetaRow}>

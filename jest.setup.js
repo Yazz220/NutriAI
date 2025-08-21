@@ -22,7 +22,12 @@ jest.mock('expo-linking', () => ({
 }));
 
 // Silence the warning: Animated: `useNativeDriver` is not supported
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+// Guard for RN versions where this internal path may change
+try {
+  jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+} catch (e) {
+  // no-op if module path changed in current RN version
+}
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>

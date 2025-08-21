@@ -289,3 +289,48 @@ export interface InventoryItem {
     currentStep?: OnboardingStep;
     totalSteps?: number;
   }
+
+  // Canonical recipe model used across Discover/Library/AI detail screens
+  export type RecipeDetailMode = 'discover' | 'library' | 'ai';
+
+  export type RecipeProviderType = 'mealdb' | 'tasty' | 'spoonacular' | 'custom' | 'unknown';
+
+  export interface RecipeSource {
+    providerType: RecipeProviderType;
+    providerId?: string; // id from external provider if applicable
+  }
+
+  export interface CanonicalIngredient {
+    name: string;
+    amount?: number; // numeric amount if parsed
+    unit?: string;   // standardized unit if parsed
+    original?: string; // human readable fallback
+    optional?: boolean;
+  }
+
+  export interface CanonicalRecipeNutritionPerServing {
+    calories?: number; // kcal
+    protein?: number;  // g
+    carbs?: number;    // g
+    fats?: number;     // g
+    fiber?: number;    // g
+    sugar?: number;    // g
+    sodium?: number;   // mg
+  }
+
+  export interface CanonicalRecipe {
+    id: string; // stable id within the app
+    title: string;
+    image?: string;
+    description?: string;
+    servings?: number;
+    prepTimeMinutes?: number;
+    cookTimeMinutes?: number;
+    totalTimeMinutes?: number;
+    ingredients: CanonicalIngredient[];
+    steps: string[];
+    nutritionPerServing?: CanonicalRecipeNutritionPerServing;
+    source?: RecipeSource;
+    sourceUrl?: string;
+    tags?: string[];
+  }

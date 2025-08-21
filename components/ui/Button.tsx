@@ -8,7 +8,7 @@ interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -134,6 +134,12 @@ const styles = StyleSheet.create({
   },
   
   // Sizes
+  xs: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    minHeight: 28,
+    gap: Spacing.xs,
+  },
   sm: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -183,6 +189,9 @@ const styles = StyleSheet.create({
   },
   
   // Size text
+  xsText: {
+    fontSize: Typography.sizes.xs,
+  },
   smText: {
     fontSize: Typography.sizes.sm,
   },

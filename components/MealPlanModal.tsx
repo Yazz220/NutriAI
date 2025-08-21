@@ -11,7 +11,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { X, Calendar, Clock, Users, Search, ChefHat, Plus, Minus } from 'lucide-react-native';
+import { X, Calendar, Clock, Users, Search, ChefHat } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
@@ -316,8 +316,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   const { folders } = useRecipeFolders();
   const [mealType, setMealType] = useState<MealType>(selectedMealType || inferMealTypeByTime());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | Meal | null>(null);
-  const [servings, setServings] = useState<number>(2);
-  const [notes, setNotes] = useState('');
+  // Servings and notes removed from UI; we will use defaults on save
   const [searchQuery, setSearchQuery] = useState('');
 
   // Reset form when modal opens/closes or when existingMeal changes
@@ -327,17 +326,14 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   trackEvent({ type: 'plan_modal_open', data: { source: initialRecipeId ? 'quick_plan' : 'manual', recipeId: initialRecipeId || null } });
       if (existingMeal) {
         setMealType(existingMeal.mealType);
-        setServings(existingMeal.servings);
-        setNotes(existingMeal.notes || '');
+        // servings/notes removed from UI
         // Find the recipe for the existing meal
         const recipe = meals.find(m => m.id === existingMeal.recipeId);
         setSelectedRecipe(recipe || null);
       } else if (initialRecipeId) {
         // Pre-select a recipe when provided (e.g., from a "Plan" action)
         const recipe = meals.find(m => m.id === initialRecipeId);
-  setSelectedRecipe(recipe || null);
-  // If the recipe specifies servings, use it as a sensible default
-  if (recipe && typeof (recipe as any).servings === 'number') setServings((recipe as any).servings || 2);
+        setSelectedRecipe(recipe || null);
       } else if (initialFolderId) {
         // If opened scoped to a folder, pre-select the first recipe in that folder if available
         const folder = folders.find(f => f.id === initialFolderId);
@@ -348,8 +344,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
       } else {
         setMealType(selectedMealType || 'dinner');
         setSelectedRecipe(null);
-  setServings(2);
-        setNotes('');
+        // servings/notes removed from UI
       }
       setSearchQuery('');
     }
@@ -384,12 +379,13 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
       return;
     }
 
+    const servingsToSave = (selectedRecipe as any)?.servings ?? 1;
     const plannedMeal: Omit<PlannedMeal, 'id'> = {
       recipeId: selectedRecipe.id,
       date: selectedDate,
       mealType,
-      servings,
-      notes: notes.trim() || undefined,
+      servings: servingsToSave,
+      // notes removed from UI; not sending
       isCompleted: false,
     };
 
@@ -397,11 +393,6 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   // Analytics: plan saved
   trackEvent({ type: 'plan_saved', data: { recipeId: plannedMeal.recipeId, mealType: plannedMeal.mealType, date: plannedMeal.date, servings: plannedMeal.servings } });
   onClose();
-  };
-
-  const adjustServings = (delta: number) => {
-    const newServings = Math.max(1, servings + delta);
-    setServings(newServings);
   };
 
   return (
@@ -529,40 +520,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
               </ScrollView>
             </View>
 
-            {/* Servings */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Servings</Text>
-              <View style={styles.servingsContainer}>
-                <View style={styles.servingsControls}>
-                  <TouchableOpacity
-                    style={styles.servingsButton}
-                    onPress={() => adjustServings(-1)}
-                  >
-                    <Text style={{ fontSize: 18, color: Colors.text }}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.servingsText}>{servings}</Text>
-                  <TouchableOpacity
-                    style={styles.servingsButton}
-                    onPress={() => adjustServings(1)}
-                  >
-                    <Text style={{ fontSize: 18, color: Colors.text }}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Notes (Optional)</Text>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Add any notes about this meal..."
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                placeholderTextColor={Colors.lightText}
-              />
-            </View>
+            {/* Servings and Notes removed from UI per product requirement */}
           </ScrollView>
 
           {/* Action Buttons */}

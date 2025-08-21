@@ -170,7 +170,7 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
         ListHeaderComponent={
           <View style={{ marginBottom: Spacing.sm }}>
             <TouchableOpacity style={styles.searchBar} onPress={() => setShowSearch(true)} activeOpacity={0.85}>
-              <Search size={18} color={Colors.lightText} />
+              <Search size={14} color={Colors.lightText} />
               <Text style={styles.searchBarText}>Search recipes</Text>
             </TouchableOpacity>
           </View>
@@ -181,6 +181,7 @@ export const EnhancedRecipeDiscovery: React.FC<EnhancedRecipeDiscoveryProps> = (
               title={isLoading ? 'Loading…' : 'Load more'}
               onPress={() => getRandomRecipes(undefined, 12, true)}
               disabled={isLoading}
+              size="xs"
             />
           </View>
         }

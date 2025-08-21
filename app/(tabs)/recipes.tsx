@@ -10,6 +10,7 @@ import {
   Image,
   FlatList,
   LayoutChangeEvent,
+  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookOpen, ChefHat, Search, Brain, Plus } from 'lucide-react-native';
@@ -31,6 +32,7 @@ import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
 // Removed TileSquare/Rule in favor of FlatList grid tiles
 import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
+import { Modal as UIModal } from '@/components/ui/Modal';
 import { ExternalRecipe } from '@/types/external';
 import { Meal } from '@/types';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
@@ -56,6 +58,14 @@ export default function RecipesScreen() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [activeTab, setActiveTab] = useState<'local' | 'discovery' | 'chat'>('discovery');
+  // Import preview-before-save
+  const [importPreviewMeal, setImportPreviewMeal] = useState<Omit<Meal, 'id'> | null>(null);
+  const [isEditingPreview, setIsEditingPreview] = useState(false);
+  const [isImprovingPreview, setIsImprovingPreview] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIngredientsText, setEditIngredientsText] = useState(''); // one per line: qty unit name
+  const [editStepsText, setEditStepsText] = useState(''); // one per line
   const tabs: { key: 'discovery' | 'chat' | 'local'; label: string }[] = [
     { key: 'discovery', label: 'Discover' },
     { key: 'chat', label: 'AI Chat' },
@@ -182,8 +192,8 @@ export default function RecipesScreen() {
         }
         const { recipe } = await importRecipeFromUrlHandler(data.trim());
         const meal = mapImportedToMeal({ ...recipe, sourceUrl: data.trim() });
-        const id = addMeal(meal);
-        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+        // Show preview instead of auto-saving
+        setImportPreviewMeal(meal);
       } else if (type === 'text') {
         if (!data || typeof data !== 'string') {
           Alert.alert('Invalid Text', 'Please paste recipe text to import.');
@@ -191,8 +201,7 @@ export default function RecipesScreen() {
         }
         const { recipe } = await importRecipeFromTextHandler(data);
         const meal = mapImportedToMeal(recipe);
-        addMeal(meal);
-        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+        setImportPreviewMeal(meal);
       } else if (type === 'image') {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -206,8 +215,7 @@ export default function RecipesScreen() {
         const file = { uri: asset.uri, mime: asset.mimeType || 'image/jpeg', name: asset.fileName || 'image.jpg' };
         const { recipe } = await importRecipeFromImageHandler(file);
         const meal = mapImportedToMeal(recipe);
-        addMeal(meal);
-        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+        setImportPreviewMeal(meal);
       } else if (type === 'video') {
         if (!data || typeof data !== 'string') {
           Alert.alert('Invalid Video URL', 'Please enter a valid video URL.');
@@ -215,11 +223,13 @@ export default function RecipesScreen() {
         }
         const { recipe } = await importRecipeFromVideoUrlHandler(data.trim());
         const meal = mapImportedToMeal({ ...recipe, sourceUrl: data.trim() });
-        addMeal(meal);
-        Alert.alert('Recipe Imported', `${meal.name} has been added to your recipes.`);
+        setImportPreviewMeal(meal);
       }
+      // Close input flow and open preview
       setShowImportFlow(false);
       setSelectedImportType(null);
+      // seed editing fields
+      setIsEditingPreview(false);
     } catch (e: any) {
       const msg = typeof e?.message === 'string' ? e.message : 'Something went wrong.';
       // Tailored error title per type
@@ -390,112 +400,6 @@ export default function RecipesScreen() {
     ]);
   };
 
-  // Render local recipes with enhanced cards and folders
-  const renderLocalRecipes = () => (
-    <View style={styles.tabContent}>
-
-
-      {/* Folders grid */}
-      <View style={{ marginBottom: Spacing.md }}>
-        <View style={styles.foldersHeaderRowLarge}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Button
-              title="New Folder"
-              onPress={openCreateFolder}
-              variant="outline"
-              size="sm"
-              icon={<Plus size={16} color={Colors.primary} />}
-              style={{ marginRight: Spacing.sm }}
-            />
-            <TouchableOpacity style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive, { marginLeft: Spacing.sm }]} onPress={() => setActiveFolderId(null)}>
-              <Text style={[styles.allFolderText, !activeFolderId && styles.allFolderTextActive]}>All recipes</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.foldersGrid}>
-          {folders.length === 0 ? (
-            <View style={{ padding: Spacing.md }}>
-              <Text style={{ color: Colors.lightText }}>You haven't created any folders yet — use New Folder to get started.</Text>
-            </View>
-          ) : (
-            folders.map((f) => (
-              <View key={f.id} style={styles.folderGridItem}>
-                <RecipeFolderCard
-                  name={f.name}
-                  recipeCount={f.recipeIds.length}
-                  color={Colors.primary}
-                  onPress={() => setActiveFolderId(f.id)}
-                  onMore={() => Alert.alert(f.name, undefined, [
-                    { text: 'Rename', onPress: () => requestRenameFolder(f.id) },
-                    { text: 'Delete', style: 'destructive', onPress: () => requestDeleteFolder(f.id, f.name) },
-                    { text: 'Cancel', style: 'cancel' },
-                  ])}
-                />
-              </View>
-            ))
-          )}
-        </View>
-      </View>
-
-      {/* Recipes list */}
-      {localRecipes.length === 0 ? (
-        <Card style={styles.emptyState}>
-          <BookOpen size={48} color={Colors.lightText} />
-          <LoadingSpinner text="No recipes yet. Import your first recipe to get started!" />
-          <Button
-            title="Import Recipe"
-            onPress={handleOpenImportMenu}
-            style={styles.importButton}
-            icon={<Plus size={16} color={Colors.white} />}
-          />
-        </Card>
-      ) : (
-        <View onLayout={onGridLayout}>
-          <FlatList
-            data={(activeFolderId
-              ? localRecipes.filter(r => folders.find(f => f.id === activeFolderId)?.recipeIds.includes(r.id))
-              : localRecipes)}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 24 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item, index }) => {
-              // compute item width from available container width
-              const containerInner = Math.max(gridWidth - (GUTTER * 2), 0);
-              const rawWidth = (containerInner - COLUMN_GAP) / 2;
-              const itemWidth = Math.floor(rawWidth);
-              if (!itemWidth) return null;
-              const imageHeight = Math.floor(itemWidth * 0.75); // 4:3 aspect
-
-              const macros = item.nutritionPerServing as any | undefined;
-              const calories = typeof macros?.calories === 'number' ? Math.round(macros.calories) : undefined;
-
-              const isLeft = index % 2 === 0;
-              return (
-                <View style={{ width: itemWidth, marginRight: isLeft ? COLUMN_GAP : 0, marginBottom: ROW_GAP }}>
-                  <TouchableOpacity activeOpacity={0.85} onPress={() => handleRecipePress(item)} onLongPress={() => handleLongPressRecipe(item)}>
-                    <View style={[styles.gridImageContainer, { width: itemWidth, height: imageHeight }] }>
-                      {!!item.image && (
-                        <Image source={{ uri: String(item.image) }} style={styles.gridImage} />
-                      )}
-                    </View>
-                    <View style={styles.gridInfoBox}>
-                      <Text style={styles.gridTitle} numberOfLines={2} ellipsizeMode="tail">{item.name}</Text>
-                      {!!calories && (
-                        <Text style={styles.gridMeta}>{calories} kcal</Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            }}
-          />
-        </View>
-      )}
-    </View>
-  );
-
   // Render discovery tab
   const renderDiscoveryTab = () => (
     <EnhancedRecipeDiscovery
@@ -520,8 +424,8 @@ export default function RecipesScreen() {
             title="Import"
             onPress={handleOpenImportMenu}
             variant="outline"
-            size="sm"
-            icon={<Plus size={16} color={Colors.primary} />}
+            size="xs"
+            icon={<Plus size={14} color={Colors.primary} />}
           />
         }
       />
@@ -571,8 +475,8 @@ export default function RecipesScreen() {
                     title="New Folder"
                     onPress={openCreateFolder}
                     variant="outline"
-                    size="sm"
-                    icon={<Plus size={16} color={Colors.primary} />}
+                    size="xs"
+                    icon={<Plus size={14} color={Colors.primary} />}
                     style={{ marginRight: Spacing.sm }}
                   />
                   <TouchableOpacity style={[styles.allFolderPill, !activeFolderId && styles.allFolderPillActive, { marginLeft: Spacing.sm }]} onPress={() => setActiveFolderId(null)}>
@@ -613,8 +517,9 @@ export default function RecipesScreen() {
               <Button
                 title="Import Recipe"
                 onPress={handleOpenImportMenu}
+                size="xs"
                 style={styles.importButton}
-                icon={<Plus size={16} color={Colors.white} />}
+                icon={<Plus size={14} color={Colors.white} />}
               />
             </Card>
           }
@@ -737,6 +642,219 @@ export default function RecipesScreen() {
             setSelectedExternalRecipe(null);
           }}
         />
+      )}
+
+      {/* Import Preview Modal (before save) */}
+      {importPreviewMeal && (
+        <UIModal
+          visible={!!importPreviewMeal}
+          onClose={() => setImportPreviewMeal(null)}
+          title={importPreviewMeal.name}
+          size="full"
+          hasHeader={false}
+        >
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+            {!!importPreviewMeal.image && (
+              <View style={{ width: '100%', height: 260 }}>
+                <Image source={{ uri: String(importPreviewMeal.image) }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+              </View>
+            )}
+            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                {isEditingPreview ? (
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="Recipe title"
+                    style={{ flex: 1, marginRight: 12, fontSize: 20, fontWeight: '700', color: Colors.text, paddingVertical: 4 }}
+                  />
+                ) : (
+                  <Text style={{ fontSize: 20, fontWeight: '700', color: Colors.text, flex: 1, marginRight: 12 }}>{importPreviewMeal.name}</Text>
+                )}
+                <View style={{ flexDirection: 'row' }}>
+                  <Button
+                    title={isEditingPreview ? 'Done' : 'Edit'}
+                    size="xs"
+                    variant="outline"
+                    onPress={() => {
+                      if (!isEditingPreview) {
+                        setEditName(importPreviewMeal.name || '');
+                        setEditDescription(importPreviewMeal.description || '');
+                        const ingLines = (importPreviewMeal.ingredients || []).map(i => `${i.quantity ?? ''} ${i.unit ?? ''} ${i.name}`.trim());
+                        setEditIngredientsText(ingLines.join('\n'));
+                        setEditStepsText((importPreviewMeal.steps || []).map(s => String(s)).join('\n'));
+                      }
+                      setIsEditingPreview(v => !v);
+                    }}
+                  />
+                  <View style={{ width: 8 }} />
+                  <Button
+                    title={isImprovingPreview ? 'Improving…' : 'Improve with AI'}
+                    size="xs"
+                    variant="secondary"
+                    onPress={async () => {
+                      if (!importPreviewMeal || isImprovingPreview) return;
+                      setIsImprovingPreview(true);
+                      try {
+                        const { parseRecipeWithAI } = await import('@/utils/aiRecipeParser');
+                        const title = importPreviewMeal.name || '';
+                        const desc = importPreviewMeal.description || '';
+                        const ings = (importPreviewMeal.ingredients || []).map(i => `${i.quantity ?? ''} ${i.unit ?? ''} ${i.name}`.trim()).join('\n');
+                        const steps = (importPreviewMeal.steps || []).map((s, idx) => `${idx + 1}. ${String(s)}`).join('\n');
+                        const content = [title, desc, 'Ingredients:', ings, 'Instructions:', steps].filter(Boolean).join('\n');
+                        const parsed = await parseRecipeWithAI(content, { includeNutrition: false, strictValidation: true, useMultiStage: true });
+                        const nextMeal: Omit<Meal, 'id'> = {
+                          ...importPreviewMeal,
+                          name: parsed.title || importPreviewMeal.name,
+                          description: (parsed as any).description || importPreviewMeal.description,
+                          ingredients: (parsed.ingredients || []).map((ing: any) => ({
+                            name: ing.name,
+                            quantity: typeof ing.quantity === 'number' ? ing.quantity : (parseFloat(String(ing.quantity)) || 0),
+                            unit: ing.unit || 'pcs',
+                            optional: !!ing.optional,
+                          })),
+                          steps: parsed.instructions || importPreviewMeal.steps,
+                          prepTime: parsed.prepTime ?? importPreviewMeal.prepTime,
+                          cookTime: parsed.cookTime ?? importPreviewMeal.cookTime,
+                          servings: parsed.servings ?? importPreviewMeal.servings,
+                        };
+                        setImportPreviewMeal(nextMeal);
+                        // seed editors with improved values
+                        setEditName(nextMeal.name || '');
+                        setEditDescription(nextMeal.description || '');
+                        setEditIngredientsText((nextMeal.ingredients || []).map(i => `${i.quantity ?? ''} ${i.unit ?? ''} ${i.name}`.trim()).join('\n'));
+                        setEditStepsText((nextMeal.steps || []).map(s => String(s)).join('\n'));
+                        setIsEditingPreview(true);
+                        Alert.alert('Improved', 'We refined the recipe. Review and edit if needed.');
+                      } catch (e) {
+                        Alert.alert('Improve with AI failed', 'Could not enhance this recipe right now.');
+                      } finally {
+                        setIsImprovingPreview(false);
+                      }
+                    }}
+                  />
+                </View>
+              </View>
+              {isEditingPreview ? (
+                <TextInput
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  placeholder="Description"
+                  multiline
+                  style={{ color: Colors.lightText, marginTop: 6, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 10 }}
+                />
+              ) : (
+                !!importPreviewMeal.description && (
+                  <Text style={{ color: Colors.lightText, marginTop: 6 }}>{importPreviewMeal.description}</Text>
+                )
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <Button
+                  title="Save"
+                  onPress={() => {
+                    if (!importPreviewMeal) return;
+                    let toSave = importPreviewMeal;
+                    if (isEditingPreview) {
+                      const ingredients = editIngredientsText
+                        .split('\n')
+                        .map(l => l.trim())
+                        .filter(Boolean)
+                        .map(line => {
+                          const parts = line.split(' ').filter(Boolean);
+                          const qty = parseFloat(parts[0]);
+                          const unit = isNaN(qty) ? '' : (parts[1] || '');
+                          const name = isNaN(qty) ? line : parts.slice(2).join(' ');
+                          return { name: name || line, quantity: isNaN(qty) ? undefined : qty, unit } as any;
+                        });
+                      const steps = editStepsText
+                        .split('\n')
+                        .map(s => s.replace(/^\d+\.?\s*/, ''))
+                        .map(s => s.trim())
+                        .filter(Boolean);
+                      toSave = {
+                        ...toSave,
+                        name: editName || toSave.name,
+                        description: editDescription || toSave.description,
+                        ingredients,
+                        steps,
+                      };
+                    }
+                    const newId = addMeal(toSave);
+                    setImportPreviewMeal(null);
+                    Alert.alert('Recipe Saved', 'Recipe added to your library.');
+                  }}
+                  size="xs"
+                  variant="primary"
+                />
+                <Button
+                  title="Save & Add to Folder"
+                  onPress={() => {
+                    if (!importPreviewMeal) return;
+                    let toSave = importPreviewMeal;
+                    if (isEditingPreview) {
+                      const ingredients = editIngredientsText
+                        .split('\n')
+                        .map(l => l.trim())
+                        .filter(Boolean)
+                        .map(line => {
+                          const parts = line.split(' ').filter(Boolean);
+                          const qty = parseFloat(parts[0]);
+                          const unit = isNaN(qty) ? '' : (parts[1] || '');
+                          const name = isNaN(qty) ? line : parts.slice(2).join(' ');
+                          return { name: name || line, quantity: isNaN(qty) ? undefined : qty, unit } as any;
+                        });
+                      const steps = editStepsText
+                        .split('\n')
+                        .map(s => s.replace(/^\d+\.?\s*/, ''))
+                        .map(s => s.trim())
+                        .filter(Boolean);
+                      toSave = {
+                        ...toSave,
+                        name: editName || toSave.name,
+                        description: editDescription || toSave.description,
+                        ingredients,
+                        steps,
+                      };
+                    }
+                    const newId = addMeal(toSave);
+                    setImportPreviewMeal(null);
+                    setSelectedForFolderRecipeId(newId);
+                    setAddToFolderVisible(true);
+                    Alert.alert('Recipe Saved', 'Choose a folder to organize it.');
+                  }}
+                  size="xs"
+                  variant="secondary"
+                />
+              </View>
+
+              <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.text, marginTop: 16 }}>Steps</Text>
+              {isEditingPreview ? (
+                <TextInput
+                  value={editStepsText}
+                  onChangeText={setEditStepsText}
+                  placeholder="One step per line"
+                  multiline
+                  numberOfLines={8}
+                  style={{ color: Colors.text, marginTop: 4, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 10, minHeight: 140, textAlignVertical: 'top' }}
+                />
+              ) : (
+                Array.isArray(importPreviewMeal.steps) && importPreviewMeal.steps.length > 0 ? (
+                  importPreviewMeal.steps.map((s, i) => (
+                    <View key={`step-${i}`} style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>{i + 1}</Text>
+                      </View>
+                      <Text style={{ color: Colors.lightText, flex: 1 }}>{String(s)}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: Colors.lightText, marginTop: 4 }}>No steps parsed</Text>
+                )
+              )}
+            </View>
+          </ScrollView>
+        </UIModal>
       )}
     </View>
   );
