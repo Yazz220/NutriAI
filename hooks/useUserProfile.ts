@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 
 export type GoalType = 'maintain' | 'lose' | 'gain';

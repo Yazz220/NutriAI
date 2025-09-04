@@ -134,34 +134,27 @@ export default function ShoppingListScreen() {
         <ScreenHeader
           title="Shopping List"
           icon={<ShoppingCart size={28} color={Colors.text} />}
-          rightAction={
-            <TouchableOpacity style={styles.addButton} onPress={() => setAddModalVisible(true)}>
-              <Plus size={24} color={Colors.white} />
-            </TouchableOpacity>
-          }
         />
 
         {/* Quick Stats */}
-        <View style={styles.shoppingStats}>
-          <StatCard 
-            icon={<ShoppingCart size={20} color={Colors.primary} />} 
-            label="Total Items" 
-            value={totalItems.toString()} 
-          />
-          <StatCard 
-            icon={<CheckCircle size={20} color={Colors.primary} />} 
-            label="Completed" 
-            value={checkedItems.toString()} 
-          />
-          <StatCard 
-            icon={<Clock size={20} color={Colors.error} />} 
-            label="Remaining" 
-            value={uncheckedItems.toString()} 
-          />
-        </View>
+        <StatRow
+          items={[
+            { icon: <ShoppingCart size={16} color={Colors.primary} />, label: 'Total Items', value: totalItems.toString() },
+            { icon: <CheckCircle size={16} color={Colors.primary} />, label: 'Completed', value: checkedItems.toString() },
+            { icon: <Clock size={16} color={Colors.error} />, label: 'Remaining', value: uncheckedItems.toString() },
+          ]}
+        />
 
         {/* Enhanced Actions */}
         <View style={styles.actionsContainer}>
+          <Button
+            title="Add Item"
+            onPress={() => setAddModalVisible(true)}
+            variant="outline"
+            size="xs"
+            style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
+            icon={<Plus size={14} color={Colors.primary} />}
+          />
           <Button
             title="Smart List"
             onPress={handleGenerateSmartList}
@@ -253,7 +246,7 @@ export default function ShoppingListScreen() {
               {recentlyPurchased.map((item) => (
                 <View key={`recent-${item.id}`} style={styles.recentlyPurchasedItem}>
                   <Text style={[styles.recentlyPurchasedText, styles.checkedText]}>
-                    {item.name} ({item.quantity} {item.unit})
+                    {item.name}
                   </Text>
                 </View>
               ))}
@@ -281,12 +274,16 @@ export default function ShoppingListScreen() {
   );
 }
 
-// Enhanced Component Definitions
-const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
-  <View style={styles.statCard}>
-    <View style={styles.statIcon}>{icon}</View>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+// StatRow with three outline panels (compact)
+const StatRow = ({ items }: { items: { icon?: React.ReactNode; label: string; value: string }[] }) => (
+  <View style={styles.statRow}>
+    {items.map((it, idx) => (
+      <View key={idx} style={styles.statPill}>
+        {it.icon ? <View style={{ marginRight: 6 }}>{it.icon}</View> : null}
+        <Text style={styles.statPillValue}>{it.value}</Text>
+        <Text style={styles.statPillLabel}>{it.label}</Text>
+      </View>
+    ))}
   </View>
 );
 
@@ -333,39 +330,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
   },
-  shoppingStats: {
+  statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 5,
+    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
   },
-  statCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
+  statPill: {
     flex: 1,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 10,
   },
-  statIcon: {
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
+  statPillValue: {
     color: Colors.text,
-    marginBottom: 2,
+    fontWeight: '700',
+    marginRight: 6,
   },
-  statLabel: {
-    fontSize: 12,
+  statPillLabel: {
     color: Colors.lightText,
     fontWeight: '500',
-    textAlign: 'center',
+    fontSize: 12,
   },
   actionsContainer: {
     flexDirection: 'row',

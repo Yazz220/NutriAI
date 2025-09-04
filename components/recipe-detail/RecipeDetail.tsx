@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert } from 'react-native';
-import { X, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle } from 'lucide-react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { X, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
 import { Button } from '../ui/Button';
+import { IngredientIcon } from '@/components/IngredientIcon';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
-import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient } from '../../types';
+import { Spacing, Typography, Radii } from '@/constants/spacing';
+import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType } from '../../types';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
 import { calculateRecipeAvailability } from '@/utils/recipeAvailability';
+import { ServingSizeChanger } from './ServingSizeChanger';
+import { MealTypeSelector } from './MealTypeSelector';
+import { RecipeNutritionCard } from './RecipeNutritionCard';
+import { scaleIngredients, formatIngredientDisplay, scaleNutrition } from '@/utils/ingredientScaling';
 
 export interface RecipeDetailProps {
   visible?: boolean; // parent (modal) controls visibility; present for parity
@@ -22,8 +29,9 @@ export interface RecipeDetailProps {
   onShare?: (r: CanonicalRecipe) => Promise<void> | void;
   onOpenSource?: (r: CanonicalRecipe) => Promise<void> | void;
   onAskAI?: (r: CanonicalRecipe) => void; // let parent switch to AI tab if desired
-  onCook?: (r: CanonicalRecipe) => void;
+  onLog?: (r: CanonicalRecipe, mealType: MealType, servings: number) => void; // Changed from onCook to onLog
   isSaved?: boolean;
+  selectedDate?: string; // Optional date to log meals to (defaults to today)
 }
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({
@@ -36,8 +44,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   onShare,
   onOpenSource,
   onAskAI,
-  onCook,
+  onLog,
   isSaved,
+  selectedDate,
 }) => {
   const servings = recipe.servings;
   const [desiredServings, setDesiredServings] = useState<number>(Math.max(1, servings ?? 1));
@@ -48,8 +57,24 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   // Inventory + shopping list integration for missing ingredients
   const { inventory } = useInventory();
   const { addItem } = useShoppingList();
+  const { preferences } = useUserPreferences();
+  const { logMealFromRecipe } = useNutritionWithMealPlan();
   const [missingCount, setMissingCount] = useState(0);
   const [missingList, setMissingList] = useState<Array<{ name: string; quantity: number; unit: string }>>([]);
+  const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
+
+  const servingsBase = useMemo(() => Math.max(1, servings ?? 1), [servings]);
+  const scaleFactor = useMemo(() => (desiredServings / servingsBase), [desiredServings, servingsBase]);
+
+  // Scale ingredients using the smart scaling utility
+  const scaledIngredients = useMemo(() => {
+    return scaleIngredients(recipe.ingredients ?? [], scaleFactor);
+  }, [recipe.ingredients, scaleFactor]);
+
+  // Scale nutrition information
+  const scaledNutrition = useMemo(() => {
+    return scaleNutrition(recipe.nutritionPerServing, desiredServings);
+  }, [recipe.nutritionPerServing, desiredServings]);
 
   const mealLike = useMemo(() => ({
     id: recipe.id,
@@ -61,27 +86,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     cookTime: recipe.cookTimeMinutes ?? 0,
     servings: desiredServings,
     steps: recipe.steps ?? [],
-    ingredients: (recipe.ingredients ?? []).map(ing => ({
+    ingredients: scaledIngredients.map(ing => ({
       name: ing.name,
-      quantity: (typeof ing.amount === 'number' ? ing.amount : 1) as number,
+      quantity: ing.scaledAmount ?? (typeof ing.amount === 'number' ? ing.amount : 1),
       unit: ing.unit ?? 'pcs',
       optional: !!ing.optional,
     })),
-  }), [recipe, desiredServings]);
+  }), [recipe, desiredServings, scaledIngredients]);
 
-  const servingsBase = useMemo(() => Math.max(1, servings ?? 1), [servings]);
-  const scaleFactor = useMemo(() => (desiredServings / servingsBase), [desiredServings, servingsBase]);
-
-  const nutritionForSelection = useMemo(() => {
-    const per = recipe.nutritionPerServing;
-    if (!per) return undefined;
-    return {
-      calories: typeof per.calories === 'number' ? per.calories * desiredServings : undefined,
-      protein: typeof per.protein === 'number' ? per.protein * desiredServings : undefined,
-      carbs: typeof per.carbs === 'number' ? per.carbs * desiredServings : undefined,
-      fats: typeof per.fats === 'number' ? per.fats * desiredServings : undefined,
-    } as typeof recipe.nutritionPerServing;
-  }, [recipe.nutritionPerServing, desiredServings]);
+  // Legacy nutrition for backward compatibility
+  const nutritionForSelection = scaledNutrition;
 
   useEffect(() => {
     try {
@@ -95,9 +109,83 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     } catch {}
   }, [mealLike, inventory]);
 
+  // Convert CanonicalRecipe to Meal format for logging
+  const convertToMeal = (canonicalRecipe: CanonicalRecipe, servings: number): Meal => {
+    return {
+      id: canonicalRecipe.id,
+      name: canonicalRecipe.title,
+      description: canonicalRecipe.description || '',
+      image: canonicalRecipe.image,
+      tags: canonicalRecipe.tags || [],
+      prepTime: canonicalRecipe.prepTimeMinutes || 0,
+      cookTime: canonicalRecipe.cookTimeMinutes || 0,
+      servings: servings,
+      steps: canonicalRecipe.steps || [],
+      ingredients: (canonicalRecipe.ingredients || []).map(ing => ({
+        name: ing.name,
+        quantity: (typeof ing.amount === 'number' ? ing.amount : 1) * (servings / (canonicalRecipe.servings || 1)),
+        unit: ing.unit || 'pcs',
+        optional: !!ing.optional,
+      })),
+      nutritionPerServing: canonicalRecipe.nutritionPerServing ? {
+        calories: canonicalRecipe.nutritionPerServing.calories || 0,
+        protein: canonicalRecipe.nutritionPerServing.protein || 0,
+        carbs: canonicalRecipe.nutritionPerServing.carbs || 0,
+        fats: canonicalRecipe.nutritionPerServing.fats || 0,
+      } : undefined,
+      sourceUrl: canonicalRecipe.sourceUrl,
+    };
+  };
+
+  const handleLogMeal = async (mealType: MealType, logDate?: string) => {
+    try {
+      // Convert recipe to meal format
+      const meal = convertToMeal(recipe, desiredServings);
+      
+      // Log the meal for the selected date (priority: logDate > selectedDate > today)
+      const targetDate = logDate || selectedDate || new Date().toISOString().split('T')[0];
+      const loggedId = logMealFromRecipe(meal, targetDate, mealType, desiredServings);
+      
+      // Haptic feedback
+      if (Platform.OS === 'ios') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      
+      // Show success message with nutrition info
+      const totalCalories = scaledNutrition?.calories || 0;
+      const totalProtein = scaledNutrition?.protein || 0;
+      
+      Alert.alert(
+        'Meal Logged Successfully! 🎉',
+        `${recipe.title} (${desiredServings} servings) has been added to your ${mealType} for today.\n\nCalories: ${totalCalories}\nProtein: ${totalProtein}g\n\nCheck your Coach dashboard to see your updated progress!`,
+        [
+          {
+            text: 'View Progress',
+            onPress: () => {
+              // Close the recipe detail to go back to main app
+              onClose();
+            },
+          },
+          { text: 'OK' },
+        ]
+      );
+      
+      // Call parent callback if provided
+      onLog?.(recipe, mealType, desiredServings);
+      
+    } catch (error) {
+      console.error('Error logging meal:', error);
+      Alert.alert(
+        'Error Logging Meal',
+        'There was an issue logging your meal. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: Spacing.xl }} showsVerticalScrollIndicator={false}>
         {/* Header Image */}
         {hasImage && (
           <View style={styles.imageContainer}>
@@ -121,86 +209,33 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               <Text style={styles.metaText}>{time} min</Text>
             </View>
           )}
-          {typeof servingsBase === 'number' && servingsBase > 0 && (
-            <View style={styles.metaItem}>
-              <Users size={16} color={Colors.primary} />
-              <Text style={styles.metaText}>{servingsBase} base servings</Text>
-            </View>
-          )}
         </View>
 
-        {/* Enhanced Nutrition Section - Prominently displayed after header */}
+        {/* Compact Nutrition Card - Shows recipe nutrition only */}
         {!!recipe.nutritionPerServing && (
-          <View style={styles.enhancedNutritionSection}>
-            <Text style={styles.sectionTitle}>Nutrition Facts</Text>
-            <View style={styles.nutritionOverview}>
-              <View style={styles.caloriesCard}>
-                <Text style={styles.caloriesLabel}>Calories</Text>
-                <Text style={styles.caloriesValue}>
-                  {Math.round(nutritionForSelection?.calories || recipe.nutritionPerServing.calories * desiredServings)}
-                </Text>
-                <Text style={styles.caloriesUnit}>kcal</Text>
-              </View>
-              <View style={styles.macrosGrid}>
-                <MacroItem
-                  label="Protein"
-                  value={nutritionForSelection?.protein || (recipe.nutritionPerServing.protein || 0) * desiredServings}
-                  unit="g"
-                  color={Colors.fresh}
-                />
-                <MacroItem
-                  label="Carbs"
-                  value={nutritionForSelection?.carbs || (recipe.nutritionPerServing.carbs || 0) * desiredServings}
-                  unit="g"
-                  color={Colors.info}
-                />
-                <MacroItem
-                  label="Fats"
-                  value={nutritionForSelection?.fats || (recipe.nutritionPerServing.fats || 0) * desiredServings}
-                  unit="g"
-                  color={Colors.warning}
-                />
-              </View>
-            </View>
-            <Text style={styles.nutritionNote}>
-              Per {desiredServings} serving{desiredServings === 1 ? '' : 's'}
-            </Text>
+          <View style={styles.nutritionSection}>
+            <RecipeNutritionCard
+              calories={scaledNutrition?.calories || 0}
+              protein={scaledNutrition?.protein || 0}
+              carbs={scaledNutrition?.carbs || 0}
+              fats={scaledNutrition?.fats || 0}
+              servings={desiredServings}
+            />
           </View>
         )}
 
-        {/* Servings (compact) + Calories tracker */}
-        <View style={[styles.section, { marginBottom: 12 }]}>
-          <View style={styles.servingsHeaderRow}>
-            <Text style={styles.sectionTitle}>Servings</Text>
-            {typeof nutritionForSelection?.calories === 'number' && (
-              <View style={styles.caloriesBadge} accessibilityLabel="Calories for selected servings">
-                <Text style={styles.caloriesBadgeText}>{Math.round(nutritionForSelection.calories)} kcal</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.servingsRow}>
-            <TouchableOpacity
-              onPress={() => setDesiredServings((s) => Math.max(1, s - 1))}
-              style={styles.servingsBtnSm}
-              accessibilityRole="button"
-              accessibilityLabel="Decrease servings"
-            >
-              <Text style={styles.servingsBtnText}>−</Text>
-            </TouchableOpacity>
-            <Text style={styles.servingsValueSm}>{desiredServings}</Text>
-            <TouchableOpacity
-              onPress={() => setDesiredServings((s) => Math.min(99, s + 1))}
-              style={styles.servingsBtnSm}
-              accessibilityRole="button"
-              accessibilityLabel="Increase servings"
-            >
-              <Text style={styles.servingsBtnText}>+</Text>
-            </TouchableOpacity>
-            <Text style={styles.servingsInlineLabel}>servings</Text>
-          </View>
-          {!!servings && servings !== desiredServings && (
-            <Text style={styles.servingsNote}>Scaled from base {servings} servings</Text>
-          )}
+        {/* Enhanced Serving Size Changer */}
+        <View style={styles.section}>
+          <ServingSizeChanger
+            originalServings={servingsBase}
+            currentServings={desiredServings}
+            onServingsChange={setDesiredServings}
+            minServings={0.5}
+            maxServings={20}
+            allowFractions={true}
+            showNutritionPreview={true}
+            caloriesPerServing={recipe.nutritionPerServing?.calories}
+          />
         </View>
 
         {/* Action Bar (mode-aware) */}
@@ -213,6 +248,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 size="xs"
                 variant={isSaved ? 'primary' : 'primary'}
                 icon={isSaved ? <Bookmark size={14} color={Colors.white} /> : <BookmarkPlus size={14} color={Colors.white} />}
+              />
+              <Button 
+                title="Log" 
+                onPress={() => setShowMealTypeSelector(true)} 
+                size="xs" 
+                variant="secondary" 
+                icon={<Plus size={14} color={Colors.primary} />} 
               />
               <Button title="Plan" onPress={() => onPlan?.(recipe)} size="xs" variant="secondary" />
               {!!missingCount && missingCount > 0 && (
@@ -255,7 +297,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           )}
           {mode === 'library' && (
             <>
-              <Button title="Cook" onPress={() => onCook?.(recipe)} size="xs" variant="primary" icon={<Utensils size={14} color={Colors.white} />} />
+              <Button 
+                title="Log" 
+                onPress={() => setShowMealTypeSelector(true)} 
+                size="xs" 
+                variant="primary" 
+                icon={<Plus size={14} color={Colors.white} />} 
+              />
               <Button title="Plan" onPress={() => onPlan?.(recipe)} size="xs" variant="secondary" />
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -289,6 +337,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           {mode === 'ai' && (
             <>
               <Button title="Save" onPress={() => onSave?.(recipe)} size="xs" variant="primary" />
+              <Button 
+                title="Log" 
+                onPress={() => setShowMealTypeSelector(true)} 
+                size="xs" 
+                variant="secondary" 
+                icon={<Plus size={14} color={Colors.primary} />} 
+              />
               <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
@@ -302,17 +357,35 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           </View>
         )}
 
-        {/* Ingredients (scaled) */}
-        {!!recipe.ingredients?.length && (
+        {/* Ingredients (intelligently scaled) */}
+        {!!scaledIngredients?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            {recipe.ingredients.map((ing: CanonicalIngredient, idx: number) => (
-              <View key={`${ing.name}-${idx}`} style={styles.row}>
-                <Text style={styles.bodyText}>
-                  {formatIngredientScaled(ing, scaleFactor)}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.ingredientsGrid}>
+              {scaledIngredients.map((scaledIng, idx: number) => {
+                const isMissing = missingList.some(item => item.name === scaledIng.name);
+                return (
+                  <View key={`${scaledIng.name}-${idx}`} style={styles.ingredientCard}>
+                    <View style={styles.ingredientImageContainer}>
+                      <IngredientIcon name={scaledIng.name} size={56} />
+                      {isMissing && <View style={styles.missingIndicator} />}
+                      {scaledIng.isScaled && (
+                        <View style={styles.scaledIndicator}>
+                          <Text style={styles.scaledIndicatorText}>×</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.ingredientName}>{scaledIng.name}</Text>
+                    <Text style={[
+                      styles.ingredientQuantity,
+                      scaledIng.isScaled && styles.ingredientQuantityScaled
+                    ]}>
+                      {formatIngredientDisplay(scaledIng)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -328,20 +401,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             ))}
           </View>
         )}
-
-        {/* Nutrition (detailed breakdown - now more concise) */}
-        {!!recipe.nutritionPerServing && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Per Serving Breakdown</Text>
-            <Text style={styles.perServingHint}>
-              {renderInlinePerServing(recipe.nutritionPerServing)}
-            </Text>
-            <Text style={styles.nutritionNote}>
-              * Values scale with servings adjustment above
-            </Text>
-          </View>
-        )}
-
         {/* Source */}
         {!!recipe.sourceUrl && (
           <View style={[styles.section, { paddingTop: 0 }] }>
@@ -353,32 +412,24 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           </View>
         )}
       </ScrollView>
+
+      {/* Meal Type Selector Modal */}
+      <MealTypeSelector
+        visible={showMealTypeSelector}
+        onClose={() => setShowMealTypeSelector(false)}
+        onConfirm={handleLogMeal}
+        recipeName={recipe.title}
+        servings={desiredServings}
+        calories={scaledNutrition?.calories}
+        defaultDate={selectedDate}
+      />
     </View>
   );
 };
 
 const stripHtml = (html?: string) => (html ? html.replace(/<[^>]*>/g, '') : '');
 
-const formatIngredient = (ing: CanonicalRecipe['ingredients'][number]) => {
-  const parts: (string | number)[] = [];
-  if (typeof ing.amount === 'number') parts.push(ing.amount);
-  if (ing.unit) parts.push(ing.unit);
-  parts.push(ing.name);
-  return parts.join(' ');
-};
 
-// Format ingredient with scaling applied
-const formatIngredientScaled = (ing: CanonicalRecipe['ingredients'][number], scale: number) => {
-  const parts: string[] = [];
-  if (typeof ing.amount === 'number') {
-    const scaled = ing.amount * (Number.isFinite(scale) && scale > 0 ? scale : 1);
-    const rounded = Math.abs(scaled - Math.round(scaled)) < 1e-3 ? String(Math.round(scaled)) : String(Number(scaled.toFixed(2)));
-    parts.push(rounded);
-  }
-  if (ing.unit) parts.push(ing.unit);
-  parts.push(ing.name);
-  return parts.join(' ');
-};
 
 const renderInlinePerServing = (per?: CanonicalRecipe['nutritionPerServing']) => {
   if (!per) return '—';
@@ -410,51 +461,101 @@ const renderNutrition = (label: string, value?: number, unit?: string) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
-  imageContainer: { width: '100%', height: 260, marginBottom: 8 },
+  imageContainer: { width: '100%', height: 260, marginBottom: Spacing.sm, overflow: 'hidden' },
   image: { width: '100%', height: '100%', resizeMode: 'cover' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  headerSafeTop: { paddingTop: Platform.OS === 'ios' ? 44 : 16 },
-  title: { flex: 1, fontSize: 20, fontWeight: '600', color: Colors.text, marginRight: 16 },
-  closeBtn: { padding: 4 },
-  metaRow: { flexDirection: 'row', gap: 16, paddingHorizontal: 16, paddingVertical: 8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  headerSafeTop: { paddingTop: Platform.OS === 'ios' ? 44 : Spacing.lg },
+  title: { flex: 1, fontSize: Typography.h2.fontSize, fontWeight: Typography.h2.fontWeight, color: Colors.text, marginRight: Spacing.lg },
+  closeBtn: { padding: Spacing.xs },
+  metaRow: { flexDirection: 'row', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   metaItem: { alignItems: 'center' },
-  metaText: { fontSize: 12, color: Colors.text, marginTop: 4 },
-  actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingVertical: 6 },
-  section: { paddingHorizontal: 16, marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: Colors.text, marginBottom: 10 },
-  bodyText: { fontSize: 14, lineHeight: 20, color: Colors.lightText },
-  row: { backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  metaText: { fontSize: Typography.caption.fontSize, color: Colors.text, marginTop: 4 },
+  actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs },
+  section: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
+  sectionTitle: { fontSize: Typography.h2.fontSize, fontWeight: Typography.h2.fontWeight, color: Colors.text, marginBottom: Spacing.sm },
+  bodyText: { fontSize: Typography.body.fontSize, lineHeight: Typography.body.lineHeight, color: Colors.lightText },
+  row: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, borderRadius: Radii.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.sm },
   stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   stepBadgeText: { color: Colors.white, fontSize: 12, fontWeight: '600' },
-  nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: 12, borderRadius: 8, minWidth: 140, alignItems: 'center' },
-  nutritionLabel: { fontSize: 12, color: Colors.lightText, marginBottom: 4 },
+  nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, borderRadius: Radii.md, minWidth: 140, alignItems: 'center' },
+  nutritionLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginBottom: Spacing.xs },
   nutritionValue: { fontSize: 16, fontWeight: '600', color: Colors.text },
   // Servings selector styles
   servingsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  servingsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  servingsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   servingsBtnSm: { width: 32, height: 32, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   servingsBtnText: { fontSize: 16, color: Colors.text },
   servingsValueSm: { fontSize: 15, fontWeight: '700', color: Colors.text, minWidth: 22, textAlign: 'center' },
-  servingsInlineLabel: { fontSize: 12, color: Colors.lightText, marginLeft: 4 },
-  servingsNote: { marginTop: 6, fontSize: 12, color: Colors.lightText },
-  perServingHint: { marginTop: 8, fontSize: 12, color: Colors.lightText },
-  caloriesBadge: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999 },
-  caloriesBadgeText: { fontSize: 12, fontWeight: '600', color: Colors.text },
-  // Enhanced Nutrition Styles
-  enhancedNutritionSection: { paddingHorizontal: 16, marginBottom: 20 },
-  nutritionOverview: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 16, padding: 16 },
-  caloriesCard: { backgroundColor: Colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16 },
-  caloriesLabel: { color: Colors.white, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  caloriesValue: { color: Colors.white, fontSize: 32, fontWeight: '700', marginBottom: 2 },
-  caloriesUnit: { color: Colors.white, fontSize: 14, opacity: 0.8 },
-  macrosGrid: { flexDirection: 'row', justifyContent: 'space-around' },
-  macroItem: { alignItems: 'center', flex: 1 },
-  macroDot: { width: 12, height: 12, borderRadius: 6, marginBottom: 6 },
-  macroLabel: { color: Colors.lightText, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  macroValue: { color: Colors.text, fontSize: 16, fontWeight: '600' },
-  nutritionNote: { textAlign: 'center', fontSize: 12, color: Colors.lightText, marginTop: 8 },
+  servingsInlineLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginLeft: Spacing.xs },
+  servingsNote: { marginTop: Spacing.xs, fontSize: Typography.caption.fontSize, color: Colors.lightText },
+  perServingHint: { marginTop: Spacing.xs, fontSize: Typography.caption.fontSize, color: Colors.lightText },
+  caloriesBadge: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: 9999 },
+  caloriesBadgeText: { fontSize: Typography.caption.fontSize, fontWeight: '600', color: Colors.text },
+  // Compact Nutrition Styles
+  nutritionSection: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
+  ingredientsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  ingredientCard: {
+    width: '23%',
+    marginBottom: Spacing.sm,
+    alignItems: 'center',
+  },
+  ingredientImageContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: Colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  missingIndicator: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.danger,
+    borderWidth: 1,
+    borderColor: Colors.white,
+  },
+  ingredientName: {
+    fontSize: Typography.caption.fontSize,
+    fontWeight: '600',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  ingredientQuantity: {
+    fontSize: 10,
+    color: Colors.lightText,
+    textAlign: 'center',
+  },
+  ingredientQuantityScaled: {
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  scaledIndicator: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scaledIndicatorText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: Typography.weights.bold,
+  },
 });
 
 export default RecipeDetail;

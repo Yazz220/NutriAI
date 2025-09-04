@@ -9,20 +9,14 @@ interface CreateFolderSheetProps {
   visible: boolean;
   onClose: () => void;
   onCreate: (name: string) => void;
-  onAddRecipes?: () => void;
   existingNames?: string[];
-  showEmptyState?: boolean;
-  folderName?: string;
 }
 
 export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({
   visible,
   onClose,
   onCreate,
-  onAddRecipes,
   existingNames = [],
-  showEmptyState = false,
-  folderName = ''
 }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -52,31 +46,6 @@ export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({
     setError('');
     onCreate(name.trim());
   };
-
-  if (showEmptyState) {
-    return (
-      <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-        <View style={styles.overlay}>
-          <View style={styles.container}>
-            <Text style={styles.title}>Folder Created!</Text>
-            <Text style={styles.subtitle}>"{folderName}" is ready</Text>
-            <View style={styles.emptyStateContent}>
-              <Text style={styles.emptyText}>Your folder is empty</Text>
-              <Text style={styles.emptySubtext}>Add recipes from your library to get started</Text>
-            </View>
-            <View style={styles.actions}>
-              <Button
-                title="Add Recipes"
-                onPress={() => onAddRecipes?.()}
-                style={{ marginRight: Spacing.sm }}
-              />
-              <Button title="Done" variant="outline" onPress={onClose} />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>

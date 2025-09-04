@@ -40,20 +40,6 @@ const categories: ItemCategory[] = [
   'Other'
 ];
 
-const commonUnits = [
-  'pcs', 
-  'kg', 
-  'g', 
-  'liter', 
-  'ml', 
-  'cup', 
-  'tbsp', 
-  'tsp', 
-  'bunch', 
-  'can', 
-  'bottle'
-];
-
 export const AddToListModal: React.FC<AddToListModalProps> = ({ 
   visible, 
   onClose, 
@@ -61,7 +47,6 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState('pcs');
   const [category, setCategory] = useState<ItemCategory>('Produce');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -87,7 +72,6 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
   const resetForm = () => {
     setName('');
     setQuantity('1');
-    setUnit('pcs');
     setCategory('Produce');
     setErrors({});
   };
@@ -105,7 +89,7 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
       onAdd({
         name: name.trim(),
         quantity: Number(quantity),
-        unit,
+        unit: 'pcs',
         category,
         checked: false,
         addedBy: 'user'
@@ -182,46 +166,6 @@ export const AddToListModal: React.FC<AddToListModalProps> = ({
                 />
               </View>
               
-              <View style={styles.halfColumn}>
-                <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>
-                  Unit <Text style={{ color: Colors.error }}>*</Text>
-                </Text>
-                <View 
-                  style={styles.pickerContainer}
-                  accessibilityRole="radiogroup"
-                  accessibilityLabel="Select unit of measurement"
-                >
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    accessibilityLabel="Scroll to see more units"
-                  >
-                    {commonUnits.map((u) => (
-                      <TouchableOpacity
-                        key={u}
-                        style={[
-                          styles.unitButton,
-                          unit === u && styles.selectedUnitButton
-                        ]}
-                        onPress={() => setUnit(u)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: unit === u }}
-                        accessibilityLabel={`${u} unit`}
-                        accessibilityHint={`Select ${u} as the unit of measurement`}
-                      >
-                        <Text 
-                          style={[
-                            styles.unitButtonText,
-                            unit === u && styles.selectedUnitButtonText
-                          ]}
-                        >
-                          {u}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
             </View>
             
             <Text style={[{ fontSize: Typography.sizes.md, fontWeight: Typography.weights.medium, color: Colors.text }, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>

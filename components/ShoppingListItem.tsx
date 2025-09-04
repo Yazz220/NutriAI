@@ -44,9 +44,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onTogg
         >
           {item.name}
         </Text>
-        <Text style={[styles.quantity, item.checked && styles.checkedText]}>
-          {item.quantity} {item.unit}
-        </Text>
+        <Text style={[styles.note, item.checked && styles.checkedText]}>Tap to set details</Text>
       </View>
       
       <TouchableOpacity 
@@ -91,8 +89,8 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 2,
   },
-  quantity: {
-    fontSize: 14,
+  note: {
+    fontSize: 12,
     color: Colors.lightText,
   },
   checkedText: {

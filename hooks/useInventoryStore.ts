@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { InventoryItem, ItemCategory } from '@/types';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 
 // Dev toggle: force offline cache only, never call Supabase
@@ -77,6 +77,38 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { user } = useAuth();
 
+  // Normalization helpers to avoid duplicates (align with shopping list)
+  const normalizeName = (name: string) => (name || '').trim().toLowerCase();
+  type UnitKind = 'count' | 'weight' | 'volume' | 'other';
+  const unitMap: Record<string, { base: string; kind: UnitKind; toBase: (n: number) => number; fromBase: (n: number) => number } > = {
+    pcs: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    piece: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    pieces: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    pc: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    g: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    gram: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    grams: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    kg: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    kilogram: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    kilograms: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    ml: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    milliliter: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    milliliters: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    l: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    liter: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    liters: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+  };
+  const toBaseQty = (qty: number, unit: string): { qtyBase: number; base: string; kind: UnitKind } => {
+    const key = (unit || '').trim().toLowerCase();
+    const u = unitMap[key];
+    if (!u) return { qtyBase: qty, base: key, kind: 'other' };
+    return { qtyBase: u.toBase(qty), base: u.base, kind: u.kind };
+  };
+  const fromBaseQty = (qtyBase: number, base: string): number => {
+    const any = Object.values(unitMap).find((v) => v.base === base);
+    return any ? any.fromBase(qtyBase) : qtyBase;
+  };
+
   function rowToItem(r: any): InventoryItem {
     return {
       id: String(r.id),
@@ -150,14 +182,66 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
     }
   }, [inventory, isLoading]);
 
+  // One-time dedupe pass by name
+  useEffect(() => {
+    const runOnce = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('inventory_dedupe_v1');
+        if (flag === 'done') return;
+        await dedupeByName();
+        await AsyncStorage.setItem('inventory_dedupe_v1', 'done');
+      } catch (e) {
+        console.warn('[Inventory] dedupe pass skipped', e);
+      }
+    };
+    if (!isLoading) runOnce();
+  }, [isLoading]);
+
+  const dedupeByName = async () => {
+    const seen = new Set<string>();
+    const keep: InventoryItem[] = [];
+    const drop: InventoryItem[] = [];
+    for (const i of inventory) {
+      const key = normalizeName(i.name);
+      if (seen.has(key)) drop.push(i); else { seen.add(key); keep.push(i); }
+    }
+    if (drop.length === 0) return;
+    setInventory(keep);
+    if (user && !OFFLINE_ONLY) {
+      try {
+        const ids = drop.map(d => d.id);
+        if (ids.length) {
+          await supabase.schema('nutriai').from('inventory_items').delete().in('id', ids as any);
+        }
+      } catch (e) {
+        console.warn('[Inventory] server dedupe delete failed', e);
+      }
+    }
+  };
+
   // Add a new item to inventory
   const addItem = async (item: Omit<InventoryItem, 'id'>): Promise<string> => {
+    // Merge with existing by normalized name + convertible unit
+    const nameNorm = normalizeName(item.name);
+    const incoming = toBaseQty(Number(item.quantity) || 0, item.unit);
+    const idx = inventory.findIndex((it) => normalizeName(it.name) === nameNorm && toBaseQty(it.quantity, it.unit).base === incoming.base);
+
+    if (idx >= 0) {
+      const existing = inventory[idx];
+      const base = toBaseQty(existing.quantity, existing.unit).base;
+      const mergedBase = toBaseQty(existing.quantity, existing.unit).qtyBase + incoming.qtyBase;
+      const newQty = fromBaseQty(mergedBase, base);
+      const updated: InventoryItem = { ...existing, quantity: newQty, unit: base };
+      await updateItem(updated);
+      return updated.id;
+    }
+
     if (!user || OFFLINE_ONLY) {
-      const newItem: InventoryItem = { ...item, id: Date.now().toString() };
+      const newItem: InventoryItem = { ...item, id: Date.now().toString(), unit: toBaseQty(1, item.unit).base || item.unit, quantity: incoming.qtyBase };
       setInventory(prev => [newItem, ...prev]);
       return newItem.id;
     }
-    const payload = { ...itemToRow(item), user_id: user.id } as any;
+    const payload = { ...itemToRow({ ...item, unit: toBaseQty(1, item.unit).base || item.unit, quantity: incoming.qtyBase }), user_id: user.id } as any;
     const { data, error } = await supabase
       .schema('nutriai')
       .from('inventory_items')
@@ -209,13 +293,18 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
       const updated = [...prev];
       
       ingredients.forEach(ingredient => {
-        const itemIndex = updated.findIndex(item => 
-          item.name.toLowerCase() === ingredient.name.toLowerCase() && 
-          item.unit.toLowerCase() === ingredient.unit.toLowerCase()
-        );
+        const need = toBaseQty(ingredient.quantity, ingredient.unit);
+        const itemIndex = updated.findIndex(item => {
+          const sameName = item.name.toLowerCase() === ingredient.name.toLowerCase();
+          const have = toBaseQty(item.quantity, item.unit);
+          return sameName && have.base === need.base;
+        });
         
         if (itemIndex !== -1) {
-          const newQuantity = updated[itemIndex].quantity - ingredient.quantity;
+          const have = toBaseQty(updated[itemIndex].quantity, updated[itemIndex].unit);
+          const newBaseQty = have.qtyBase - need.qtyBase;
+          const base = have.base;
+          const newQuantity = fromBaseQty(newBaseQty, base);
           
           if (newQuantity <= 0) {
             // Remove item if quantity becomes zero or negative
@@ -224,7 +313,8 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
             // Update quantity if still positive
             updated[itemIndex] = {
               ...updated[itemIndex],
-              quantity: newQuantity
+              quantity: newQuantity,
+              unit: base
             };
           }
         }

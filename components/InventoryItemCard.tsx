@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Animated } from 'react-native';
-import InventoryIcon from '@/components/InventoryIcon';
+import IngredientIcon from '@/components/common/IngredientIcon';
+import { slugifyIngredient } from '@/utils/ingredientSlug';
 import { InventoryItem } from '@/types';
 import { FreshnessIndicator } from './FreshnessIndicator';
 import { useInventory } from '@/hooks/useInventoryStore';
@@ -71,7 +72,7 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
         onPress={handlePress}
         testID={`inventory-item-${item.id}`}
         activeOpacity={onPress ? 0.7 : 1}
-        accessibilityLabel={`${item.name}, ${item.quantity} ${item.unit}, ${item.category}`}
+        accessibilityLabel={`${item.name}, ${item.category}`}
         accessibilityHint="Tap to view item details"
         accessibilityRole="button"
       >
@@ -79,17 +80,13 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
         {item.imageUrl ? (
           <Image 
             source={{ uri: item.imageUrl }} 
-            style={styles.image} 
-            resizeMode="cover"
+            style={styles.image}
+            resizeMode="contain"
           />
         ) : (
-          <View style={[styles.image, styles.placeholderImage, styles.placeholderCenter]}>
-            <InventoryIcon
-              category={item.category}
-              size={22}
-              color={Colors.text}
-              background="subtle"
-            />
+          <View style={[styles.image, styles.placeholderCenter]}>
+            {/* Use generated ingredient-specific icon with SVG placeholder while pending */}
+            <IngredientIcon slug={slugifyIngredient(item.name)} size={56} />
           </View>
         )}
         <View style={styles.freshnessContainer}>
@@ -99,9 +96,7 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
       
       <View style={styles.contentContainer}>
         <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.quantity}>
-          {item.quantity} {item.unit}
-        </Text>
+        <Text style={styles.note}>Tap to set details</Text>
         <Text style={styles.category}>{item.category}</Text>
       </View>
       
@@ -136,15 +131,17 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-  },
-  image: {
     width: 56,
     height: 56,
-    borderRadius: 0,
-  },
-  placeholderImage: {
+    borderRadius: 12,
+    overflow: 'hidden',
     backgroundColor: Colors.secondary,
   },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  // placeholderImage no longer needed; backgroundColor applied on image area
   placeholderCenter: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -170,10 +167,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 4,
   },
-  quantity: {
-    fontSize: 14,
+  note: {
+    fontSize: 12,
     color: Colors.lightText,
-    fontWeight: Typography.weights.medium,
     marginBottom: 2,
   },
   category: {

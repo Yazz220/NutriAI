@@ -75,24 +75,20 @@ export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protei
     <View style={styles.container}>
       {/* Big calorie ring */}
       <View style={styles.calorieCard}>
-        <View style={{ position: 'relative', width: 140, height: 140, alignItems: 'center', justifyContent: 'center' }}>
-          <Ring size={140} stroke={14} progress={calPct} color={Colors.primary} />
+        <View style={{ position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
+          <Ring size={120} stroke={12} progress={calPct} color="#FDB813" />
           <View style={styles.centerLabel}>
             <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
-            <Text style={styles.caloriesUnit}>kcal</Text>
-            <Text style={styles.goalText}>of {goals.dailyCalories}</Text>
+            <Text style={styles.caloriesUnit}>/{goals.dailyCalories}kcal</Text>
           </View>
-        </View>
-        <View style={styles.calorieLegend}>
-          <LegendDot color={Colors.primary} label="Calories" value={`${Math.round(calPct * 100)}%`} />
         </View>
       </View>
 
       {/* Macro rings */}
       <View style={styles.macrosRow}>
-        <MacroRing label="Protein" grams={protein} goal={goals.protein} color={Colors.fresh} />
-        <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color={Colors.info} />
-        <MacroRing label="Fat" grams={fats} goal={goals.fats} color={Colors.warning} />
+        <MacroRing label="Protein" grams={protein} goal={goals.protein} color="#FF6B6B" />
+        <MacroRing label="Fat" grams={fats} goal={goals.fats} color="#4ECDC4" />
+        <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color="#45B7D1" />
       </View>
     </View>
   );
@@ -110,8 +106,8 @@ const MacroRing = ({ label, grams, goal, color }: { label: string; grams: number
   const pct = clamp01((goal ? grams / goal : 0));
   return (
     <View style={styles.macroItem}>
-      <View style={{ position: 'relative', width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
-        <Ring size={84} stroke={10} progress={pct} color={color} />
+      <View style={{ position: 'relative', width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
+        <Ring size={60} stroke={8} progress={pct} color={color} />
         <View style={styles.macroCenter}>
           <Text style={styles.macroValue}>{Math.round(grams)}g</Text>
           <Text style={styles.macroGoal}>/{goal}g</Text>
@@ -124,18 +120,12 @@ const MacroRing = ({ label, grams, goal, color }: { label: string; grams: number
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    alignItems: 'center',
     padding: 16,
-    marginBottom: 16,
   },
   calorieCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 24,
   },
   centerLabel: {
     position: 'absolute',
@@ -143,18 +133,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   caloriesValue: {
-    fontSize: 28,
-    fontWeight: Typography.weights.semibold,
+    fontSize: 36,
+    fontWeight: 'bold',
     color: Colors.text,
   },
   caloriesUnit: {
+    fontSize: 16,
     color: Colors.lightText,
-    fontWeight: Typography.weights.medium,
-  },
-  goalText: {
-    color: Colors.lightText,
-    fontSize: 12,
-    marginTop: 2,
   },
   calorieLegend: {
     marginLeft: 12,
@@ -184,6 +169,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     marginTop: 8,
+    gap: 16,
   },
   macroItem: {
     alignItems: 'center',
@@ -193,12 +179,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   macroValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
     color: Colors.text,
-    fontWeight: Typography.weights.semibold,
   },
   macroGoal: {
-    color: Colors.lightText,
     fontSize: 12,
+    color: Colors.lightText,
   },
   macroLabel: {
     color: Colors.lightText,

@@ -31,21 +31,6 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Proactive "Right Now" suggestions
 - Conversational assistant via `useCoachChat`
 
-### 🌐 Recipe Import
-- **Enhanced Video Import**: Improved React Native compatibility and error handling
-- **Better STT Integration**: Optimized audio processing for YouTube Shorts and videos
-- **Robust Error Recovery**: User-friendly error messages and fallback options
-- Import from URLs (e.g., TikTok/Instagram/websites)
-- Client-side parsing via JSON-LD/Open Graph metadata
-- Full-screen preview before saving, with inline editing of title/description/ingredients/steps
-- "Improve with AI" button to refine parsed content (deterministic, user-controlled)
-- Save actions: "Save" and "Save & Add to Folder" (with folder selection)
-- Smart follow-ups: "Add to Plan", "Add missing ingredients"
-- Centralized, versioned prompts with deterministic AI (temperature=0, top_p=0)
-- Strict policies: conservative | verbatim | enrich; default is conservative (no guessing)
-- Abstain logic on insufficient evidence (video thresholds: ≥70% for ingredients/steps)
-- Telemetry for provenance: policy, support rates, evidence sizes, abstain reasons
-
 ## 🚀 Getting Started
 
 Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
@@ -91,32 +76,7 @@ Follow these instructions to get a copy of the project up and running on your lo
      EXPO_PUBLIC_RECIPES_PROXY_BASE=
      ```
 
-## 🍳 Recipe Import Pipeline (Prompts, Policies, Abstain, Telemetry)
-
-NutriAI standardizes all import flows (text, image, video, URL JSON‑LD, reconciliation) through a centralized prompt registry and deterministic AI settings.
-
-- __Centralized Prompts__: `utils/promptRegistry.ts` generates system prompts with versioning and per‑flow policies.
-- __Deterministic AI__: `utils/aiClient.ts:createChatCompletionDeterministic()` uses temperature=0, top_p=0 for reproducible outputs.
-- __Policies__:
-  - __conservative__ (default): No hallucinations or invention. Only evidence‑supported items.
-  - __verbatim__: Map JSON‑LD/Open Graph exactly to our schema. No enrichment.
-  - __enrich__: Allows AI to enhance if explicitly enabled.
-- __Abstain Logic__: If evidence is insufficient, the importer returns an "abstain" outcome instead of guessing.
-  - For video/shorts, import requires ≥0.7 support for both ingredients and steps.
-- __Reconciliation__: A final AI pass can remove unsupported items and annotate notes.
-- __Telemetry__: `utils/importTelemetry.ts` keeps a ring buffer of recent abstains, and provenance includes:
-  - `policy`, `extractionMethod`, `supportRates` (ingredient, step)
-  - `evidenceSizes` (caption/transcript/ocr) and `confidence`
-
-### UI: ImportRecipeModal
-
-- Paste a URL or text, or attach an image/video.
-- If a social video URL is detected, use "Transcribe Video" for best results.
-- If a video file is attached, a "Transcribe Attached Video" button is shown.
-- Preview modal supports inline editing and an optional "Improve with AI" step powered by `utils/aiRecipeParser.ts`.
-- Save options include "Save" and "Save & Add to Folder"; the latter opens the folder picker.
-- Preview shows provenance badges (policy, extraction method, confidence, support, evidence sizes).
-- Dev helper: "View Telemetry" reveals full provenance JSON and recent abstain events (for debugging/audit).
+## 🍳 Features
 
 ### Environment Variables (Import Pipeline)
 
@@ -248,6 +208,68 @@ EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
 - `AI_API_BASE` = https://openrouter.ai/api/v1
 - `AI_MODEL` = openai/gpt-oss-20b:free
 
+### 🧩 Ingredient Icon Generation (Edge Functions)
+
+Generate simple black‑and‑white outline icons for ingredients and store the images in S3 (preferred) or Supabase Storage.
+
+__Schema & Functions__
+- Schema/table: `nutriai.ingredient_icons` (see `supabase/sql/20250822_ingredient_icons.sql` for DDL, indexes, RLS, triggers).
+- Edge Functions:
+  - `get-ingredient-icon` — enqueue/poll helper used by the app to create or fetch the latest icon by `slug`.
+  - `generate-ingredient-icon` — worker that processes rows with `status = 'pending'`, generates the PNG, uploads, and updates the row to `ready`.
+
+__Functions Environment (set in Supabase → Project → Functions → Environment variables)__
+- Provider selection
+  - `ICON_PROVIDER` = `stability` (default) | `modelslab`
+  - Stability: `STABILITY_API_KEY`
+  - Modelslab: `MODELSLAB_API_KEY`, `MODELSLAB_MODEL_ID` (e.g., `imagen-3`), optional `MODELSLAB_ENDPOINT` (default `https://modelslab.com/api/v7/images/text-to-image`)
+- Storage (pick one)
+  - S3: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `ICON_S3_BUCKET`, optional `ICON_S3_PUBLIC_BASE`, `ICON_S3_USE_PUBLIC_READ=true`
+  - Supabase Storage fallback: optional `ICON_BUCKET` (default `ingredient-icons`)
+- Optional: `ICON_MODEL` (for bookkeeping; e.g., `stable-image-core` or `imagen-3`)
+- Prompt versioning: `ICON_PROMPT_VERSION` (default `2`) — bump to force regeneration with stricter prompt (transparent background; no text, numbers, UI frames/bars)
+
+__Deploy__
+```powershell
+supabase functions deploy generate-ingredient-icon --project-ref <PROJECT_REF>
+supabase functions deploy get-ingredient-icon --project-ref <PROJECT_REF>
+```
+
+__Test (PowerShell)__
+```powershell
+$ErrorActionPreference = "Stop"
+$BASE = "https://<PROJECT_REF>.supabase.co"
+$ANON = "<ANON_JWT>"
+$SERVICE = "<SERVICE_JWT>"
+$Slug = "yellow-onion"
+
+# 1) Enqueue (anon)
+Invoke-RestMethod -Method Get -Uri "$BASE/functions/v1/get-ingredient-icon?slug=$Slug&display_name=Yellow%20Onion" `
+  -Headers @{ apikey=$ANON; Authorization="Bearer $ANON" } | ConvertTo-Json -Depth 10
+
+# 2) Run worker (service)
+Invoke-RestMethod -Method Post -Uri "$BASE/functions/v1/generate-ingredient-icon" `
+  -Headers @{ apikey=$SERVICE; Authorization="Bearer $SERVICE" } | ConvertTo-Json -Depth 10
+
+Start-Sleep -Seconds 3
+
+# 3) Poll (anon)
+Invoke-RestMethod -Method Get -Uri "$BASE/functions/v1/get-ingredient-icon?slug=$Slug" `
+  -Headers @{ apikey=$ANON; Authorization="Bearer $ANON" } | ConvertTo-Json -Depth 10
+
+# 4) Inspect last_error (service)
+Invoke-RestMethod -Method Get `
+  -Uri "$BASE/rest/v1/ingredient_icons?slug=eq.$Slug&select=slug,status,fail_count,last_error,updated_at&order=updated_at.desc&limit=1" `
+  -Headers @{ apikey=$SERVICE; Authorization="Bearer $SERVICE"; "Accept-Profile"="nutriai"; "Content-Profile"="nutriai" } |
+  ConvertTo-Json -Depth 10
+```
+
+__Troubleshooting__
+- “Missing STABILITY_API_KEY” → set Functions env and redeploy.
+- “Modelslab response missing image output … subscription …” → choose a model allowed by your plan or switch `ICON_PROVIDER` back to `stability`.
+- S3 `AccessDenied`/`NoSuchBucket` → verify bucket, region, credentials; optionally set `ICON_S3_PUBLIC_BASE`.
+- `processed: 0` after POST → no rows with `status='pending'`; reset row to pending and retry.
+
 ### Test the ai-chat Edge Function
 PowerShell (Windows):
 ```powershell
@@ -276,9 +298,6 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
    npx expo start --tunnel
    ```
    to connect via a tunnel (often more reliable on restricted networks):
-   ```sh
-  Let's start working on the project. Start by reading its details. 
-   ```
 
 2. Scan the QR code with the Expo Go app on your mobile device.
 

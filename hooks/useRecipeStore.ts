@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo, useContext, createCon
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExternalRecipe } from '@/types/external';
 import { Meal, RecipeWithAvailability } from '@/types';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { edamamSearchRecipes } from '@/utils/providers/edamam';
 
 // Source selection
@@ -127,8 +127,22 @@ const toPublicImageUrl = (candidate: string, row: DBRecipeRow): string => {
   }
 };
 
-const mapDbRowToExternal = (row: DBRecipeRow): ExternalRecipe => {
+const mapDbRowToExternal = async (row: DBRecipeRow): Promise<ExternalRecipe> => {
   const key = `${row.provider || 'dataset'}|${row.external_id || row.id}`;
+  let nutrition = row.nutrition_json;
+  if (!nutrition) {
+    try {
+      const res = await supabase.functions.invoke('nutrition-analyze', {
+        body: {
+          title: row.title,
+          ingr: row.ingredients_json?.map(i => i.original),
+        },
+      });
+      if (res.data) nutrition = res.data;
+    } catch (e) {
+      console.error('Failed to analyze nutrition for', row.title, e);
+    }
+  }
   const imageCandidate = normalizeImageUrl(
     row.image_url || row.image || row.thumbnail_url || (row.nutrition_json && (row.nutrition_json.image || row.nutrition_json.image_url)) || row.image_path || ''
   );
@@ -166,7 +180,7 @@ const mapDbRowToExternal = (row: DBRecipeRow): ExternalRecipe => {
     dairyFree: row.dairy_free ?? undefined,
     healthScore: row.health_score ?? undefined,
     spoonacularScore: row.spoonacular_score ?? undefined,
-    nutrition: row.nutrition_json || undefined,
+    nutrition: nutrition || undefined,
     analyzedInstructions,
     ingredients,
     instructions: plainInstructions,
@@ -291,7 +305,7 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
 
       const { data, error } = await query;
       if (error) throw error;
-      const mapped = (data || []).map(mapDbRowToExternal);
+      const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
       setState(prev => ({ ...prev, searchResults: mapped, isSearching: false }));
     } catch (error) {
       setState(prev => ({ 
@@ -305,21 +319,23 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getTrendingRecipes = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      if (RECIPE_SOURCE === 'edamam') {
-        const seedTerms = ['healthy', 'high protein', 'salad', 'bowl', 'mediterranean', 'low carb'];
-        const q = seedTerms[new Date().getDay() % seedTerms.length];
-        const results = await edamamSearchRecipes({ q, from: 0, to: 12 });
-        const mapped = results.map(mapEdamamCanonicalToExternal);
-        setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
-        return;
-      }
-      const { data, error } = await supabase
-        .from('recipes')
-        .select('*')
-        .limit(12);
-      if (error) throw error;
-      const mapped = (data || []).map(mapDbRowToExternal);
-      setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
+      // API call disabled for now
+      // if (RECIPE_SOURCE === 'edamam') {
+      //   const seedTerms = ['healthy', 'high protein', 'salad', 'bowl', 'mediterranean', 'low carb'];
+      //   const q = seedTerms[new Date().getDay() % seedTerms.length];
+      //   const results = await edamamSearchRecipes({ q, from: 0, to: 12 });
+      //   const mapped = results.map(mapEdamamCanonicalToExternal);
+      //   setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
+      //   return;
+      // }
+      // const { data, error } = await supabase
+      //   .from('recipes')
+      //   .select('*')
+      //   .limit(12);
+      // if (error) throw error;
+      // const mapped = (data || []).map(mapDbRowToExternal);
+      // setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
+      setState(prev => ({ ...prev, trendingRecipes: [], isLoading: false }));
     } catch (error) {
       console.error('[useRecipeStore] Failed to fetch trending recipes:', error);
       setState(prev => ({ 
@@ -345,7 +361,7 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
       if (q) query = query.ilike('title', `%${q}%`);
       const { data, error } = await query;
       if (error) throw error;
-      const mapped = (data || []).map(mapDbRowToExternal);
+      const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
       setState(prev => ({ ...prev, externalRecipes: mapped, isLoading: false }));
     } catch (error) {
       setState(prev => ({ 
@@ -359,34 +375,36 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getRandomRecipes = useCallback(async (tags?: string[], count: number = 10, append: boolean = true) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      if (RECIPE_SOURCE === 'edamam') {
-        const seeds = ['healthy', 'quick', 'high protein', 'veggie', 'pasta', 'soup', 'stir fry'];
-        const q = tags && tags.length ? tags.join(' ') : seeds[(Date.now() / 3600000) % seeds.length | 0];
-        const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(count, 20) });
-        const mapped = results.map(mapEdamamCanonicalToExternal);
-        setState(prev => ({
-          ...prev,
-          externalRecipes: append
-            ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
-            : mapped,
-          isLoading: false,
-        }));
-        return;
-      }
-      const offset = append ? (externalCountRef.current || 0) : 0;
-      const { data, error } = await supabase
-        .from('recipes')
-        .select('*')
-        .range(offset, offset + count - 1);
-      if (error) throw error;
-      const mapped = (data || []).map(mapDbRowToExternal);
-      setState(prev => ({
-        ...prev,
-        externalRecipes: append
-          ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
-          : mapped,
-        isLoading: false,
-      }));
+      // API call disabled for now
+      // if (RECIPE_SOURCE === 'edamam') {
+      //   const seeds = ['healthy', 'quick', 'high protein', 'veggie', 'pasta', 'soup', 'stir fry'];
+      //   const q = tags && tags.length ? tags.join(' ') : seeds[(Date.now() / 3600000) % seeds.length | 0];
+      //   const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(count, 20) });
+      //   const mapped = results.map(mapEdamamCanonicalToExternal);
+      //   setState(prev => ({
+      //     ...prev,
+      //     externalRecipes: append
+      //       ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
+      //       : mapped,
+      //     isLoading: false,
+      //   }));
+      //   return;
+      // }
+      // const offset = append ? (externalCountRef.current || 0) : 0;
+      // const { data, error } = await supabase
+      //   .from('recipes')
+      //   .select('*')
+      //   .range(offset, offset + count - 1);
+      // if (error) throw error;
+      // const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
+      // setState(prev => ({
+      //   ...prev,
+      //   externalRecipes: append
+      //     ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
+      //     : mapped,
+      //   isLoading: false,
+      // }));
+      setState(prev => ({ ...prev, externalRecipes: [], isLoading: false }));
     } catch (error) {
       console.error('[useRecipeStore] Failed to fetch random recipes:', error);
       setState(prev => ({ 

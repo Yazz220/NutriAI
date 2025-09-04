@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,12 @@ interface AddToFolderSheetProps {
 
 export const AddToFolderSheet: React.FC<AddToFolderSheetProps> = ({ visible, recipeId, onClose, onCreateNew }) => {
   const { folders, addRecipeToFolder, removeRecipeFromFolder, getFoldersForRecipe } = useRecipeFolders();
+
+  useEffect(() => {
+    if (visible) {
+      console.log('Folders in AddToFolderSheet:', folders);
+    }
+  }, [visible, folders]);
 
   const assignedIds = recipeId ? new Set(getFoldersForRecipe(recipeId).map(f => f.id)) : new Set<string>();
 

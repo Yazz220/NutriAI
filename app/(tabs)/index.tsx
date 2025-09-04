@@ -13,14 +13,14 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Plus, AlertCircle, Camera as IconCamera, Barcode, Package, TrendingUp, Filter, Search } from 'lucide-react-native';
+import { Plus, AlertCircle, Package, TrendingUp, Search, Barcode, Camera as IconCamera } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import InventoryIcon from '@/components/InventoryIcon';
+import IngredientIcon from '@/components/common/IngredientIcon';
+import { slugifyIngredient } from '@/utils/ingredientSlug';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
 import { useInventory, useInventoryByFreshness } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useToast } from '@/contexts/ToastContext';
@@ -29,14 +29,13 @@ import { AddItemModal } from '@/components/AddItemModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 // Removed Input in favor of inline search bar styling consistent with Discover
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import ScreenHeader from '@/components/ui/ScreenHeader';
+import Rule from '@/components/ui/Rule';
 import { InventoryItem, ItemCategory, ShoppingListItem } from '@/types';
 import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
-import Rule from '@/components/ui/Rule';
 
-// StatRow with three outline panels (compact)
+
+// StatRow with three outline panels (compact) - kept for expiring section
 const StatRow = ({ items }: { items: { icon?: React.ReactNode; label: string; value: string }[] }) => (
   <View style={styles.statRow}>
     {items.map((it, idx) => (
@@ -179,7 +178,7 @@ const styles = StyleSheet.create({
   tileSquare: {
     width: 64,
     height: 64,
-    borderRadius: 0,
+    borderRadius: 12,
     backgroundColor: Colors.secondary,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -804,15 +803,11 @@ export default function InventoryScreen() {
           includeStatusBarSpacer
           containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
         />
-        {/* Stat Row (outline panels) */}
-        <StatRow
-          items={[
-            { icon: <Package size={16} color={Colors.primary} />, label: 'Total', value: inventory.length.toString() },
-            { icon: <AlertCircle size={16} color={Colors.error} />, label: 'Expiring', value: expiring.length.toString() },
-            { icon: <TrendingUp size={16} color={Colors.primary} />, label: 'Categories', value: groupedInventory.length.toString() },
-          ]}
-        />
+      </ExpoLinearGradient>
 
+
+
+      <View style={styles.hero}>
         {/* Search Bar (matches Discover style) */}
         <View style={styles.searchContainer}>
           <View style={styles.inventorySearchBar}>
@@ -827,33 +822,13 @@ export default function InventoryScreen() {
             />
           </View>
         </View>
-      </ExpoLinearGradient>
+      </View>
 
       <AddItemModal
         visible={isModalVisible}
         onClose={() => setModalVisible(false)}
         onAdd={handleAddItem}
       />
-
-      {/* Expiring Section (unchanged content) */}
-      {expiring.length > 0 && (
-        <View style={styles.expiringSection}>
-          <View style={styles.expiringHeader}>
-            <View style={styles.expiringTitleRow}>
-              <AlertCircle size={20} color={Colors.error} />
-              <Text style={styles.expiringTitle}>Expiring Soon</Text>
-            </View>
-            <Text style={styles.expiringCount}>{expiring.length} items</Text>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.expiringScroll}>
-            {expiring.map(item => (
-              <View key={`expiring-${item.id}`} style={styles.expiringItem}>
-                <InventoryItemCard item={item} onUseUp={() => handleUseItem(item)} />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
 
       <SectionList
         sections={groupedInventory}
@@ -863,12 +838,7 @@ export default function InventoryScreen() {
             <View style={styles.itemRowContainer}>
               <View style={styles.itemLeft}>
                 <View style={[styles.tileSquare, styles.tileCenter]}>
-                  <InventoryIcon
-                    category={item.category}
-                    size={26}
-                    color={Colors.text}
-                    background="subtle"
-                  />
+                  <IngredientIcon slug={slugifyIngredient(item.name)} size={64} />
                 </View>
                 <View style={styles.itemTexts}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>

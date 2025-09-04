@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { ShoppingListItem, ItemCategory } from '@/types';
-// Avoid importing useInventory here to prevent hook order/provider dependency issues
-import { supabase } from '@/utils/supabaseClient';
+import { useInventory } from '@/hooks/useInventoryStore';
+import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 
 export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
@@ -12,43 +12,69 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   const [recentlyPurchased, setRecentlyPurchased] = useState<ShoppingListItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { user } = useAuth();
+  const { addItem: addInventoryItem } = useInventory();
 
   const OFFLINE_ONLY = process.env.EXPO_PUBLIC_OFFLINE_ONLY === 'true';
   
   // Placeholder for inventory - used in generators; kept as empty array by default
   const inventory: any[] = [];
 
+  // --- Normalization & unit helpers to reduce duplicates ---
+  const normalizeName = (name: string) => (name || '').trim().toLowerCase();
+  type UnitKind = 'count' | 'weight' | 'volume' | 'other';
+  const unitMap: Record<string, { base: string; kind: UnitKind; toBase: (n: number) => number; fromBase: (n: number) => number } > = {
+    pcs: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    piece: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    pieces: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+    pc: { base: 'pcs', kind: 'count', toBase: (n) => n, fromBase: (n) => n },
+
+    g: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    gram: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    grams: { base: 'g', kind: 'weight', toBase: (n) => n, fromBase: (n) => n },
+    kg: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    kilogram: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    kilograms: { base: 'g', kind: 'weight', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+
+    ml: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    milliliter: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    milliliters: { base: 'ml', kind: 'volume', toBase: (n) => n, fromBase: (n) => n },
+    l: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    liter: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+    liters: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+  };
+  const normalizeUnit = (u: string): { base: string; kind: UnitKind } => {
+    const key = (u || '').trim().toLowerCase();
+    const found = unitMap[key];
+    if (found) return { base: found.base, kind: found.kind };
+    return { base: key, kind: 'other' };
+  };
+  const toBaseQty = (qty: number, unit: string): { qtyBase: number; base: string; kind: UnitKind } => {
+    const key = (unit || '').trim().toLowerCase();
+    const u = unitMap[key];
+    if (!u) return { qtyBase: qty, base: key, kind: 'other' };
+    return { qtyBase: u.toBase(qty), base: u.base, kind: u.kind };
+  };
+  const fromBaseQty = (qtyBase: number, base: string): number => {
+    // choose any mapping that has this base and return in that base
+    const any = Object.values(unitMap).find((v) => v.base === base);
+    return any ? any.fromBase(qtyBase) : qtyBase;
+  };
+
   // Move a purchased item into Inventory
   const moveToInventory = async (item: ShoppingListItem & { expiryDate?: string }): Promise<string | undefined> => {
     try {
-      let newId: string | undefined = undefined;
-      const addedDate = item.addedDate || new Date().toISOString();
-      if (user && !OFFLINE_ONLY) {
-        const payload = {
-          user_id: user.id,
-          name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
-          category: item.category,
-          added_date: addedDate,
-          expiry_date: item.expiryDate ?? null,
-          notes: null,
-        } as const;
-        const { data, error } = await supabase
-          .schema('nutriai')
-          .from('inventory_items')
-          .insert(payload)
-          .select('id')
-          .single();
-        if (error) throw error;
-        newId = String(data.id);
-      } else {
-        // Offline-only: create a local ID; inventory store will pick up from cache later
-        newId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-      }
+      const id = await addInventoryItem({
+        name: item.name,
+        quantity: Number(item.quantity) || 0,
+        unit: item.unit,
+        category: item.category,
+        addedDate: item.addedDate || new Date().toISOString(),
+        expiryDate: item.expiryDate,
+        imageUrl: undefined,
+      });
       // Remove from recently purchased if present
       setRecentlyPurchased(prev => prev.filter(i => i.id !== item.id));
-      return newId;
+      return id;
     } catch (e) {
       console.error('Failed to move to inventory', e);
       return undefined;
@@ -114,19 +140,73 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     }
   }, [shoppingList, recentlyPurchased, isLoading]);
 
+  // One-time dedupe pass by name
+  useEffect(() => {
+    const runOnce = async () => {
+      try {
+        const flag = await AsyncStorage.getItem('shopping_dedupe_v1');
+        if (flag === 'done') return;
+        await dedupeByName();
+        await AsyncStorage.setItem('shopping_dedupe_v1', 'done');
+      } catch (e) {
+        console.warn('[ShoppingList] dedupe pass skipped', e);
+      }
+    };
+    if (!isLoading) runOnce();
+  }, [isLoading]);
+
+  const dedupeByName = async () => {
+    const seen = new Set<string>();
+    const keep: ShoppingListItem[] = [];
+    const drop: ShoppingListItem[] = [];
+    for (const i of shoppingList) {
+      const key = normalizeName(i.name);
+      if (seen.has(key)) drop.push(i); else { seen.add(key); keep.push(i); }
+    }
+    if (drop.length === 0) return;
+    setShoppingList(keep);
+    if (user && !OFFLINE_ONLY) {
+      try {
+        const ids = drop.map(d => d.id);
+        if (ids.length) {
+          await supabase.schema('nutriai').from('shopping_list_items').delete().in('id', ids as any);
+        }
+      } catch (e) {
+        console.warn('[ShoppingList] server dedupe delete failed', e);
+      }
+    }
+  };
+
   // Add a new item to shopping list
   const addItem = async (item: Omit<ShoppingListItem, 'id'>) => {
-    // Check if item already exists in the list
-    const existingItem = shoppingList.find(
-      i => i.name.toLowerCase() === item.name.toLowerCase() && i.unit === item.unit
-    );
+    // Normalize name and unit to reduce duplicates
+    const nameNorm = normalizeName(item.name);
+    const unitNorm = normalizeUnit(item.unit);
 
-    if (existingItem) {
-      // Update quantity if item exists
+    // Try to find an existing item with same normalized name and convertible unit
+    let existingIndex = -1;
+    let mergedQtyBase = 0;
+    const incoming = toBaseQty(Number(item.quantity) || 0, item.unit);
+
+    shoppingList.forEach((i, idx) => {
+      if (normalizeName(i.name) !== nameNorm) return;
+      const u = toBaseQty(Number(i.quantity) || 0, i.unit);
+      if (u.base === incoming.base && u.kind === incoming.kind) {
+        existingIndex = idx;
+        mergedQtyBase = u.qtyBase + incoming.qtyBase;
+      }
+    });
+
+    if (existingIndex >= 0) {
+      const existingItem = shoppingList[existingIndex];
+      const base = toBaseQty(existingItem.quantity, existingItem.unit).base;
+      const newQty = fromBaseQty(mergedQtyBase, base);
       await updateItem({
         ...existingItem,
-        quantity: existingItem.quantity + item.quantity,
-        checked: false // Uncheck when updating quantity
+        name: existingItem.name, // keep original casing
+        unit: base, // store in base to keep list consistent
+        quantity: newQty,
+        checked: false,
       });
     } else {
       // Add new item if it doesn't exist
@@ -134,8 +214,8 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
         const payload = {
           user_id: user.id,
           name: item.name,
-          quantity: item.quantity,
-          unit: item.unit,
+          quantity: incoming.qtyBase,
+          unit: toBaseQty(1, item.unit).base || item.unit,
           checked: !!item.checked,
           created_at: item.addedDate ?? new Date().toISOString(),
         };
@@ -160,6 +240,8 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
       } else {
         const newItem: ShoppingListItem = {
           ...item,
+          unit: toBaseQty(1, item.unit).base || item.unit,
+          quantity: incoming.qtyBase,
           id: generateId(),
         };
         setShoppingList(prev => [...prev, newItem]);
@@ -251,21 +333,13 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     let addedCount = 0;
     meal.ingredients.forEach((ingredient: any) => {
       if (ingredient.optional) return;
-      
-      const inventoryItem = inventory.find((item: any) => 
-        item.name.toLowerCase() === ingredient.name.toLowerCase() && 
-        item.unit.toLowerCase() === ingredient.unit.toLowerCase()
-      );
-      
-      const availableQuantity = inventoryItem ? inventoryItem.quantity : 0;
-      const neededQuantity = ingredient.quantity;
-      
-      if (availableQuantity < neededQuantity) {
-        const shortfall = neededQuantity - availableQuantity;
+      // Presence-based: if not present in inventory by name, add name-only generic entry
+      const present = inventory.some((it: any) => normalizeName(it.name) === normalizeName(ingredient.name));
+      if (!present) {
         addItem({
           name: ingredient.name,
-          quantity: shortfall,
-          unit: ingredient.unit,
+          quantity: 1,
+          unit: 'pcs',
           category: determineCategory(ingredient.name),
           addedDate: new Date().toISOString(),
           checked: false,
@@ -285,55 +359,39 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     meals: any[], 
     inventory: any[]
   ): number => {
-    const missingIngredients = new Map<string, any>();
+    // Presence-based unique names across plan
+    const names = new Set<string>();
     
     plannedMeals.forEach(plannedMeal => {
       const meal = meals.find(m => m.id === plannedMeal.recipeId);
       if (!meal) return;
-      
       meal.ingredients.forEach((ingredient: any) => {
         if (ingredient.optional) return;
-        
-        // Calculate total needed quantity (considering servings)
-        const neededQuantity = ingredient.quantity * plannedMeal.servings;
-        
-        // Check if we have enough in inventory
-        const inventoryItem = inventory.find((item: any) => 
-          item.name.toLowerCase() === ingredient.name.toLowerCase() && 
-          item.unit.toLowerCase() === ingredient.unit.toLowerCase()
-        );
-        
-        const availableQuantity = inventoryItem ? inventoryItem.quantity : 0;
-        const shortfall = Math.max(0, neededQuantity - availableQuantity);
-        
-        if (shortfall > 0) {
-          const key = `${ingredient.name.toLowerCase()}-${ingredient.unit.toLowerCase()}`;
-          
-          if (missingIngredients.has(key)) {
-            const existing = missingIngredients.get(key);
-            existing.quantity += shortfall;
-          } else {
-            missingIngredients.set(key, {
-              name: ingredient.name,
-              quantity: shortfall,
-              unit: ingredient.unit,
-              category: determineCategory(ingredient.name),
-              addedDate: new Date().toISOString(),
-              checked: false,
-              addedBy: 'mealPlan' as const,
-              plannedMealId: plannedMeal.id,
-            });
-          }
-        }
+        names.add(normalizeName(ingredient.name));
       });
     });
-    
-    // Add all missing ingredients to shopping list
-    Array.from(missingIngredients.values()).forEach(ingredient => {
-      addItem(ingredient);
+
+    // Compute names not present in inventory
+    const toAdd: string[] = [];
+    names.forEach((nm) => {
+      const present = inventory.some((it: any) => normalizeName(it.name) === nm);
+      if (!present) toAdd.push(nm);
     });
-    
-    return Array.from(missingIngredients.values()).length;
+
+    // Add as generic entries (no amounts)
+    toAdd.forEach((nm) => {
+      addItem({
+        name: nm,
+        quantity: 1,
+        unit: 'pcs',
+        category: determineCategory(nm),
+        addedDate: new Date().toISOString(),
+        checked: false,
+        addedBy: 'mealPlan',
+      } as any);
+    });
+
+    return toAdd.length;
   };
 
   // Generate smart shopping list based on inventory levels

@@ -165,7 +165,10 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
     if (!recipe) return;
     
     try {
-      const message = buildShareText();
+      const message = [
+        recipe.title,
+        ((recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl) || undefined,
+      ].filter(Boolean).join('\n');
       await Share.share({ message, title: recipe.title });
     } catch (error) {
       console.error('Error sharing recipe:', error);

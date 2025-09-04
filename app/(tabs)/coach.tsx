@@ -2,11 +2,15 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar } from 'lucide-react-native';
+import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar, Search, Camera } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
-import { useNutrition } from '@/hooks/useNutrition';
+import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
+import { EnhancedCalorieRing } from '@/components/nutrition/EnhancedCalorieRing';
+import { CompactNutritionRings } from '@/components/nutrition/CompactNutritionRings';
+import { ExternalFoodLoggingModal } from '@/components/nutrition/ExternalFoodLoggingModal';
+import { ProgressSection } from '@/components/nutrition/ProgressSection';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -32,7 +36,7 @@ import {
 
 export default function CoachScreen() {
   const insets = useSafeAreaInsets();
-  const { loggedMeals, goals } = useNutrition();
+  const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile } = useNutritionWithMealPlan();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
   const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal } = useMealPlanner();
   const { meals } = useMeals();
@@ -40,6 +44,8 @@ export default function CoachScreen() {
   const [chatOpen, setChatOpen] = useState(false);
   const [dayISO, setDayISO] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
+  const [showExternalFoodModal, setShowExternalFoodModal] = useState(false);
+  const [externalFoodModalTab, setExternalFoodModalTab] = useState<'search' | 'scan' | 'manual'>('search');
   const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
   const [selectedExistingMeal, setSelectedExistingMeal] = useState<ReturnType<typeof getMealForDateAndType> | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -49,12 +55,20 @@ export default function CoachScreen() {
     return d;
   });
 
-  // Persist last viewed day
+  // Always start with today, but persist day selection during session
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem('coach_day_iso');
-        if (saved) setDayISO(saved);
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Only use saved date if it's today
+        if (saved === today) {
+          setDayISO(saved);
+        } else {
+          // Always default to today for better UX
+          setDayISO(today);
+        }
       } catch {}
     })();
   }, []);
@@ -71,22 +85,15 @@ export default function CoachScreen() {
     return dayISO === todayISO;
   }, [dayISO]);
 
-  // Totals for selected day
-  const dayTotals = useMemo(() => {
-    return loggedMeals
-      .filter(m => m.date === dayISO)
-      .reduce((acc, m) => ({
-        calories: acc.calories + m.calories,
-        protein: acc.protein + m.protein,
-        carbs: acc.carbs + m.carbs,
-        fats: acc.fats + m.fats,
-      }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
-  }, [loggedMeals, dayISO]);
-
-  const calorieGoal = goals?.dailyCalories ?? 0;
-  const eaten = dayTotals.calories;
-  const kcalLeft = Math.max(0, calorieGoal - eaten);
-  const ringPct = calorieGoal > 0 ? Math.min(1, eaten / calorieGoal) : 0;
+  // Get enhanced daily progress data
+  const dailyProgress = useMemo(() => getDailyProgress(dayISO), [getDailyProgress, dayISO]);
+  
+  // Use calculated goals if available, fallback to manual goals
+  const currentGoals = calculatedGoals || goals;
+  const calorieGoal = currentGoals?.dailyCalories ?? 0;
+  const eaten = dailyProgress.calories.consumed;
+  const kcalLeft = dailyProgress.calories.remaining;
+  const ringPct = dailyProgress.calories.percentage;
   const ringSize = 200;
   const stroke = 14;
   const radius = (ringSize - stroke) / 2;
@@ -171,56 +178,11 @@ export default function CoachScreen() {
         >
           {/* Header spacer removed; ScreenHeader provides spacing */}
 
-          {/* Enhanced Progress Ring */}
+          {/* Compact Nutrition Rings */}
           <View style={styles.heroInner}>
-            <View style={styles.ringContainer}>
-              <Svg width={ringSize} height={ringSize}>
-                <Defs>
-                  <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={Colors.white} stopOpacity="0.15" />
-                    <Stop offset="100%" stopColor={Colors.white} stopOpacity="0.10" />
-                  </LinearGradient>
-                  <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={Colors.primary} stopOpacity="1" />
-                    <Stop offset="100%" stopColor={Colors.primary} stopOpacity="0.9" />
-                  </LinearGradient>
-                </Defs>
-                <Circle 
-                  cx={ringSize/2} 
-                  cy={ringSize/2} 
-                  r={radius} 
-                  stroke={Colors.border} 
-                  strokeWidth={stroke} 
-                  fill="none" 
-                />
-                <Circle
-                  cx={ringSize/2}
-                  cy={ringSize/2}
-                  r={radius}
-                  stroke={Colors.primary}
-                  strokeWidth={stroke}
-                  strokeDasharray={`${dash}, ${circumference}`}
-                  strokeLinecap="round"
-                  fill="none"
-                  rotation={-90}
-                  origin={`${ringSize/2}, ${ringSize/2}`}
-                />
-              </Svg>
-              
-              {/* Center Content */}
-              <View style={styles.kcalCenter}>
-                <Text style={styles.kcalNumber}>{calorieGoal ? kcalLeft : eaten}</Text>
-                <Text style={styles.kcalLabel}>{calorieGoal ? 'kcal left' : 'kcal eaten'}</Text>
-                {calorieGoal > 0 && (
-                  <View style={styles.progressStats}>
-                    <Text style={styles.progressText}>{eaten} / {calorieGoal}</Text>
-                    <View style={styles.progressBadge}>
-                      <Text style={styles.progressPercent}>{Math.round(ringPct * 100)}%</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            </View>
+            <CompactNutritionRings
+              dailyProgress={dailyProgress}
+            />
           </View>
 
           {/* StatRow: Goal / Eaten (outline pills, no cards) */}
@@ -228,7 +190,9 @@ export default function CoachScreen() {
             <View style={styles.statPill}>
               <Target size={16} color={Colors.primary} />
               <Text style={styles.statPillValue}>{calorieGoal}</Text>
-              <Text style={styles.statPillLabel}>Goal</Text>
+              <Text style={styles.statPillLabel}>
+                {canCalculateFromProfile ? 'Calculated' : 'Goal'}
+              </Text>
             </View>
             <View style={styles.statPill}>
               <Flame size={16} color={Colors.primary} />
@@ -238,34 +202,38 @@ export default function CoachScreen() {
           </View>
         </ExpoLinearGradient>
 
-        {/* Enhanced Macros Section */}
-        <View style={styles.macrosSection}> 
-          <Text style={styles.sectionTitle}>Nutrition Breakdown</Text>
-          <View style={styles.macrosGrid}>
-            <EnhancedMacroCard 
-              label="Carbs" 
-              value={dayTotals.carbs} 
-              goal={goals?.carbs || 0} 
-              unit="g" 
-              color="#FF6B6B"
-              icon="🍞"
-            />
-            <EnhancedMacroCard 
-              label="Protein" 
-              value={dayTotals.protein} 
-              goal={goals?.protein || 0} 
-              unit="g" 
-              color="#4ECDC4"
-              icon="🥩"
-            />
-            <EnhancedMacroCard 
-              label="Fat" 
-              value={dayTotals.fats} 
-              goal={goals?.fats || 0} 
-              unit="g" 
-              color="#45B7D1"
-              icon="🥑"
-            />
+        {/* Macros are now integrated into the compact nutrition rings above */}
+
+        {/* Food Logging Actions */}
+        <View style={styles.foodLoggingSection}>
+          <View style={styles.foodLoggingButtons}>
+            <TouchableOpacity 
+              style={styles.searchFoodButton}
+              onPress={() => {
+                setSelectedMealType('breakfast'); // Default to breakfast, user can change in modal
+                setExternalFoodModalTab('search');
+                setShowExternalFoodModal(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Search and log food"
+            >
+              <Search size={20} color={Colors.white} />
+              <Text style={styles.searchFoodButtonText}>Search Food</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.aiScanButton}
+              onPress={() => {
+                setSelectedMealType('breakfast'); // Default to breakfast, user can change in modal
+                setExternalFoodModalTab('scan');
+                setShowExternalFoodModal(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="AI scan food from photo"
+            >
+              <Camera size={20} color={Colors.text} />
+              <Text style={styles.aiScanButtonText}>AI Scan</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -349,26 +317,8 @@ export default function CoachScreen() {
           </View>
         </View>
 
-        {/* Insights Section */}
-        <View style={styles.insightsSection}>
-          <Text style={styles.sectionTitle}>Daily Insights</Text>
-          <View style={styles.insightsGrid}>
-            <InsightCard 
-              title="Streak" 
-              value="7 days" 
-              subtitle="Keep it up!" 
-              icon={<Award size={20} color={Colors.primary} />}
-              color={Colors.card}
-            />
-            <InsightCard 
-              title="Progress" 
-              value={`${Math.round(ringPct * 100)}%`} 
-              subtitle="of daily goal" 
-              icon={<TrendingUp size={20} color={Colors.primary} />}
-              color={Colors.card}
-            />
-          </View>
-        </View>
+        {/* Progress Section */}
+        <ProgressSection />
 
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
@@ -463,11 +413,9 @@ export default function CoachScreen() {
                   const iso = d.toISOString().split('T')[0];
                   const isSelected = iso === selectedISO;
                   const isToday = iso === todayISO;
-                  // daily calories progress for ring (like home screen)
-                  const totals = loggedMeals
-                    .filter((m) => m.date === iso)
-                    .reduce((acc, m) => ({ calories: acc.calories + m.calories }), { calories: 0 });
-                  const pct = (goals?.dailyCalories ?? 0) > 0 ? Math.min(1, totals.calories / (goals?.dailyCalories ?? 1)) : 0;
+                  // daily calories progress for ring using enhanced progress data
+                  const dayProgress = getDailyProgress(iso);
+                  const pct = dayProgress.calories.percentage;
                   const isFuture = new Date(iso) > new Date(todayISO);
                   items.push(
                     <TouchableOpacity
@@ -537,6 +485,21 @@ export default function CoachScreen() {
           setSelectedExistingMeal(undefined);
         }}
         onClose={() => { setShowMealPlanModal(false); setSelectedExistingMeal(undefined); }}
+      />
+
+      {/* External Food Logging Modal */}
+      <ExternalFoodLoggingModal
+        visible={showExternalFoodModal}
+        onClose={() => setShowExternalFoodModal(false)}
+        selectedDate={dayISO}
+        selectedMealType={selectedMealType}
+        initialTab={externalFoodModalTab}
+        onLogFood={(foodData) => {
+          // TODO: Integrate with nutrition tracking system
+          console.log('Logging external food:', foodData);
+          // This would typically call a hook to log the food data
+          setShowExternalFoodModal(false);
+        }}
       />
     </View>
   );
@@ -713,6 +676,62 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  
+  // Food Logging Section Styles
+  foodLoggingSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  foodLoggingButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  searchFoodButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  searchFoodButtonText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: Typography.weights.semibold,
+  },
+  aiScanButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  aiScanButtonText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: Typography.weights.semibold,
   },
   macrosSection: {
     padding: 20,
@@ -898,50 +917,7 @@ const styles = StyleSheet.create({
   emptyMealText: { color: Colors.lightText, fontSize: 14, fontWeight: '500' },
   // ... (rest of the styles remain the same)
 
-  insightsSection: {
-    padding: 20,
-  },
-  insightsGrid: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  insightCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  // ... (rest of the styles remain the same)
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  insightTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-  color: Colors.text,
-    marginLeft: 6,
-  },
-  insightValue: {
-    fontSize: 20,
-    fontWeight: Typography.weights.semibold,
-  color: Colors.text,
-    marginBottom: 2,
-  },
-  insightSubtitle: {
-    fontSize: 11,
-  color: Colors.lightText,
-    fontWeight: '500',
-  },
+
   bottomSpacer: {
     height: 20,
   },
@@ -1199,7 +1175,8 @@ const EnhancedMacroCard = ({
   goal = 0, 
   unit, 
   color, 
-  icon 
+  icon,
+  percentage 
 }: { 
   label: string; 
   value: number; 
@@ -1207,8 +1184,9 @@ const EnhancedMacroCard = ({
   unit: string; 
   color: string;
   icon: string;
+  percentage?: number;
 }) => {
-  const pct = goal > 0 ? Math.min(1, value / goal) : 0;
+  const pct = percentage !== undefined ? Math.min(1, percentage) : (goal > 0 ? Math.min(1, value / goal) : 0);
   const circumference = 2 * Math.PI * 30;
   const strokeDasharray = circumference * pct;
   
@@ -1309,27 +1287,6 @@ const EnhancedMealCard = ({
   );
 };
 
-const InsightCard = ({ 
-  title, 
-  value, 
-  subtitle, 
-  icon, 
-  color 
-}: { 
-  title: string; 
-  value: string; 
-  subtitle: string; 
-  icon: React.ReactNode;
-  color: string;
-}) => (
-  <View style={[styles.insightCard, { backgroundColor: color }]}>
-    <View style={styles.insightHeader}>
-      {icon}
-      <Text style={styles.insightTitle}>{title}</Text>
-    </View>
-    <Text style={styles.insightValue}>{value}</Text>
-    <Text style={styles.insightSubtitle}>{subtitle}</Text>
-  </View>
-);
+
 
 

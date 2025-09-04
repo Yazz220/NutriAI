@@ -1,2 +1,3 @@
-[functions.resolve-url]
+# Supabase functions config
+[functions.get-ingredient-icon]
 verify_jwt = false

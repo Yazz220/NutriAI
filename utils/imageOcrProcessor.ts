@@ -3,6 +3,9 @@
  * Provides robust text extraction from recipe images with quality optimization
  */
 
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Image } from 'react-native';
+
 export interface OcrResult {
   text: string;
   confidence: number;
@@ -135,64 +138,22 @@ async function preprocessImageForOcr(
   options: ImagePreprocessingOptions
 ): Promise<{ imageDataUrl: string; appliedOperations: string[] }> {
   const appliedOperations: string[] = [];
-  
   try {
-    // Create canvas for image processing
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context not available');
-
-    // Load image
-    const img = await loadImage(imageDataUrl);
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
-
-    // Get image data for processing
-    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    // Apply preprocessing operations
-    if (options.enhanceContrast) {
-      enhanceContrast(data);
-      appliedOperations.push('contrast-enhancement');
-    }
-
-    if (options.denoiseImage) {
-      denoiseImage(data, canvas.width, canvas.height);
-      appliedOperations.push('denoising');
-    }
-
-    if (options.sharpenText) {
-      sharpenImage(data, canvas.width, canvas.height);
-      appliedOperations.push('sharpening');
-    }
-
-    // Apply processed data back to canvas
-    ctx.putImageData(imageData, 0, 0);
-
-    // Resize for optimal OCR if needed
-    if (options.resizeForOcr) {
-      const resizedCanvas = resizeForOcr(canvas);
-      if (resizedCanvas !== canvas) {
-        appliedOperations.push('resizing');
-        return {
-          imageDataUrl: resizedCanvas.toDataURL('image/png'),
-          appliedOperations
-        };
-      }
-    }
-
+    const manipResult = await ImageManipulator.manipulateAsync(
+      imageDataUrl,
+      [],
+      { compress: 0.9, format: ImageManipulator.SaveFormat.PNG }
+    );
+    appliedOperations.push('preprocessing-skipped-for-now');
     return {
-      imageDataUrl: canvas.toDataURL('image/png'),
-      appliedOperations
+      imageDataUrl: manipResult.uri,
+      appliedOperations,
     };
-
   } catch (error) {
     console.warn('[ImageOCR] Preprocessing failed, using original image:', error);
     return {
       imageDataUrl,
-      appliedOperations: ['preprocessing-failed']
+      appliedOperations: ['preprocessing-failed'],
     };
   }
 }
@@ -200,12 +161,11 @@ async function preprocessImageForOcr(
 /**
  * Loads image from data URL
  */
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+function loadImage(dataUrl: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = dataUrl;
+    Image.getSize(dataUrl, (width, height) => {
+      resolve({ width, height });
+    }, reject);
   });
 }
 

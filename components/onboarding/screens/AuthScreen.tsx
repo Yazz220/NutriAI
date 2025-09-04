@@ -23,7 +23,7 @@ import { Spacing, Typography, Shadows } from '@/constants/spacing';
 import { OnboardingLayout } from '../OnboardingLayout';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../../../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useOnboarding } from '../OnboardingProvider';
 import { useOnboardingNavigation } from '@/hooks/useOnboardingNavigation';

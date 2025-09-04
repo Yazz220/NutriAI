@@ -22,7 +22,10 @@ export function isAiConfigured() {
   return Boolean(AI_PROXY_BASE || AI_API_KEY);
 }
 
-export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+export type ChatMessage = { 
+  role: 'system' | 'user' | 'assistant'; 
+  content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
+};
 export type AiProfileContext = { display_name?: string; units?: string; goals?: Record<string, unknown> | null; preferences?: Record<string, unknown> | null };
 export type InventoryItemCtx = { id?: string | number; name: string; quantity?: number; unit?: string | null; category?: string | null; expiryDate?: string | null };
 export type PlannedMealCtx = { id?: string | number; recipeId: string; date: string; mealType: string; servings?: number; notes?: string | null; isCompleted?: boolean };
@@ -30,6 +33,11 @@ export type AiContext = { profile?: AiProfileContext | null; inventory?: Invento
 
 export async function createChatCompletion(messages: ChatMessage[]): Promise<string> {
   return await requestWithRetry(messages, false);
+}
+
+// Vision-enabled chat completion for image analysis
+export async function createVisionChatCompletion(messages: ChatMessage[]): Promise<string> {
+  return await requestWithRetryVision(messages, false);
 }
 
 // Deterministic variant for import flows
@@ -76,6 +84,42 @@ async function requestWithRetry(messages: ChatMessage[], stream: boolean, maxRet
     temperature: 0.7,
     stream,
   } as const;
+
+  return await makeRequest(url, headers, body, maxRetries);
+}
+
+async function requestWithRetryVision(messages: ChatMessage[], stream: boolean, maxRetries = 2): Promise<string> {
+  if (!isAiConfigured()) {
+    throw new Error(
+      'AI is not configured. Set EXPO_PUBLIC_AI_PROXY_BASE (recommended) or EXPO_PUBLIC_AI_API_KEY in your env and restart Expo.'
+    );
+  }
+  const base = AI_PROXY_BASE || AI_API_BASE;
+  const url = `${base.replace(/\/$/, '')}/chat/completions`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (!AI_PROXY_BASE && AI_API_KEY) {
+    headers['Authorization'] = `Bearer ${AI_API_KEY}`;
+    headers['HTTP-Referer'] = 'https://nutriai.app';
+    headers['X-Title'] = 'NutriAI';
+  }
+
+  // Use vision model for image processing
+  const visionModel = process.env.EXPO_PUBLIC_AI_VISION_MODEL || 'openai/gpt-4o-mini';
+  const body = {
+    model: visionModel,
+    messages,
+    temperature: 0.1,
+    max_tokens: 1000,
+    stream,
+  } as const;
+
+  return await makeRequest(url, headers, body, maxRetries);
+}
+
+async function makeRequest(url: string, headers: Record<string, string>, body: any, maxRetries: number): Promise<string> {
 
   let attempt = 0;
   let lastErr: any;
@@ -166,17 +210,19 @@ async function requestWithRetryCustom(
       if (typeof content !== 'string') {
         throw new Error('AI response missing content');
       }
-      return content.trim();
+      return content;
     } catch (err) {
       lastErr = err;
-      const isRetryable = err instanceof RetryableError;
-      if (!isRetryable || attempt === maxRetries) break;
-      const delayMs = Math.pow(2, attempt) * 500;
-      await new Promise((r) => setTimeout(r, delayMs));
-      attempt++;
+      if (err instanceof RetryableError && attempt < maxRetries) {
+        attempt++;
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw err;
     }
   }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  throw lastErr;
 }
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import { Typography } from '@/constants/spacing';
 import { Input } from '@/components/ui/Input';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/contexts/ToastContext';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { User, Target, Heart, Settings, LogOut, Scale, Ruler } from 'lucide-react-native';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
