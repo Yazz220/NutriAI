@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert } from 'react-native';
 import { X, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
 import { Button } from '../ui/Button';
-import { IngredientIcon } from '@/components/IngredientIcon';
+import { IngredientIcon } from '@/components/common/IngredientIcon';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
 import { Spacing, Typography, Radii } from '@/constants/spacing';
+import { slugifyIngredient } from '@/utils/ingredientSlug';
 import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType } from '../../types';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
@@ -367,7 +368,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 return (
                   <View key={`${scaledIng.name}-${idx}`} style={styles.ingredientCard}>
                     <View style={styles.ingredientImageContainer}>
-                      <IngredientIcon name={scaledIng.name} size={56} />
+                      <IngredientIcon slug={slugifyIngredient(scaledIng.name)} displayName={scaledIng.name} size={56} />
                       {isMissing && <View style={styles.missingIndicator} />}
                       {scaledIng.isScaled && (
                         <View style={styles.scaledIndicator}>
@@ -482,6 +483,11 @@ const styles = StyleSheet.create({
   nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, borderRadius: Radii.md, minWidth: 140, alignItems: 'center' },
   nutritionLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginBottom: Spacing.xs },
   nutritionValue: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  // Macro line items (used by MacroItem component)
+  macroItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginRight: Spacing.md, marginBottom: Spacing.xs },
+  macroDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
+  macroLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText },
+  macroValue: { fontSize: Typography.caption.fontSize, fontWeight: '600', color: Colors.text },
   // Servings selector styles
   servingsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   servingsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
