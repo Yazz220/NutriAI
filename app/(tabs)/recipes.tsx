@@ -27,7 +27,7 @@ import { useRecipeStore } from '@/hooks/useRecipeStore';
 // Replace elevated cards with OutlinePanel stack rows
 // Import UI removed: ImportMenu and ImportFlowModal
 import { MealPlanModal } from '@/components/MealPlanModal';
-import { EnhancedRecipeDiscovery } from '@/components/EnhancedRecipeDiscovery';
+import { InventoryAwareRecipeDiscovery } from '@/components/InventoryAwareRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
 import { Modal as UIModal } from '@/components/ui/Modal';
@@ -40,10 +40,11 @@ import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
 import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
-import RecipeChatInterface from '@/components/RecipeChatInterface';
+import { InventoryAwareRecipeChatInterface } from '@/components/InventoryAwareRecipeChatInterface';
+import { RecipeCard } from '@/components/recipes/RecipeCard';
 import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AddRecipesModal } from '@/components/folders/AddRecipesModal';
+import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
@@ -345,9 +346,24 @@ export default function RecipesScreen() {
       </View>
 
       {activeTab === 'discovery' ? (
-        <EnhancedRecipeDiscovery onRecipePress={handleExternalRecipePress} onSaveRecipe={handleSaveExternalRecipe} />
+        <InventoryAwareRecipeDiscovery onRecipePress={handleExternalRecipePress} onSaveRecipe={handleSaveExternalRecipe} />
       ) : activeTab === 'chat' ? (
-        <RecipeChatInterface />
+        <InventoryAwareRecipeChatInterface 
+          onRecipeSelect={(recipe, action) => {
+            // Handle recipe selection from AI chat
+            if (action === 'cook') {
+              handleSaveExternalRecipe(recipe);
+            }
+          }}
+          onViewInventory={() => {
+            // Navigate to inventory tab if needed
+            console.log('Navigate to inventory');
+          }}
+          onAddIngredient={() => {
+            // Navigate to add ingredient flow
+            console.log('Navigate to add ingredient');
+          }}
+        />
       ) : (
         <>
           <View style={styles.searchContainer}>
@@ -369,6 +385,39 @@ export default function RecipesScreen() {
               >
                 <Text style={!activeFolderId ? styles.folderChipActiveText : styles.folderChipText}>All</Text>
               </TouchableOpacity>
+              {folders.map((folder) => (
+                <TouchableOpacity
+                  key={folder.id}
+                  style={[styles.folderChip, activeFolderId === folder.id ? styles.folderChipActive : {}]}
+                  onPress={() => setActiveFolderId(folder.id)}
+                  onLongPress={() => {
+                    Alert.alert(
+                      'Edit Folder',
+                      '',
+                      [
+                        {
+                          text: 'Rename',
+                          onPress: () => requestRenameFolder(folder.id),
+                        },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => requestDeleteFolder(folder.id, folder.name),
+                        },
+                        {
+                          text: 'Cancel',
+                          style: 'cancel',
+                        },
+                      ],
+                      { cancelable: true }
+                    );
+                  }}
+                >
+                  <Text style={activeFolderId === folder.id ? styles.folderChipActiveText : styles.folderChipText}>
+                    {folder.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
               <TouchableOpacity style={styles.createFolderBtn} onPress={openCreateFolder}>
                 <Plus size={16} color={Colors.primary} />
                 <Text style={styles.createFolderBtnText}>Add collection</Text>
@@ -376,20 +425,29 @@ export default function RecipesScreen() {
             </ScrollView>
           </View>
 
+          {activeFolderId && (
+            <View style={styles.folderActions}>
+              <Button
+                title="Add Recipes to Folder"
+                onPress={() => {
+                  setNewFolderId(activeFolderId);
+                  setNewFolderName(folders.find(f => f.id === activeFolderId)?.name || '');
+                  setShowAddRecipesModal(true);
+                }}
+                variant="outline"
+              />
+            </View>
+          )}
+
           <FlatList
             data={activeFolderId ? folders.find(f => f.id === activeFolderId)?.recipeIds.map(id => localRecipes.find(r => r.id === id)).filter(Boolean) as Meal[] : localRecipes}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.recipeCard} onPress={() => handleRecipePress(item)}>
-                <Image source={{ uri: item.image }} style={styles.recipeImage} />
-                <View style={styles.recipeInfo}>
-                  <Text style={styles.recipeTitle}>{item.name}</Text>
-                  <Text style={styles.recipeCookTime}>{item.cookTime}m Cook Time</Text>
-                </View>
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleRecipeMenuPress(item)}>
-                  <MoreVertical size={20} color={Colors.lightText} />
-                </TouchableOpacity>
-              </TouchableOpacity>
+              <RecipeCard
+                recipe={item}
+                onPress={handleRecipePress}
+                onMenuPress={handleRecipeMenuPress}
+              />
             )}
             contentContainerStyle={styles.listContentContainer}
           />
@@ -432,12 +490,12 @@ export default function RecipesScreen() {
         onClose={() => setAddToFolderVisible(false)}
         onCreateNew={() => { setAddToFolderVisible(false); openCreateFolder(); }}
       />
-      <AddRecipesModal
+      <AddRecipesSheet
         visible={showAddRecipesModal}
         folderId={newFolderId || ''}
         folderName={newFolderName}
         availableRecipes={localRecipes}
-        existingRecipeIds={[]}
+        existingRecipeIds={activeFolderId ? folders.find(f => f.id === activeFolderId)?.recipeIds || [] : []}
         onClose={() => setShowAddRecipesModal(false)}
         onAddRecipes={handleAddRecipesToNewFolder}
       />
@@ -518,6 +576,10 @@ const styles = StyleSheet.create({
   },
   listContentContainer: {
     paddingHorizontal: 16,
+  },
+  folderActions: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   recipeCard: {
     flexDirection: 'row',

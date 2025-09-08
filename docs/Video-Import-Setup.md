@@ -18,24 +18,38 @@ The app supports importing recipes from:
 Add these to your `.env` file:
 
 ```env
-# Speech-to-Text Service Configuration
-# Get API key from: https://groq.com/ or similar providers
-EXPO_PUBLIC_STT_API_BASE=https://api.groq.com/v1
-EXPO_PUBLIC_STT_API_KEY=your_api_key_here
-
-# Alternative providers:
-# OpenAI: EXPO_PUBLIC_STT_API_BASE=https://api.openai.com/v1
-# Groq:   EXPO_PUBLIC_STT_API_BASE=https://api.groq.com/v1
-# Lemonfox: EXPO_PUBLIC_STT_API_BASE=https://api.lemonfox.ai/v1
+# Speech-to-Text via Supabase Function (recommended)
+# Point the app to your deployed Edge Function which calls Gemini 2.5 Flash
+EXPO_PUBLIC_STT_API_BASE=https://<PROJECT_REF>.supabase.co/functions/v1/transcribe-url
+# Leave EXPO_PUBLIC_STT_API_KEY empty when using the Supabase proxy (it will use anon key headers automatically)
+EXPO_PUBLIC_STT_API_KEY=
 ```
 
 ### API Provider Options
 
 | Provider | Base URL | Sign Up | Notes |
 |----------|----------|---------|-------|
+| **Gemini (via Supabase Fn)** | `https://<PROJECT_REF>.supabase.co/functions/v1/transcribe-url` | [ai.google.dev](https://ai.google.dev) | Recommended. Uses Gemini 2.5 Flash under the hood; app talks only to Supabase |
 | **Groq** | `https://api.groq.com/v1` | [groq.com](https://groq.com) | Fast, affordable, good for development |
 | **OpenAI** | `https://api.openai.com/v1` | [openai.com](https://openai.com) | High quality, more expensive |
-| **Lemonfox** | `https://api.lemonfox.ai/v1` | [lemonfox.ai](https://lemonfox.ai) | Supports direct URL transcription |
+| **Lemonfox** | `https://api.lemonfox.ai/v1` | [lemonfox.ai](https://lemonfox.ai) | Legacy path; supported direct URL transcription |
+
+### Supabase Functions (server) environment for Gemini
+
+Set these in Supabase → Project → Functions → Environment variables:
+
+```text
+GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Optional:
+GEMINI_MODEL=models/gemini-2.5-flash
+GEMINI_LANGUAGE=en
+```
+
+Deploy/update the function:
+
+```powershell
+supabase functions deploy transcribe-url --project-ref <PROJECT_REF>
+```
 
 ## 🚨 Common Issues & Solutions
 

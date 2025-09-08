@@ -125,7 +125,7 @@ export const WelcomeScreen: React.FC = () => {
 
           {/* Hero Text */}
           <View style={styles.heroTextContainer}>
-            <Text style={styles.heroTitle}>Your AI-powered kitchen companion</Text>
+            <Text style={styles.heroTitle}>Smarter cooking starts here</Text>
             <Text style={styles.heroSubtitle}>
               Transform the way you cook, shop, and eat with personalized AI assistance
             </Text>

@@ -1,7 +1,7 @@
   const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ShoppingListItem, ItemCategory } from '@/types';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { supabase } from '../supabase/functions/_shared/supabaseClient';
@@ -41,6 +41,42 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
     l: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
     liter: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
     liters: { base: 'ml', kind: 'volume', toBase: (n) => n * 1000, fromBase: (n) => n / 1000 },
+  };
+
+  // Clear all checked items
+  const clearCheckedItems = () => {
+    setShoppingList(prev => prev.filter(item => !item.checked));
+  };
+
+  // Add missing ingredients from a meal to shopping list
+  const addMealIngredientsToList = (
+    mealId: string,
+    meals: any[],
+    inventoryItems: any[]
+  ) => {
+    const meal = meals.find(m => m.id === mealId);
+    if (!meal) return 0;
+
+    let addedCount = 0;
+    meal.ingredients.forEach((ingredient: any) => {
+      if (ingredient.optional) return;
+      const present = inventoryItems.some((it: any) => normalizeName(it.name) === normalizeName(ingredient.name));
+      if (!present) {
+        addItem({
+          name: ingredient.name,
+          quantity: 1,
+          unit: 'pcs',
+          category: determineCategory(ingredient.name),
+          addedDate: new Date().toISOString(),
+          checked: false,
+          addedBy: 'meal',
+          mealId,
+        } as any);
+        addedCount++;
+      }
+    });
+
+    return addedCount;
   };
   const normalizeUnit = (u: string): { base: string; kind: UnitKind } => {
     const key = (u || '').trim().toLowerCase();
@@ -277,80 +313,50 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   };
 
   // Toggle checked status of an item and handle transfer to inventory
-  const toggleItemChecked = async (id: string) => {
-    const itemToMove = shoppingList.find(i => i.id === id) || recentlyPurchased.find(i => i.id === id);
-    if (!itemToMove) return;
+  const processing = useRef(new Set<string>());
 
-    if (!itemToMove.checked) {
-      // Mark purchased → move to Inventory
-      setShoppingList(prev => prev.filter(item => item.id !== id));
-      const updated = { ...itemToMove, checked: true };
-      setRecentlyPurchased(prev => [...prev, updated]);
-      if (user && !OFFLINE_ONLY) {
-        const { error } = await supabase
-          .schema('nutriai')
-          .from('shopping_list_items')
-          .update({ checked: true })
-          .eq('id', id);
-        if (error) console.error('Failed to toggle shopping item:', error);
+  const toggleItemChecked = async (id: string, opts?: { moveToInventory?: boolean; expiryDate?: string }) => {
+    // Guard re-entrancy (rapid taps)
+    if (processing.current.has(id)) return;
+    processing.current.add(id);
+    try {
+      const itemToMove = shoppingList.find(i => i.id === id) || recentlyPurchased.find(i => i.id === id);
+      if (!itemToMove) return;
+
+      if (!itemToMove.checked) {
+        // Mark purchased and optionally move to inventory
+        setShoppingList(prev => prev.filter(item => item.id !== id));
+        const updated = { ...itemToMove, checked: true };
+        setRecentlyPurchased(prev => [...prev, updated]);
+        if (user && !OFFLINE_ONLY) {
+          const { error } = await supabase
+            .schema('nutriai')
+            .from('shopping_list_items')
+            .update({ checked: true })
+            .eq('id', id);
+          if (error) console.error('Failed to toggle shopping item:', error);
+        }
+        const shouldMove = opts?.moveToInventory !== false;
+        if (shouldMove) {
+          await moveToInventory({ ...updated, expiryDate: opts?.expiryDate });
+        }
+      } else {
+        // Uncheck: move back to shopping list
+        setRecentlyPurchased(prev => prev.filter(item => item.id !== id));
+        const updated = { ...itemToMove, checked: false };
+        setShoppingList(prev => [...prev, updated]);
+        if (user && !OFFLINE_ONLY) {
+          const { error } = await supabase
+            .schema('nutriai')
+            .from('shopping_list_items')
+            .update({ checked: false })
+            .eq('id', id);
+          if (error) console.error('Failed to toggle shopping item:', error);
+        }
       }
-      // Immediately transfer to inventory
-      try {
-        await moveToInventory({ ...updated, expiryDate: undefined });
-      } catch (e) {
-        console.error('Failed auto-move to inventory:', e);
-      }
-    } else {
-      // Moving back to shopping list
-      setRecentlyPurchased(prev => prev.filter(item => item.id !== id));
-      const updated = { ...itemToMove, checked: false };
-      setShoppingList(prev => [...prev, updated]);
-      if (user && !OFFLINE_ONLY) {
-        const { error } = await supabase
-          .schema('nutriai')
-          .from('shopping_list_items')
-          .update({ checked: false })
-          .eq('id', id);
-        if (error) console.error('Failed to toggle shopping item:', error);
-      }
+    } finally {
+      processing.current.delete(id);
     }
-  };
-
-  // Clear all checked items
-  const clearCheckedItems = () => {
-    setShoppingList(prev => prev.filter(item => !item.checked));
-  };
-
-  // Add missing ingredients from a meal to shopping list
-  const addMealIngredientsToList = (
-    mealId: string,
-    meals: any[],
-    inventory: any[]
-  ) => {
-    const meal = meals.find(m => m.id === mealId);
-    if (!meal) return 0;
-    
-    let addedCount = 0;
-    meal.ingredients.forEach((ingredient: any) => {
-      if (ingredient.optional) return;
-      // Presence-based: if not present in inventory by name, add name-only generic entry
-      const present = inventory.some((it: any) => normalizeName(it.name) === normalizeName(ingredient.name));
-      if (!present) {
-        addItem({
-          name: ingredient.name,
-          quantity: 1,
-          unit: 'pcs',
-          category: determineCategory(ingredient.name),
-          addedDate: new Date().toISOString(),
-          checked: false,
-          addedBy: 'meal',
-          mealId,
-        });
-        addedCount++;
-      }
-    });
-    
-    return addedCount;
   };
 
   // Generate shopping list from meal plan

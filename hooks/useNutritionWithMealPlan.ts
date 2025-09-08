@@ -7,16 +7,14 @@ import { useMeals } from './useMealsStore';
  * This hook combines nutrition tracking with meal plan calorie calculations
  */
 export const useNutritionWithMealPlan = () => {
-  const { plannedMeals } = useMealPlanner();
   const { meals } = useMeals();
-  
-  // Pass meal planning data to nutrition hook
-  const nutritionData = useNutrition(plannedMeals, meals);
-  
+  const mealPlannerData = useMealPlanner();
+  const nutritionData = useNutrition(mealPlannerData.plannedMeals, meals);
+
   return {
     ...nutritionData,
-    // Additional computed properties for convenience
-    hasMealPlanData: plannedMeals.length > 0,
+    ...mealPlannerData,
+    hasMealPlanData: mealPlannerData.plannedMeals.length > 0,
     hasRecipeData: meals.length > 0,
   };
 };

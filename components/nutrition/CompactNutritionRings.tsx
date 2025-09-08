@@ -4,15 +4,14 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Modal,
-  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { ChevronRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Typography, Spacing } from '@/constants/spacing';
 import { DailyProgress } from '@/hooks/useNutrition';
+import { NutritionDetailModal } from './NutritionDetailModal';
 
 interface CompactNutritionRingsProps {
   dailyProgress: DailyProgress;
@@ -20,198 +19,13 @@ interface CompactNutritionRingsProps {
   isLoading?: boolean;
 }
 
-interface CalorieBreakdownModalProps {
-  visible: boolean;
-  onClose: () => void;
-  dailyProgress: DailyProgress;
-}
-
-const CalorieBreakdownModal: React.FC<CalorieBreakdownModalProps> = ({
-  visible,
-  onClose,
-  dailyProgress,
-}) => {
-  const { calories, macros } = dailyProgress;
-  
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'met': return Colors.success;
-      case 'over': return Colors.warning;
-      default: return Colors.primary;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'met': return <TrendingUp size={16} color={Colors.success} />;
-      case 'over': return <TrendingUp size={16} color={Colors.warning} />;
-      default: return <Minus size={16} color={Colors.primary} />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'met': return 'Goal Met';
-      case 'over': return 'Over Goal';
-      default: return 'Under Goal';
-    }
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        {/* Header */}
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Nutrition Breakdown</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-          {/* Status Overview */}
-          <View style={styles.statusSection}>
-            <View style={[styles.statusCard, { borderColor: getStatusColor(dailyProgress.status) }]}>
-              <View style={styles.statusHeader}>
-                {getStatusIcon(dailyProgress.status)}
-                <Text style={[styles.statusText, { color: getStatusColor(dailyProgress.status) }]}>
-                  {getStatusText(dailyProgress.status)}
-                </Text>
-              </View>
-              <Text style={styles.statusDescription}>
-                {dailyProgress.status === 'met' 
-                  ? 'You\'re right on track with your calorie goal!'
-                  : dailyProgress.status === 'over'
-                  ? 'You\'ve exceeded your daily calorie goal.'
-                  : `You have ${calories.remaining} calories remaining for today.`
-                }
-              </Text>
-            </View>
-          </View>
-
-          {/* Calorie Breakdown */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Calorie Breakdown</Text>
-            
-            <View style={styles.breakdownCard}>
-              <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Total Consumed</Text>
-                <Text style={styles.breakdownValue}>{calories.consumed} cal</Text>
-              </View>
-              
-              {calories.fromLogged > 0 && (
-                <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>• From logged food</Text>
-                  <Text style={styles.breakdownSubValue}>{calories.fromLogged} cal</Text>
-                </View>
-              )}
-              
-              {calories.fromPlanned > 0 && (
-                <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>• From meal plan</Text>
-                  <Text style={styles.breakdownSubValue}>{calories.fromPlanned} cal</Text>
-                </View>
-              )}
-              
-              <View style={styles.breakdownDivider} />
-              
-              <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Daily Goal</Text>
-                <Text style={styles.breakdownValue}>{calories.goal} cal</Text>
-              </View>
-              
-              <View style={styles.breakdownRow}>
-                <Text style={[
-                  styles.breakdownLabel,
-                  { color: calories.remaining > 0 ? Colors.primary : Colors.warning }
-                ]}>
-                  {calories.remaining > 0 ? 'Remaining' : 'Over by'}
-                </Text>
-                <Text style={[
-                  styles.breakdownValue,
-                  { color: calories.remaining > 0 ? Colors.primary : Colors.warning }
-                ]}>
-                  {Math.abs(calories.remaining)} cal
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Macros Breakdown */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Macronutrients</Text>
-            
-            {[
-              { name: 'Protein', data: macros.protein, color: '#FF6B6B', unit: 'g' },
-              { name: 'Fats', data: macros.fats, color: '#45B7D1', unit: 'g' },
-              { name: 'Carbs', data: macros.carbs, color: '#4ECDC4', unit: 'g' },
-            ].map((macro) => (
-              <View key={macro.name} style={styles.macroCard}>
-                <View style={styles.macroHeader}>
-                  <View style={styles.macroTitleRow}>
-                    <View style={[styles.macroColorDot, { backgroundColor: macro.color }]} />
-                    <Text style={styles.macroName}>{macro.name}</Text>
-                  </View>
-                  <Text style={styles.macroValues}>
-                    {Math.round(macro.data.consumed)}{macro.unit} / {Math.round(macro.data.goal)}{macro.unit}
-                  </Text>
-                </View>
-                
-                <View style={styles.macroProgressContainer}>
-                  <View style={styles.macroProgressTrack}>
-                    <View 
-                      style={[
-                        styles.macroProgressFill,
-                        { 
-                          width: `${Math.min(100, macro.data.percentage * 100)}%`,
-                          backgroundColor: macro.color,
-                        }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={styles.macroPercentage}>
-                    {Math.round(macro.data.percentage * 100)}%
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* Tips Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tips</Text>
-            <View style={styles.tipsCard}>
-              <View style={styles.tipRow}>
-                <Info size={16} color={Colors.primary} />
-                <Text style={styles.tipText}>
-                  {dailyProgress.status === 'under' 
-                    ? 'Consider adding a healthy snack to meet your calorie goal.'
-                    : dailyProgress.status === 'over'
-                    ? 'Try lighter options for your remaining meals today.'
-                    : 'Great job staying on track with your nutrition goals!'
-                  }
-                </Text>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-};
 
 export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
   dailyProgress,
   onPress,
   isLoading = false,
 }) => {
-  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   
   const { calories, macros } = dailyProgress;
   
@@ -238,6 +52,14 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
   const displayValue = calories.goal > 0 ? (isOverGoal ? calories.consumed - calories.goal : calories.remaining) : calories.consumed;
   const displayLabel = calories.goal > 0 ? (isOverGoal ? 'kcal over' : 'kcal left') : 'kcal eaten';
 
+  // Dynamic font size for calorie number
+  const calorieFontSize = useMemo(() => {
+    const numDigits = Math.abs(displayValue).toString().length;
+    if (numDigits > 4) return 28;
+    if (numDigits > 3) return 32;
+    return 36;
+  }, [displayValue]);
+
   // Macro ring calculations
   const macroRings = [
     { name: 'Protein', data: macros.protein, color: '#FF6B6B', position: 'left' },
@@ -254,7 +76,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
     if (onPress) {
       onPress();
     } else {
-      setShowBreakdown(true);
+      setShowDetailModal(true);
     }
   };
 
@@ -270,115 +92,180 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.container}
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
-        {/* Main Calorie Ring */}
-        <View style={styles.mainRingContainer}>
-          <Svg width={200} height={200}>
-            <Defs>
-              <LinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor={ringColor} stopOpacity="1" />
-                <Stop offset="100%" stopColor={ringColor} stopOpacity="0.9" />
-              </LinearGradient>
-            </Defs>
-            
-            {/* Background circle */}
-            <Circle 
-              cx={100} 
-              cy={100} 
-              r={radius} 
-              stroke={Colors.border} 
-              strokeWidth={strokeWidth} 
-              fill="none" 
-              opacity={0.3}
-            />
-            
-            {/* Progress circle */}
-            <Circle
-              cx={100}
-              cy={100}
-              r={radius}
-              stroke="url(#ringGradient)"
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${strokeDasharray}, ${circumference}`}
-              strokeLinecap="round"
-              fill="none"
-              rotation={-90}
-              origin="100, 100"
-            />
-          </Svg>
-          
-          {/* Center Content */}
-          <View style={styles.centerContent}>
-            <Text style={styles.calorieNumber}>{Math.abs(displayValue)}</Text>
-            <Text style={styles.calorieLabel}>kcal</Text>
+      <View style={styles.cardContainer}>
+        <LinearGradient
+          colors={[Colors.card, Colors.background]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientBackground}
+        >
+          {/* Header with title and details button */}
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Today's Nutrition</Text>
+            <TouchableOpacity style={styles.detailsButton} onPress={() => setShowDetailModal(true)}>
+              <Text style={styles.detailsText}>Details</Text>
+              <ChevronRight size={16} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Compact Macro Rings - positioned closer to main ring */}
-        <View style={styles.macroRingsContainer}>
-          {macroRings.map((macro, index) => {
-            const macroPercentage = Math.min(1, macro.data.percentage);
-            const macroStrokeDasharray = macroCircumference * macroPercentage;
-            
-            return (
-              <View key={macro.name} style={styles.macroRingItem}>
-                <Svg width={macroRingSize} height={macroRingSize}>
-                  {/* Background circle */}
-                  <Circle 
-                    cx={macroRingSize/2} 
-                    cy={macroRingSize/2} 
-                    r={macroRadius} 
-                    stroke={macro.color + '20'} 
-                    strokeWidth={macroStrokeWidth} 
-                    fill="none" 
-                  />
-                  
-                  {/* Progress circle */}
-                  <Circle
-                    cx={macroRingSize/2}
-                    cy={macroRingSize/2}
-                    r={macroRadius}
-                    stroke={macro.color}
-                    strokeWidth={macroStrokeWidth}
-                    strokeDasharray={`${macroStrokeDasharray}, ${macroCircumference}`}
-                    strokeLinecap="round"
-                    fill="none"
-                    rotation={-90}
-                    origin={`${macroRingSize/2}, ${macroRingSize/2}`}
-                  />
-                </Svg>
-                
-                {/* Macro Center Content */}
-                <View style={styles.macroCenterContent}>
-                  <Text style={[styles.macroValue, { color: macro.color }]}>
-                    {Math.round(macro.data.consumed)}
-                  </Text>
-                  <Text style={styles.macroUnit}>g</Text>
-                </View>
-                
-                {/* Macro Label */}
-                <Text style={styles.macroLabel}>{macro.name}</Text>
+          <TouchableOpacity
+            style={styles.container}
+            onPress={handlePress}
+            activeOpacity={0.8}
+          >
+            {/* Main Calorie Ring */}
+            <View style={styles.mainRingContainer}>
+              <Svg width={200} height={200}>
+                <Defs>
+                  <SvgLinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor={ringColor} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={ringColor} stopOpacity="0.9" />
+                  </SvgLinearGradient>
+                </Defs>
+
+                {/* Background circle */}
+                <Circle
+                  cx={100}
+                  cy={100}
+                  r={radius}
+                  stroke={Colors.border}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  opacity={0.3}
+                />
+
+                {/* Progress circle */}
+                <Circle
+                  cx={100}
+                  cy={100}
+                  r={radius}
+                  stroke="url(#ringGradient)"
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={`${strokeDasharray}, ${circumference}`}
+                  strokeLinecap="round"
+                  fill="none"
+                  rotation={-90}
+                  origin="100, 100"
+                />
+              </Svg>
+
+              {/* Center Content */}
+              <View style={styles.centerContent}>
+                <Text style={[styles.calorieNumber, { fontSize: calorieFontSize }]}>{Math.abs(displayValue)}</Text>
+                <Text style={styles.calorieLabel}>kcal</Text>
               </View>
-            );
-          })}
-        </View>
-      </TouchableOpacity>
+            </View>
 
-      {/* Breakdown Modal */}
-      <CalorieBreakdownModal
-        visible={showBreakdown}
-        onClose={() => setShowBreakdown(false)}
-        dailyProgress={dailyProgress}
+            {/* Compact Macro Rings - positioned closer to main ring */}
+            <View style={styles.macroRingsContainer}>
+              {macroRings.map((macro, index) => {
+                const macroPercentage = Math.min(1, macro.data.percentage);
+                const macroStrokeDasharray = macroCircumference * macroPercentage;
+
+                return (
+                  <View key={macro.name} style={styles.macroRingItem}>
+                    <Svg width={macroRingSize} height={macroRingSize}>
+                      {/* Background circle */}
+                      <Circle
+                        cx={macroRingSize / 2}
+                        cy={macroRingSize / 2}
+                        r={macroRadius}
+                        stroke={macro.color + '20'}
+                        strokeWidth={macroStrokeWidth}
+                        fill="none"
+                      />
+
+                      {/* Progress circle */}
+                      <Circle
+                        cx={macroRingSize / 2}
+                        cy={macroRingSize / 2}
+                        r={macroRadius}
+                        stroke={macro.color}
+                        strokeWidth={macroStrokeWidth}
+                        strokeDasharray={`${macroStrokeDasharray}, ${macroCircumference}`}
+                        strokeLinecap="round"
+                        fill="none"
+                        rotation={-90}
+                        origin={`${macroRingSize / 2}, ${macroRingSize / 2}`}
+                      />
+                    </Svg>
+
+                    {/* Macro Center Content */}
+                    <View style={styles.macroCenterContent}>
+                      <Text style={[styles.macroValue, { color: macro.color }]}>
+                        {Math.round(macro.data.consumed)}
+                      </Text>
+                      <Text style={styles.macroUnit}>g</Text>
+                    </View>
+
+                    {/* Macro Label */}
+                    <Text style={styles.macroLabel}>{macro.name}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
+
+      {/* Comprehensive Nutrition Detail Modal */}
+      <NutritionDetailModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        calories={calories.consumed}
+        protein={macros.protein.consumed}
+        carbs={macros.carbs.consumed}
+        fats={macros.fats.consumed}
+        goals={{
+          dailyCalories: calories.goal,
+          protein: macros.protein.goal,
+          carbs: macros.carbs.goal,
+          fats: macros.fats.goal,
+        }}
       />
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  gradientBackground: {
+    borderRadius: 20,
+    padding: 24,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  cardTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+  },
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xs,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+  },
+  detailsText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.primary,
+    marginRight: Spacing.xs,
+  },
   container: {
     alignItems: 'center',
     paddingVertical: 20,

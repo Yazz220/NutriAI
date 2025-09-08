@@ -12,10 +12,13 @@ import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
+import { useMealPlanner } from '@/hooks/useMealPlanner';
+import { useMeals } from '@/hooks/useMealsStore';
 import { calculateRecipeAvailability } from '@/utils/recipeAvailability';
 import { ServingSizeChanger } from './ServingSizeChanger';
 import { MealTypeSelector } from './MealTypeSelector';
 import { RecipeNutritionCard } from './RecipeNutritionCard';
+import { PlanMealModal } from './PlanMealModal';
 import { scaleIngredients, formatIngredientDisplay, scaleNutrition } from '@/utils/ingredientScaling';
 
 export interface RecipeDetailProps {
@@ -60,9 +63,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const { addItem } = useShoppingList();
   const { preferences } = useUserPreferences();
   const { logMealFromRecipe } = useNutritionWithMealPlan();
+  const { addPlannedMeal } = useMealPlanner();
+  const { meals, addMeal } = useMeals();
   const [missingCount, setMissingCount] = useState(0);
   const [missingList, setMissingList] = useState<Array<{ name: string; quantity: number; unit: string }>>([]);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
+  const [showPlanMealModal, setShowPlanMealModal] = useState(false);
 
   const servingsBase = useMemo(() => Math.max(1, servings ?? 1), [servings]);
   const scaleFactor = useMemo(() => (desiredServings / servingsBase), [desiredServings, servingsBase]);
@@ -257,7 +263,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 variant="secondary" 
                 icon={<Plus size={14} color={Colors.primary} />} 
               />
-              <Button title="Plan" onPress={() => onPlan?.(recipe)} size="xs" variant="secondary" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
               {!!missingCount && missingCount > 0 && (
                 <Button
                   title={`Add missing (${missingCount})`}
@@ -305,7 +311,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 variant="primary" 
                 icon={<Plus size={14} color={Colors.white} />} 
               />
-              <Button title="Plan" onPress={() => onPlan?.(recipe)} size="xs" variant="secondary" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
               {!!missingCount && missingCount > 0 && (
                 <Button
                   title={`Add missing (${missingCount})`}
@@ -362,7 +368,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         {!!scaledIngredients?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            <View style={styles.ingredientsGrid}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ingredientsGrid}>
               {scaledIngredients.map((scaledIng, idx: number) => {
                 const isMissing = missingList.some(item => item.name === scaledIng.name);
                 return (
@@ -386,7 +392,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -422,6 +428,35 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         recipeName={recipe.title}
         servings={desiredServings}
         calories={scaledNutrition?.calories}
+        defaultDate={selectedDate}
+      />
+
+      <PlanMealModal
+        visible={showPlanMealModal}
+        onClose={() => setShowPlanMealModal(false)}
+        onConfirm={(mealType, date) => {
+          // Ensure the recipe exists in the local meals store so tracker can resolve it
+          let localMealId = recipe.id;
+          const existing = meals.find(m => m.id === recipe.id);
+          if (!existing) {
+            const asMeal = convertToMeal(recipe, desiredServings);
+            // Convert to Omit<Meal,'id'> for store add
+            const { id: _omit, ...rest } = asMeal as Meal;
+            localMealId = addMeal(rest);
+          }
+
+          addPlannedMeal({
+            recipeId: localMealId,
+            date,
+            mealType,
+            servings: desiredServings,
+            isCompleted: false,
+          });
+          setShowPlanMealModal(false);
+          Alert.alert('Meal Planned', `${recipe.title} has been added to your meal plan.`);
+        }}
+        recipeName={recipe.title}
+        servings={desiredServings}
         defaultDate={selectedDate}
       />
     </View>
@@ -503,12 +538,10 @@ const styles = StyleSheet.create({
   nutritionSection: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
   ingredientsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    gap: Spacing.sm,
   },
   ingredientCard: {
-    width: '23%',
-    marginBottom: Spacing.sm,
+    width: 80,
     alignItems: 'center',
   },
   ingredientImageContainer: {

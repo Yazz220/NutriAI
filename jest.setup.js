@@ -33,3 +33,26 @@ try {
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
+
+// Mock create-context-hook
+jest.mock('@nkzw/create-context-hook', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: (hookFn) => {
+      const Context = React.createContext(null);
+      const Provider = ({ children, ...props }) => {
+        const value = hookFn(...Object.values(props));
+        return React.createElement(Context.Provider, { value }, children);
+      };
+      const useHook = () => {
+        const context = React.useContext(Context);
+        if (!context) {
+          throw new Error('Hook must be used within Provider');
+        }
+        return context;
+      };
+      return [Provider, useHook];
+    },
+  };
+});

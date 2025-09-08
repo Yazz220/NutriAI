@@ -113,79 +113,42 @@ export const ServingSizeChanger: React.FC<ServingSizeChangerProps> = ({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Users size={18} color={Colors.primary} />
-          <Text style={styles.title}>Servings</Text>
-          {showNutritionPreview && totalCalories && (
-            <View style={styles.caloriesBadge}>
-              <Text style={styles.caloriesText}>{totalCalories} cal</Text>
-            </View>
-          )}
-        </View>
-        
-        {isScaled && (
-          <Text style={styles.scaleDescription}>{getScaleDescription()}</Text>
-        )}
-      </View>
+      <TouchableOpacity
+        style={[styles.controlButton, !canDecrement && styles.controlButtonDisabled]}
+        onPress={decrement}
+        disabled={!canDecrement}
+        accessibilityRole="button"
+        accessibilityLabel="Decrease servings"
+      >
+        <Minus size={20} color={canDecrement ? Colors.text : Colors.lightText} />
+      </TouchableOpacity>
 
-      {/* Serving Size Control */}
-      <View style={styles.controlContainer}>
-        <TouchableOpacity
-          style={[styles.controlButton, !canDecrement && styles.controlButtonDisabled]}
-          onPress={decrement}
-          disabled={!canDecrement}
-          accessibilityRole="button"
-          accessibilityLabel="Decrease servings"
-        >
-          <Minus size={20} color={canDecrement ? Colors.text : Colors.lightText} />
-        </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.servingsDisplay,
+          { transform: [{ scale: scaleAnimation }] }
+        ]}
+      >
+        <Text style={styles.servingsNumber}>{formatServings(currentServings)}</Text>
+      </Animated.View>
 
-        <Animated.View 
-          style={[
-            styles.servingsDisplay,
-            { transform: [{ scale: scaleAnimation }] }
-          ]}
-        >
-          <Text style={styles.servingsNumber}>{formatServings(currentServings)}</Text>
-          <Text style={styles.servingsLabel}>servings</Text>
-        </Animated.View>
-
-        <TouchableOpacity
-          style={[styles.controlButton, !canIncrement && styles.controlButtonDisabled]}
-          onPress={increment}
-          disabled={!canIncrement}
-          accessibilityRole="button"
-          accessibilityLabel="Increase servings"
-        >
-          <Plus size={20} color={canIncrement ? Colors.text : Colors.lightText} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Scale Factor Indicator */}
-      {isScaled && (
-        <View style={styles.scaleIndicator}>
-          <Calculator size={14} color={Colors.primary} />
-          <Text style={styles.scaleText}>
-            Scaled from {formatServings(originalServings)} original servings
-          </Text>
-        </View>
-      )}
-
-
+      <TouchableOpacity
+        style={[styles.controlButton, !canIncrement && styles.controlButtonDisabled]}
+        onPress={increment}
+        disabled={!canIncrement}
+        accessibilityRole="button"
+        accessibilityLabel="Increase servings"
+      >
+        <Plus size={20} color={canIncrement ? Colors.text : Colors.lightText} />
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.sm,
-    marginVertical: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   header: {
     marginBottom: Spacing.sm,
@@ -226,19 +189,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   controlButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   controlButtonDisabled: {
     backgroundColor: Colors.card,
@@ -248,14 +206,14 @@ const styles = StyleSheet.create({
   servingsDisplay: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.lg,
+    marginHorizontal: Spacing.sm,
     minWidth: 60,
   },
   servingsNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
-    lineHeight: 28,
+    lineHeight: 24,
   },
   servingsLabel: {
     fontSize: Typography.sizes.xs,

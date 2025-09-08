@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
-import { PlannedMeal, MealType, MealPlanSummary, WeeklyMealPlan } from '@/types';
+import { PlannedMeal, MealType, MealPlanSummary, WeeklyMealPlan, Meal } from '@/types';
 import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 
-export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
+export const [MealPlannerProvider, useMealPlanner] = createContextHook((meals?: Meal[]) => {
   const [plannedMeals, setPlannedMeals] = useState<PlannedMeal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { user } = useAuth();
@@ -278,7 +278,8 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook(() => {
   const completeMeal = async (id: string) => {
     const completedAt = new Date().toISOString();
     setPlannedMeals(prev => prev.map(meal => meal.id === id ? { ...meal, isCompleted: true, completedAt } : meal));
-    if (user && !OFFLINE_ONLY) {
+    const meal = plannedMeals.find(m => m.id === id);
+    if (user && !OFFLINE_ONLY && meal && isUuid(meal.recipeId)) {
       let { error } = await supabase
         .schema('nutriai')
         .from('meal_plans')

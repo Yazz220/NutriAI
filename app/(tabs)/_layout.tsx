@@ -1,4 +1,4 @@
-import React from "react";
+ import React from "react";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
 import { Refrigerator, BookOpen, ShoppingCart, LayoutDashboard, User } from "lucide-react-native";
@@ -16,6 +16,7 @@ export default function TabLayout() {
         headerTintColor: Colors.text,
         headerShadowVisible: false,
         tabBarStyle: styles.pillBar,
+        tabBarItemStyle: styles.tabItem,
         tabBarIcon: ({ focused, color, size }) => {
           const iconColor = focused ? Colors.white : Colors.lightText;
           const activeBg = Colors.primary; // use system primary accent
@@ -65,13 +66,14 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   pillBar: {
-  position: 'absolute',
-  left: 16,
-  right: 16,
-  bottom: 12,
-  height: 56,
-  borderRadius: 36,
-  backgroundColor: 'rgba(248, 246, 242, 0.85)',
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 12,
+    height: 56,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    flexDirection: 'row',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
@@ -79,6 +81,13 @@ const styles = StyleSheet.create({
     elevation: 10,
     borderWidth: 1,
     borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 0,
+  },
+  tabItem: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   iconWrap: {
@@ -90,7 +99,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   header: {
-    backgroundColor: 'rgba(248, 246, 242, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },

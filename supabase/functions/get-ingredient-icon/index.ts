@@ -71,7 +71,7 @@ serve(async (req: Request) => {
 
     // Generate new image with improved prompt
     const ingredientName = display_name || slug.replace(/-/g, ' ')
-    const positivePrompt = `A single ${ingredientName}, isolated on pure white background, professional food photography, high resolution, clean, centered, natural lighting, realistic, detailed`
+    const positivePrompt = `Three-quarter angle food photography of ${ingredientName}, shot at 45 degrees, isolated on a solid light-gray background. Clean studio product photography with bright, even lighting. Sharp focus, centered, square frame, true-to-life color, minimalist editorial style.`
     const negativePrompt = `multiple items, cluttered, dark background, blurry, low quality, cartoon, illustration, text, watermark, logo, hands, people`
 
     console.log('📷 Generating image for:', ingredientName)
@@ -92,7 +92,7 @@ serve(async (req: Request) => {
           prompt: positivePrompt,
           model: 'imagen-3.0-generate-002',
           seed: imageGenerationResponse.seed,
-          prompt_version: 2,
+          prompt_version: 4,
           updated_at: new Date().toISOString()
         })
 
@@ -274,8 +274,8 @@ async function uploadImageToSupabase(base64Data: string, slug: string, seed: num
       bytes[i] = bin.charCodeAt(i)
     }
 
-    // Generate filename matching your existing structure: slug/v2/seedXXXXXX.png
-    const fileName = `${slug}/v2/seed${seed}.png`
+    // Generate filename matching your existing structure: slug/v4/seedXXXXXX.png
+    const fileName = `${slug}/v4/seed${seed}.png`
 
     // Use your existing bucket name
     const bucketName = 'ingredient-icons'

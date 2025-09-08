@@ -20,6 +20,12 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - **AI Assistant**: Floating chat assistant for "Plan my day/week" and shopping list actions
 - **Component Library**: Reusable date utilities and performance-optimized components
 
+#### Progress Page Cards (Coach → Progress)
+- **Weigh In**: Card + modal to log weight and view trends
+- **Measurements**: Card + modal to track waist, body fat, chest, arm, BMI — nothing gated behind premium
+- **Progress Photos**: Card that opens the full photos tool (gallery, side‑by‑side compare, save comparison)
+- The Progress section’s “Weekly Goals” and “Today’s Insights” were removed to keep the UI focused on core health widgets
+
 ### 🛒 Shopping List
 - Auto-generate from planned recipes and missing ingredients
 - "Mark as Purchased" flow prompts for expiry, then moves items to Inventory
@@ -28,8 +34,8 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 
 ### 📊 Nutrition Dashboard
 - Daily macro totals vs goals and weekly trend snapshots
-- Proactive "Right Now" suggestions
 - Conversational assistant via `useCoachChat`
+- Nutrition rings now appear inside a unified card shell with a Details button for a comprehensive breakdown modal (calories/macros and extended nutrients)
 
 ## 🚀 Getting Started
 
@@ -53,7 +59,12 @@ Follow these instructions to get a copy of the project up and running on your lo
 3. Install the required NPM packages. If you encounter peer dependency issues, you may need to use the `--legacy-peer-deps` flag.
    ```sh
    npm install --legacy-peer-deps
-   ```
+```
+
+4. Required native modules for Progress Photos (already added in package.json, reinstall if needed):
+```sh
+npx expo install react-native-view-shot expo-media-library
+```
 
 ### Environment Setup
 
@@ -296,8 +307,8 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
    Or 
    ```sh
    npx expo start --tunnel
-   ```
-   to connect via a tunnel (often more reliable on restricted networks):
+```
+to connect via a tunnel (often more reliable on restricted networks):
 
 2. Scan the QR code with the Expo Go app on your mobile device.
 
@@ -305,7 +316,11 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
    - **Add Inventory**: Start by adding items to your inventory using manual entry, barcode scanning, or camera capture
    - **Plan Meals**: Open the Coach tab and use the + buttons on each meal row, or ask the coach to "Plan my day/week"
    - **Explore Recipes**: Browse and see availability based on your inventory
-   - **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
+- **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
+
+4. **Progress Tools**:
+   - Open Coach → Progress and use the Weigh In, Measurements, and Progress Photos cards
+   - Progress Photos supports gallery, side‑by‑side compare, and “Save Comparison” (requires Photos permission)
 
 ## 🎯 Key Workflows
 
@@ -330,12 +345,13 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 
 ## 📱 App Structure
 
-NutriAI uses a 4-tab layout focused on core nutrition workflows:
+NutriAI uses a 5-tab layout focused on core nutrition workflows:
 
-1. **Inventory** — Item management and expiry tracking
-2. **Recipes** — Library and discovery
-3. **Shopping List** — Grocery management and checkout to Inventory
-4. **Nutrition Dashboard** — Macros, goals, and proactive insights
+1. **Coach** — Tracking + Progress (nutrition rings, weigh‑in, measurements, progress photos)
+2. **Inventory** — Item management and expiry tracking
+3. **Recipes** — Library and discovery
+4. **Shopping List** — Grocery management and checkout to Inventory
+5. **Profile** — Account and settings (placeholder)
  
 ## 📷 Screenshots
 
@@ -496,3 +512,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [Expo](https://expo.dev/) for rapid cross-platform development
 - Icons provided by [Lucide](https://lucide.dev/)
 - Inspired by the need to reduce food waste and improve kitchen efficiency
+
+---
+
+## 🧼 Changelog (session cleanup)
+
+- Updated bottom tab bar to center icons and evenly distribute items across the pill bar (`app/(tabs)/_layout.tsx`)
+- Nutrition rings wrapped in a WeightCard‑style card with a Details modal (`components/ui/NutritionRings.tsx` + new detail modal)
+- Added Measurements card and modal (`components/progress/MeasurementCard.tsx`, `components/progress/MeasurementModal.tsx`)
+- Added Progress Photos card and navigation to the photo tool (`components/progress/ProgressPhotosCard.tsx`)
+- Progress Photos screen layout aligned with other pages; added back button and safe‑area padding (`app/(tabs)/coach/progress-photos.tsx`)
+- Removed Weekly Goals and Today’s Insights from ProgressSection to keep UI focused (`components/nutrition/ProgressSection.tsx`)
+- Recipe cards updated to match WeightCard shell and show cook time + kcal; image shown as rounded square
+
+### Troubleshooting
+- If UI changes aren’t visible, restart Metro and clear cache:
+```sh
+npx expo start -c

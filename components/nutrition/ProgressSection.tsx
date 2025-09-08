@@ -9,13 +9,11 @@ import {
 import {
   TrendingUp,
   Target,
-  Calendar,
   Flame,
   Package,
-  AlertCircle,
   ChefHat,
-  CheckCircle,
 } from 'lucide-react-native';
+
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import { useInventory, useInventoryByFreshness } from '@/hooks/useInventoryStore';
@@ -32,16 +30,6 @@ interface ProgressCardProps {
   onPress?: () => void;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
-}
-
-interface WeeklyGoal {
-  id: string;
-  title: string;
-  current: number;
-  target: number;
-  unit: string;
-  icon: React.ReactNode;
-  color: string;
 }
 
 const ProgressCard: React.FC<ProgressCardProps> = ({
@@ -100,45 +88,6 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
         </View>
       )}
     </TouchableOpacity>
-  );
-};
-
-const WeeklyGoalCard: React.FC<{ goal: WeeklyGoal }> = ({ goal }) => {
-  const progress = goal.target > 0 ? goal.current / goal.target : 0;
-  const isCompleted = progress >= 1;
-
-  return (
-    <View style={[styles.goalCard, isCompleted && styles.completedGoalCard]}>
-      <View style={styles.goalHeader}>
-        <View style={[styles.goalIconContainer, { backgroundColor: goal.color + '20' }]}>
-          {goal.icon}
-        </View>
-        {isCompleted && (
-          <View style={styles.completedBadge}>
-            <CheckCircle size={16} color={Colors.success} />
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.goalTitle}>{goal.title}</Text>
-      <Text style={styles.goalProgress}>
-        {goal.current} / {goal.target} {goal.unit}
-      </Text>
-
-      <View style={styles.goalProgressBar}>
-        <View style={styles.goalProgressTrack}>
-          <View
-            style={[
-              styles.goalProgressFill,
-              {
-                width: `${Math.min(100, progress * 100)}%`,
-                backgroundColor: isCompleted ? Colors.success : goal.color
-              }
-            ]}
-          />
-        </View>
-      </View>
-    </View>
   );
 };
 
@@ -233,36 +182,6 @@ export const ProgressSection: React.FC = () => {
     },
   ];
 
-  const weeklyGoals: WeeklyGoal[] = [
-    {
-      id: 'meals',
-      title: 'Plan 15 Meals',
-      current: weeklyStats.plannedMeals,
-      target: 15,
-      unit: 'meals',
-      icon: <Calendar size={16} color={Colors.primary} />,
-      color: Colors.primary,
-    },
-    {
-      id: 'nutrition',
-      title: 'Hit Nutrition Goals',
-      current: weeklyStats.nutritionStreak,
-      target: 5,
-      unit: 'days',
-      icon: <Target size={16} color={Colors.success} />,
-      color: Colors.success,
-    },
-    {
-      id: 'inventory',
-      title: 'Keep Fresh Inventory',
-      current: Math.round(weeklyStats.inventoryHealth * 7), // Convert to days
-      target: 7,
-      unit: 'days',
-      icon: <Package size={16} color={Colors.warning} />,
-      color: Colors.warning,
-    },
-  ];
-
   return (
     <View style={styles.container}>
       {/* Progress Cards */}
@@ -276,55 +195,6 @@ export const ProgressSection: React.FC = () => {
             <ProgressCard key={index} {...card} />
           ))}
         </ScrollView>
-      </View>
-
-      {/* Weekly Goals */}
-      <View style={styles.goalsSection}>
-        <View style={styles.goalsSectionHeader}>
-          <Text style={styles.goalsSectionTitle}>Weekly Goals</Text>
-          <TouchableOpacity style={styles.viewAllButton}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.goalsContainer}>
-          {weeklyGoals.map((goal) => (
-            <WeeklyGoalCard key={goal.id} goal={goal} />
-          ))}
-        </View>
-      </View>
-
-      {/* Quick Insights */}
-      <View style={styles.insightsSection}>
-        <Text style={styles.insightsSectionTitle}>Today's Insights</Text>
-        <View style={styles.insightsContainer}>
-          {expiring.length > 0 && (
-            <View style={styles.insightCard}>
-              <AlertCircle size={16} color={Colors.warning} />
-              <Text style={styles.insightText}>
-                {expiring.length} item{expiring.length > 1 ? 's' : ''} expiring soon
-              </Text>
-            </View>
-          )}
-
-          {dailyProgress.calories.remaining > 500 && (
-            <View style={styles.insightCard}>
-              <Target size={16} color={Colors.primary} />
-              <Text style={styles.insightText}>
-                You have {dailyProgress.calories.remaining} calories left for today
-              </Text>
-            </View>
-          )}
-
-          {weeklyStats.plannedMeals < 7 && (
-            <View style={styles.insightCard}>
-              <ChefHat size={16} color={Colors.success} />
-              <Text style={styles.insightText}>
-                Plan {21 - weeklyStats.plannedMeals} more meals this week
-              </Text>
-            </View>
-          )}
-        </View>
       </View>
     </View>
   );

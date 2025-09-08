@@ -10,8 +10,9 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
-import { X, Calendar, Clock, Users, Search, ChefHat } from 'lucide-react-native';
+import { X, Calendar, Clock, Users, Search, ChefHat, Check } from 'lucide-react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
@@ -30,6 +31,12 @@ interface MealPlanModalProps {
   initialFolderId?: string;
   onSave: (plannedMeal: Omit<PlannedMeal, 'id'>) => void;
   onClose: () => void;
+  // When true, lock the meal type selection to selectedMealType and filter recipes for that type
+  lockMealType?: boolean;
+  // When true (default), the modal closes after saving. For Plan All flows, set false to keep it open.
+  autoCloseOnSave?: boolean;
+  // Optional: mark meal types that were already planned in a Plan All session
+  plannedTypes?: MealType[];
 }
 
 const MEAL_TYPES: { value: MealType; label: string }[] = [
@@ -148,6 +155,56 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  // Grid/card styles to match RecipeDetail PlanMealModal
+  mealTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  mealTypeCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    padding: 12,
+    alignItems: 'center',
+    minHeight: 100,
+  },
+  mealTypeCardSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.secondary,
+  },
+  mealTypeHeader: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  mealTypeIcon: {
+    fontSize: 28,
+    marginBottom: 2,
+  },
+  checkIcon: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealTypeLabel: {
+    fontSize: 14,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  mealTypeLabelSelected: {
+    color: Colors.primary,
+  },
   mealTypeButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -190,12 +247,19 @@ const styles = StyleSheet.create({
   recipeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     marginBottom: 8,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  recipeThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: Colors.secondary,
   },
   recipeItemSelected: {
     backgroundColor: Colors.primary,
@@ -229,22 +293,26 @@ const styles = StyleSheet.create({
   servingsControls: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
   },
   servingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.primary + '30',
   },
   servingsText: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginHorizontal: 20,
+    marginHorizontal: 6,
+    minWidth: 24,
+    textAlign: 'center',
   },
   notesInput: {
     borderWidth: 1,
@@ -311,6 +379,9 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   initialFolderId,
   onSave,
   onClose,
+  lockMealType = false,
+  autoCloseOnSave = true,
+  plannedTypes = [],
 }) => {
   const { meals } = useMeals();
   const { folders } = useRecipeFolders();
@@ -318,6 +389,8 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | Meal | null>(null);
   // Servings and notes removed from UI; we will use defaults on save
   const [searchQuery, setSearchQuery] = useState('');
+  // Track per-recipe servings for quick adjustment in the list
+  const [servingsById, setServingsById] = useState<Record<string, number>>({});
 
   // Reset form when modal opens/closes or when existingMeal changes
   useEffect(() => {
@@ -330,10 +403,16 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
         // Find the recipe for the existing meal
         const recipe = meals.find(m => m.id === existingMeal.recipeId);
         setSelectedRecipe(recipe || null);
+        if (existingMeal.recipeId) {
+          setServingsById(prev => ({ ...prev, [existingMeal.recipeId]: existingMeal.servings || 1 }));
+        }
       } else if (initialRecipeId) {
         // Pre-select a recipe when provided (e.g., from a "Plan" action)
         const recipe = meals.find(m => m.id === initialRecipeId);
         setSelectedRecipe(recipe || null);
+        if (initialRecipeId && recipe) {
+          setServingsById(prev => ({ ...prev, [initialRecipeId]: (recipe as any)?.servings || 1 }));
+        }
       } else if (initialFolderId) {
         // If opened scoped to a folder, pre-select the first recipe in that folder if available
         const folder = folders.find(f => f.id === initialFolderId);
@@ -379,7 +458,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
       return;
     }
 
-    const servingsToSave = (selectedRecipe as any)?.servings ?? 1;
+    const servingsToSave = servingsById[selectedRecipe.id] ?? (selectedRecipe as any)?.servings ?? 1;
     const plannedMeal: Omit<PlannedMeal, 'id'> = {
       recipeId: selectedRecipe.id,
       date: selectedDate,
@@ -392,7 +471,9 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
     onSave(plannedMeal);
   // Analytics: plan saved
   trackEvent({ type: 'plan_saved', data: { recipeId: plannedMeal.recipeId, mealType: plannedMeal.mealType, date: plannedMeal.date, servings: plannedMeal.servings } });
-  onClose();
+  if (autoCloseOnSave) {
+    onClose();
+  }
   };
 
   return (
@@ -438,30 +519,51 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
               </View>
             </View>
 
-            {/* Meal Type Selection */}
+            {/* Meal Type Selection or Fixed Type */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Meal Type</Text>
-              <View style={styles.mealTypeContainer}>
-                {MEAL_TYPES.map(type => (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.mealTypeButton,
-                      mealType === type.value && styles.mealTypeButtonActive,
-                    ]}
-                    onPress={() => setMealType(type.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.mealTypeText,
-                        mealType === type.value && styles.mealTypeTextActive,
-                      ]}
-                    >
-                      {type.label}
+              {lockMealType && selectedMealType ? (
+                <View style={[styles.mealTypeContainer, { gap: 0 }]}>
+                  <View style={[styles.mealTypeButton, styles.mealTypeButtonActive]}> 
+                    <Text style={[styles.mealTypeText, styles.mealTypeTextActive]}>
+                      {MEAL_TYPES.find(t => t.value === selectedMealType)?.label ?? selectedMealType}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.mealTypeGrid}>
+                  {(
+                    [
+                      { value: 'breakfast' as MealType, label: 'Breakfast', icon: '🌅' },
+                      { value: 'lunch' as MealType, label: 'Lunch', icon: '☀️' },
+                      { value: 'dinner' as MealType, label: 'Dinner', icon: '🌙' },
+                      { value: 'snack' as MealType, label: 'Snack', icon: '🍎' },
+                    ]
+                  ).map((opt) => {
+                    const selected = mealType === opt.value;
+                    const completed = plannedTypes?.includes(opt.value);
+                    return (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[styles.mealTypeCard, selected && styles.mealTypeCardSelected]}
+                        onPress={() => setMealType(opt.value)}
+                      >
+                        <View style={styles.mealTypeHeader}>
+                          <Text style={styles.mealTypeIcon}>{opt.icon}</Text>
+                          {completed && (
+                            <View style={styles.checkIcon}>
+                              <Check size={16} color={Colors.white} />
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.mealTypeLabel, selected && styles.mealTypeLabelSelected]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             {/* Recipe Selection */}
@@ -490,12 +592,18 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
                       ]}
                       onPress={() => setSelectedRecipe(recipe)}
                     >
+                      {recipe.image ? (
+                        <Image source={{ uri: recipe.image }} style={styles.recipeThumb} />
+                      ) : (
+                        <View style={[styles.recipeThumb]} />
+                      )}
                       <View style={styles.recipeInfo}>
                         <Text
                           style={[
                             styles.recipeName,
                             selectedRecipe?.id === recipe.id && styles.recipeNameSelected,
                           ]}
+                          numberOfLines={1}
                         >
                           {recipe.name}
                         </Text>
@@ -504,9 +612,40 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
                             styles.recipeDetails,
                             selectedRecipe?.id === recipe.id && styles.recipeDetailsSelected,
                           ]}
+                          numberOfLines={1}
                         >
-                          {recipe.prepTime} min • {recipe.servings} servings
+                          {recipe.prepTime} min • {(servingsById[recipe.id] ?? (recipe as any)?.servings ?? 1)} servings
+                          {typeof (recipe as any)?.nutritionPerServing?.calories === 'number'
+                            ? ` • ${Math.round((recipe as any).nutritionPerServing.calories * (servingsById[recipe.id] ?? (recipe as any)?.servings ?? 1))} kcal`
+                            : ''}
                         </Text>
+                      </View>
+                      <View style={styles.servingsControls}>
+                        <TouchableOpacity
+                          style={styles.servingsButton}
+                          onPress={() => {
+                            const current = servingsById[recipe.id] ?? (recipe as any)?.servings ?? 1;
+                            const next = Math.max(0.5, Number((current - 0.5).toFixed(1)));
+                            setServingsById(prev => ({ ...prev, [recipe.id]: next }));
+                          }}
+                          accessibilityLabel={`Decrease servings for ${recipe.name}`}
+                          accessibilityRole="button"
+                        >
+                          <Text style={styles.buttonText}>-</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.servingsText}>{servingsById[recipe.id] ?? (recipe as any)?.servings ?? 1}</Text>
+                        <TouchableOpacity
+                          style={styles.servingsButton}
+                          onPress={() => {
+                            const current = servingsById[recipe.id] ?? (recipe as any)?.servings ?? 1;
+                            const next = Math.min(20, Number((current + 0.5).toFixed(1)));
+                            setServingsById(prev => ({ ...prev, [recipe.id]: next }));
+                          }}
+                          accessibilityLabel={`Increase servings for ${recipe.name}`}
+                          accessibilityRole="button"
+                        >
+                          <Text style={styles.buttonText}>+</Text>
+                        </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
                   ))

@@ -1,3 +1,4 @@
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { NutritionGoals, LoggedMeal } from '@/types';
@@ -46,7 +47,7 @@ class NutritionSyncManager {
       }
 
       // Listen for network changes
-      NetInfo.addEventListener(state => {
+      NetInfo.addEventListener((state: any) => {
         if (state.isConnected && !this.syncInProgress && this.syncQueue.length > 0) {
           this.processSyncQueue();
         }

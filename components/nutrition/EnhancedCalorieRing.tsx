@@ -78,7 +78,7 @@ const CalorieBreakdownModal: React.FC<CalorieBreakdownModalProps> = ({
       <SafeAreaView style={styles.modalContainer}>
         {/* Header */}
         <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close">
             <X size={24} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Nutrition Breakdown</Text>
@@ -303,6 +303,8 @@ export const EnhancedCalorieRing: React.FC<CalorieRingProps> = ({
         onPress={handlePress}
         disabled={!onPress && !showDetails}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={showDetails || onPress ? 'Open nutrition breakdown' : 'Calorie ring'}
       >
         <Svg width={size} height={size}>
           <Defs>

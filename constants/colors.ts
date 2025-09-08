@@ -1,34 +1,47 @@
+// Global Design System Colors
+// This mapping preserves commonly used keys (primary, background, card, text, lightText, border, etc.)
+// while aligning their values to the new palette. New keys are added for accents.
 export const Colors = {
-  // Brand & actions (New system)
-  primary: "#1E463B", // brandPrimary
-  secondary: "#6B8E23", // brandAccent (selected/secondary actions)
-  brandSecondary: "#B9D56A", // promotional highlight
+  // Brand
+  primary: "#5A1846", // brand.primary
+  brandPrimary: "#5A1846", // alias for clarity
 
-  // Backgrounds
-  background: "#F6F1E7", // surface (warm cream)
-  card: "#F6F1E7", // cards rely on surface background per spec
-  surfaceMuted: "#EFE7DB", // section backgrounds / subtle panels
-  surfaceTile: "#E9DFD3", // product tiles, ingredient chips (beige)
-  tabBackground: "#F6F1E7",
+  // Accents for charts/visualizations and interactive emphasis
+  accentPrimary: "#E56B6F", // accent.primary
+  accentSecondary: "#FFB4A2", // accent.secondary
+  accentTertiary: "#FFE5D9", // accent.tertiary
+  // Keep 'secondary' for legacy usage, map to primary accent
+  secondary: "#E56B6F",
+
+  // Surfaces
+  background: "#FFFFFF", // surface.background
+  card: "#FFF0EB", // surface.card
+  surfaceMuted: "#FEE8E1", // surface.cardInteractive (slightly darker interactive surface)
+  surfaceTile: "#FFE5D9", // light accent surface for tiles/chips
+  tabBackground: "#FFFFFF",
 
   // Text
-  text: "#1A1A1A", // textPrimary
-  lightText: "#6B6B6B", // textSecondary
+  text: "#212529", // text.primary
+  lightText: "#6C757D", // text.secondary
+  subtleText: "#ADB5BD", // text.tertiary
   white: "#FFFFFF",
-  textInverse: "#FFFFFF",
+  textInverse: "#FFFFFF", // on brand
 
   // Borders and elevation overlay
-  border: "rgba(0,0,0,0.12)", // divider hairline
-  shadow: "rgba(0,0,0,0.04)", // elevationOverlay (kept subtle)
-  lightGray: "#8A8A8A",
+  border: "#E9ECEF", // light divider
+  shadow: "rgba(0,0,0,0.06)",
+  lightGray: "#ADB5BD",
 
-  // Status & semantic
+  // Status & semantic (unchanged)
   success: "#4CAF50",
   warning: "#FFC107",
   error: "#F44336",
   info: "#2196F3",
+  successLight: "#F0FDF4",
+  warningLight: "#FFFBEB",
+  errorLight: "#FEF2F2",
 
-  // Freshness indicators (retain but harmonize)
+  // Freshness indicators (kept for inventory features)
   fresh: "#4ECDC4",
   aging: "#F0C75E",
   expiring: "#E07A5F",
@@ -36,11 +49,11 @@ export const Colors = {
 
   // Additional tints
   tints: {
-    brandTintSoft: "#EBF0EB",
-    brandTintStrong: "#5F735F",
+    brandTintSoft: "#FFE5D9",
+    brandTintStrong: "#5A1846",
   },
 
-  // Gray scale (keep neutral set)
+  // Gray scale (mapped to new neutrals where applicable)
   gray: {
     50: "#F8F9FA",
     100: "#F1F3F5",

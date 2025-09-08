@@ -37,7 +37,6 @@ export default function ShoppingListScreen() {
     getItemsByCategory,
     clearCheckedItems,
     generateSmartList,
-    moveToInventory,
     toggleItemChecked,
     clearRecentlyPurchased
   } = useShoppingList();
@@ -82,11 +81,9 @@ export default function ShoppingListScreen() {
   const handleConfirmExpiration = (expirationDate: Date | null) => {
     if (selectedItem) {
       // Mark as purchased (checked) and move to inventory
-      toggleItemChecked(selectedItem.id);
-      const newId = moveToInventory({
-        ...selectedItem,
+      toggleItemChecked(selectedItem.id, { 
+        moveToInventory: true,
         expiryDate: expirationDate ? expirationDate.toISOString() : undefined,
-        addedDate: new Date().toISOString(),
       });
       showToast({
         message: `${selectedItem.name} moved to Inventory`,

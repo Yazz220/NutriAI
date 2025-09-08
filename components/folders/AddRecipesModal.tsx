@@ -127,7 +127,7 @@ export const AddRecipesModal: React.FC<AddRecipesModalProps> = ({
     <Modal
       visible={visible}
       onClose={handleClose}
-      title={`Add Recipes to "${folderName}"`}
+      title="Add Recipes to Collection"
       size="lg"
       scrollable={true}
       hasHeader={true}
@@ -159,7 +159,7 @@ export const AddRecipesModal: React.FC<AddRecipesModalProps> = ({
               numColumns={2}
               contentContainerStyle={styles.gridContainer}
               showsVerticalScrollIndicator={false}
-              scrollEnabled={false}
+              scrollEnabled={true}
               renderItem={renderRecipeItem}
             />
 

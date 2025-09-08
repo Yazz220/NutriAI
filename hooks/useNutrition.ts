@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { LoggedMeal, Meal, MealType, NutritionGoals, PlannedMeal } from '@/types';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useMeals } from './useMealsStore';
+import { useMealPlanner } from './useMealPlanner';
 import { 
   calculateNutritionGoals, 
   validateNutritionGoals, 
@@ -55,16 +57,14 @@ export interface MealPlanCalories {
   recipeName?: string;
 }
 
-export const [NutritionProvider, useNutrition] = createContextHook((
-  plannedMeals?: PlannedMeal[],
-  meals?: Meal[]
-) => {
+export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals?: PlannedMeal[], meals?: Meal[]) => {
   const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [calculatedGoals, setCalculatedGoals] = useState<NutritionGoals | null>(null);
   const [goalCalculationError, setGoalCalculationError] = useState<string | null>(null);
   const { preferences, updateGoals: updatePreferencesGoals } = useUserPreferences();
   const { profile, savePartial } = useUserProfile();
+  const { addPlannedMeal } = useMealPlanner();
 
   useEffect(() => {
     const load = async () => {
@@ -98,6 +98,17 @@ export const [NutritionProvider, useNutrition] = createContextHook((
       fats: Math.round(per.fats * servings),
     };
     setLoggedMeals(prev => [...prev, entry]);
+
+    // Also create a planned meal entry
+    addPlannedMeal({
+      recipeId: meal.id,
+      date,
+      mealType,
+      servings,
+      isCompleted: true,
+      completedAt: new Date().toISOString(),
+    });
+
     return entry.id;
   };
 
@@ -225,7 +236,8 @@ export const [NutritionProvider, useNutrition] = createContextHook((
   const calculatePlannedMealCalories = useCallback((date: string): MealPlanCalories[] => {
     if (!plannedMeals || !meals) return [];
     
-    const dayPlannedMeals = plannedMeals.filter(pm => pm.date === date);
+    // Only include planned meals not yet completed so we don't double count
+    const dayPlannedMeals = plannedMeals.filter(pm => pm.date === date && !pm.isCompleted);
     
     return dayPlannedMeals.map(plannedMeal => {
       const recipe = meals.find(m => m.id === plannedMeal.recipeId);
@@ -512,14 +524,34 @@ export const [NutritionProvider, useNutrition] = createContextHook((
   }, [profile]);
 
   // Auto-log planned meals when they're marked as completed
-  const logPlannedMeal = useCallback((plannedMeal: PlannedMeal): string | null => {
-    if (!meals) return null;
-    
-    const recipe = meals.find(m => m.id === plannedMeal.recipeId);
-    if (!recipe) return null;
-    
-    return logMealFromRecipe(recipe, plannedMeal.date, plannedMeal.mealType, plannedMeal.servings);
-  }, [meals, logMealFromRecipe]);
+  const logPlannedMeal = useCallback((plannedMeal: PlannedMeal, allMeals: Meal[]): string | null => {
+    const recipe = allMeals.find(m => m.id === plannedMeal.recipeId);
+    if (!recipe) {
+      console.warn(`Recipe not found for planned meal: ${plannedMeal.recipeId}`);
+      return null;
+    }
+
+    // If we have nutrition per serving, use the standard logger
+    if (recipe.nutritionPerServing) {
+      return logMealFromRecipe(recipe, plannedMeal.date, plannedMeal.mealType, plannedMeal.servings);
+    }
+
+    // Fallback: estimate calories from ingredients so logging still reflects in totals
+    const estimatedCalories = estimateCaloriesFromIngredients(recipe.ingredients || []);
+    const entry: LoggedMeal = {
+      id: Date.now().toString(),
+      date: plannedMeal.date,
+      mealType: plannedMeal.mealType,
+      mealId: recipe.id,
+      servings: plannedMeal.servings,
+      calories: Math.round(estimatedCalories * plannedMeal.servings),
+      protein: 0,
+      carbs: 0,
+      fats: 0,
+    };
+    setLoggedMeals(prev => [...prev, entry]);
+    return entry.id;
+  }, [logMealFromRecipe, estimateCaloriesFromIngredients]);
 
   // Get planned meal calories for a specific date
   const getPlannedMealCalories = useCallback((date: string): MealPlanCalories[] => {

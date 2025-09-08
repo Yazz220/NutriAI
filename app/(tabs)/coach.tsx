@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar, Search, Camera } from 'lucide-react-native';
@@ -21,10 +22,17 @@ import FitnessRing, { RingSpec } from '@/components/ui/FitnessRing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { WeightCard } from '@/components/progress/WeightCard';
+import { WeightModal } from '@/components/progress/WeightModal';
+import { MeasurementCard } from '@/components/progress/MeasurementCard';
+import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
 import { StructuredMessage } from '@/components/StructuredMessage';
-import { DayCell, DateCarousel, WeekRings, ChatModal, CoachErrorBoundary } from '@/components/coach';
+import { DayCell, DateCarousel, WeekRings, CoachErrorBoundary } from '@/components/coach';
+import { ProgressPhotosCard } from '@/components/progress/ProgressPhotosCard';
+import { useRouter } from 'expo-router';
+import { NutritionCoachChatInterface } from '@/components/NutritionCoachChatInterface';
 import {
   getWeekStartISO,
   formatWeekRange,
@@ -33,17 +41,25 @@ import {
   isToday as isTodayUtil,
   getDayLabel
 } from '@/utils/coach/dateUtils';
+import { useToast } from '@/contexts/ToastContext';
+// WeightTracker removed while we clean up Progress tab
 
 export default function CoachScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile } = useNutritionWithMealPlan();
+  const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile, logPlannedMeal, removeLoggedMeal, logCustomMeal } = useNutritionWithMealPlan();
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
-  const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal } = useMealPlanner();
+  const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal, completeMeal } = useMealPlanner();
   const { meals } = useMeals();
+  const { showToast } = useToast();
   const [inputText, setInputText] = useState('');
+  const [activeTab, setActiveTab] = useState<'tracking' | 'progress'>('tracking');
   const [chatOpen, setChatOpen] = useState(false);
   const [dayISO, setDayISO] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
+  const [lockMealType, setLockMealType] = useState(false);
+  const [planAllQueue, setPlanAllQueue] = useState<MealType[] | null>(null);
+  const [planAllCompleted, setPlanAllCompleted] = useState<MealType[]>([]);
   const [showExternalFoodModal, setShowExternalFoodModal] = useState(false);
   const [externalFoodModalTab, setExternalFoodModalTab] = useState<'search' | 'scan' | 'manual'>('search');
   const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
@@ -54,6 +70,9 @@ export default function CoachScreen() {
     d.setDate(1);
     return d;
   });
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showMeasurementModal, setShowMeasurementModal] = useState(false);
+  const [imageToAnalyze, setImageToAnalyze] = useState<string | null>(null);
 
   // Always start with today, but persist day selection during session
   useEffect(() => {
@@ -138,6 +157,7 @@ export default function CoachScreen() {
   const openAddMeal = (type: MealType) => {
     setSelectedMealType(type);
     setSelectedExistingMeal(undefined);
+    setLockMealType(true);
     setShowMealPlanModal(true);
   };
 
@@ -145,7 +165,62 @@ export default function CoachScreen() {
     const existing = getMealForDateAndType(dayISO, type);
     setSelectedMealType(type);
     setSelectedExistingMeal(existing);
+    setLockMealType(true);
     setShowMealPlanModal(true);
+  };
+
+  const handleAiScan = () => {
+    Alert.alert(
+      'AI Scan Food',
+      'Choose an option to scan your food item.',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              setImageToAnalyze(result.assets[0].uri);
+              setSelectedMealType('breakfast'); // Default meal type
+              setExternalFoodModalTab('scan');
+              setShowExternalFoodModal(true);
+            }
+          },
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Photo library permission is required.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [4, 3],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              setImageToAnalyze(result.assets[0].uri);
+              setSelectedMealType('breakfast'); // Default meal type
+              setExternalFoodModalTab('scan');
+              setShowExternalFoodModal(true);
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
 
@@ -161,9 +236,23 @@ export default function CoachScreen() {
       />
       {/* Unified Screen Header */}
       <ScreenHeader
-        title="Coach"
+        title={activeTab === 'progress' ? 'Progress' : 'Coach'}
         icon={<Brain size={28} color={Colors.text} />}
       />
+      {/* Top tabs like Recipes: Tracking | Progress */}
+      <View style={styles.topTabsBar}>
+        {(['tracking','progress'] as const).map((key) => {
+          const isActive = activeTab === key;
+          const label = key === 'tracking' ? 'Tracking' : 'Progress';
+          return (
+            <TouchableOpacity key={key} style={styles.topTabItem} onPress={() => setActiveTab(key)}>
+              <Text style={{ color: isActive ? Colors.text : Colors.lightText, fontWeight: isActive ? '700' as const : '500' as const }}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {activeTab === 'tracking' && (
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -223,11 +312,7 @@ export default function CoachScreen() {
             
             <TouchableOpacity 
               style={styles.aiScanButton}
-              onPress={() => {
-                setSelectedMealType('breakfast'); // Default to breakfast, user can change in modal
-                setExternalFoodModalTab('scan');
-                setShowExternalFoodModal(true);
-              }}
+              onPress={handleAiScan}
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
@@ -278,7 +363,20 @@ export default function CoachScreen() {
         <View style={styles.mealsSection}>
           <View style={styles.sectionHeader}> 
             <Text style={styles.sectionTitle}>Today's Meals</Text>
-            <Button title="Plan All" variant="outline" size="sm" onPress={() => setShowMealPlanModal(true)} />
+            <Button title="Plan All" variant="outline" size="sm" onPress={() => {
+              // Build a queue of meal types to plan, prioritizing unplanned types
+              const all: MealType[] = ['breakfast','lunch','dinner','snack'];
+              const missing = all.filter(t => !getMealForDateAndType(dayISO, t));
+              const queue = missing.length > 0 ? missing : all;
+              setPlanAllQueue(queue);
+              // Mark already planned ones as completed so the UI shows a check
+              const initiallyCompleted = all.filter(t => !!getMealForDateAndType(dayISO, t));
+              setPlanAllCompleted(initiallyCompleted);
+              setSelectedMealType(queue[0]);
+              setLockMealType(false); // allow switching if desired
+              setSelectedExistingMeal(undefined);
+              setShowMealPlanModal(true);
+            }} />
           </View>
           <Rule />
 
@@ -306,7 +404,57 @@ export default function CoachScreen() {
                         <Text style={styles.mealRowSub}>Add {type}</Text>
                       )}
                     </View>
-                    <IconButtonSquare accessibilityLabel={planned ? `Edit ${type}` : `Plan ${type}`}>
+                    {planned && !planned.isCompleted && (
+                      <TouchableOpacity
+                        style={styles.logBtn}
+                        onPress={async () => {
+                          try {
+                            const id = logPlannedMeal(planned, meals);
+                            if (id) {
+                              await completeMeal(planned.id);
+                              showToast({ type: 'success', message: `${label} logged` });
+                            } else {
+                              showToast({ type: 'error', message: 'Unable to log meal' });
+                            }
+                          } catch (e) {
+                            showToast({ type: 'error', message: 'Failed to log meal' });
+                          }
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Log ${label}`}
+                      >
+                        <Text style={styles.logBtnText}>Log</Text>
+                      </TouchableOpacity>
+                    )}
+                    <IconButtonSquare
+                      accessibilityLabel={planned ? `Edit ${type}` : `Plan ${type}`}
+                      onPress={() => {
+                        if (planned && planned.isCompleted) {
+                          Alert.alert(
+                            'Remove Logged Meal',
+                            'Are you sure you want to remove this logged meal?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Remove',
+                                style: 'destructive',
+                                onPress: () => {
+                                  const loggedMeal = loggedMeals.find(
+                                    (lm) => lm.date === planned.date && lm.mealType === planned.mealType
+                                  );
+                                  if (loggedMeal) {
+                                    removeLoggedMeal(loggedMeal.id);
+                                    showToast({ type: 'success', message: 'Meal removed' });
+                                  }
+                                },
+                              },
+                            ]
+                          );
+                        } else {
+                          planned ? openEditMeal(type) : openAddMeal(type);
+                        }
+                      }}
+                    >
                       {planned ? <Pencil size={16} color={Colors.text} /> : <Plus size={16} color={Colors.text} />}
                     </IconButtonSquare>
                   </TouchableOpacity>
@@ -323,6 +471,33 @@ export default function CoachScreen() {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+      )}
+
+      {activeTab === 'progress' && (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 24, paddingTop: 16 }}
+        >
+          {/* Weigh-in Card */}
+          <WeightCard onPress={() => setShowWeightModal(true)} />
+
+          {/* Measurements Card */}
+          <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
+
+          {/* Progress Photos Card */}
+          <ProgressPhotosCard onPress={() => router.push('/(tabs)/coach/progress-photos')} />
+
+          {/* Additional progress areas can be added below */}
+          <View style={{ height: 12 }} />
+        </ScrollView>
+      )}
+
+      {/* Weight Modal */}
+      <WeightModal visible={showWeightModal} onClose={() => setShowWeightModal(false)} />
+
+      {/* Measurement Modal */}
+      <MeasurementModal visible={showMeasurementModal} onClose={() => setShowMeasurementModal(false)} />
 
       {/* Floating Chat Button */}
       <TouchableOpacity
@@ -335,11 +510,47 @@ export default function CoachScreen() {
         <Brain size={24} color={Colors.white} />
       </TouchableOpacity>
 
-      {/* Chat Modal */}
-      <ChatModal
+      {/* Nutrition Coach Chat Modal */}
+      <Modal
         visible={chatOpen}
-        onClose={() => setChatOpen(false)}
-      />
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setChatOpen(false)}
+      >
+        <View style={styles.nutritionCoachContainer}>
+          <View style={styles.nutritionCoachHeader}>
+            <Text style={styles.nutritionCoachTitle}>Nutrition Coach</Text>
+            <TouchableOpacity 
+              style={styles.closeCoachButton}
+              onPress={() => setChatOpen(false)}
+            >
+              <Text style={styles.closeCoachText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <NutritionCoachChatInterface 
+            onViewProgress={() => {
+              // Could navigate to detailed progress view
+              console.log('View progress details');
+            }}
+            onLogMeal={(meal) => {
+              // Integration with meal logging
+              console.log('Log meal:', meal);
+            }}
+            onUpdateGoals={(goals) => {
+              // Integration with goal updates
+              console.log('Update goals:', goals);
+            }}
+            onQuickLogFood={(foodName, calories) => {
+              // Quick food logging
+              console.log('Quick log:', foodName, calories);
+            }}
+            onSetReminder={(type, time) => {
+              // Set reminders
+              console.log('Set reminder:', type, time);
+            }}
+          />
+        </View>
+      </Modal>
 
       {/* Calendar Modal */}
       <Modal
@@ -475,30 +686,66 @@ export default function CoachScreen() {
         selectedDate={dayISO}
         selectedMealType={selectedMealType}
         existingMeal={selectedExistingMeal}
+        lockMealType={lockMealType}
+        autoCloseOnSave={planAllQueue ? false : true}
+        plannedTypes={planAllCompleted}
         onSave={(plannedMeal) => {
           if (selectedExistingMeal) {
             updatePlannedMeal({ ...selectedExistingMeal, ...plannedMeal });
           } else {
             addPlannedMeal(plannedMeal);
           }
-          setShowMealPlanModal(false);
-          setSelectedExistingMeal(undefined);
+          // If we're in Plan All mode, advance to next type and keep modal open
+          if (planAllQueue) {
+            setSelectedExistingMeal(undefined);
+            // Mark this meal type as completed so the UI shows the check
+            setPlanAllCompleted(prev => prev.includes(plannedMeal.mealType) ? prev : [...prev, plannedMeal.mealType]);
+            const remaining = planAllQueue.filter(t => t !== plannedMeal.mealType);
+            if (remaining.length === 0) {
+              setPlanAllQueue(null);
+              setPlanAllCompleted([]);
+              setShowMealPlanModal(false);
+              setLockMealType(false);
+              showToast({ type: 'success', message: 'All meals planned for the day' });
+            } else {
+              setPlanAllQueue(remaining);
+              setSelectedMealType(remaining[0]);
+            }
+          } else {
+            // Normal single-plan flow
+            setShowMealPlanModal(false);
+            setSelectedExistingMeal(undefined);
+            setLockMealType(false);
+          }
         }}
-        onClose={() => { setShowMealPlanModal(false); setSelectedExistingMeal(undefined); }}
+        onClose={() => { setShowMealPlanModal(false); setSelectedExistingMeal(undefined); setLockMealType(false); setPlanAllQueue(null); setPlanAllCompleted([]); }}
       />
 
       {/* External Food Logging Modal */}
       <ExternalFoodLoggingModal
         visible={showExternalFoodModal}
-        onClose={() => setShowExternalFoodModal(false)}
+        onClose={() => {
+          setShowExternalFoodModal(false);
+          setImageToAnalyze(null); // Reset image on close
+        }}
         selectedDate={dayISO}
         selectedMealType={selectedMealType}
         initialTab={externalFoodModalTab}
+        imageToAnalyze={imageToAnalyze}
         onLogFood={(foodData) => {
-          // TODO: Integrate with nutrition tracking system
-          console.log('Logging external food:', foodData);
-          // This would typically call a hook to log the food data
+          logCustomMeal(
+            foodData.name,
+            foodData.date,
+            foodData.mealType,
+            {
+              calories: foodData.calories,
+              protein: foodData.protein,
+              carbs: foodData.carbs,
+              fats: foodData.fats,
+            }
+          );
           setShowExternalFoodModal(false);
+          showToast({ type: 'success', message: `${foodData.name} logged successfully!` });
         }}
       />
     </View>
@@ -513,6 +760,27 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  topTabsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  topTabItem: { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  rangeRow: { flexDirection: 'row', alignSelf: 'center', gap: 8, marginTop: 10 },
+  rangeBtn: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  rangeText: { color: Colors.lightText, fontWeight: '600' },
+  cardsRow: { flexDirection: 'row', gap: 12, marginTop: 16, paddingHorizontal: 16 },
+  card: { flex: 1, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, padding: 16 },
+  cardLabel: { color: Colors.lightText, fontSize: 12, fontWeight: '600' },
+  cardValue: { color: Colors.text, fontSize: 20, fontWeight: '700', marginTop: 6 },
+  section: { marginTop: 20, paddingHorizontal: 16 },
+  listRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  listDate: { color: Colors.lightText, fontSize: 12 },
+  listValue: { color: Colors.text, fontWeight: '700' },
   hero: {
     paddingBottom: 40,
     paddingHorizontal: 20,
@@ -656,14 +924,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    borderRadius: 12,
-    gap: 6,
+    borderRadius: 16,
+    gap: 8,
   },
   statPillValue: {
     color: Colors.text,
@@ -693,10 +963,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: Colors.shadow,
@@ -707,7 +977,7 @@ const styles = StyleSheet.create({
   },
   searchFoodButtonText: {
     color: Colors.white,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: Typography.weights.semibold,
   },
   aiScanButton: {
@@ -716,10 +986,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.card,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    gap: 6,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: Colors.shadow,
@@ -730,7 +1000,7 @@ const styles = StyleSheet.create({
   },
   aiScanButtonText: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: Typography.weights.semibold,
   },
   macrosSection: {
@@ -871,6 +1141,16 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.card,
   },
+  logBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    marginRight: 8,
+  },
+  logBtnText: { color: Colors.primary, fontWeight: '700' },
   mealsGrid: {
     gap: 14,
   },
@@ -1166,6 +1446,39 @@ const styles = StyleSheet.create({
   calendarCancelText: { color: Colors.lightText, fontWeight: '600' },
   calendarTodayBtn: { padding: 10, backgroundColor: Colors.card, borderRadius: 999, borderWidth: 1, borderColor: Colors.border },
   calendarTodayText: { color: Colors.text, fontWeight: '700' },
+  nutritionCoachContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  nutritionCoachHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: Colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  nutritionCoachTitle: {
+    fontSize: 20,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+  },
+  closeCoachButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeCoachText: {
+    fontSize: 18,
+    color: Colors.text,
+    fontWeight: Typography.weights.bold,
+  },
 });
 
 // --- Enhanced Presentational Components ---
@@ -1286,7 +1599,3 @@ const EnhancedMealCard = ({
     </TouchableOpacity>
   );
 };
-
-
-
-

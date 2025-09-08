@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 
@@ -17,6 +19,7 @@ interface NutritionRingsProps {
   carbs: number;   // g
   fats: number;    // g
   goals: Goals;
+  onDetailsPress?: () => void;
 }
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -65,31 +68,51 @@ const Ring = ({
   );
 };
 
-export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protein, carbs, fats, goals }) => {
+export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protein, carbs, fats, goals, onDetailsPress }) => {
   const calPct = clamp01(calories / (goals.dailyCalories || 1));
   const pPct = clamp01(protein / (goals.protein || 1));
   const cPct = clamp01(carbs / (goals.carbs || 1));
   const fPct = clamp01(fats / (goals.fats || 1));
 
   return (
-    <View style={styles.container}>
-      {/* Big calorie ring */}
-      <View style={styles.calorieCard}>
-        <View style={{ position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
-          <Ring size={120} stroke={12} progress={calPct} color="#FDB813" />
-          <View style={styles.centerLabel}>
-            <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
-            <Text style={styles.caloriesUnit}>/{goals.dailyCalories}kcal</Text>
+    <View style={styles.cardContainer}>
+      <LinearGradient
+        colors={[Colors.card, Colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBackground}
+      >
+        {/* Header with title and details button */}
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Today's Nutrition</Text>
+          {onDetailsPress && (
+            <TouchableOpacity style={styles.detailsButton} onPress={onDetailsPress}>
+              <Text style={styles.detailsText}>Details</Text>
+              <ChevronRight size={16} color={Colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.container}>
+          {/* Big calorie ring */}
+          <View style={styles.calorieCard}>
+            <View style={{ position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
+              <Ring size={120} stroke={12} progress={calPct} color="#FDB813" />
+              <View style={styles.centerLabel}>
+                <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
+                <Text style={styles.caloriesUnit}>/{goals.dailyCalories}kcal</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Macro rings */}
+          <View style={styles.macrosRow}>
+            <MacroRing label="Protein" grams={protein} goal={goals.protein} color="#FF6B6B" />
+            <MacroRing label="Fat" grams={fats} goal={goals.fats} color="#4ECDC4" />
+            <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color="#45B7D1" />
           </View>
         </View>
-      </View>
-
-      {/* Macro rings */}
-      <View style={styles.macrosRow}>
-        <MacroRing label="Protein" grams={protein} goal={goals.protein} color="#FF6B6B" />
-        <MacroRing label="Fat" grams={fats} goal={goals.fats} color="#4ECDC4" />
-        <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color="#45B7D1" />
-      </View>
+      </LinearGradient>
     </View>
   );
 };
@@ -119,9 +142,43 @@ const MacroRing = ({ label, grams, goal, color }: { label: string; grams: number
 };
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  gradientBackground: {
+    borderRadius: 20,
+    padding: 24,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+  },
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailsText: {
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.primary,
+  },
   container: {
     alignItems: 'center',
-    padding: 16,
   },
   calorieCard: {
     alignItems: 'center',

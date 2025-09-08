@@ -27,7 +27,7 @@ import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
-
+import { searchFoodDatabase, FoodSearchResult } from '@/utils/openFoodFacts';
 interface ExternalFoodLoggingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -35,6 +35,7 @@ interface ExternalFoodLoggingModalProps {
   selectedMealType: MealType;
   onLogFood: (foodData: LoggedFoodItem) => void;
   initialTab?: 'search' | 'scan' | 'manual';
+  imageToAnalyze?: string | null;
 }
 
 interface LoggedFoodItem {
@@ -49,18 +50,6 @@ interface LoggedFoodItem {
   imageUri?: string;
   source: 'manual' | 'ai_scan' | 'search';
 }
-
-interface FoodSearchResult {
-  id: string;
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  brand?: string;
-  servingSize: string;
-}
-
 const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
@@ -75,6 +64,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
   selectedMealType,
   onLogFood,
   initialTab = 'search',
+  imageToAnalyze,
 }) => {
   const [activeTab, setActiveTab] = useState<'search' | 'scan' | 'manual'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,8 +72,8 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null);
   const [servings, setServings] = useState(1);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(imageToAnalyze || null);
+  const [isAnalyzing, setIsAnalyzing] = useState(!!imageToAnalyze);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<LoggedFoodItem | null>(null);
   
   // Manual entry states
@@ -95,82 +85,23 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
     fats: '',
   });
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Mock food database - in real app, this would be an API call
-  const mockFoodDatabase: FoodSearchResult[] = [
-    {
-      id: '1',
-      name: 'Chicken Breast',
-      calories: 165,
-      protein: 31,
-      carbs: 0,
-      fats: 3.6,
-      servingSize: '100g',
-    },
-    {
-      id: '2',
-      name: 'Brown Rice',
-      calories: 111,
-      protein: 2.6,
-      carbs: 23,
-      fats: 0.9,
-      servingSize: '100g cooked',
-    },
-    {
-      id: '3',
-      name: 'Avocado',
-      calories: 160,
-      protein: 2,
-      carbs: 9,
-      fats: 15,
-      servingSize: '1 medium',
-    },
-    {
-      id: '4',
-      name: 'Greek Yogurt',
-      calories: 59,
-      protein: 10,
-      carbs: 3.6,
-      fats: 0.4,
-      servingSize: '100g',
-      brand: 'Plain, non-fat',
-    },
-    {
-      id: '5',
-      name: 'Salmon Fillet',
-      calories: 208,
-      protein: 22,
-      carbs: 0,
-      fats: 12,
-      servingSize: '100g',
-    },
-  ];
+  const searchTimeoutRef = useRef<number | null>(null);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-
     if (query.trim().length < 2) {
       setSearchResults([]);
       return;
     }
-
     setIsSearching(true);
-    
-    searchTimeoutRef.current = setTimeout(() => {
-      // Mock search - filter the database
-      const results = mockFoodDatabase.filter(food =>
-        food.name.toLowerCase().includes(query.toLowerCase()) ||
-        (food.brand && food.brand.toLowerCase().includes(query.toLowerCase()))
-      );
-      
+    searchTimeoutRef.current = setTimeout(async () => {
+      const results = await searchFoodDatabase(query);
       setSearchResults(results);
       setIsSearching(false);
-    }, 500);
+    }, 500) as any;
   };
 
   const handleTakePhoto = async () => {
@@ -315,8 +246,12 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
   React.useEffect(() => {
     if (visible) {
       setActiveTab(initialTab);
+      if (imageToAnalyze) {
+        setCapturedImage(imageToAnalyze);
+        analyzeImage(imageToAnalyze);
+      }
     }
-  }, [visible, initialTab]);
+  }, [visible, initialTab, imageToAnalyze]);
 
   const renderSearchTab = () => (
     <View style={styles.tabContent}>
@@ -350,6 +285,11 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
             ]}
             onPress={() => setSelectedFood(food)}
           >
+            {food.imageUrl ? (
+              <Image source={{ uri: food.imageUrl }} style={styles.foodImage} />
+            ) : (
+              <View style={styles.foodImagePlaceholder} />
+            )}
             <View style={styles.foodItemContent}>
               <Text style={styles.foodName}>{food.name}</Text>
               {food.brand && <Text style={styles.foodBrand}>{food.brand}</Text>}
@@ -368,7 +308,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
 
       {selectedFood && (
         <View style={styles.servingsContainer}>
-          <Text style={styles.servingsLabel}>Servings:</Text>
+          <Text style={styles.servingsLabel}>Quantity:</Text>
           <View style={styles.servingsControls}>
             <TouchableOpacity
               style={styles.servingButton}
@@ -601,7 +541,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
             title="Log Food"
             onPress={handleLogFood}
             disabled={!canLogFood()}
-            style={[styles.logButton, !canLogFood() && styles.disabledButton]}
+            style={StyleSheet.flatten([styles.logButton, !canLogFood() && styles.disabledButton])}
           />
         </View>
       </SafeAreaView>
@@ -723,6 +663,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  foodImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+  },
+  foodImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: Colors.border,
   },
   selectedFoodItem: {
     borderColor: Colors.primary,

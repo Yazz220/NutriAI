@@ -1,18 +1,15 @@
-declare global {
-  // Allow `testID` prop on JSX intrinsic elements used in tests
-  // and allow any intrinsic element names from test files that use
-  // web-like elements (div, button) when running react-native tests.
-  namespace JSX {
-    interface IntrinsicAttributes {
-      testID?: string;
-    }
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
+declare module '*.svg' {
+  import React from 'react';
+  import { SvgProps } from 'react-native-svg';
+  const content: React.FC<SvgProps>;
+  export default content;
 }
 
-export {};
-
-// Ambient module declarations for optional Expo packages used at runtime
-declare module 'expo-haptics';
+// Lightweight type shim for NetInfo to avoid build-time type errors in tests
+declare module '@react-native-community/netinfo' {
+  const NetInfo: {
+    addEventListener: (listener: (state: any) => void) => { remove: () => void } | void;
+    fetch: () => Promise<{ isConnected?: boolean | null } & Record<string, any>>;
+  };
+  export default NetInfo;
+}
