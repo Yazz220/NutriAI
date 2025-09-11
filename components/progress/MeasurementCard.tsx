@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ruler, ChevronRight } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ruler, CaretRight } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
+import { GlassSurface } from '@/components/common/GlassSurface';
 
 interface MeasurementCardProps {
   onPress: () => void;
@@ -12,30 +12,23 @@ interface MeasurementCardProps {
 
 export const MeasurementCard: React.FC<MeasurementCardProps> = ({ onPress, lastUpdatedLabel = 'No entries yet' }) => {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <LinearGradient
-        colors={[Colors.card, Colors.background]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradientBackground}
-      >
-        <View style={styles.cardContent}>
-          <View style={styles.leftSection}>
-            <View style={styles.iconContainer}>
-              <Ruler size={28} color={Colors.primary} />
-            </View>
-            <View style={styles.textContent}>
-              <Text style={styles.title}>Measurements</Text>
-              <Text style={styles.subtitle}>Last update: {lastUpdatedLabel}</Text>
-            </View>
+    <GlassSurface pressable onPress={onPress} style={styles.card} padding={24}>
+      <View style={styles.cardContent}>
+        <View style={styles.leftSection}>
+          <View style={styles.iconContainer}>
+            <Ruler size={28} color={Colors.primary} weight="bold" />
           </View>
-          <View style={styles.rightSection}>
-            <Text style={styles.ctaText}>Log</Text>
-            <ChevronRight size={18} color={Colors.primary} />
+          <View style={styles.textContent}>
+            <Text style={styles.title}>Measurements</Text>
+            <Text style={styles.subtitle}>Last update: {lastUpdatedLabel}</Text>
           </View>
         </View>
-      </LinearGradient>
-    </TouchableOpacity>
+        <View style={styles.rightSection}>
+          <Text style={styles.ctaText}>Log</Text>
+          <CaretRight size={18} color={Colors.primary} weight="bold" />
+        </View>
+      </View>
+    </GlassSurface>
   );
 };
 
@@ -44,15 +37,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  gradientBackground: {
-    borderRadius: 20,
-    padding: 24,
+    // Shadows and border handled by GlassSurface
   },
   cardContent: {
     flexDirection: 'row',

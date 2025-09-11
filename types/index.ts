@@ -81,6 +81,62 @@ export interface InventoryItem {
     goals?: NutritionGoals;
   }
 
+  // Enhanced User Profile Types
+  export type DietaryRestriction = 
+    | 'vegetarian' 
+    | 'vegan' 
+    | 'pescatarian' 
+    | 'keto' 
+    | 'paleo' 
+    | 'gluten-free' 
+    | 'dairy-free' 
+    | 'nut-free' 
+    | 'low-carb' 
+    | 'low-sodium' 
+    | 'halal' 
+    | 'kosher'
+    | 'none';
+
+  export type ActivityLevel = 'sedentary' | 'lightly-active' | 'moderately-active' | 'very-active' | 'extremely-active';
+
+  export type HealthGoal = 'weight-loss' | 'weight-gain' | 'muscle-gain' | 'maintenance' | 'general-health';
+
+  export interface EnhancedUserProfile {
+    id: string;
+    email?: string;
+    name?: string;
+    
+    // Personal Information
+    age?: number;
+    height?: number; // in cm
+    weight?: number; // in kg
+    gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+    activityLevel?: ActivityLevel;
+    
+    // Dietary Preferences
+    dietaryRestrictions: DietaryRestriction[];
+    allergies: string[];
+    dislikedFoods: string[];
+    preferredCuisines: string[];
+    
+    // Health Goals
+    healthGoals: HealthGoal[];
+    targetWeight?: number;
+    dailyCalorieTarget?: number;
+    dailyProteinTarget?: number;
+    dailyCarbTarget?: number;
+    dailyFatTarget?: number;
+    
+    // Cooking Preferences
+    cookingSkill?: CookingSkill;
+    maxCookingTime?: number; // in minutes
+    preferredMealTypes: string[];
+    
+    // Timestamps
+    createdAt: string;
+    updatedAt: string;
+  }
+
   // Meal Planning Types
   export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 

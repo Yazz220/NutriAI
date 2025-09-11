@@ -24,7 +24,8 @@
       }
     },
     "plugins": [
-      "expo-camera"
+      "expo-camera",
+      "expo-font"
     ],
     "web": {
       "bundler": "metro"

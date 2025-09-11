@@ -22,14 +22,9 @@ import { Input } from '@/components/ui/Input';
 interface AddItemModalProps {
   visible: boolean;
   onClose: () => void;
-  onAdd: (item: {
-    name: string;
-    quantity: number;
-    unit: string;
-    category: ItemCategory;
-    addedDate: string;
-    expiryDate: string;
-  }) => void;
+  // Keep the shape flexible for now to avoid tight coupling; callers typically pass
+  // an inventory-like object. Narrow types can be restored later.
+  onAdd: (item: { name: string; category: ItemCategory; addedDate: string; }) => void;
 }
 
 const categories: ItemCategory[] = [
@@ -64,20 +59,14 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
   onAdd 
 }) => {
   const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState('pcs');
   const [category, setCategory] = useState<ItemCategory>('Produce');
-  const [expiryDays, setExpiryDays] = useState('7');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { validateInventoryItem, errors, clearErrors } = useValidation();
   
   const resetForm = () => {
     setName('');
-    setQuantity('1');
-    setUnit('pcs');
     setCategory('Produce');
-    setExpiryDays('7');
     clearErrors();
   };
   
@@ -87,16 +76,11 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
     setIsSubmitting(true);
     
     const today = new Date();
-    const expiryDate = new Date();
-    expiryDate.setDate(today.getDate() + Number(expiryDays));
     
     const itemData = {
       name: name.trim(),
-      quantity: Number(quantity),
-      unit,
       category,
       addedDate: today.toISOString(),
-      expiryDate: expiryDate.toISOString()
     };
     
     const validation = validateInventoryItem(itemData);
@@ -187,65 +171,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
                 accessibilityHint="Enter the name of the item you want to add"
               />
             </View>
-
-            <View style={styles.inputSection}>
-              <View style={styles.sectionHeader}>
-                <Hash size={20} color={Colors.primary} />
-                <Text style={styles.sectionTitle}>Quantity & Unit</Text>
-              </View>
-              <View style={styles.row}>
-                <View style={styles.halfColumn}>
-                  <Input
-                    label="Quantity"
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    keyboardType="numeric"
-                    placeholder="1"
-                    error={errors.quantity}
-                    required
-                    testID="item-quantity-input"
-                    accessibilityLabel="Item quantity input"
-                    accessibilityHint="Enter the quantity of the item"
-                  />
-                </View>
-                
-                <View style={styles.halfColumn}>
-                  <Text style={styles.inputLabel}>
-                    Unit <Text style={{ color: Colors.error }}>*</Text>
-                  </Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.unitsScroll}
-                    accessibilityLabel="Scroll to see more units"
-                  >
-                    {commonUnits.map((u) => (
-                      <TouchableOpacity
-                        key={u}
-                        style={[
-                          styles.modernUnitButton,
-                          unit === u && styles.selectedModernUnitButton
-                        ]}
-                        onPress={() => { try { Vibration.vibrate(10); } catch {}; setUnit(u); }}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: unit === u }}
-                        accessibilityLabel={`${u} unit`}
-                        accessibilityHint={`Select ${u} as the unit of measurement`}
-                      >
-                        <Text 
-                          style={[
-                            styles.modernUnitButtonText,
-                            unit === u && styles.selectedModernUnitButtonText
-                          ]}
-                        >
-                          {u}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            </View>
             
             <View style={styles.inputSection}>
               <View style={styles.sectionHeader}>
@@ -279,24 +204,6 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
               </View>
             </View>
             
-            <View style={styles.inputSection}>
-              <View style={styles.sectionHeader}>
-                <Calendar size={20} color={Colors.primary} />
-                <Text style={styles.sectionTitle}>Expiration</Text>
-              </View>
-              <Input
-                label="Expires in (days)"
-                value={expiryDays}
-                onChangeText={setExpiryDays}
-                keyboardType="numeric"
-                placeholder="7"
-                error={errors.expiryDays}
-                required
-                testID="item-expiry-input"
-                accessibilityLabel="Item expiry days input"
-                accessibilityHint="Enter how many days until the item expires"
-              />
-            </View>
           </ScrollView>
           
           <Button

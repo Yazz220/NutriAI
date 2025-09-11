@@ -1,5 +1,5 @@
 import { NutritionCoachAiContext } from './nutritionCoachAiContext';
-import { CoachingInsight } from './progressAnalysis';
+import { CoachingInsight } from './nutritionCoachAiContext';
 import { MealRecommendation } from './goalOrientedMealRecommender';
 
 export interface CoachingPersonality {
@@ -392,11 +392,13 @@ export class CoachingPersonalityEngine {
     context: NutritionCoachAiContext, 
     coachingContext: CoachingContext
   ): string {
-    return message
-      .replace('{streakDays}', coachingContext.streakDays.toString())
-      .replace('{metric}', this.getRelevantMetric(context))
-      .replace('{goalType}', context.userProfile.goals.goalType)
-      .replace('{timeOfDay}', coachingContext.timeOfDay);
+    let out = message || '';
+    out = out.replace('{streakDays}', String(coachingContext.streakDays ?? '0'));
+    out = out.replace('{metric}', this.getRelevantMetric(context) ?? 'progress');
+    const goalType = (context.userProfile?.goals as any)?.goalType ?? 'maintain';
+    out = out.replace('{goalType}', String(goalType));
+    out = out.replace('{timeOfDay}', coachingContext.timeOfDay ?? 'day');
+    return out;
   }
 
   private getRelevantMetric(context: NutritionCoachAiContext): string {
@@ -455,7 +457,7 @@ export class CoachingPersonalityEngine {
     ];
     
     if (insights && insights.length > 0) {
-      const insight = insights.find(i => i.type === 'educational');
+  const insight = insights.find(i => i.type === 'education');
       if (insight) return insight.message;
     }
     

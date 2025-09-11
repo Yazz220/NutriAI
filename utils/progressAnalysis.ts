@@ -1,6 +1,6 @@
 import { LoggedMeal, NutritionGoals, MealType } from '@/types';
 import { DailyProgress, WeeklyTrend } from '@/hooks/useNutrition';
-import { EatingPattern, ProgressTrend, CoachingInsight, NutritionCoachAiContext } from './nutritionCoachAiContext';
+import { EatingPattern, ProgressTrend, NutritionCoachAiContext, CoachingInsight } from './nutritionCoachAiContext';
 
 export interface ProgressAnalysisResult {
   eatingPatterns: EatingPattern[];

@@ -312,13 +312,9 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
           chartConfig={chartConfig}
           bezier
           style={styles.chart}
-          withInnerLines={true}
-          withOuterLines={false}
-          withVerticalLines={false}
-          withHorizontalLines={true}
-          withDots={selectedPeriod === '7d'}
-          withShadow={false}
-          fromZero={selectedChart === 'adherence'}
+          
+          
+          
         />
         
         {selectedChart === 'macros' && (

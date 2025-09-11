@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
 import { Spacing, Typography, Radii } from '@/constants/spacing';
 import { slugifyIngredient } from '@/utils/ingredientSlug';
-import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType } from '../../types';
+import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType, InventoryItem } from '../../types';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -53,7 +53,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   selectedDate,
 }) => {
   const servings = recipe.servings;
-  const [desiredServings, setDesiredServings] = useState<number>(Math.max(1, servings ?? 1));
+  const [desiredServings, setDesiredServings] = useState<number>(1);
   const time = recipe.totalTimeMinutes ?? ((recipe.prepTimeMinutes ?? 0) + (recipe.cookTimeMinutes ?? 0));
 
   const hasImage = !!recipe.image;
@@ -69,6 +69,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const [missingList, setMissingList] = useState<Array<{ name: string; quantity: number; unit: string }>>([]);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
   const [showPlanMealModal, setShowPlanMealModal] = useState(false);
+  const [missingIngredientsAdded, setMissingIngredientsAdded] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
 
   const servingsBase = useMemo(() => Math.max(1, servings ?? 1), [servings]);
   const scaleFactor = useMemo(() => (desiredServings / servingsBase), [desiredServings, servingsBase]);
@@ -106,15 +108,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
   useEffect(() => {
     try {
-      const availability = calculateRecipeAvailability(mealLike as any, inventory as any);
-      setMissingCount(availability.missingIngredients.length);
-      setMissingList(availability.missingIngredients.map(mi => ({
-        name: mi.name,
-        quantity: typeof mi.quantity === 'number' && mi.quantity > 0 ? mi.quantity : 1,
-        unit: mi.unit || 'pcs',
+        const inventoryNames = new Set(inventory.map((i: InventoryItem) => i.name.toLowerCase()));
+      const missing = scaledIngredients.filter(ing => !inventoryNames.has(ing.name.toLowerCase()));
+      setMissingCount(missing.length);
+      setMissingList(missing.map(ing => ({
+        name: ing.name,
+        quantity: 1,
+        unit: 'pcs',
       })));
     } catch {}
-  }, [mealLike, inventory]);
+  }, [scaledIngredients, inventory]);
 
   // Convert CanonicalRecipe to Meal format for logging
   const convertToMeal = (canonicalRecipe: CanonicalRecipe, servings: number): Meal => {
@@ -256,18 +259,20 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 variant={isSaved ? 'primary' : 'primary'}
                 icon={isSaved ? <Bookmark size={14} color={Colors.white} /> : <BookmarkPlus size={14} color={Colors.white} />}
               />
-              <Button 
-                title="Log" 
-                onPress={() => setShowMealTypeSelector(true)} 
-                size="xs" 
-                variant="secondary" 
-                icon={<Plus size={14} color={Colors.primary} />} 
+              <Button
+                title="Log"
+                onPress={() => setShowMealTypeSelector(true)}
+                size="xs"
+                variant="secondary"
+                icon={<Plus size={14} color={Colors.primary} />}
               />
               <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
+
               {!!missingCount && missingCount > 0 && (
                 <Button
-                  title={`Add missing (${missingCount})`}
+                  title={missingIngredientsAdded ? 'Added' : `Add missing (${missingCount})`}
                   onPress={async () => {
+                    if (missingIngredientsAdded) return;
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
                     let added = 0;
                     for (const m of missingList) {
@@ -284,11 +289,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                       added++;
                     }
                     Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
+                    setMissingIngredientsAdded(true);
                   }}
                   size="xs"
-                  variant="secondary"
+                  variant={missingIngredientsAdded ? 'primary' : 'secondary'}
+                  disabled={missingIngredientsAdded}
                 />
               )}
+
               <Button
                 title="Ask AI"
                 onPress={async () => {
@@ -299,23 +307,27 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 variant="secondary"
                 icon={<MessageCircle size={14} color={Colors.primary} />}
               />
+
               <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
+
           {mode === 'library' && (
             <>
-              <Button 
-                title="Log" 
-                onPress={() => setShowMealTypeSelector(true)} 
-                size="xs" 
-                variant="primary" 
-                icon={<Plus size={14} color={Colors.white} />} 
+              <Button
+                title="Log"
+                onPress={() => setShowMealTypeSelector(true)}
+                size="xs"
+                variant="primary"
+                icon={<Plus size={14} color={Colors.white} />}
               />
               <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
+
               {!!missingCount && missingCount > 0 && (
                 <Button
-                  title={`Add missing (${missingCount})`}
+                  title={missingIngredientsAdded ? 'Added' : `Add missing (${missingCount})`}
                   onPress={async () => {
+                    if (missingIngredientsAdded) return;
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
                     let added = 0;
                     for (const m of missingList) {
@@ -332,24 +344,28 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                       added++;
                     }
                     Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
+                    setMissingIngredientsAdded(true);
                   }}
                   size="xs"
-                  variant="secondary"
+                  variant={missingIngredientsAdded ? 'primary' : 'secondary'}
+                  disabled={missingIngredientsAdded}
                 />
               )}
-              <Button title="Ask AI" onPress={() => onAskAI?.(recipe)} size="xs" variant="secondary" icon={<MessageCircle size={14} color={Colors.primary} />} />
+
+              <Button title="Ask AI" onPress={() => setShowAiChat(true)} size="xs" variant="secondary" icon={<MessageCircle size={14} color={Colors.primary} />} />
               <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
+
           {mode === 'ai' && (
             <>
               <Button title="Save" onPress={() => onSave?.(recipe)} size="xs" variant="primary" />
-              <Button 
-                title="Log" 
-                onPress={() => setShowMealTypeSelector(true)} 
-                size="xs" 
-                variant="secondary" 
-                icon={<Plus size={14} color={Colors.primary} />} 
+              <Button
+                title="Log"
+                onPress={() => setShowMealTypeSelector(true)}
+                size="xs"
+                variant="secondary"
+                icon={<Plus size={14} color={Colors.primary} />}
               />
               <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
@@ -376,11 +392,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     <View style={styles.ingredientImageContainer}>
                       <IngredientIcon slug={slugifyIngredient(scaledIng.name)} displayName={scaledIng.name} size={56} />
                       {isMissing && <View style={styles.missingIndicator} />}
-                      {scaledIng.isScaled && (
-                        <View style={styles.scaledIndicator}>
-                          <Text style={styles.scaledIndicatorText}>×</Text>
-                        </View>
-                      )}
                     </View>
                     <Text style={styles.ingredientName}>{scaledIng.name}</Text>
                     <Text style={[

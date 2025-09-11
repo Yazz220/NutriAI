@@ -1,3 +1,2 @@
-# Supabase functions config
-[functions.get-ingredient-icon]
+""" Supabase functions config: import-related functions removed. """
 verify_jwt = false

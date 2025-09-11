@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Brain } from 'lucide-react-native';
+import { Brain } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -8,6 +8,7 @@ import { WeightCard } from '@/components/progress/WeightCard';
 import { WeightModal } from '@/components/progress/WeightModal';
 import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
+import { GlassSurface } from '@/components/common/GlassSurface';
 
 export default function CoachProgressScreen() {
   const insets = useSafeAreaInsets();
@@ -16,7 +17,7 @@ export default function CoachProgressScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Coach" icon={<Brain size={28} color={Colors.text} />} />
+      <ScreenHeader title="Coach" icon={<Brain size={28} color={Colors.text} weight="bold" />} glassy />
       
       <ScrollView 
         style={styles.content}
@@ -31,12 +32,12 @@ export default function CoachProgressScreen() {
         <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
         
         {/* Placeholder for future progress cards */}
-        <View style={styles.placeholderSection}>
+        <GlassSurface style={styles.placeholderSection}>
           <Text style={styles.placeholderTitle}>More Progress Features</Text>
           <Text style={styles.placeholderSubtitle}>
             Additional progress tracking features will be added here
           </Text>
-        </View>
+        </GlassSurface>
       </ScrollView>
 
       <WeightModal 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   SectionList,
   ScrollView,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,9 +16,9 @@ import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock } from 'luc
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
+import { useInventory } from '@/hooks/useInventoryStore';
 import { ShoppingListItem as ShoppingListItemComponent } from '@/components/ShoppingListItem';
 import { AddToListModal } from '@/components/AddToListModal';
-import { ExpirationDateModal } from '@/components/ExpirationDateModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -36,87 +37,75 @@ export default function ShoppingListScreen() {
     addItem, 
     getItemsByCategory,
     clearCheckedItems,
-    generateSmartList,
     toggleItemChecked,
     clearRecentlyPurchased
   } = useShoppingList();
+  const { addItem: addInventoryItem } = useInventory();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = 56; // matches pill bar height in app/(tabs)/_layout.tsx
   const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [expirationModalVisible, setExpirationModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
   const [exportVisible, setExportVisible] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'remaining' | 'completed'>('all');
+  const [completedCollapsed, setCompletedCollapsed] = useState(true);
 
   if (isLoading) {
     return <LoadingSpinner text="Loading your shopping list..." />;
   }
 
-  const itemsByCategory = getItemsByCategory();
+  const { uncheckedItems, checkedItems } = useMemo(() => {
+    const unchecked = shoppingList.filter(item => !item.checked);
+    const checked = shoppingList.filter(item => item.checked);
+    return { uncheckedItems: unchecked, checkedItems: checked };
+  }, [shoppingList]);
 
-  // Create sections for SectionList
-  const sections = Object.entries(itemsByCategory)
-    .filter(([_, items]) => items.length > 0)
-    .map(([category, items]) => ({
-      title: category,
-      data: items
-    }));
-
-  const handleGenerateSmartList = () => {
-    generateSmartList();
-  };
+  const sections = useMemo(() => {
+    const data: { title: string; data: ShoppingListItem[] }[] = [];
+    if (filter === 'all' || filter === 'remaining') {
+      data.push({ title: 'Remaining', data: uncheckedItems });
+    }
+    if (filter === 'all' || filter === 'completed') {
+      data.push({ title: 'Completed', data: checkedItems });
+    }
+    return data;
+  }, [filter, uncheckedItems, checkedItems]);
 
   const handleToggleItem = (item: ShoppingListItem) => {
+    toggleItemChecked(item.id);
     if (!item.checked) {
-      setSelectedItem(item);
-      setExpirationModalVisible(true);
-    } else {
-      toggleItemChecked(item.id);
-    }
-  };
-
-
-
-  const handleConfirmExpiration = (expirationDate: Date | null) => {
-    if (selectedItem) {
-      // Mark as purchased (checked) and move to inventory
-      toggleItemChecked(selectedItem.id, { 
-        moveToInventory: true,
-        expiryDate: expirationDate ? expirationDate.toISOString() : undefined,
-      });
-      showToast({
-        message: `${selectedItem.name} moved to Inventory`,
-        type: 'success',
-        action: {
-          label: 'Undo',
-          onPress: () => {
-            // Undo: remove from inventory and put back into recentlyPurchased
-            // Note: Inventory store doesn't expose remove by id; simpler approach: add back to recently purchased list
-            // For now, re-add to shopping list unchecked
-            addItem({
-              name: selectedItem.name,
-              quantity: selectedItem.quantity,
-              unit: selectedItem.unit,
-              category: selectedItem.category,
-              addedDate: selectedItem.addedDate,
-              checked: false,
-              addedBy: selectedItem.addedBy,
-              mealId: selectedItem.mealId,
-              plannedMealId: selectedItem.plannedMealId,
-            });
+      Alert.alert(
+        'Move to Inventory?',
+        `Would you like to add ${item.name} to your inventory?`,
+        [
+          { text: 'Not Now', style: 'cancel' },
+          {
+            text: 'Yes, Add',
+            onPress: async () => {
+              try {
+                await addInventoryItem({
+                  name: item.name,
+                  category: item.category,
+                  addedDate: new Date().toISOString(),
+                  quantity: 1,
+                  unit: 'pcs',
+                });
+                showToast({ message: `Added ${item.name} to inventory`, type: 'success' });
+              } catch (e) {
+                showToast({ message: 'Failed to add to inventory', type: 'error' });
+              }
+            },
           },
-        },
-      });
+        ]
+      );
     }
-    setExpirationModalVisible(false);
-    setSelectedItem(null);
   };
 
   // Calculate stats
   const totalItems = shoppingList.length;
-  const checkedItems = shoppingList.filter(item => item.checked).length;
-  const uncheckedItems = totalItems - checkedItems;
+  const completedCount = checkedItems.length;
+  const remainingCount = uncheckedItems.length;
 
   return (
     <>
@@ -136,10 +125,11 @@ export default function ShoppingListScreen() {
         {/* Quick Stats */}
         <StatRow
           items={[
-            { icon: <ShoppingCart size={16} color={Colors.primary} />, label: 'Total Items', value: totalItems.toString() },
-            { icon: <CheckCircle size={16} color={Colors.primary} />, label: 'Completed', value: checkedItems.toString() },
-            { icon: <Clock size={16} color={Colors.error} />, label: 'Remaining', value: uncheckedItems.toString() },
+            { icon: <ShoppingCart size={16} color={Colors.primary} />, label: 'Total Items', value: totalItems.toString(), onPress: () => setFilter('all') },
+            { icon: <CheckCircle size={16} color={Colors.primary} />, label: 'Completed', value: completedCount.toString(), onPress: () => setFilter('completed') },
+            { icon: <Clock size={16} color={Colors.error} />, label: 'Remaining', value: remainingCount.toString(), onPress: () => setFilter('remaining') },
           ]}
+          activeFilter={filter}
         />
 
         {/* Enhanced Actions */}
@@ -152,15 +142,6 @@ export default function ShoppingListScreen() {
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
             icon={<Plus size={14} color={Colors.primary} />}
           />
-          <Button
-            title="Smart List"
-            onPress={handleGenerateSmartList}
-            variant="primary"
-            size="xs"
-            style={{ flex: 1.2, minWidth: 0, paddingHorizontal: 12 }}
-            icon={<Sparkles size={14} color={Colors.white} />}
-          />
-
           <Button
             title="Export"
             onPress={() => setExportVisible(true)}
@@ -184,20 +165,27 @@ export default function ShoppingListScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View>
-              <ShoppingListItemComponent 
-                item={item} 
-                onToggle={handleToggleItem} 
-              />
-              <Rule />
-            </View>
-          )}
-          renderSectionHeader={({ section: { title } }) => (
-            <View>
-              <Text style={styles.sectionHeader}>{title}</Text>
-              <Rule />
-            </View>
+          renderItem={({ item, section }) => {
+            if (section.title === 'Completed' && completedCollapsed) {
+              return null;
+            }
+            return (
+              <View>
+                <ShoppingListItemComponent 
+                  item={item} 
+                  onToggle={handleToggleItem} 
+                />
+                <Rule />
+              </View>
+            );
+          }}
+          renderSectionHeader={({ section: { title, data } }) => (
+            <TouchableOpacity onPress={() => title === 'Completed' && setCompletedCollapsed(!completedCollapsed)}>
+              <View>
+                <Text style={styles.sectionHeader}>{title} ({data.length})</Text>
+                <Rule />
+              </View>
+            </TouchableOpacity>
           )}
           stickySectionHeadersEnabled={false}
           keyboardShouldPersistTaps="handled"
@@ -209,13 +197,6 @@ export default function ShoppingListScreen() {
                 Add items manually or generate a smart list based on your inventory
               </Text>
               <View style={styles.emptyActions}>
-                <TouchableOpacity 
-                  style={[styles.emptyButton, styles.emptySmartButton]}
-                  onPress={handleGenerateSmartList}
-                >
-                  <Sparkles size={14} color={Colors.white} />
-                  <Text style={styles.emptySmartButtonText}>Smart List</Text>
-                </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.emptyButton, styles.emptyAddButton]}
                   onPress={() => setAddModalVisible(true)}
@@ -236,50 +217,23 @@ export default function ShoppingListScreen() {
 
         <ExportShoppingModal visible={exportVisible} onClose={() => setExportVisible(false)} />
         
-        {recentlyPurchased.length > 0 && (
-          <View style={styles.recentlyPurchasedContainer}>
-            <Text style={styles.recentlyPurchasedTitle}>Recently Purchased</Text>
-            <ScrollView style={styles.recentlyPurchasedList}>
-              {recentlyPurchased.map((item) => (
-                <View key={`recent-${item.id}`} style={styles.recentlyPurchasedItem}>
-                  <Text style={[styles.recentlyPurchasedText, styles.checkedText]}>
-                    {item.name}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.clearRecentButton}
-              onPress={clearRecentlyPurchased}
-            >
-              <Text style={styles.clearRecentButtonText}>Clear Recent</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Bottom spacer to ensure content clears the absolute tab bar */}
         <View style={{ height: bottomPad }} />
         
-        <ExpirationDateModal
-          visible={expirationModalVisible}
-          onClose={() => setExpirationModalVisible(false)}
-          onConfirm={handleConfirmExpiration}
-          itemName={selectedItem?.name || ''}
-        />
       </View>
     </>
   );
 }
 
 // StatRow with three outline panels (compact)
-const StatRow = ({ items }: { items: { icon?: React.ReactNode; label: string; value: string }[] }) => (
+const StatRow = ({ items, activeFilter }: { items: { icon?: React.ReactNode; label: string; value: string; onPress: () => void }[], activeFilter: string }) => (
   <View style={styles.statRow}>
     {items.map((it, idx) => (
-      <View key={idx} style={styles.statPill}>
+      <TouchableOpacity key={idx} style={[styles.statPill, activeFilter === it.label.toLowerCase() && styles.activeStatPill]} onPress={it.onPress}>
         {it.icon ? <View style={{ marginRight: 6 }}>{it.icon}</View> : null}
         <Text style={styles.statPillValue}>{it.value}</Text>
         <Text style={styles.statPillLabel}>{it.label}</Text>
-      </View>
+      </TouchableOpacity>
     ))}
   </View>
 );
@@ -343,6 +297,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 12,
     paddingVertical: 10,
+  },
+  activeStatPill: {
+    backgroundColor: Colors.primary,
   },
   statPillValue: {
     color: Colors.text,

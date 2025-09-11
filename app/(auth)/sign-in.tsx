@@ -5,7 +5,7 @@ import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { User, Mail, Lock, LogIn } from 'lucide-react-native';
+import { User, EnvelopeSimple, Lock, SignIn } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SignInScreen() {
@@ -150,7 +150,7 @@ export default function SignInScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
           <View style={styles.inputContainer}>
-            <Mail size={20} color={Colors.lightText} />
+            <EnvelopeSimple size={20} color={Colors.lightText} />
             <TextInput
               style={styles.input}
               autoCapitalize="none"

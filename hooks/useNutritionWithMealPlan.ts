@@ -9,7 +9,7 @@ import { useMeals } from './useMealsStore';
 export const useNutritionWithMealPlan = () => {
   const { meals } = useMeals();
   const mealPlannerData = useMealPlanner();
-  const nutritionData = useNutrition(mealPlannerData.plannedMeals, meals);
+  const nutritionData = useNutrition();
 
   return {
     ...nutritionData,

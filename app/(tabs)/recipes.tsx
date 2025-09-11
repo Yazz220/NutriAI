@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
   FlatList,
   LayoutChangeEvent,
   TextInput,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, ChefHat, Search, Brain, Plus, MoreVertical } from 'lucide-react-native';
+import { BookOpenText, CookingPot, MagnifyingGlass, Brain, Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
 // Removed gradient header in favor of ScreenHeader
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
@@ -41,7 +42,6 @@ import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
 import { InventoryAwareRecipeChatInterface } from '@/components/InventoryAwareRecipeChatInterface';
-import { RecipeCard } from '@/components/recipes/RecipeCard';
 import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
@@ -69,6 +69,20 @@ export default function RecipesScreen() {
     { key: 'local', label: 'Recipes' },
   ];
   const activeIndex = tabs.findIndex(t => t.key === activeTab);
+  // Segmented control animation
+  const [segWidth, setSegWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (segWidth > 0 && activeIndex >= 0) {
+      const w = segWidth / tabs.length;
+      Animated.spring(indicatorX, {
+        toValue: activeIndex * w,
+        useNativeDriver: true,
+        friction: 10,
+        tension: 90,
+      }).start();
+    }
+  }, [activeIndex, segWidth]);
   const TAB_BAR_HEIGHT = 56; // bottom pill tab bar height
   const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
   const [refreshing, setRefreshing] = useState(false);
@@ -331,18 +345,41 @@ export default function RecipesScreen() {
 
       <ScreenHeader
         title="Recipes"
-        icon={<ChefHat size={28} color={Colors.text} />}
+        icon={<CookingPot size={28} color={Colors.text} />}
       />
 
-      <View style={styles.topTabsBar}>
-        {tabs.map((t) => {
-          const isActive = t.key === activeTab;
-          return (
-            <TouchableOpacity key={t.key} style={styles.topTabItem} onPress={() => setActiveTab(t.key)}>
-              <Text style={{ color: isActive ? Colors.text : Colors.lightText, fontWeight: isActive ? '700' as const : '500' as const }}>{t.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Segmented control for Recipes tabs (single track + sliding indicator) */}
+      <View
+        style={styles.segmentedContainer}
+        onLayout={(e) => setSegWidth(e.nativeEvent.layout.width)}
+      >
+        <View style={styles.segmentTrack}>
+          {segWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.segmentIndicator,
+                { width: segWidth / tabs.length, transform: [{ translateX: indicatorX }] },
+              ]}
+            />
+          )}
+        </View>
+        <View style={styles.segmentsOverlay} pointerEvents="box-none">
+          {tabs.map((t) => {
+            const isActive = t.key === activeTab;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={styles.segmentClick}
+                onPress={() => setActiveTab(t.key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Switch to ${t.label}`}
+                activeOpacity={0.9}
+              >
+                <Text style={isActive ? styles.segmentTextActive : styles.segmentText}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {activeTab === 'discovery' ? (
@@ -368,7 +405,7 @@ export default function RecipesScreen() {
         <>
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
-              <Search size={18} color={Colors.lightText} />
+              <MagnifyingGlass size={18} color={Colors.lightText} />
               <TextInput
                 placeholder="Search saved recipes"
                 placeholderTextColor={Colors.lightText}
@@ -443,11 +480,27 @@ export default function RecipesScreen() {
             data={activeFolderId ? folders.find(f => f.id === activeFolderId)?.recipeIds.map(id => localRecipes.find(r => r.id === id)).filter(Boolean) as Meal[] : localRecipes}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <RecipeCard
-                recipe={item}
-                onPress={handleRecipePress}
-                onMenuPress={handleRecipeMenuPress}
-              />
+              <TouchableOpacity style={styles.recipeCard} onPress={() => handleRecipePress(item)}>
+                <Image source={{ uri: item.image }} style={styles.recipeImage} />
+                <View style={styles.recipeInfo}>
+                  <Text style={styles.recipeTitle}>{item.name}</Text>
+                  <View style={styles.recipeMeta}>
+                    <View style={styles.metaItem}>
+                      <Clock size={14} color={Colors.lightText} />
+                      <Text style={styles.metaText}>{item.cookTime}m</Text>
+                    </View>
+                    {item.nutritionPerServing?.calories && (
+                      <View style={styles.metaItem}>
+                        <Fire size={14} color={Colors.primary} />
+                        <Text style={styles.caloriesText}>{Math.round(item.nutritionPerServing.calories)}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.menuButton} onPress={() => handleRecipeMenuPress(item)}>
+                  <DotsThreeVertical size={20} color={Colors.lightText} />
+                </TouchableOpacity>
+              </TouchableOpacity>
             )}
             contentContainerStyle={styles.listContentContainer}
           />
@@ -505,16 +558,60 @@ export default function RecipesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  topTabsBar: {
+  // Segmented control (single line + indicator)
+  segmentedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginHorizontal: 0,
+    marginTop: 8,
+    backgroundColor: 'transparent',
+    position: 'relative',
   },
-  topTabItem: { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  segmentTrack: {
+    flex: 1,
+    height: 40,
+    backgroundColor: 'transparent',
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  segmentIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: Colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segmentsOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+  },
+  segmentClick: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentText: {
+    color: Colors.lightText,
+    fontWeight: '600',
+  },
+  segmentTextActive: {
+    color: Colors.text,
+    fontWeight: '700',
+  },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -522,8 +619,10 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.tabBackground, // transparent-like, matches inventory
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
     paddingHorizontal: 12,
   },
   searchInput: {
@@ -606,9 +705,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  recipeCookTime: {
+  recipeMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
     fontSize: 14,
     color: Colors.lightText,
-    marginTop: 4,
+  },
+  caloriesText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });

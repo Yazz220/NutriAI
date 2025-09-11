@@ -1,6 +1,6 @@
 import { NutritionCoachAiContext } from './nutritionCoachAiContext';
 import { CoachingContext, UserEmotionalState } from './coachingPersonality';
-import { CoachingInsight } from './progressAnalysis';
+import { CoachingInsight } from './nutritionCoachAiContext';
 
 export interface UserBehaviorPattern {
   consistency: 'high' | 'medium' | 'low';
@@ -52,8 +52,12 @@ export class CoachingContextAnalyzer {
     
     const { currentProgress, eatingPatterns } = aiContext;
     
+    // Derive a consistency proxy from eatingPatterns.commonPatterns if available
+    const consistencyProxy = (eatingPatterns && (eatingPatterns as any).consistencyScore) ?? (
+      eatingPatterns?.commonPatterns?.length ? 0.6 : 0.5
+    );
     // Analyze motivation based on consistency and progress
-    const motivation = this.assessMotivation(currentProgress, eatingPatterns);
+    const motivation = this.assessMotivation(currentProgress, { ...eatingPatterns, consistencyScore: consistencyProxy } as any);
     
     // Analyze confidence based on goal adherence
     const confidence = this.assessConfidence(currentProgress);
@@ -146,7 +150,8 @@ export class CoachingContextAnalyzer {
   private calculateConsistency(aiContext: NutritionCoachAiContext): number {
     const { eatingPatterns } = aiContext;
     // This would calculate based on tracking frequency, meal timing regularity, etc.
-    return eatingPatterns.consistencyScore || 0.5;
+  // eatingPatterns may not include a consistencyScore; fall back to a reasonable default
+  return (eatingPatterns && (eatingPatterns as any).consistencyScore) ?? 0.5;
   }
 
   private identifyChallengeAreas(
@@ -172,9 +177,10 @@ export class CoachingContextAnalyzer {
     
     // Add insights-based challenges
     insights?.forEach(insight => {
-      if (insight.type === 'warning' || insight.type === 'concern') {
-        challenges.push(insight.category || 'general nutrition');
-      }
+      if (insight.type === 'warning') {
+          // Use message as a category fallback when explicit categories are not present
+          challenges.push(insight.message || 'general nutrition');
+        }
     });
     
     return challenges.slice(0, 3); // Limit to top 3 challenges
@@ -196,14 +202,16 @@ export class CoachingContextAnalyzer {
       strengths.push('consistency');
     }
     
-    if (eatingPatterns.mealTimingRegularity === 'regular') {
+    // eatingPatterns may include meal timing patterns - check mealTiming array for regularity
+    const mealTiming = eatingPatterns.mealTiming || [];
+    if (mealTiming.some(m => m.consistency && m.consistency > 0.8)) {
       strengths.push('meal timing');
     }
     
     // Add insights-based strengths
     insights?.forEach(insight => {
-      if (insight.type === 'positive' || insight.type === 'achievement') {
-        strengths.push(insight.category || 'nutrition habits');
+      if (insight.type === 'celebration' || insight.type === 'encouragement') {
+        strengths.push(insight.message || 'nutrition habits');
       }
     });
     

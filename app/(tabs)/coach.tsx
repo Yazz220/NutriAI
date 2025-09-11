@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert, PanResponder } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, ChevronLeft, ChevronRight, Plus, Target, TrendingUp, Award, Flame, Pencil, Calendar, Search, Camera } from 'lucide-react-native';
+import { Brain, CaretLeft, CaretRight, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar, MagnifyingGlass, Camera } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +26,9 @@ import { WeightCard } from '@/components/progress/WeightCard';
 import { WeightModal } from '@/components/progress/WeightModal';
 import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
+import { BMICard } from '@/components/progress/BMICard';
+import { DayStreakCard } from '@/components/progress/DayStreakCard';
+import { TotalCaloriesCard } from '@/components/progress/TotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
 import { StructuredMessage } from '@/components/StructuredMessage';
@@ -73,6 +76,23 @@ export default function CoachScreen() {
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [imageToAnalyze, setImageToAnalyze] = useState<string | null>(null);
+
+  // Segmented control layout/animation
+  const [segWidth, setSegWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const segmentCount = 2;
+  const activeIndex = activeTab === 'tracking' ? 0 : 1;
+  useEffect(() => {
+    if (segWidth > 0) {
+      const w = segWidth / segmentCount;
+      Animated.spring(indicatorX, {
+        toValue: activeIndex * w,
+        useNativeDriver: true,
+        friction: 10,
+        tension: 90,
+      }).start();
+    }
+  }, [activeIndex, segWidth]);
 
   // Always start with today, but persist day selection during session
   useEffect(() => {
@@ -153,6 +173,77 @@ export default function CoachScreen() {
       Animated.timing(weekAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
     ]).start();
   }, [dayISO]);
+
+  // Carousel-style swipe for WeekRings (prev/current/next) only
+  const SWIPE_THRESHOLD = 60;
+  const [ringsWidth, setRingsWidth] = useState<number>(0);
+  const translateX = useRef(new Animated.Value(0)).current; // will be set after layout
+
+  const changeWeek = useCallback((delta: number) => {
+    setDayISO((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 7 * delta);
+      return d.toISOString().split('T')[0];
+    });
+  }, []);
+
+  const prevWeekISO = useMemo(() => {
+    const d = new Date(dayISO);
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  }, [dayISO]);
+  const nextWeekISO = useMemo(() => {
+    const d = new Date(dayISO);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  }, [dayISO]);
+
+  const weekSwipe = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => (Math.abs(g.dx) > 8 && Math.abs(g.dy) < 12),
+      onPanResponderGrant: () => {
+        translateX.stopAnimation();
+      },
+      onPanResponderMove: (_, g) => {
+        // drag current row; base offset centers current panel
+        if (ringsWidth > 0) {
+          let val = -ringsWidth + g.dx;
+          // clamp so we don't reveal whitespace beyond panels
+          if (val > 0) val = 0;
+          if (val < -2 * ringsWidth) val = -2 * ringsWidth;
+          translateX.setValue(val);
+        }
+      },
+      onPanResponderRelease: (_, g) => {
+        const toNext = (g.dx <= -SWIPE_THRESHOLD) || (g.vx < -0.5);
+        const toPrev = (g.dx >= SWIPE_THRESHOLD) || (g.vx > 0.5);
+        if (toNext) {
+          // animate out to next, then animate new week in
+          Animated.spring(translateX, { toValue: -2 * ringsWidth, useNativeDriver: true, velocity: -2, friction: 8, tension: 70 }).start(() => {
+            changeWeek(1);
+            translateX.setValue(0); // position at left edge (prev panel) to slide in to center
+            Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, velocity: -1.5, friction: 9, tension: 80 }).start();
+          });
+        } else if (toPrev) {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, velocity: 2, friction: 8, tension: 70 }).start(() => {
+            changeWeek(-1);
+            translateX.setValue(-2 * ringsWidth); // position at right edge (next panel) to slide in to center
+            Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, velocity: 1.5, friction: 9, tension: 80 }).start();
+          });
+        } else {
+          // snap back to center
+          Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, friction: 9, tension: 120 }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Ensure translateX centers current panel whenever layout width updates
+  useEffect(() => {
+    if (ringsWidth > 0) {
+      translateX.setValue(-ringsWidth);
+    }
+  }, [ringsWidth]);
 
   const openAddMeal = (type: MealType) => {
     setSelectedMealType(type);
@@ -239,17 +330,39 @@ export default function CoachScreen() {
         title={activeTab === 'progress' ? 'Progress' : 'Coach'}
         icon={<Brain size={28} color={Colors.text} />}
       />
-      {/* Top tabs like Recipes: Tracking | Progress */}
-      <View style={styles.topTabsBar}>
-        {(['tracking','progress'] as const).map((key) => {
-          const isActive = activeTab === key;
-          const label = key === 'tracking' ? 'Tracking' : 'Progress';
-          return (
-            <TouchableOpacity key={key} style={styles.topTabItem} onPress={() => setActiveTab(key)}>
-              <Text style={{ color: isActive ? Colors.text : Colors.lightText, fontWeight: isActive ? '700' as const : '500' as const }}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Segmented control: Tracking | Progress */}
+      <View
+        style={styles.segmentedContainer}
+        onLayout={(e) => setSegWidth(e.nativeEvent.layout.width)}
+      >
+        <View style={styles.segmentTrack}>
+          {segWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.segmentIndicator,
+                { width: segWidth / segmentCount, transform: [{ translateX: indicatorX }] },
+              ]}
+            />
+          )}
+        </View>
+        <View style={styles.segmentsOverlay} pointerEvents="box-none">
+          {(['tracking','progress'] as const).map((key, idx) => {
+            const isActive = activeTab === key;
+            const label = key === 'tracking' ? 'Tracking' : 'Progress';
+            return (
+              <TouchableOpacity
+                key={key}
+                style={styles.segmentClick}
+                onPress={() => setActiveTab(key)}
+                accessibilityRole="button"
+                accessibilityLabel={`Switch to ${label}`}
+                activeOpacity={0.9}
+              >
+                <Text style={isActive ? styles.segmentTextActive : styles.segmentText}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {activeTab === 'tracking' && (
@@ -258,6 +371,53 @@ export default function CoachScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 32 }}
       >
+        {/* Calendar + Swipeable Week Rings moved to the top */}
+        <View style={styles.weekHeaderRow}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={styles.modernIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Open calendar"
+            onPress={() => setCalendarOpen(true)}
+          >
+            <Calendar size={18} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+        {/* Only WeekRings swipes */}
+        <View
+          style={{ overflow: 'hidden', marginTop: 4, marginBottom: 12 }}
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width; // use actual container width (full width)
+            if (w > 0 && Math.abs(w - ringsWidth) > 0.5) setRingsWidth(w);
+          }}
+          {...weekSwipe.panHandlers}
+        >
+          {ringsWidth > 0 ? (
+            <Animated.View style={{ width: ringsWidth * 3, flexDirection: 'row', transform: [{ translateX }] }}>
+              {(() => {
+                const cell = Math.floor(ringsWidth / 7);
+                const ring = Math.max(28, cell - 10);
+                return (
+                  <>
+                    <View style={{ width: ringsWidth }}>
+                      <WeekRings selectedDate={prevWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                    </View>
+                    <View style={{ width: ringsWidth }}>
+                      <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                    </View>
+                    <View style={{ width: ringsWidth }}>
+                      <WeekRings selectedDate={nextWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                    </View>
+                  </>
+                );
+              })()}
+            </Animated.View>
+          ) : (
+            // pre-measure fallback: render current week only (no animation)
+            <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={48} ringSize={40} />
+          )}
+        </View>
+
         {/* Enhanced Hero Header with Gradient */}
         <ExpoLinearGradient
           colors={[Colors.background, Colors.background]}
@@ -274,90 +434,38 @@ export default function CoachScreen() {
             />
           </View>
 
-          {/* StatRow: Goal / Eaten (outline pills, no cards) */}
+          {/* Actions Row: Search Food / AI Scan (replaces Goal/Eaten) */}
           <View style={styles.statRow}>
-            <View style={styles.statPill}>
-              <Target size={16} color={Colors.primary} />
-              <Text style={styles.statPillValue}>{calorieGoal}</Text>
-              <Text style={styles.statPillLabel}>
-                {canCalculateFromProfile ? 'Calculated' : 'Goal'}
-              </Text>
-            </View>
-            <View style={styles.statPill}>
-              <Flame size={16} color={Colors.primary} />
-              <Text style={styles.statPillValue}>{eaten}</Text>
-              <Text style={styles.statPillLabel}>Eaten</Text>
-            </View>
-          </View>
-        </ExpoLinearGradient>
-
-        {/* Macros are now integrated into the compact nutrition rings above */}
-
-        {/* Food Logging Actions */}
-        <View style={styles.foodLoggingSection}>
-          <View style={styles.foodLoggingButtons}>
-            <TouchableOpacity 
-              style={styles.searchFoodButton}
+            <TouchableOpacity
+              style={[styles.statPill, styles.statPillPrimary]}
               onPress={() => {
-                setSelectedMealType('breakfast'); // Default to breakfast, user can change in modal
+                setSelectedMealType('breakfast');
                 setExternalFoodModalTab('search');
                 setShowExternalFoodModal(true);
               }}
               accessibilityRole="button"
               accessibilityLabel="Search and log food"
             >
-              <Search size={20} color={Colors.white} />
-              <Text style={styles.searchFoodButtonText}>Search Food</Text>
+              <MagnifyingGlass size={16} color={Colors.white} />
+              <Text style={styles.statPillActionText}>Search Food</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.aiScanButton}
+            <TouchableOpacity
+              style={[styles.statPill, styles.statPillAccent]}
               onPress={handleAiScan}
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
-              <Camera size={20} color={Colors.text} />
-              <Text style={styles.aiScanButtonText}>AI Scan</Text>
+              <Camera size={16} color={Colors.white} />
+              <Text style={styles.statPillActionText}>AI Scan</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ExpoLinearGradient>
 
-        {/* Week Navigation + Date Carousel */}
-        <View style={styles.weekNavRow}>
-          <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftWeek(-1)} accessibilityRole="button" accessibilityLabel="Previous week">
-            <ChevronLeft size={18} color={Colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Animated.Text style={[styles.weekLabel, { opacity: weekAnim }]}>{weekLabelText}</Animated.Text>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Jump to Today"
-                onPress={() => setDayISO(new Date().toISOString().split('T')[0])}
-                style={styles.todayChip}
-              >
-                <Text style={styles.todayChipText}>Today</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <TouchableOpacity style={styles.modernIconBtn} onPress={() => shiftWeek(1)} accessibilityRole="button" accessibilityLabel="Next week">
-            <ChevronRight size={18} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.weekHeaderRow}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity
-            style={styles.modernIconBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Open calendar"
-            onPress={() => setCalendarOpen(true)}
-          >
-            <Calendar size={18} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
-        <View style={{ paddingHorizontal: 16, marginTop: 4, marginBottom: 16 }}>
-          <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} />
-        </View>
+        {/* Macros are now integrated into the compact nutrition rings above */}
+
+        {/* Food Logging Actions removed; integrated into actions row above */}
+
+        {/* (moved week header + rings to top) */}
 
         {/* Enhanced Meals Section */}
         <View style={styles.mealsSection}>
@@ -479,8 +587,24 @@ export default function CoachScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 24, paddingTop: 16 }}
         >
-          {/* Weigh-in Card */}
-          <WeightCard onPress={() => setShowWeightModal(true)} />
+          {/* Top Row: Weight and Streak Cards */}
+          <View style={styles.topRow}>
+            <View style={styles.halfWidth}>
+              <WeightCard onPress={() => setShowWeightModal(true)} />
+            </View>
+            <View style={styles.halfWidth}>
+              <DayStreakCard />
+            </View>
+          </View>
+
+          {/* Total Calories Card */}
+          <TotalCaloriesCard />
+
+          {/* BMI Card */}
+          <BMICard onPress={() => {
+            // Could open a detailed BMI modal or navigate to BMI details
+            console.log('BMI card pressed');
+          }} />
 
           {/* Measurements Card */}
           <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
@@ -573,7 +697,7 @@ export default function CoachScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Previous month"
               >
-                <ChevronLeft size={18} color={Colors.text} />
+                <CaretLeft size={18} color={Colors.text} />
               </TouchableOpacity>
               <Text style={styles.calendarMonthLabel}>
                 {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
@@ -588,7 +712,7 @@ export default function CoachScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Next month"
               >
-                <ChevronRight size={18} color={Colors.text} />
+                <CaretRight size={18} color={Colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -631,7 +755,11 @@ export default function CoachScreen() {
                   items.push(
                     <TouchableOpacity
                       key={`d-${iso}`}
-                      style={[styles.calendarCell, isSelected && styles.calendarCellSelected, isToday && styles.calendarCellToday]}
+                      style={[
+                        styles.calendarCell,
+                        isToday && styles.calendarCellToday,
+                        isSelected && styles.calendarCellSelected,
+                      ]}
                       onPress={() => {
                         setDayISO(iso);
                         setCalendarOpen(false);
@@ -646,6 +774,7 @@ export default function CoachScreen() {
                       <View style={styles.calendarCellInner} pointerEvents="none">
                         <Text style={[styles.calendarCellText, isSelected && styles.calendarCellTextSelected]}>{day}</Text>
                       </View>
+                      {/* selected bar removed; selection handled by calendarCellSelected */}
                     </TouchableOpacity>
                   );
                 }
@@ -947,6 +1076,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  statPillActionText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  statPillActionTextOnFill: {
+    color: Colors.white,
+  },
+  statPillPrimary: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  statPillAccent: {
+    backgroundColor: Colors.accentPrimary,
+    borderColor: Colors.accentPrimary,
+  },
   
   // Food Logging Section Styles
   foodLoggingSection: {
@@ -1032,6 +1178,85 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  // Segmented control styles
+  segmentedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 0,
+    marginTop: 8,
+    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  segmentTrack: {
+    flex: 1,
+    height: 40,
+    backgroundColor: 'transparent',
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  segmentIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: Colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segmentsOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+  },
+  segmentClick: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segment: {
+    flex: 1,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    marginHorizontal: 0,
+  },
+  segmentLeft: {
+    marginRight: -6,
+  },
+  segmentRight: {
+    marginLeft: -6,
+  },
+  segmentActive: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segmentText: {
+    color: Colors.lightText,
+    fontWeight: '600',
+  },
+  segmentTextActive: {
+    color: Colors.text,
+    fontWeight: '700',
   },
   macrosGrid: {
     flexDirection: 'row',
@@ -1200,6 +1425,14 @@ const styles = StyleSheet.create({
 
   bottomSpacer: {
     height: 20,
+  },
+  topRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 16,
+  },
+  halfWidth: {
+    flex: 1,
   },
   modalHeader: {
     paddingHorizontal: Spacing.lg,
@@ -1584,7 +1817,7 @@ const EnhancedMealCard = ({
             <Text style={styles.mealName} numberOfLines={2}>{recipe.name}</Text>
             {kcal && (
               <View style={styles.mealStats}>
-                <Flame size={12} color={Colors.primary} />
+                <Fire size={12} color={Colors.primary} />
                 <Text style={styles.mealKcal}>{kcal} kcal</Text>
               </View>
             )}

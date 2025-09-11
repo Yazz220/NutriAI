@@ -12,6 +12,7 @@ import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { User, Target, Heart, Settings, LogOut, Scale, Ruler } from 'lucide-react-native';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import EnhancedProfileScreen from '@/components/profile/EnhancedProfileScreen';
 
 const dietOptions = ['none','vegan','vegetarian','pescatarian','halal','kosher','gluten_free','keto','paleo'] as const;
 const goalTypes = ['maintain','lose','gain'] as const;
@@ -22,6 +23,12 @@ export default function ProfileScreen() {
   const { profile, savePartial } = useUserProfile();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const [useEnhancedProfile, setUseEnhancedProfile] = useState(true);
+
+  // If enhanced profile is enabled, render it instead
+  if (useEnhancedProfile) {
+    return <EnhancedProfileScreen />;
+  }
 
   const [local, setLocal] = useState(() => ({
     name: profile.basics.name || '',

@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { Recipe, RecipeIngredient, RecipeWithAvailability } from '@/types';
 import { createChatCompletion } from '@/utils/aiClient';
 import { buildStructuredSystemPrompt, tryExtractJSON, type StructuredResponse } from '@/utils/aiFormat';
+import { useUserProfileStore } from './useEnhancedUserProfile';
+import { createUserAwareSystemPrompt } from '../utils/userAwareAiContext';
 
 export type RecipeChatMessage = {
   id: string;
@@ -37,11 +39,25 @@ function buildRecipeContext(recipe: Recipe, availability?: RecipeWithAvailabilit
 }
 
 export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailability['availability']) {
+  const { profile } = useUserProfileStore();
 
   const [messages, setMessages] = useState<RecipeChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const idSeq = useRef(0);
   const newId = () => `${Date.now()}-${idSeq.current++}`;
+
+  // Enhanced system prompt that includes user profile information
+  const userAwarePrompt = useMemo(() => {
+    const recipeContext = buildRecipeContext(recipe, availability);
+    const basePrompt = createUserAwareSystemPrompt(profile, [], []);
+    
+    return `${basePrompt}
+
+CURRENT RECIPE CONTEXT:
+${recipeContext}
+
+You are helping the user with this specific recipe. Consider their dietary restrictions, allergies, and preferences when providing advice. Always prioritize safety - never suggest ingredients they're allergic to.`;
+  }, [profile, recipe, availability]);
 
   function pushCoach(msg: Omit<RecipeChatMessage, 'id' | 'role'>) {
     setMessages(prev => [...prev, { id: newId(), role: 'coach', source: msg.source || 'ai', ...msg }]);
@@ -59,19 +75,8 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
   async function sendMessage(text: string) {
     pushUser(text);
 
-    // Build userContext injected into the structured system prompt (inventory + availability awareness)
-    const availabilitySummary = availability
-      ? [
-          `Availability: ${availability.availabilityPercentage}%`,
-          availability.missingIngredients.length ? `Missing: ${availability.missingIngredients.map(m => m.name).join(', ')}` : 'Missing: none',
-          availability.expiringIngredients.length ? `Expiring soon: ${availability.expiringIngredients.map(e => e.name).join(', ')}` : 'Expiring soon: none',
-        ].join(' | ')
-      : 'Availability: n/a';
-    const userContext = [
-      availabilitySummary,
-      'Inventory awareness is required: set inInventory for each ingredient when possible based on the recipe context and availability info above.',
-    ].join('\n');
-    const system = { role: 'system' as const, content: buildStructuredSystemPrompt(userContext) };
+    // Use the user-aware system prompt instead of the basic structured prompt
+    const system = { role: 'system' as const, content: userAwarePrompt };
 
     const user = {
       role: 'user' as const,

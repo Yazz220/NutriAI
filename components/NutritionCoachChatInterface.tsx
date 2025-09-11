@@ -13,7 +13,8 @@ import {
   getCoachingQuickPrompts,
   type NutritionCoachAiContext 
 } from '@/utils/nutritionCoachAiContext';
-import { generateCoachingInsights, type CoachingInsight } from '@/utils/progressAnalysis';
+import { generateCoachingInsights } from '@/utils/progressAnalysis';
+import { CoachingInsight } from '@/utils/nutritionCoachAiContext';
 import { 
   createConciseNutritionCoachPrompt,
   generateQuickResponse,

@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Target } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
@@ -29,42 +29,76 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
   
   const { calories, macros } = dailyProgress;
   
-  // Main calorie ring calculations
+  // Calculate remaining calories
+  const remainingCalories = Math.max(0, calories.goal - calories.consumed);
+  const isOverGoal = calories.consumed > calories.goal;
+  
+  // Main calorie ring calculations - now with macro segments
   const percentage = calories.goal > 0 ? calories.consumed / calories.goal : 0;
   const radius = 85; // Reduced from 100 for more compact design
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
-  const strokeDasharray = circumference * Math.min(1, percentage);
   
-  // Determine ring color based on status
-  const ringColor = useMemo(() => {
-    if (percentage >= 0.95 && percentage <= 1.05) {
-      return '#FDB813'; // Met goal - golden yellow like in design
-    } else if (percentage > 1.05) {
-      return Colors.warning; // Over goal
-    } else {
-      return '#FDB813'; // Under goal - keep golden
-    }
-  }, [percentage]);
+  // Calculate calories from macros for the ring segments
+  const proteinCalories = macros.protein.consumed * 4;
+  const carbsCalories = macros.carbs.consumed * 4;
+  const fatsCalories = macros.fats.consumed * 9;
+  const totalMacroCalories = proteinCalories + carbsCalories + fatsCalories;
+  
+  // Calculate progress toward daily goal for each macro segment
+  // Each segment should show its contribution to the overall daily progress
+  const proteinProgress = calories.goal > 0 ? (proteinCalories / calories.goal) * 100 : 0;
+  const carbsProgress = calories.goal > 0 ? (carbsCalories / calories.goal) * 100 : 0;
+  const fatsProgress = calories.goal > 0 ? (fatsCalories / calories.goal) * 100 : 0;
+  
+  // Calculate stroke dash arrays for each segment based on goal progress
+  const proteinDashArray = `${(proteinProgress / 100) * circumference} ${circumference}`;
+  const carbsDashArray = `${(carbsProgress / 100) * circumference} ${circumference}`;
+  const fatsDashArray = `${(fatsProgress / 100) * circumference} ${circumference}`;
+  
+  // Calculate stroke dash offsets to position segments sequentially
+  const proteinDashOffset = 0;
+  const carbsDashOffset = -(proteinProgress / 100) * circumference;
+  const fatsDashOffset = -((proteinProgress + carbsProgress) / 100) * circumference;
 
-  // Determine display values
-  const isOverGoal = calories.consumed > calories.goal && calories.goal > 0;
-  const displayValue = calories.goal > 0 ? (isOverGoal ? calories.consumed - calories.goal : calories.remaining) : calories.consumed;
-  const displayLabel = calories.goal > 0 ? (isOverGoal ? 'kcal over' : 'kcal left') : 'kcal eaten';
+  // Determine display values - show total calories consumed
+  const displayValue = calories.consumed;
+  const displayLabel = 'CALORIES';
 
   // Dynamic font size for calorie number
   const calorieFontSize = useMemo(() => {
     const numDigits = Math.abs(displayValue).toString().length;
     if (numDigits > 4) return 28;
-    if (numDigits > 3) return 32;
-    return 36;
+    if (numDigits > 3) return 30;
+    return 32;
   }, [displayValue]);
 
-  // Macro ring calculations
+  // Macro ring calculations - showing progress toward individual goals
   const macroRings = [
-    { name: 'Protein', data: macros.protein, color: '#FF6B6B', position: 'left' },
-    { name: 'Fat', data: macros.fats, color: '#45B7D1', position: 'center' },
-    { name: 'Carbs', data: macros.carbs, color: '#4ECDC4', position: 'right' },
+    { 
+      name: 'PROTEIN', 
+      consumed: macros.protein.consumed, 
+      goal: macros.protein.goal,
+      calories: proteinCalories, 
+      color: '#4ECDC4', 
+      position: 'left' 
+    },
+    { 
+      name: 'CARBS', 
+      consumed: macros.carbs.consumed, 
+      goal: macros.carbs.goal,
+      calories: carbsCalories, 
+      color: '#F0884D', 
+      position: 'center' 
+    },
+    { 
+      name: 'FAT', 
+      consumed: macros.fats.consumed, 
+      goal: macros.fats.goal,
+      calories: fatsCalories, 
+      color: '#FF6B6B', 
+      position: 'right' 
+    },
   ];
 
   const macroRingSize = 80; // Smaller macro rings
@@ -108,6 +142,21 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Remaining Calories Tag */}
+          <View style={styles.remainingCaloriesTag}>
+            <View style={styles.tagIcon}>
+              <Target size={14} color={isOverGoal ? Colors.error : Colors.primary} />
+            </View>
+            <View style={styles.tagContent}>
+              <Text style={[styles.tagValue, { color: isOverGoal ? Colors.error : Colors.primary }]}>
+                {isOverGoal ? `+${Math.abs(remainingCalories)}` : remainingCalories}
+              </Text>
+              <Text style={styles.tagLabel}>
+                {isOverGoal ? 'Over goal' : 'Remaining'}
+              </Text>
+            </View>
+          </View>
+
           <TouchableOpacity
             style={styles.container}
             onPress={handlePress}
@@ -116,13 +165,6 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
             {/* Main Calorie Ring */}
             <View style={styles.mainRingContainer}>
               <Svg width={200} height={200}>
-                <Defs>
-                  <SvgLinearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={ringColor} stopOpacity="1" />
-                    <Stop offset="100%" stopColor={ringColor} stopOpacity="0.9" />
-                  </SvgLinearGradient>
-                </Defs>
-
                 {/* Background circle */}
                 <Circle
                   cx={100}
@@ -134,34 +176,66 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   opacity={0.3}
                 />
 
-                {/* Progress circle */}
+                {/* Protein segment (green) */}
                 <Circle
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke="url(#ringGradient)"
+                  stroke="#4ECDC4"
                   strokeWidth={strokeWidth}
-                  strokeDasharray={`${strokeDasharray}, ${circumference}`}
-                  strokeLinecap="round"
                   fill="none"
-                  rotation={-90}
-                  origin="100, 100"
+                  strokeDasharray={proteinDashArray}
+                  strokeDashoffset={proteinDashOffset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 100 100)`}
+                />
+
+                {/* Carbs segment (orange) */}
+                <Circle
+                  cx={100}
+                  cy={100}
+                  r={radius}
+                  stroke="#F0884D"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={carbsDashArray}
+                  strokeDashoffset={carbsDashOffset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 100 100)`}
+                />
+
+                {/* Fats segment (red) */}
+                <Circle
+                  cx={100}
+                  cy={100}
+                  r={radius}
+                  stroke="#FF6B6B"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={fatsDashArray}
+                  strokeDashoffset={fatsDashOffset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 100 100)`}
                 />
               </Svg>
 
               {/* Center Content */}
               <View style={styles.centerContent}>
-                <Text style={[styles.calorieNumber, { fontSize: calorieFontSize }]}>{Math.abs(displayValue)}</Text>
-                <Text style={styles.calorieLabel}>kcal</Text>
+                <Text style={[styles.calorieNumber, { fontSize: calorieFontSize }]}>{Math.round(displayValue)}</Text>
+                <Text style={styles.calorieLabel}>{displayLabel}</Text>
               </View>
             </View>
 
             {/* Compact Macro Rings - positioned closer to main ring */}
             <View style={styles.macroRingsContainer}>
               {macroRings.map((macro, index) => {
-                const macroPercentage = Math.min(1, macro.data.percentage);
-                const macroStrokeDasharray = macroCircumference * macroPercentage;
-
+                // Calculate progress percentage for this macro
+                const macroProgress = macro.goal > 0 ? macro.consumed / macro.goal : 0;
+                const progressPercentage = Math.min(macroProgress * 100, 100); // Cap at 100%
+                
+                // Calculate stroke dash array for progress
+                const progressDashArray = `${(progressPercentage / 100) * macroCircumference} ${macroCircumference}`;
+                
                 return (
                   <View key={macro.name} style={styles.macroRingItem}>
                     <Svg width={macroRingSize} height={macroRingSize}>
@@ -175,27 +249,25 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                         fill="none"
                       />
 
-                      {/* Progress circle */}
+                      {/* Progress circle with macro color */}
                       <Circle
                         cx={macroRingSize / 2}
                         cy={macroRingSize / 2}
                         r={macroRadius}
                         stroke={macro.color}
                         strokeWidth={macroStrokeWidth}
-                        strokeDasharray={`${macroStrokeDasharray}, ${macroCircumference}`}
-                        strokeLinecap="round"
                         fill="none"
-                        rotation={-90}
-                        origin={`${macroRingSize / 2}, ${macroRingSize / 2}`}
+                        strokeDasharray={progressDashArray}
+                        strokeLinecap="round"
+                        transform={`rotate(-90 ${macroRingSize / 2} ${macroRingSize / 2})`}
                       />
                     </Svg>
 
                     {/* Macro Center Content */}
                     <View style={styles.macroCenterContent}>
                       <Text style={[styles.macroValue, { color: macro.color }]}>
-                        {Math.round(macro.data.consumed)}
+                        {Math.round(macro.consumed)}
                       </Text>
-                      <Text style={styles.macroUnit}>g</Text>
                     </View>
 
                     {/* Macro Label */}
@@ -240,7 +312,8 @@ const styles = StyleSheet.create({
   },
   gradientBackground: {
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
+    minHeight: 320, // Ensure consistent card height
   },
   cardHeader: {
     flexDirection: 'row',
@@ -266,44 +339,86 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginRight: Spacing.xs,
   },
+  remainingCaloriesTag: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tagIcon: {
+    marginRight: 6,
+  },
+  tagContent: {
+    alignItems: 'center',
+  },
+  tagValue: {
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
+    lineHeight: 16,
+  },
+  tagLabel: {
+    fontSize: 10,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   container: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
   },
   mainRingContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16, // Reduced spacing between main ring and macro rings
+    marginBottom: 20,
+    width: 200,
+    height: 200,
   },
   centerContent: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+    width: 200,
+    height: 200,
   },
   calorieNumber: {
     color: Colors.text,
-    fontSize: 36, // Slightly smaller for compact design
+    fontSize: 32,
     fontWeight: Typography.weights.bold,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    lineHeight: 36,
+    textAlign: 'center',
   },
   calorieLabel: {
-    color: Colors.lightText,
-    fontSize: 14,
-    fontWeight: '600',
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: Typography.weights.medium,
     marginTop: 2,
+    letterSpacing: 0.5,
   },
   macroRingsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    gap: 20, // Reduced gap between macro rings
+    width: '100%',
+    paddingHorizontal: 20,
   },
   macroRingItem: {
     alignItems: 'center',
     position: 'relative',
+    width: 80,
+    height: 100,
   },
   macroCenterContent: {
     position: 'absolute',
@@ -312,24 +427,24 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 20, // Leave space for label
   },
   macroValue: {
     fontSize: 16,
     fontWeight: Typography.weights.bold,
     lineHeight: 18,
-  },
-  macroUnit: {
-    color: Colors.lightText,
-    fontSize: 10,
-    fontWeight: '600',
+    textAlign: 'center',
   },
   macroLabel: {
-    color: Colors.lightText,
+    color: Colors.text,
     fontSize: 12,
     fontWeight: Typography.weights.medium,
-    marginTop: 8,
     textAlign: 'center',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    letterSpacing: 0.5,
   },
   loadingRing: {
     width: 200,

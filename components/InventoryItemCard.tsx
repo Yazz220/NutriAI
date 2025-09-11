@@ -76,7 +76,7 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
         accessibilityHint="Tap to view item details"
         accessibilityRole="button"
       >
-      <View style={styles.imageContainer}>
+        <View style={styles.imageContainer}>
         {item.imageUrl ? (
           <Image 
             source={{ uri: item.imageUrl }} 
@@ -89,16 +89,13 @@ export const InventoryItemCard: React.FC<InventoryItemCardProps> = memo(({
             <IngredientIcon slug={slugifyIngredient(item.name)} size={56} />
           </View>
         )}
-        <View style={styles.freshnessContainer}>
-          <FreshnessIndicator status={indicatorStatus} />
-        </View>
       </View>
       
-      <View style={styles.contentContainer}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.note}>Tap to set details</Text>
-        <Text style={styles.category}>{item.category}</Text>
-      </View>
+        <View style={styles.contentContainer}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.note}>Tap to set details</Text>
+          <Text style={styles.category}>{item.category}</Text>
+        </View>
       
       <View style={styles.actionsContainer}>
         <TouchableOpacity 

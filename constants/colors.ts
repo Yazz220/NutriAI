@@ -3,71 +3,71 @@
 // while aligning their values to the new palette. New keys are added for accents.
 export const Colors = {
   // Brand
-  primary: "#5A1846", // brand.primary
-  brandPrimary: "#5A1846", // alias for clarity
+  primary: "#746a2e", // Friendly & Organic: brand.primary (muted olive green)
+  brandPrimary: "#746a2e", // alias for clarity
 
   // Accents for charts/visualizations and interactive emphasis
-  accentPrimary: "#E56B6F", // accent.primary
-  accentSecondary: "#FFB4A2", // accent.secondary
-  accentTertiary: "#FFE5D9", // accent.tertiary
-  // Keep 'secondary' for legacy usage, map to primary accent
-  secondary: "#E56B6F",
+  accentPrimary: "#746a2e", // align accents to brand primary for cohesion
+  accentSecondary: "#7C8C56", // earthy olive as secondary accent
+  accentTertiary: "#C9A788", // muted brown as tertiary accent
+  // Keep 'secondary' for legacy usage, map to earthy olive
+  secondary: "#7C8C56",
 
   // Surfaces
-  background: "#FFFFFF", // surface.background
-  card: "#FFF0EB", // surface.card
-  surfaceMuted: "#FEE8E1", // surface.cardInteractive (slightly darker interactive surface)
-  surfaceTile: "#FFE5D9", // light accent surface for tiles/chips
-  tabBackground: "#FFFFFF",
+  background: "#f8edd9", // surface.background (warm cream)
+  card: "#F8F2E2", // surface.card (slightly lighter cream)
+  surfaceMuted: "#F5EFE3", // use background for muted surfaces
+  surfaceTile: "#F8F2E2", // tiles/chips match card
+  tabBackground: "#F8F2E2",
 
   // Text
-  text: "#212529", // text.primary
-  lightText: "#6C757D", // text.secondary
-  subtleText: "#ADB5BD", // text.tertiary
+  text: "#4f301d", // text.primary (deep brown)
+  lightText: "#898681", // text.secondary (muted gray)
+  subtleText: "#BDBAAE", // text.tertiary (light neutral)
   white: "#FFFFFF",
   textInverse: "#FFFFFF", // on brand
 
   // Borders and elevation overlay
-  border: "#E9ECEF", // light divider
+  border: "#DCD4C6", // warm light divider derived from palette
   shadow: "rgba(0,0,0,0.06)",
-  lightGray: "#ADB5BD",
+  lightGray: "#BDBAAE", // neutral.primary
 
-  // Status & semantic (unchanged)
-  success: "#4CAF50",
+  // Status & semantic (kept, but you may tune later to palette if desired)
+  success: "#7C8C56", // map success to earthy olive
   warning: "#FFC107",
   error: "#F44336",
   info: "#2196F3",
-  successLight: "#F0FDF4",
-  warningLight: "#FFFBEB",
-  errorLight: "#FEF2F2",
+  successLight: "#EEF2E6",
+  warningLight: "#FFF7D6",
+  errorLight: "#FDE7E7",
 
   // Freshness indicators (kept for inventory features)
-  fresh: "#4ECDC4",
-  aging: "#F0C75E",
-  expiring: "#E07A5F",
+  fresh: "#7C8C56", // reuse earthy olive for freshness
+  aging: "#C9A788", // muted brown
+  expiring: "#B87B4B", // warm earthy brown
   danger: "#E57373",
 
   // Additional tints
   tints: {
-    brandTintSoft: "#FFE5D9",
-    brandTintStrong: "#5A1846",
+    brandTintSoft: "#F8F2E2",
+    brandTintStrong: "#F5824B",
   },
 
   // Gray scale (mapped to new neutrals where applicable)
   gray: {
-    50: "#F8F9FA",
-    100: "#F1F3F5",
-    200: "#E9ECEF",
-    300: "#DEE2E6",
-    400: "#CED4DA",
-    500: "#ADB5BD",
-    600: "#868E96",
-    700: "#495057",
-    800: "#343A40",
-    900: "#212529",
+    50: "#FAF6EE",
+    100: "#F5EFE3",
+    200: "#EAE2D6",
+    300: "#E0D6C6",
+    400: "#D6CCBC",
+    500: "#BDBAAE", // neutral.primary
+    600: "#A29D93",
+    700: "#7C746A",
+    800: "#5D5248",
+    900: "#47392E", // text.primary
   },
 
   red: { 500: "#F44336" },
-  orange: { 500: "#FFC107" },
+  orange: { 500: "#F5824B" },
   black: "#000000",
 };

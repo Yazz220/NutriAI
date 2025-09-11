@@ -458,11 +458,23 @@ export default function InventoryScreen() {
     }
   };
 
-  const handleAddItem = async (item: Omit<InventoryItem, 'id'>) => {
+  const handleAddItem = async (item: Partial<{ name: string; category: ItemCategory; addedDate: string; quantity?: number; unit?: string; expiryDate?: string }>) => {
+    // Guard and normalize the incoming item shape from AddItemModal
+    const name = (item.name || '').trim();
+    if (!name) {
+      showToast({ message: 'Item name is required', type: 'error', duration: 2000 });
+      return;
+    }
+
+    const category = (item.category || 'Other') as ItemCategory;
+    const quantity = item.quantity ?? 1;
+    const unit = item.unit ?? 'pcs';
+    const addedDate = item.addedDate ?? new Date().toISOString();
+
     try {
-      await addItem(item);
+      await addItem({ name, category, quantity, unit, addedDate, expiryDate: item.expiryDate });
       setModalVisible(false);
-      showToast({ message: `Added ${item.name}`, type: 'success', duration: 2000 });
+      showToast({ message: `Added ${name}`, type: 'success', duration: 2000 });
     } catch (e) {
       console.error(e);
       showToast({ message: 'Add failed. Please try again.', type: 'error', duration: 2500 });

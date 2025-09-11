@@ -7,9 +7,11 @@ import { useNutrition } from '@/hooks/useNutrition';
 interface WeekRingsProps {
   selectedDate: string;
   onSelectDate: (iso: string) => void;
+  cellSize?: number; // width for each day cell
+  ringSize?: number; // diameter of the ring glyph
 }
 
-const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate }) => {
+const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate, cellSize = 48, ringSize = 40 }) => {
   const { loggedMeals, goals } = useNutrition();
 
   const getWeekStartISO = (isoDateStr: string) => {
@@ -44,8 +46,10 @@ const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate }) => 
           const w = date.toLocaleDateString(undefined, { weekday: 'short' });
           const initial = Array.from(w)[0]?.toUpperCase() ?? w.charAt(0).toUpperCase();
           return (
-            <View key={`winit-${iso}`} style={styles.weekInitialCell}>
-              <Text style={[styles.weekInitial, isSel && styles.weekInitialSelected]}>{initial}</Text>
+            <View key={`winit-${iso}`} style={[styles.weekInitialCell, { width: cellSize }]}>
+              <View style={[isSel && styles.weekInitialSelectedPill]}>
+                <Text style={[styles.weekInitial, isSel && styles.weekInitialSelected]}>{initial}</Text>
+              </View>
             </View>
           );
         })}
@@ -62,13 +66,13 @@ const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate }) => 
           return (
             <TouchableOpacity
               key={`wr-${iso}`}
-              style={styles.weekRingCell}
+              style={[styles.weekRingCell, { width: cellSize }]}
               onPress={() => onSelectDate(iso)}
               accessibilityRole="button"
               accessibilityLabel={`Select ${date.toDateString()}`}
             >
               <View style={{ opacity: isFuture ? 0.35 : 1 }}>
-                <FitnessRing size={40} stroke={4} gap={2} backgroundColor={Colors.border} rings={[ring]} />
+                <FitnessRing size={ringSize} stroke={4} gap={2} backgroundColor={Colors.border} rings={[ring]} />
               </View>
             </TouchableOpacity>
           );
@@ -86,10 +90,8 @@ const styles = {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     marginBottom: 8,
-    paddingHorizontal: 8,
   },
   weekInitialCell: {
-    width: 40,
     alignItems: 'center' as const,
   },
   weekInitial: {
@@ -100,14 +102,31 @@ const styles = {
     color: Colors.text,
     fontWeight: '600' as const,
   },
+  weekInitialSelectedPill: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
   weekRingsRow: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
-    paddingHorizontal: 8,
   },
   weekRingCell: {
-    width: 40,
     alignItems: 'center' as const,
+  },
+  weekRingSelectedPill: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
 };
 

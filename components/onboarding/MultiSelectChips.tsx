@@ -8,9 +8,10 @@ import {
   FlatList,
   Animated,
 } from 'react-native';
-import { Search, X } from 'lucide-react-native';
+import { MagnifyingGlass, X } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { GlassSurface } from '@/components/common/GlassSurface';
 import { MultiSelectChipsProps, ChipOption } from '@/types';
 
 export const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
@@ -91,17 +92,11 @@ export const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
           { transform: [{ scale: animValue }] },
         ]}
       >
-        <TouchableOpacity
-          style={[
-            styles.chip,
-            isSelected && styles.chipSelected,
-          ]}
+        <GlassSurface
+          pressable
           onPress={() => handleChipPress(item)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityState={{ selected: isSelected }}
-          accessibilityLabel={`${item.label}${item.description ? `, ${item.description}` : ''}`}
-          accessibilityHint={isSelected ? 'Tap to deselect' : 'Tap to select'}
+          style={[styles.chip, isSelected && styles.chipSelected]}
+          padding={Spacing.md}
         >
           {/* Icon */}
           {item.icon && (
@@ -120,7 +115,7 @@ export const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
           ]}>
             {item.label}
           </Text>
-        </TouchableOpacity>
+        </GlassSurface>
       </Animated.View>
     );
   };
@@ -131,8 +126,8 @@ export const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
 
     return (
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Search size={16} color={Colors.lightText} style={styles.searchIcon} />
+        <GlassSurface padding={Spacing.sm} style={styles.searchInputContainer}>
+          <MagnifyingGlass size={16} color={Colors.lightText} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             value={searchQuery}
@@ -153,7 +148,7 @@ export const MultiSelectChips: React.FC<MultiSelectChipsProps> = ({
               <X size={16} color={Colors.lightText} />
             </TouchableOpacity>
           )}
-        </View>
+        </GlassSurface>
       </View>
     );
   };
@@ -231,12 +226,7 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
     borderRadius: 12,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   searchIcon: {
     marginRight: Spacing.sm,
@@ -291,26 +281,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
     borderRadius: 12,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
     minHeight: 48,
-    ...Shadows.sm,
   },
-  chipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
+  chipSelected: {},
   chipIcon: {
     fontSize: 16,
     marginRight: Spacing.xs,
   },
-  chipIconSelected: {
-    // Icon color doesn't change, emojis are colorful
-  },
+  chipIconSelected: {},
   chipLabel: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,

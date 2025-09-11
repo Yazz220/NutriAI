@@ -3,8 +3,8 @@ import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
-import { View, ActivityIndicator, Text } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { InventoryProvider } from "@/hooks/useInventoryStore";
 import { MealsProvider } from "@/hooks/useMealsStore";
@@ -20,6 +20,8 @@ import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
 import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
+import { loadFonts, Fonts } from '@/utils/fonts';
+
 // (onboarding) stack remains accessible but not forced by root
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -30,11 +32,49 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   const { initializing, session } = useAuth();
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  // Load fonts
+  useEffect(() => {
+    async function prepare() {
+      try {
+        await loadFonts();
+        // Set global default font family to Soria for all RN <Text />
+        // This ensures existing components pick up the new font without code changes
+        // while we gradually migrate to the custom Typography/Text components.
+        // Merge with any existing default styles to avoid clobbering them.
+        // Note: defaultProps is safe for RN Text in app code (not on web SSR).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (RNText as any).defaultProps = {
+          ...(RNText as any).defaultProps,
+          style: [
+            { fontFamily: Fonts.regular },
+            (RNText as any).defaultProps && (RNText as any).defaultProps.style,
+          ],
+        };
+      } catch (e) {
+        console.warn('Error loading fonts:', e);
+      } finally {
+        setFontsLoaded(true);
+      }
+    }
+    prepare();
+  }, []);
+  // Hide the splash screen once fonts are loaded. Declare this effect before
+  // any early returns so hook order remains stable across renders.
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null; // Or a loading screen
+  }
+  
   // No onboarding gating in root; keep it simple while we iterate on importing flow
 
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  // splash hide is handled by the fontsLoaded effect above
 
   // No onboarding checks
 
