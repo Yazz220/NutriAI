@@ -78,6 +78,8 @@ export interface InventoryItem {
     dietaryPreferences: string[];
     allergies: string[];
     mealPlanDays: number;
+    // If true, checking a shopping list item will automatically add it to Inventory without prompting
+    autoAddPurchasedToInventory?: boolean;
     goals?: NutritionGoals;
   }
 

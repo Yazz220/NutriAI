@@ -10,7 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
-import { DailyProgress } from '@/hooks/useNutrition';
+import { DailyProgress, useNutrition } from '@/hooks/useNutrition';
+import { useMeals } from '@/hooks/useMealsStore';
 import { NutritionDetailModal } from './NutritionDetailModal';
 
 interface CompactNutritionRingsProps {
@@ -26,6 +27,8 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
   isLoading = false,
 }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const { loggedMeals } = useNutrition();
+  const { meals } = useMeals();
   
   const { calories, macros } = dailyProgress;
   
@@ -113,6 +116,51 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
       setShowDetailModal(true);
     }
   };
+
+  // Build per-meal breakdown for the selected date
+  const mealBreakdown = useMemo(() => {
+    type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+    const compute = (mt?: MealType) => {
+      const dayMeals = loggedMeals.filter(m => m.date === dailyProgress.date && (!mt || m.mealType === mt));
+      let c = 0, p = 0, cb = 0, f = 0;
+      let fiberTotal = 0, sugarTotal = 0, sodiumTotal = 0;
+      let hadMicroSource = false;
+      for (const m of dayMeals) {
+        c += m.calories; p += m.protein; cb += m.carbs; f += m.fats;
+        if (m.mealId) {
+          const meal = meals.find(x => x.id === m.mealId);
+          const per = meal?.nutritionPerServing as any;
+          if (per) {
+            hadMicroSource = hadMicroSource || per.fiber != null || per.sugar != null || per.sodium != null;
+            if (typeof per.fiber === 'number') fiberTotal += per.fiber * (m.servings || 1);
+            if (typeof per.sugar === 'number') sugarTotal += per.sugar * (m.servings || 1);
+            if (typeof per.sodium === 'number') sodiumTotal += per.sodium * (m.servings || 1);
+          }
+        }
+      }
+      return {
+        calories: Math.round(c),
+        protein: Math.round(p),
+        carbs: Math.round(cb),
+        fats: Math.round(f),
+        fiber: hadMicroSource ? Math.round(fiberTotal) : null,
+        sugar: hadMicroSource ? Math.round(sugarTotal) : null,
+        sodium: hadMicroSource ? Math.round(sodiumTotal) : null,
+      };
+    };
+    return {
+      all: compute(),
+      breakfast: compute('breakfast'),
+      lunch: compute('lunch'),
+      dinner: compute('dinner'),
+      snack: compute('snack'),
+    } as const;
+  }, [loggedMeals, meals, dailyProgress.date]);
+
+  const dateLabel = useMemo(() => {
+    const todayISO = new Date().toISOString().split('T')[0];
+    return dailyProgress.date === todayISO ? 'Today' : dailyProgress.date;
+  }, [dailyProgress.date]);
 
   if (isLoading) {
     return (
@@ -294,6 +342,8 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
           carbs: macros.carbs.goal,
           fats: macros.fats.goal,
         }}
+        mealBreakdown={mealBreakdown as any}
+        dateLabel={dateLabel}
       />
     </>
   );

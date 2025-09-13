@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert } from 'react-native';
-import { X, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert, Share as RNShare, Animated, Dimensions } from 'react-native';
+import { ChevronLeft, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
 import { Button } from '../ui/Button';
 import { IngredientIcon } from '@/components/common/IngredientIcon';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,7 @@ import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
 import { calculateRecipeAvailability } from '@/utils/recipeAvailability';
 import { ServingSizeChanger } from './ServingSizeChanger';
+import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
 import { MealTypeSelector } from './MealTypeSelector';
 import { RecipeNutritionCard } from './RecipeNutritionCard';
 import { PlanMealModal } from './PlanMealModal';
@@ -39,6 +40,7 @@ export interface RecipeDetailProps {
 }
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({
+  visible,
   onClose,
   recipe,
   mode,
@@ -57,6 +59,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const time = recipe.totalTimeMinutes ?? ((recipe.prepTimeMinutes ?? 0) + (recipe.cookTimeMinutes ?? 0));
 
   const hasImage = !!recipe.image;
+  const imageAnim = useRef(new Animated.Value(0));
+  const translateAnim = useRef(new Animated.Value(0));
 
   // Inventory + shopping list integration for missing ingredients
   const { inventory } = useInventory();
@@ -107,8 +111,24 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const nutritionForSelection = scaledNutrition;
 
   useEffect(() => {
+    // Animate header image from bottom into place when present and visible.
+    const shouldAnimate = typeof visible === 'undefined' ? true : !!visible;
+    if (hasImage && shouldAnimate) {
+      imageAnim.current.setValue(0);
+      Animated.timing(imageAnim.current, { toValue: 1, duration: 420, useNativeDriver: true }).start();
+    } else if (!hasImage) {
+      imageAnim.current.setValue(0);
+    }
+    // Reset translate animation when opening
+    const shouldResetTranslate = typeof visible === 'undefined' ? true : !!visible;
+    if (shouldResetTranslate) {
+      translateAnim.current.setValue(0);
+    }
+  }, [hasImage, visible, recipe?.id]);
+
+  useEffect(() => {
     try {
-        const inventoryNames = new Set(inventory.map((i: InventoryItem) => i.name.toLowerCase()));
+      const inventoryNames = new Set(inventory.map((i: InventoryItem) => i.name.toLowerCase()));
       const missing = scaledIngredients.filter(ing => !inventoryNames.has(ing.name.toLowerCase()));
       setMissingCount(missing.length);
       setMissingList(missing.map(ing => ({
@@ -193,22 +213,68 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     }
   };
 
+  const handleShare = async () => {
+    try {
+      // Prefer parent-provided handler if available
+      if (onShare) {
+        await onShare(recipe);
+        return;
+      }
+
+      // Fallback: use native share
+      const ingredientsText = (recipe.ingredients || []).map((i: any) => `- ${i.name}${i.amount ? ` (${i.amount}${i.unit ? ` ${i.unit}` : ''})` : ''}`).join('\n');
+      const textParts = [recipe.title, stripHtml(recipe.description), '', 'Ingredients:', ingredientsText];
+      if (recipe.sourceUrl) textParts.push('', `Source: ${recipe.sourceUrl}`);
+      const message = textParts.filter(Boolean).join('\n');
+
+      await RNShare.share({ message, title: recipe.title, url: recipe.sourceUrl });
+    } catch (err) {
+      console.warn('Share failed', err);
+      Alert.alert('Share failed', 'Unable to share this recipe.');
+    }
+  };
+
+  const handleClose = () => {
+    try {
+      const { width } = Dimensions.get('window');
+      Animated.timing(translateAnim.current, { toValue: width, duration: 240, useNativeDriver: true }).start(() => {
+        onClose();
+      });
+    } catch (e) {
+      // Fallback to immediate close
+      onClose();
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, { transform: [{ translateX: translateAnim.current }] }] as any}>
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: Spacing.xl }} showsVerticalScrollIndicator={false}>
         {/* Header Image */}
         {hasImage && (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: recipe.image }} style={styles.image} />
+          <View style={styles.imageContainer} pointerEvents="none">
+            <Animated.Image
+              source={{ uri: recipe.image }}
+              style={[
+                styles.image,
+                {
+                  opacity: imageAnim.current,
+                  transform: [
+                    {
+                      translateY: imageAnim.current.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }),
+                    },
+                  ],
+                },
+              ]}
+            />
           </View>
         )}
 
-        {/* Header Title + Close */}
+        {/* Header with left back button */}
         <View style={[styles.header, !hasImage && styles.headerSafeTop]}>
-          <Text style={styles.title}>{recipe.title}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <X size={22} color={Colors.text} />
+          <TouchableOpacity onPress={onClose} style={styles.backBtn} accessibilityLabel="Back">
+            <ChevronLeft size={22} color={Colors.text} />
           </TouchableOpacity>
+          <Text style={styles.title} numberOfLines={2}>{recipe.title}</Text>
         </View>
 
         {/* Meta Row */}
@@ -301,14 +367,15 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 title="Ask AI"
                 onPress={async () => {
                   try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-                  onAskAI?.(recipe);
+                  // Open contextual AI chat modal (ChatModal will seed context)
+                  setShowAiChat(true);
                 }}
                 size="xs"
                 variant="secondary"
                 icon={<MessageCircle size={14} color={Colors.primary} />}
               />
 
-              <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
 
@@ -353,7 +420,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               )}
 
               <Button title="Ask AI" onPress={() => setShowAiChat(true)} size="xs" variant="secondary" icon={<MessageCircle size={14} color={Colors.primary} />} />
-              <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
 
@@ -367,7 +434,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 variant="secondary"
                 icon={<Plus size={14} color={Colors.primary} />}
               />
-              <Button title="Share" onPress={() => onShare?.(recipe)} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
         </View>
@@ -411,12 +478,21 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         {!!recipe.steps?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Instructions</Text>
-            {recipe.steps.map((s: string, i: number) => (
-              <View key={`step-${i}`} style={styles.stepRow}>
-                <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{i + 1}</Text></View>
-                <Text style={styles.bodyText}>{s}</Text>
-              </View>
-            ))}
+            <View style={styles.stepsContainer}>
+              {recipe.steps.map((s: string, i: number) => (
+                <React.Fragment key={`step-${i}`}>
+                  <View style={styles.stepItem}>
+                    <View style={styles.stepLeft}>
+                      <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{i + 1}</Text></View>
+                      {i < recipe.steps.length - 1 && <View style={styles.stepConnector} />}
+                    </View>
+                    <View style={styles.stepRight}>
+                      <Text style={styles.stepBody}>{s}</Text>
+                    </View>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
           </View>
         )}
         {/* Source */}
@@ -448,7 +524,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         onConfirm={(mealType, date) => {
           // Ensure the recipe exists in the local meals store so tracker can resolve it
           let localMealId = recipe.id;
-          const existing = meals.find(m => m.id === recipe.id);
+          const existing = meals.find((m: Meal) => m.id === recipe.id);
           if (!existing) {
             const asMeal = convertToMeal(recipe, desiredServings);
             // Convert to Omit<Meal,'id'> for store add
@@ -470,7 +546,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         servings={desiredServings}
         defaultDate={selectedDate}
       />
-    </View>
+      {/* Recipe Chat Modal (contextual) */}
+      <RecipeChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} recipe={mealLike as any} />
+    </Animated.View>
   );
 };
 
@@ -508,9 +586,10 @@ const renderNutrition = (label: string, value?: number, unit?: string) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
-  imageContainer: { width: '100%', height: 260, marginBottom: Spacing.sm, overflow: 'hidden' },
+  imageContainer: { width: '100%', height: 320, marginBottom: Spacing.sm, overflow: 'hidden' },
   image: { width: '100%', height: '100%', resizeMode: 'cover' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  backBtn: { padding: Spacing.xs, marginRight: Spacing.sm },
   headerSafeTop: { paddingTop: Platform.OS === 'ios' ? 44 : Spacing.lg },
   title: { flex: 1, fontSize: Typography.h2.fontSize, fontWeight: Typography.h2.fontWeight, color: Colors.text, marginRight: Spacing.lg },
   closeBtn: { padding: Spacing.xs },
@@ -523,6 +602,14 @@ const styles = StyleSheet.create({
   bodyText: { fontSize: Typography.body.fontSize, lineHeight: Typography.body.lineHeight, color: Colors.lightText },
   row: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, borderRadius: Radii.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.sm },
+  // New styles for improved instructions/steps UI
+  stepsContainer: { marginTop: Spacing.sm },
+  stepItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.lg },
+  stepLeft: { width: 40, alignItems: 'center' },
+  stepConnector: { borderLeftWidth: 2, borderLeftColor: Colors.border, borderStyle: 'dashed', marginTop: 6, opacity: 0.6, height: 48 },
+  stepRight: { flex: 1, paddingLeft: Spacing.sm },
+  stepTitle: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginBottom: Spacing.xs, fontWeight: Typography.weights.medium },
+  stepBody: { fontSize: Typography.body.fontSize, lineHeight: Typography.body.lineHeight + 6, color: Colors.lightText },
   stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   stepBadgeText: { color: Colors.white, fontSize: 12, fontWeight: '600' },
   nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },

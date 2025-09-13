@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 import { useWeightTracking } from '@/hooks/useWeightTracking';
@@ -10,15 +10,12 @@ interface WeightCardProps {
 }
 
 export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
-  const { getCurrentWeight, goal } = useWeightTracking();
+  const { getCurrentWeight, goal, getProgressStats } = useWeightTracking();
   const currentWeight = getCurrentWeight();
-  
-  // Mock data for demonstration - in a real app, this would come from user profile
-  const currentWeightValue = currentWeight?.weight || 119.4;
-  const goalWeight = goal?.targetWeight || 54.4;
-  
-  const progress = goalWeight > 0 ? Math.max(0, Math.min(1, (currentWeightValue - goalWeight) / (currentWeightValue - goalWeight))) : 0;
-  const progressPercentage = Math.round(progress * 100);
+  const currentWeightValue = currentWeight?.weight;
+  const goalWeight = goal?.targetWeight;
+  const stats = getProgressStats();
+  const progressPercentage = Math.round(stats.progress);
 
   const formatLastWeighIn = () => {
     if (!currentWeight) return '7d';
@@ -40,18 +37,19 @@ export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
         </View>
         
         <View style={styles.weightDisplay}>
-          <Text style={styles.currentWeight}>{currentWeightValue.toFixed(1)} kg</Text>
-          <Text style={styles.goalWeight}>Goal {goalWeight.toFixed(1)} kg</Text>
+          <Text style={styles.currentWeight}>{typeof currentWeightValue === 'number' ? `${currentWeightValue.toFixed(1)} kg` : '-- kg'}</Text>
+          <Text style={styles.goalWeight}>Goal {typeof goalWeight === 'number' ? `${goalWeight.toFixed(1)} kg` : '-- kg'}</Text>
         </View>
 
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
           </View>
+          <Text style={styles.progressText}>{progressPercentage}%</Text>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.nextWeighIn}>Next weigh-in: {formatLastWeighIn()}</Text>
+          <Text style={styles.nextWeighIn}>Last weigh-in: {formatLastWeighIn()}</Text>
         </View>
       </View>
     </GlassSurface>
@@ -101,6 +99,11 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.primary,
     borderRadius: 2,
+  },
+  progressText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: Colors.lightText,
   },
   footer: {
     // No specific styling needed

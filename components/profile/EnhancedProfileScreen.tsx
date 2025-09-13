@@ -51,37 +51,9 @@ export default function EnhancedProfileScreen() {
         </View>
         <Text style={styles.userName}>{profile?.name || 'Alex Smith'}</Text>
         
-        {/* Stats Row */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.healthGoals?.length || 0}</Text>
-            <Text style={styles.statLabel}>Goals</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.dietaryRestrictions?.length || 0}</Text>
-            <Text style={styles.statLabel}>Restrictions</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile?.preferredCuisines?.length || 0}</Text>
-            <Text style={styles.statLabel}>Cuisines</Text>
-          </View>
-        </View>
+        {/* Stats Row removed as requested */}
       </View>
 
-      {/* Preferences Settings Card */}
-      <View style={styles.preferencesCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <Settings size={20} color={Colors.primary} />
-            <Text style={styles.cardTitle}>Preference Settings</Text>
-          </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* Menu Items */}
       <View style={styles.menuSection}>
@@ -165,26 +137,7 @@ export default function EnhancedProfileScreen() {
     </ScrollView>
   );
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      {activeSection !== 'overview' && (
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => setActiveSection('overview')}
-        >
-          <ArrowLeft size={24} color={Colors.text} />
-        </TouchableOpacity>
-      )}
-      <Text style={styles.headerTitle}>
-        {activeSection === 'overview' ? 'Profile' : getSectionTitle(activeSection)}
-      </Text>
-      {activeSection === 'overview' && (
-        <TouchableOpacity style={styles.settingsButton}>
-          <Settings size={24} color={Colors.lightText} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  const renderHeader = () => null;
 
   const getSectionTitle = (section: ProfileSection): string => {
     switch (section) {
@@ -284,36 +237,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.lg,
   },
-  
-  // Stats Container
-  statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: Spacing.md,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: Spacing.xs / 2,
-  },
-  statLabel: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.lightText,
-    textAlign: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.md,
-  },
+  // Stats row removed
   
   // Preferences Card
   preferencesCard: {

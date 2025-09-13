@@ -8,19 +8,23 @@ import {
   Dimensions,
 } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
-import { Calendar, TrendingUp, TrendingDown, BarChart3, Activity } from 'lucide-react-native';
+import { Calendar, TrendingUp, TrendingDown, BarChart3, Activity, ZoomIn, ZoomOut } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { WeeklyTrend, DailyProgress } from '@/hooks/useNutrition';
+
+type TrendPeriod = '7d' | '30d' | '90d';
 
 interface NutritionTrendsProps {
   weeklyTrends: WeeklyTrend[];
   getDailyProgress: (date: string) => DailyProgress;
   selectedDate: string;
   onDateChange: (date: string) => void;
+  fullScreen?: boolean; // When true, increase chart height and simplify layout
+  onExpand?: () => void; // Shown when not fullScreen
+  initialPeriod?: TrendPeriod;
 }
 
-type TrendPeriod = '7d' | '30d' | '90d';
 type ChartType = 'calories' | 'adherence' | 'macros';
 
 const screenWidth = Dimensions.get('window').width;
@@ -30,9 +34,13 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
   getDailyProgress,
   selectedDate,
   onDateChange,
+  fullScreen = false,
+  onExpand,
+  initialPeriod,
 }) => {
-  const [selectedPeriod, setSelectedPeriod] = useState<TrendPeriod>('7d');
+  const [selectedPeriod, setSelectedPeriod] = useState<TrendPeriod>(initialPeriod || '7d');
   const [selectedChart, setSelectedChart] = useState<ChartType>('calories');
+  const [zoom, setZoom] = useState<number>(1);
 
   // Generate daily data for the selected period
   const dailyData = useMemo(() => {
@@ -48,6 +56,11 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
     
     return data;
   }, [selectedPeriod, getDailyProgress]);
+
+  // Reset zoom when period changes to avoid confusing states
+  React.useEffect(() => {
+    setZoom(1);
+  }, [selectedPeriod]);
 
   // Chart configuration
   const chartConfig = {
@@ -74,9 +87,11 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
 
   // Prepare chart data based on selected chart type
   const getChartData = () => {
-    const labels = dailyData.map(day => {
+    const step = selectedPeriod === '90d' ? 7 : selectedPeriod === '30d' ? 3 : 1;
+    const labels = dailyData.map((day, idx) => {
       const date = new Date(day.date);
-      return selectedPeriod === '7d' 
+      if (idx % step !== 0) return '';
+      return selectedPeriod === '7d'
         ? date.toLocaleDateString(undefined, { weekday: 'short' })
         : `${date.getMonth() + 1}/${date.getDate()}`;
     });
@@ -301,21 +316,52 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
       );
     }
 
-    const chartWidth = screenWidth - (Spacing.md * 2);
+    const daysCount = dailyData.length;
+    const pxPerDay = selectedChart === 'macros' ? 26 : 22;
+    const minWidth = screenWidth - (Spacing.md * 2);
+    const computedWidth = Math.max(minWidth, Math.round(daysCount * pxPerDay * zoom));
+    const chartWidth = computedWidth;
+    const chartHeight = fullScreen ? 320 : 220;
 
     return (
       <View style={styles.chartContainer}>
-        <LineChart
-          data={chartData}
-          width={chartWidth}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-          
-          
-          
-        />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 4 }}
+        >
+          <LineChart
+            data={chartData}
+            width={chartWidth}
+            height={chartHeight}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+          />
+        </ScrollView>
+        {(selectedPeriod !== '7d') && (
+          <View style={styles.zoomRow}>
+            <TouchableOpacity
+              style={styles.zoomBtn}
+              onPress={() => setZoom(z => Math.max(1, parseFloat((z - 0.25).toFixed(2))))}
+              accessibilityRole="button"
+              accessibilityLabel="Zoom out"
+            >
+              <ZoomOut size={16} color={Colors.text} />
+              <Text style={styles.zoomLabel}>-</Text>
+            </TouchableOpacity>
+            <Text style={styles.zoomValue}>{Math.round(zoom * 100)}%</Text>
+            <TouchableOpacity
+              style={styles.zoomBtn}
+              onPress={() => setZoom(z => Math.min(3, parseFloat((z + 0.25).toFixed(2))))}
+              accessibilityRole="button"
+              accessibilityLabel="Zoom in"
+            >
+              <ZoomIn size={16} color={Colors.text} />
+              <Text style={styles.zoomLabel}>+</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         
         {selectedChart === 'macros' && (
           <View style={styles.macroLegend}>
@@ -339,9 +385,16 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Nutrition Trends</Text>
-        <Text style={styles.subtitle}>Track your progress over time</Text>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Nutrition Trends</Text>
+          {!fullScreen && <Text style={styles.subtitle}>Track your progress over time</Text>}
+        </View>
+        {!fullScreen && onExpand && (
+          <TouchableOpacity style={styles.expandButton} onPress={onExpand} accessibilityRole="button" accessibilityLabel="Expand chart">
+            <Text style={styles.expandText}>Expand</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {renderTrendStats()}
@@ -350,7 +403,7 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
       {renderChart()}
 
       {/* Weekly Summary */}
-      {weeklyTrends.length > 0 && (
+      {!fullScreen && weeklyTrends.length > 0 && (
         <View style={styles.weeklySection}>
           <Text style={styles.sectionTitle}>Weekly Summary</Text>
           {weeklyTrends.slice(0, 4).map((week, index) => (
@@ -386,6 +439,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.lg,
   },
+  headerRow: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   title: {
     fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.bold,
@@ -395,6 +455,19 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: Typography.sizes.sm,
     color: Colors.lightText,
+  },
+  expandButton: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 8,
+  },
+  expandText: {
+    color: Colors.primary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
   },
   
   // Stats
@@ -513,6 +586,32 @@ const styles = StyleSheet.create({
   },
   chart: {
     borderRadius: 16,
+  },
+  zoomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  zoomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  zoomLabel: {
+    color: Colors.text,
+    fontSize: Typography.sizes.sm,
+  },
+  zoomValue: {
+    color: Colors.lightText,
+    fontSize: Typography.sizes.sm,
   },
   macroLegend: {
     flexDirection: 'row',

@@ -706,18 +706,7 @@ export const NutritionCoachChatInterface: React.FC<NutritionCoachChatProps> = ({
       />
 
       {/* Options Menu */}
-      <OptionsMenu 
-        visible={showOptionsMenu}
-        onClose={() => setShowOptionsMenu(false)}
-        onClearHistory={showClearHistoryConfirm}
-      />
-
-      {/* Clear History Confirmation */}
-      <ClearConfirmDialog
-        visible={showClearConfirm}
-        onConfirm={confirmClearHistory}
-        onCancel={cancelClearHistory}
-      />
+      {/* Options and confirm dialogs hidden for a cleaner UI */}
 
       {/* Messages */}
       <ScrollView
@@ -742,27 +731,7 @@ export const NutritionCoachChatInterface: React.FC<NutritionCoachChatProps> = ({
               {message.content}
             </Text>
             
-            {message.insights && message.insights.length > 0 && (
-              <View style={styles.insightsContainer}>
-                {message.insights.map((insight, index) => (
-                  <InsightCard key={index} insight={insight} />
-                ))}
-              </View>
-            )}
-
-            {message.quickActions && message.quickActions.length > 0 && (
-              <QuickActions 
-                actions={message.quickActions} 
-                onActionPress={handleQuickAction}
-              />
-            )}
-
-            {message.mealSuggestions && message.mealSuggestions.length > 0 && (
-              <MealSuggestions 
-                suggestions={message.mealSuggestions} 
-                onSuggestionPress={handleMealSuggestion}
-              />
-            )}
+            {/* Inline insights/actions/suggestions hidden to reduce clutter */}
 
             <Text style={[
               styles.messageTime,
@@ -781,11 +750,7 @@ export const NutritionCoachChatInterface: React.FC<NutritionCoachChatProps> = ({
       </ScrollView>
 
       {/* Quick Prompts */}
-      {quickPrompts.length > 0 && (
-        <View style={[styles.quickPromptsWrapper, { bottom: composerBottomOffset + 60 }]}>
-          <QuickPrompts prompts={quickPrompts} onPromptPress={handleQuickPrompt} />
-        </View>
-      )}
+      {/* Quick prompts hidden for a minimal chat surface */}
 
       {/* Composer */}
       <View style={[styles.composer, { bottom: composerBottomOffset }]}>

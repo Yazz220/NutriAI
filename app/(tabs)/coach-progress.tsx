@@ -3,21 +3,24 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Brain } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { WeightCard } from '@/components/progress/WeightCard';
 import { WeightModal } from '@/components/progress/WeightModal';
 import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { GlassSurface } from '@/components/common/GlassSurface';
+import { TotalCaloriesCard } from '@/components/progress/TotalCaloriesCard';
+import TotalCaloriesModal from '@/components/progress/TotalCaloriesModal';
 
 export default function CoachProgressScreen() {
   const insets = useSafeAreaInsets();
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
+  const [showTotalCaloriesModal, setShowTotalCaloriesModal] = useState(false);
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Coach" icon={<Brain size={28} color={Colors.text} weight="bold" />} glassy />
+      <ScreenHeader title="Progress" icon={<Brain size={28} color={Colors.text} weight="bold" />} glassy />
       
       <ScrollView 
         style={styles.content}
@@ -27,6 +30,7 @@ export default function CoachProgressScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        <TotalCaloriesCard onPress={() => setShowTotalCaloriesModal(true)} />
         <WeightCard onPress={() => setShowWeightModal(true)} />
 
         <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
@@ -48,6 +52,11 @@ export default function CoachProgressScreen() {
       <MeasurementModal
         visible={showMeasurementModal}
         onClose={() => setShowMeasurementModal(false)}
+      />
+
+      <TotalCaloriesModal
+        visible={showTotalCaloriesModal}
+        onClose={() => setShowTotalCaloriesModal(false)}
       />
     </View>
   );

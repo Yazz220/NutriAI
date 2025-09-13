@@ -17,7 +17,7 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - **Improved Error Handling**: Comprehensive error boundaries with development-friendly error reporting
 - **Visual Dashboard**: Calorie ring, macros, meal rows, and intuitive day/week navigation
 - **Smart Planning**: Plan meals inline per day (Breakfast/Lunch/Dinner/Snack) using the + button
-- **AI Assistant**: Floating chat assistant for "Plan my day/week" and shopping list actions
+  - **AI Assistant**: Floating chat assistant for "Plan my day/week" and shopping list actions. Note: AI chat is contextual and available from the Coach (floating assistant) and from each Recipe's "Ask AI" button rather than a separate tab.
 - **Component Library**: Reusable date utilities and performance-optimized components
 
 ### 🛒 Shopping List
@@ -39,6 +39,25 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 - [Node.js](https://nodejs.org/en/) (LTS version recommended)
 - [Expo Go](https://expo.dev/go) app on your iOS or Android device.
+
+### Developer notes
+
+If you're contributing or setting up the project locally, we recommend using nvm (nvm-windows on Windows) to manage Node versions. The project is verified with Node v20.19.4 — some native packages require this minimum. Example (Windows PowerShell with nvm-windows):
+
+```powershell
+# install (if needed) and use the matching Node version
+nvm install 20.19.4
+nvm use 20.19.4
+node -v
+```
+
+When installing dependencies, use the legacy peer deps flag to avoid peer resolution errors encountered with newer npm defaults:
+
+```powershell
+npm install --legacy-peer-deps
+```
+
+These steps will reduce EBADENGINE warnings and help ensure native modules like Skia install cleanly.
 
 ### Installation
 

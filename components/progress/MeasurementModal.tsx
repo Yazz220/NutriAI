@@ -12,21 +12,12 @@ import {
 import { ChevronLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
+import { useMeasurements, MetricKey } from '@/hooks/useMeasurements';
 
 interface MeasurementModalProps {
   visible: boolean;
   onClose: () => void;
 }
-
-type MetricKey = 'weight' | 'waist' | 'bodyFat' | 'chest' | 'arm' | 'bmi';
-
-interface MeasurementEntry {
-  date: string; // ISO
-  value: number;
-  unit: string;
-}
-
-type Measurements = Partial<Record<MetricKey, MeasurementEntry[]>>;
 
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
   { key: 'weight', label: 'Weight', unit: 'kg' },
@@ -39,17 +30,8 @@ const METRICS: { key: MetricKey; label: string; unit: string }[] = [
 
 export const MeasurementModal: React.FC<MeasurementModalProps> = ({ visible, onClose }) => {
   const [activeRange, setActiveRange] = useState<'1m' | '3m' | 'all'>('1m');
-  const [measurements, setMeasurements] = useState<Measurements>({});
   const [editing, setEditing] = useState<{ key: MetricKey; value: string } | null>(null);
-
-  const latest = useMemo(() => {
-    const out: Partial<Record<MetricKey, MeasurementEntry | undefined>> = {};
-    METRICS.forEach(({ key }) => {
-      const list = measurements[key] || [];
-      out[key] = list.length ? list[list.length - 1] : undefined;
-    });
-    return out;
-  }, [measurements]);
+  const { latestByMetric, addMeasurement, getEntries, DEFAULT_UNITS } = useMeasurements();
 
   const startEdit = (key: MetricKey, initial: string = '') => setEditing({ key, value: initial });
   const cancelEdit = () => setEditing(null);
@@ -60,12 +42,8 @@ export const MeasurementModal: React.FC<MeasurementModalProps> = ({ visible, onC
     const n = Number(value);
     if (Number.isNaN(n)) return;
 
-    setMeasurements(prev => {
-      const unit = METRICS.find(m => m.key === key)?.unit || '';
-      const entry: MeasurementEntry = { date: new Date().toISOString(), value: n, unit };
-      const nextList = [...(prev[key] || []), entry];
-      return { ...prev, [key]: nextList };
-    });
+    const unit = METRICS.find(m => m.key === key)?.unit || DEFAULT_UNITS[key];
+    addMeasurement(key, n, unit);
     setEditing(null);
   };
 
@@ -104,13 +82,13 @@ export const MeasurementModal: React.FC<MeasurementModalProps> = ({ visible, onC
               <Text style={styles.metricTitle}>{label}</Text>
               <View style={styles.separator} />
 
-              {!latest[key] ? (
+              {!latestByMetric[key] ? (
                 <Text style={styles.emptyText}>No measurements available</Text>
               ) : (
                 <View style={styles.latestRow}>
                   <Text style={styles.latestLabel}>Current</Text>
                   <Text style={styles.latestValue}>
-                    {latest[key]?.value}
+                    {latestByMetric[key]?.value}
                     {unit ? ` ${unit}` : ''}
                   </Text>
                 </View>

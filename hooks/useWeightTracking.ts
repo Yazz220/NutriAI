@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUserProfileStore } from '@/hooks/useEnhancedUserProfile';
 
 export interface WeightEntry {
   id: string;
@@ -24,6 +25,7 @@ export const useWeightTracking = () => {
   const [goal, setGoal] = useState<WeightGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const { profile, updateBasics } = useUserProfile();
+  const enhanced = useUserProfileStore();
 
   // Load data on mount
   useEffect(() => {
@@ -64,6 +66,26 @@ export const useWeightTracking = () => {
       setLoading(false);
     }
   };
+
+  // Derive a weight goal from enhanced profile if missing
+  useEffect(() => {
+    (async () => {
+      if (loading) return;
+      if (goal) return;
+      const target = enhanced.profile?.targetWeight;
+      const current = entries.length > 0 ? entries[0].weight : (profile?.basics?.weightKg ?? undefined);
+      if (typeof target === 'number' && target > 0 && typeof current === 'number' && current > 0) {
+        const derived: WeightGoal = {
+          targetWeight: target,
+          startWeight: current,
+          startDate: new Date().toISOString().split('T')[0],
+          targetDate: new Date(new Date().getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +60 days
+        };
+        setGoal(derived);
+        try { await AsyncStorage.setItem(WEIGHT_GOAL_KEY, JSON.stringify(derived)); } catch {}
+      }
+    })();
+  }, [loading, goal, enhanced.profile?.targetWeight, entries, profile?.basics?.weightKg]);
 
   const addWeightEntry = async (weight: number, date?: string) => {
     const entry: WeightEntry = {
@@ -109,7 +131,13 @@ export const useWeightTracking = () => {
 
   // Get current weight (most recent entry)
   const getCurrentWeight = () => {
-    return entries.length > 0 ? entries[0] : null;
+    if (entries.length > 0) return entries[0];
+    const w = profile?.basics?.weightKg;
+    if (typeof w === 'number' && !Number.isNaN(w)) {
+      const iso = new Date().toISOString().split('T')[0];
+      return { id: 'profile-weight', weight: w, date: iso, timestamp: Date.now() } as WeightEntry;
+    }
+    return null;
   };
 
   // Get weight progress vs goal
@@ -119,9 +147,11 @@ export const useWeightTracking = () => {
       return { progress: 0, remaining: 0, onTrack: false };
     }
 
-    const totalToLose = goal.startWeight - goal.targetWeight;
-    const lostSoFar = goal.startWeight - current.weight;
-    const progress = totalToLose > 0 ? (lostSoFar / totalToLose) * 100 : 0;
+    // Handle both weight loss (target < start) and gain (target > start)
+    const totalDelta = goal.targetWeight - goal.startWeight; // can be negative
+    const currentDelta = current.weight - goal.startWeight;
+    const ratio = totalDelta !== 0 ? currentDelta / totalDelta : 0;
+    const progress = ratio * 100;
     const remaining = goal.targetWeight - current.weight;
 
     // Calculate if on track based on time

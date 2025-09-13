@@ -431,7 +431,7 @@ export const COMPLETION_ACTIONS = [
     title: 'Ask the AI Coach',
     description: 'Get instant cooking and nutrition advice',
     icon: '🤖',
-    route: '/(tabs)/ai-coach',
+    route: '/(tabs)/recipes',
   },
 ] as const;
 

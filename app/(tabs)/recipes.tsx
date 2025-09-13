@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookOpenText, CookingPot, MagnifyingGlass, Brain, Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
+import { X } from 'lucide-react-native';
 // Removed gradient header in favor of ScreenHeader
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
@@ -33,7 +34,7 @@ import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
 import { Modal as UIModal } from '@/components/ui/Modal';
 import { ExternalRecipe } from '@/types/external';
-import { Meal } from '@/types';
+import { Meal, RecipeFolder } from '@/types';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
 // { FolderCard } removed in favor of RecipeFolderCard grid
 import { NewFolderModal } from '@/components/folders/NewFolderModal';
@@ -41,7 +42,7 @@ import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
 import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
-import { InventoryAwareRecipeChatInterface } from '@/components/InventoryAwareRecipeChatInterface';
+// Inventory-aware chat removed in favor of contextual ChatModal; keep helper component available in components if needed
 import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
@@ -54,7 +55,7 @@ export default function RecipesScreen() {
   const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
-  const [activeTab, setActiveTab] = useState<'local' | 'discovery' | 'chat'>('discovery');
+  const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
   // Import preview-before-save
   const [importPreviewMeal, setImportPreviewMeal] = useState<Omit<Meal, 'id'> | null>(null);
   const [isEditingPreview, setIsEditingPreview] = useState(false);
@@ -63,9 +64,8 @@ export default function RecipesScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editIngredientsText, setEditIngredientsText] = useState(''); // one per line: qty unit name
   const [editStepsText, setEditStepsText] = useState(''); // one per line
-  const tabs: { key: 'discovery' | 'chat' | 'local'; label: string }[] = [
+  const tabs: { key: 'discovery' | 'local'; label: string }[] = [
     { key: 'discovery', label: 'Discover' },
-    { key: 'chat', label: 'AI Chat' },
     { key: 'local', label: 'Recipes' },
   ];
   const activeIndex = tabs.findIndex(t => t.key === activeTab);
@@ -152,6 +152,28 @@ export default function RecipesScreen() {
     getTrendingRecipes,
     getRandomRecipes,
   } = useRecipeStore();
+
+  // Local search state for saved recipes
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+
+  // Filter local recipes (and folder view) by name or tags
+  const filteredLocalRecipes = React.useMemo(() => {
+    const q = localSearchQuery.trim().toLowerCase();
+    const list: Meal[] = activeFolderId
+      ? (folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [])
+          .map((id: string) => localRecipes.find((r: Meal) => r.id === id))
+          .filter(Boolean) as Meal[]
+      : localRecipes;
+
+    if (!q) return list;
+
+    return list.filter((item: Meal) => {
+      const nameMatch = item.name?.toLowerCase().includes(q);
+      const tags = item.tags || [];
+      const tagMatch = tags.join(' ').toLowerCase().includes(q);
+      return Boolean(nameMatch || tagMatch);
+    });
+  }, [localSearchQuery, localRecipes, activeFolderId, folders]);
 
   // Import handlers removed
 
@@ -384,23 +406,6 @@ export default function RecipesScreen() {
 
       {activeTab === 'discovery' ? (
         <InventoryAwareRecipeDiscovery onRecipePress={handleExternalRecipePress} onSaveRecipe={handleSaveExternalRecipe} />
-      ) : activeTab === 'chat' ? (
-        <InventoryAwareRecipeChatInterface 
-          onRecipeSelect={(recipe, action) => {
-            // Handle recipe selection from AI chat
-            if (action === 'cook') {
-              handleSaveExternalRecipe(recipe);
-            }
-          }}
-          onViewInventory={() => {
-            // Navigate to inventory tab if needed
-            console.log('Navigate to inventory');
-          }}
-          onAddIngredient={() => {
-            // Navigate to add ingredient flow
-            console.log('Navigate to add ingredient');
-          }}
-        />
       ) : (
         <>
           <View style={styles.searchContainer}>
@@ -410,7 +415,16 @@ export default function RecipesScreen() {
                 placeholder="Search saved recipes"
                 placeholderTextColor={Colors.lightText}
                 style={styles.searchInput}
+                value={localSearchQuery}
+                onChangeText={setLocalSearchQuery}
+                returnKeyType="search"
+                onSubmitEditing={() => { /* no-op for now */ }}
               />
+              {localSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setLocalSearchQuery('')} style={{ padding: 6 }}>
+                  <X size={14} color={Colors.lightText} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -422,7 +436,7 @@ export default function RecipesScreen() {
               >
                 <Text style={!activeFolderId ? styles.folderChipActiveText : styles.folderChipText}>All</Text>
               </TouchableOpacity>
-              {folders.map((folder) => (
+              {folders.map((folder: RecipeFolder) => (
                 <TouchableOpacity
                   key={folder.id}
                   style={[styles.folderChip, activeFolderId === folder.id ? styles.folderChipActive : {}]}
@@ -468,7 +482,7 @@ export default function RecipesScreen() {
                 title="Add Recipes to Folder"
                 onPress={() => {
                   setNewFolderId(activeFolderId);
-                  setNewFolderName(folders.find(f => f.id === activeFolderId)?.name || '');
+                  setNewFolderName(folders.find((f: RecipeFolder) => f.id === activeFolderId)?.name || '');
                   setShowAddRecipesModal(true);
                 }}
                 variant="outline"
@@ -477,7 +491,7 @@ export default function RecipesScreen() {
           )}
 
           <FlatList
-            data={activeFolderId ? folders.find(f => f.id === activeFolderId)?.recipeIds.map(id => localRecipes.find(r => r.id === id)).filter(Boolean) as Meal[] : localRecipes}
+            data={activeFolderId ? folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds.map((id: string) => localRecipes.find((r: Meal) => r.id === id)).filter(Boolean) as Meal[] : filteredLocalRecipes}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.recipeCard} onPress={() => handleRecipePress(item)}>
@@ -527,13 +541,13 @@ export default function RecipesScreen() {
       <CreateFolderSheet
         visible={showCreateFolderSheet}
         onClose={() => { setShowCreateFolderSheet(false); }}
-        existingNames={folders.map(f => f.name)}
+        existingNames={folders.map((f: RecipeFolder) => f.name)}
         onCreate={handleCreateFolder}
       />
       <RenameFolderSheet
         visible={showRenameFolderSheet}
-        defaultName={folders.find(f => f.id === renameFolderId)?.name || ''}
-        existingNames={folders.map(f => f.name)}
+        defaultName={folders.find((f: RecipeFolder) => f.id === renameFolderId)?.name || ''}
+        existingNames={folders.map((f: RecipeFolder) => f.name)}
         onClose={() => setShowRenameFolderSheet(false)}
         onRename={(name) => { if (renameFolderId) renameFolder(renameFolderId, name); setShowRenameFolderSheet(false); }}
       />
@@ -548,7 +562,7 @@ export default function RecipesScreen() {
         folderId={newFolderId || ''}
         folderName={newFolderName}
         availableRecipes={localRecipes}
-        existingRecipeIds={activeFolderId ? folders.find(f => f.id === activeFolderId)?.recipeIds || [] : []}
+        existingRecipeIds={activeFolderId ? folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [] : []}
         onClose={() => setShowAddRecipesModal(false)}
         onAddRecipes={handleAddRecipesToNewFolder}
       />

@@ -17,6 +17,7 @@ import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useInventory } from '@/hooks/useInventoryStore';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { ShoppingListItem as ShoppingListItemComponent } from '@/components/ShoppingListItem';
 import { AddToListModal } from '@/components/AddToListModal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -41,6 +42,7 @@ export default function ShoppingListScreen() {
     clearRecentlyPurchased
   } = useShoppingList();
   const { addItem: addInventoryItem } = useInventory();
+  const { preferences, updateAutoAddPurchasedToInventory } = useUserPreferences();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = 56; // matches pill bar height in app/(tabs)/_layout.tsx
@@ -75,30 +77,42 @@ export default function ShoppingListScreen() {
   const handleToggleItem = (item: ShoppingListItem) => {
     toggleItemChecked(item.id);
     if (!item.checked) {
-      Alert.alert(
-        'Move to Inventory?',
-        `Would you like to add ${item.name} to your inventory?`,
-        [
-          { text: 'Not Now', style: 'cancel' },
-          {
-            text: 'Yes, Add',
-            onPress: async () => {
-              try {
-                await addInventoryItem({
-                  name: item.name,
-                  category: item.category,
-                  addedDate: new Date().toISOString(),
-                  quantity: 1,
-                  unit: 'pcs',
-                });
-                showToast({ message: `Added ${item.name} to inventory`, type: 'success' });
-              } catch (e) {
-                showToast({ message: 'Failed to add to inventory', type: 'error' });
-              }
+      if (preferences?.autoAddPurchasedToInventory) {
+        // Auto add silently
+        addInventoryItem({
+          name: item.name,
+          category: item.category,
+          addedDate: new Date().toISOString(),
+          quantity: 1,
+          unit: 'pcs',
+        }).then(() => showToast({ message: `Added ${item.name} to inventory`, type: 'success' }))
+          .catch(() => showToast({ message: 'Failed to add to inventory', type: 'error' }));
+      } else {
+        Alert.alert(
+          'Move to Inventory?',
+          `Would you like to add ${item.name} to your inventory?`,
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Yes, Add',
+              onPress: async () => {
+                try {
+                  await addInventoryItem({
+                    name: item.name,
+                    category: item.category,
+                    addedDate: new Date().toISOString(),
+                    quantity: 1,
+                    unit: 'pcs',
+                  });
+                  showToast({ message: `Added ${item.name} to inventory`, type: 'success' });
+                } catch (e) {
+                  showToast({ message: 'Failed to add to inventory', type: 'error' });
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }
     }
   };
 
@@ -142,6 +156,11 @@ export default function ShoppingListScreen() {
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
             icon={<Plus size={14} color={Colors.primary} />}
           />
+          <View style={{ justifyContent: 'center', marginLeft: 8 }}>
+            <TouchableOpacity onPress={() => updateAutoAddPurchasedToInventory(!preferences?.autoAddPurchasedToInventory)} style={styles.autoAddToggle}>
+              <Text style={{ color: preferences?.autoAddPurchasedToInventory ? Colors.white : Colors.text, fontWeight: '600' }}>{preferences?.autoAddPurchasedToInventory ? 'Auto add: ON' : 'Auto add: OFF'}</Text>
+            </TouchableOpacity>
+          </View>
           <Button
             title="Export"
             onPress={() => setExportVisible(true)}
@@ -317,6 +336,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
     flexWrap: 'wrap',
+  },
+  autoAddToggle: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   smartListButton: {
     flexDirection: 'row',

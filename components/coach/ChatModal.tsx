@@ -9,6 +9,7 @@ import { useCoachChat } from '@/hooks/useCoachChat';
 interface ChatModalProps {
   visible: boolean;
   onClose: () => void;
+  initialRecipe?: any | null;
 }
 
 interface ChatMessage {
@@ -22,8 +23,8 @@ interface ChatMessage {
   structured?: any;
 }
 
-const ChatModal: React.FC<ChatModalProps> = ({ visible, onClose }) => {
-  const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
+const ChatModal: React.FC<ChatModalProps> = ({ visible, onClose, initialRecipe }) => {
+  const { messages, sendMessage, performInlineAction, isTyping, openChatWithRecipe } = useCoachChat() as any;
   const [inputText, setInputText] = useState('');
 
   const handleSendMessage = () => {
@@ -34,9 +35,14 @@ const ChatModal: React.FC<ChatModalProps> = ({ visible, onClose }) => {
     }
   };
 
-  const handleQuickAction = (action: string) => {
-    sendMessage(action);
-  };
+  const handleQuickAction = (action: string) => sendMessage(action);
+
+  // Seed chat with recipe context when modal becomes visible
+  React.useEffect(() => {
+    if (visible && initialRecipe) {
+      try { openChatWithRecipe?.(initialRecipe); } catch (err) { console.warn(err); }
+    }
+  }, [visible, initialRecipe]);
 
   const renderMessage = (message: ChatMessage) => (
     <View key={message.id} style={[styles.msg, message.role === 'user' ? styles.msgUser : styles.msgCoach]}>
@@ -89,7 +95,7 @@ const ChatModal: React.FC<ChatModalProps> = ({ visible, onClose }) => {
       presentationStyle="fullScreen"
       statusBarTranslucent={false}
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
+  <SafeAreaView style={[styles.container, { backgroundColor: Colors.background }]}>
         <View style={[styles.modalHeader, { paddingTop: Spacing.sm }]}>
           <Text style={styles.modalTitle}>Coach Chat</Text>
           <TouchableOpacity onPress={onClose} style={styles.headerButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

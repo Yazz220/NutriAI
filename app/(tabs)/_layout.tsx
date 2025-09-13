@@ -3,8 +3,10 @@ import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
 import { Refrigerator, BookOpen, ShoppingCart, LayoutDashboard, User } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
+import { Spacing } from '@/constants/spacing';
 
 export default function TabLayout() {
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -67,9 +69,9 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   pillBar: {
     position: 'absolute',
+    bottom: 12,
     left: 16,
     right: 16,
-    bottom: 12,
     height: 56,
     borderRadius: 36,
     backgroundColor: 'rgba(255, 255, 255, 0.90)',
@@ -82,13 +84,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingHorizontal: 0,
+    paddingHorizontal: 12,
+    justifyContent: 'space-between',
   },
   tabItem: {
-    flex: 1,
-    justifyContent: 'center',
+    // Lock each of the 5 items to 20% width for perfect symmetry
+    flex: 0,
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconWrap: {
     width: 48,
@@ -96,7 +100,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 0,
+    marginTop: 2,
   },
   header: {
     backgroundColor: 'rgba(255, 255, 255, 0.90)',

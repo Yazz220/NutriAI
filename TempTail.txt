@@ -1,0 +1,260 @@
+  calorieNumber: {
+    color: Colors.text,
+    fontSize: 32,
+    fontWeight: Typography.weights.bold,
+    lineHeight: 36,
+    textAlign: 'center',
+  },
+  calorieLabel: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: Typography.weights.medium,
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  macroRingsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  macroRingItem: {
+    alignItems: 'center',
+    position: 'relative',
+    width: 80,
+    height: 100,
+  },
+  macroCenterContent: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 20, // Leave space for label
+  },
+  macroValue: {
+    fontSize: 16,
+    fontWeight: Typography.weights.bold,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  macroLabel: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: Typography.weights.medium,
+    textAlign: 'center',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    letterSpacing: 0.5,
+  },
+  loadingRing: {
+    width: 200,
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  loadingText: {
+    color: Colors.lightText,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Modal styles (reused from EnhancedCalorieRing)
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  closeButton: {
+    padding: Spacing.xs,
+  },
+  modalTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+  },
+  headerSpacer: {
+    width: 32,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  
+  // Status section
+  statusSection: {
+    marginVertical: Spacing.md,
+  },
+  statusCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: Spacing.md,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  statusText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semibold,
+    marginLeft: Spacing.sm,
+  },
+  statusDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    lineHeight: 20,
+  },
+  
+  // Section styles
+  section: {
+    marginBottom: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  
+  // Breakdown styles
+  breakdownCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  breakdownSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.md,
+  },
+  breakdownLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: Typography.weights.medium,
+  },
+  breakdownSubLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+  },
+  breakdownValue: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    fontWeight: Typography.weights.semibold,
+  },
+  breakdownSubValue: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.sm,
+  },
+  
+  // Macro styles
+  macroCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  macroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  macroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: Spacing.sm,
+  },
+  macroName: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+  },
+  macroValues: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
+  },
+  macroProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroProgressTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: 3,
+    marginRight: Spacing.sm,
+  },
+  macroProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  macroPercentage: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
+    minWidth: 35,
+    textAlign: 'right',
+  },
+  
+  // Tips styles
+  tipsCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  tipText: {
+    flex: 1,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+    lineHeight: 20,
+    marginLeft: Spacing.sm,
+  },
+});

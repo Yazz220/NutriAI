@@ -178,7 +178,8 @@ export const useOnboardingNavigation = () => {
           router.replace('/(tabs)/inventory');
           break;
         case 'ask_ai':
-          router.replace('/(tabs)/ai-coach');
+          // AI chat is contextual now via the Coach Chat modal; route to Recipes where users can open recipe Ask AI
+          router.replace('/(tabs)/recipes');
           break;
         default:
           router.replace('/(tabs)');

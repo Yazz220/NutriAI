@@ -7,9 +7,8 @@ export interface ValidationResult {
 
 export const validateInventoryItem = (item: {
   name: string;
-  quantity: number;
-  unit: string;
   category: ItemCategory;
+  [key: string]: any;
 }): ValidationResult => {
   const errors: string[] = [];
 
@@ -19,18 +18,6 @@ export const validateInventoryItem = (item: {
 
   if (item.name && item.name.trim().length > 50) {
     errors.push('Item name must be less than 50 characters');
-  }
-
-  if (!item.quantity || item.quantity <= 0) {
-    errors.push('Quantity must be greater than 0');
-  }
-
-  if (item.quantity > 9999) {
-    errors.push('Quantity must be less than 10,000');
-  }
-
-  if (!item.unit || item.unit.trim().length === 0) {
-    errors.push('Unit is required');
   }
 
   if (!item.category) {

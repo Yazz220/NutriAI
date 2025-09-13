@@ -27,11 +27,20 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
   const Container = pressable ? Pressable : View;
 
   return (
-    <View style={[styles.wrapper, { borderRadius: radius }, style]}
+    <View
+      style={[styles.wrapper, { borderRadius: radius }, style]}
       pointerEvents={pressable ? 'auto' : 'box-none'}
     >
-      <BlurView style={[StyleSheet.absoluteFill, { borderRadius: radius }]} intensity={intensity} tint={tint} />
-      <View style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: 'rgba(255,255,255,0.06)' }]} />
+      <BlurView
+        style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+        intensity={intensity}
+        tint={tint}
+        pointerEvents="none"
+      />
+      <View
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: 'rgba(255,255,255,0.06)' }]}
+        pointerEvents="none"
+      />
       <Container style={[styles.content, { padding }]} onPress={onPress}>
         {children}
       </Container>

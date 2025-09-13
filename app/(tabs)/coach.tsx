@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert, PanResponder, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, CaretLeft, CaretRight, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar, MagnifyingGlass, Camera } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
+import { WEEK_RINGS_SCALE } from '@/constants/theme';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
@@ -12,6 +13,9 @@ import { EnhancedCalorieRing } from '@/components/nutrition/EnhancedCalorieRing'
 import { CompactNutritionRings } from '@/components/nutrition/CompactNutritionRings';
 import { ExternalFoodLoggingModal } from '@/components/nutrition/ExternalFoodLoggingModal';
 import { ProgressSection } from '@/components/nutrition/ProgressSection';
+import { NutritionTrends } from '@/components/nutrition/NutritionTrends';
+import { NutritionTrendsCard } from '@/components/nutrition/NutritionTrendsCard';
+import { NutritionTrendsModal } from '@/components/nutrition/NutritionTrendsModal';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -27,6 +31,7 @@ import { WeightModal } from '@/components/progress/WeightModal';
 import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { BMICard } from '@/components/progress/BMICard';
+import BMIModal from '@/components/progress/BMIModal';
 import { DayStreakCard } from '@/components/progress/DayStreakCard';
 import { TotalCaloriesCard } from '@/components/progress/TotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
@@ -50,7 +55,9 @@ import { useToast } from '@/contexts/ToastContext';
 export default function CoachScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile, logPlannedMeal, removeLoggedMeal, logCustomMeal } = useNutritionWithMealPlan();
+  const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile, logPlannedMeal, removeLoggedMeal, logCustomMeal, weeklyTrends } = useNutritionWithMealPlan();
+  const [showTrendsModal, setShowTrendsModal] = useState(false);
+  const [trendsInitialPeriod, setTrendsInitialPeriod] = useState<'7d'|'30d'|'90d'>('7d');
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
   const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal, completeMeal } = useMealPlanner();
   const { meals } = useMeals();
@@ -75,6 +82,7 @@ export default function CoachScreen() {
   });
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
+  const [showBmiModal, setShowBmiModal] = useState(false);
   const [imageToAnalyze, setImageToAnalyze] = useState<string | null>(null);
 
   // Segmented control layout/animation
@@ -372,20 +380,21 @@ export default function CoachScreen() {
         contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 32 }}
       >
         {/* Calendar + Swipeable Week Rings moved to the top */}
-        <View style={styles.weekHeaderRow}>
+        <View style={[styles.weekHeaderRow, { paddingHorizontal: 16 }]}>
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={styles.modernIconBtn}
+            onPress={() => setCalendarOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Open calendar"
-            onPress={() => setCalendarOpen(true)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ marginTop: 4 }}
           >
-            <Calendar size={18} color={Colors.text} />
+            <Calendar size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
         {/* Only WeekRings swipes */}
         <View
-          style={{ overflow: 'hidden', marginTop: 4, marginBottom: 12 }}
+          style={{ overflow: 'visible', marginTop: 4, marginBottom: 12, width: '100%', minHeight: 44 }}
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width; // use actual container width (full width)
             if (w > 0 && Math.abs(w - ringsWidth) > 0.5) setRingsWidth(w);
@@ -395,18 +404,21 @@ export default function CoachScreen() {
           {ringsWidth > 0 ? (
             <Animated.View style={{ width: ringsWidth * 3, flexDirection: 'row', transform: [{ translateX }] }}>
               {(() => {
-                const cell = Math.floor(ringsWidth / 7);
-                const ring = Math.max(28, cell - 10);
+                // Compute base sizes then scale down by ~10% to make the rings slightly more compact
+                const baseCell = Math.floor(ringsWidth / 7);
+                const baseRing = Math.max(28, baseCell - 10);
+                // Use base sizes and pass a centralized scale prop so WeekRings handles the visual shrink
+                const scale = WEEK_RINGS_SCALE;
                 return (
                   <>
                     <View style={{ width: ringsWidth }}>
-                      <WeekRings selectedDate={prevWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                      <WeekRings selectedDate={prevWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={baseCell} ringSize={32} scale={1} />
                     </View>
                     <View style={{ width: ringsWidth }}>
-                      <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                      <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={baseCell} ringSize={32} scale={1} />
                     </View>
                     <View style={{ width: ringsWidth }}>
-                      <WeekRings selectedDate={nextWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={cell} ringSize={ring} />
+                      <WeekRings selectedDate={nextWeekISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={baseCell} ringSize={32} scale={1} />
                     </View>
                   </>
                 );
@@ -414,7 +426,7 @@ export default function CoachScreen() {
             </Animated.View>
           ) : (
             // pre-measure fallback: render current week only (no animation)
-            <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={48} ringSize={40} />
+            <WeekRings selectedDate={dayISO} onSelectDate={(iso) => setDayISO(iso)} cellSize={48} ringSize={32} scale={1} />
           )}
         </View>
 
@@ -573,8 +585,8 @@ export default function CoachScreen() {
           </View>
         </View>
 
-        {/* Progress Section */}
-        <ProgressSection />
+        {/* Progress Section (hidden for cleaner UI) */}
+        {/* <ProgressSection /> */}
 
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
@@ -597,14 +609,24 @@ export default function CoachScreen() {
             </View>
           </View>
 
-          {/* Total Calories Card */}
-          <TotalCaloriesCard />
+          {/* Total Calories by Period */}
+          <TotalCaloriesCard onOpenPeriod={(p) => {
+            // Map to trends initial period and open modal
+            const map: Record<string, '7d' | '30d' | '90d'> = { week: '7d', month: '30d', quarter: '90d' };
+            setTrendsInitialPeriod(map[p]);
+            setShowTrendsModal(true);
+          }} />
+
+          {/* Nutrition Trends Card opens bottom sheet modal */}
+          <NutritionTrendsCard onPress={() => setShowTrendsModal(true)} />
 
           {/* BMI Card */}
-          <BMICard onPress={() => {
-            // Could open a detailed BMI modal or navigate to BMI details
-            console.log('BMI card pressed');
-          }} />
+          <BMICard
+            onPress={() => {
+              setShowBmiModal(true);
+            }}
+            onHelpPress={() => setShowBmiModal(true)}
+          />
 
           {/* Measurements Card */}
           <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
@@ -622,6 +644,19 @@ export default function CoachScreen() {
 
       {/* Measurement Modal */}
       <MeasurementModal visible={showMeasurementModal} onClose={() => setShowMeasurementModal(false)} />
+
+      {/* BMI Info Modal */}
+      <BMIModal visible={showBmiModal} onClose={() => setShowBmiModal(false)} />
+
+      {/* Nutrition Trends Modal */}
+      <NutritionTrendsModal
+        visible={showTrendsModal}
+        onClose={() => setShowTrendsModal(false)}
+        weeklyTrends={weeklyTrends}
+        getDailyProgress={getDailyProgress}
+        selectedDate={dayISO}
+        initialPeriod={trendsInitialPeriod}
+      />
 
       {/* Floating Chat Button */}
       <TouchableOpacity
@@ -648,7 +683,7 @@ export default function CoachScreen() {
               style={styles.closeCoachButton}
               onPress={() => setChatOpen(false)}
             >
-              <Text style={styles.closeCoachText}>✕</Text>
+              <Text style={styles.closeCoachText}>Close</Text>
             </TouchableOpacity>
           </View>
           <NutritionCoachChatInterface 
@@ -679,52 +714,68 @@ export default function CoachScreen() {
       {/* Calendar Modal */}
       <Modal
         visible={calendarOpen}
-        transparent
-        animationType="fade"
+        animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={() => setCalendarOpen(false)}
       >
-        <View style={styles.calendarBackdrop}>
-          <View style={styles.calendarSheet}>
-            {/* Header */}
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                style={styles.modernIconBtn}
-                onPress={() => {
-                  const d = new Date(calendarMonth);
-                  d.setMonth(d.getMonth() - 1);
-                  setCalendarMonth(d);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Previous month"
-              >
-                <CaretLeft size={18} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.calendarMonthLabel}>
-                {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-              </Text>
-              <TouchableOpacity
-                style={styles.modernIconBtn}
-                onPress={() => {
-                  const d = new Date(calendarMonth);
-                  d.setMonth(d.getMonth() + 1);
-                  setCalendarMonth(d);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Next month"
-              >
-                <CaretRight size={18} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.calendarContainer}>
+          {/* Top header with Today / Close */}
+          <View style={styles.calendarTopBar}>
+            <TouchableOpacity
+              onPress={() => {
+                const today = new Date().toISOString().split('T')[0];
+                setDayISO(today);
+                const m = new Date(); m.setDate(1); setCalendarMonth(m);
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.calendarTopBarAction}>Today</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setCalendarOpen(false)} accessibilityRole="button">
+              <Text style={styles.calendarTopBarAction}>Close</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Weekday Row (Mon–Sun) */}
-            <View style={styles.calendarWeekdaysRow}>
-              {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d) => (
-                <Text key={d} style={styles.calendarWeekdayText}>{d}</Text>
-              ))}
-            </View>
+          {/* Month header */}
+          <View style={styles.calendarHeader}>
+            <TouchableOpacity
+              style={styles.modernIconBtn}
+              onPress={() => {
+                const d = new Date(calendarMonth);
+                d.setMonth(d.getMonth() - 1);
+                setCalendarMonth(d);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
+            >
+              <CaretLeft size={18} color={Colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.calendarMonthLabel}>
+              {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            </Text>
+            <TouchableOpacity
+              style={styles.modernIconBtn}
+              onPress={() => {
+                const d = new Date(calendarMonth);
+                d.setMonth(d.getMonth() + 1);
+                setCalendarMonth(d);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+            >
+              <CaretRight size={18} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
 
-            {/* Grid */}
-            <View style={styles.calendarGrid}>
+          {/* Weekday Row (Sun–Sat three-letter abbreviations) */}
+          <View style={styles.calendarWeekdaysRow}>
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
+              <Text key={d} style={styles.calendarWeekdayText} numberOfLines={1} adjustsFontSizeToFit>{d}</Text>
+            ))}
+          </View>
+
+          {/* Grid */}
+          <View style={styles.calendarGrid}>
               {(() => {
                 const items: React.ReactNode[] = [];
                 const first = new Date(calendarMonth);
@@ -739,7 +790,7 @@ export default function CoachScreen() {
                 const todayISO = new Date().toISOString().split('T')[0];
                 const selectedISO = dayISO;
                 // leading blanks for Mon-based grid
-                const lead = firstWeekday - 1; // 0..6
+                const lead = ((new Date(year, month, 1).getDay() + 7) % 7); // Sun=0..Sat=6
                 for (let i = 0; i < lead; i++) {
                   items.push(<View key={`blank-${i}`} style={styles.calendarCell} />);
                 }
@@ -750,7 +801,9 @@ export default function CoachScreen() {
                   const isToday = iso === todayISO;
                   // daily calories progress for ring using enhanced progress data
                   const dayProgress = getDailyProgress(iso);
-                  const pct = dayProgress.calories.percentage;
+                  const pct = Math.min(1, dayProgress.calories.percentage);
+                  // Use same single-color ring as WeekRings
+                  const ringColor = Colors.primary;
                   const isFuture = new Date(iso) > new Date(todayISO);
                   items.push(
                     <TouchableOpacity
@@ -769,12 +822,11 @@ export default function CoachScreen() {
                       disabled={false}
                     >
                       <View style={{ opacity: isFuture ? 0.35 : 1 }}>
-                        <FitnessRing size={40} stroke={4} gap={2} backgroundColor={Colors.border} rings={[{ pct, color: Colors.primary }]} />
+                        <FitnessRing size={32} stroke={4} gap={2} backgroundColor={Colors.border} rings={[{ pct, color: ringColor }]} />
                       </View>
                       <View style={styles.calendarCellInner} pointerEvents="none">
                         <Text style={[styles.calendarCellText, isSelected && styles.calendarCellTextSelected]}>{day}</Text>
                       </View>
-                      {/* selected bar removed; selection handled by calendarCellSelected */}
                     </TouchableOpacity>
                   );
                 }
@@ -786,27 +838,44 @@ export default function CoachScreen() {
                 }
                 return items;
               })()}
-            </View>
+          </View>
 
-            {/* Footer actions */}
-            <View style={styles.calendarFooter}>
-              <TouchableOpacity onPress={() => setCalendarOpen(false)} style={styles.calendarCancelBtn}>
-                <Text style={styles.calendarCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setDayISO(today);
-                  const m = new Date(); m.setDate(1); setCalendarMonth(m);
-                  setCalendarOpen(false);
-                }}
-                style={styles.calendarTodayBtn}
-              >
-                <Text style={styles.calendarTodayText}>Today</Text>
-              </TouchableOpacity>
+          {/* Stats row below calendar */}
+          <View style={styles.calendarStatsRow}>
+            <View style={styles.calendarStatItem}>
+              <Text style={styles.calendarStatLabel}>Active</Text>
+              <Text style={styles.calendarStatValue}>{(() => {
+                const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+                const last = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0);
+                let count = 0;
+                for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+                  const iso = d.toISOString().split('T')[0];
+                  const p = getDailyProgress(iso);
+                  if ((p.calories.consumed || 0) > 0) count += 1;
+                }
+                return `${count} days`;
+              })()}</Text>
+            </View>
+            <View style={styles.calendarStatItem}>
+              <Text style={styles.calendarStatLabel}>Green Days</Text>
+              <Text style={styles.calendarStatValue}>{(() => {
+                const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+                const last = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0);
+                let met = 0; let total = 0;
+                for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+                  const iso = d.toISOString().split('T')[0];
+                  const p = getDailyProgress(iso);
+                  if (p) { total += 1; if (p.status === 'met') met += 1; }
+                }
+                return `${met} / ${total}`;
+              })()}</Text>
+            </View>
+            <View style={styles.calendarStatItem}>
+              <Text style={styles.calendarStatLabel}>Weight</Text>
+              <Text style={styles.calendarStatValue}>-- kg</Text>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Plan Meal Modal */}
@@ -1621,10 +1690,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   calendarWeekdayText: {
-    width: 40,
+    width: 44,
     textAlign: 'center',
     color: Colors.lightText,
     fontSize: 12,
@@ -1637,22 +1706,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   calendarCell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginVertical: 6,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   calendarCellToday: {
-    borderColor: Colors.primary,
+    // no outline circle; keep ring-only look
   },
   calendarCellSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    // no filled circle; selection indicated by text style
+  },
+  // New full-screen calendar styles
+  calendarContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 16,
+  },
+  calendarTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  calendarTopBarAction: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: Typography.weights.semibold,
+  },
+  calendarStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  calendarStatItem: {
+    alignItems: 'center',
+  },
+  calendarStatLabel: {
+    color: Colors.lightText,
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  calendarStatValue: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: Typography.weights.semibold,
   },
   calendarCellText: {
     color: Colors.text,

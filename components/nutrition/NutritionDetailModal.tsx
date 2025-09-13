@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,21 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import { X, ChevronLeft, TrendingUp } from 'lucide-react-native';
+import { X, ChevronLeft, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
+
+type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'all';
+
+type NutrientTotals = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  fiber?: number | null;
+  sugar?: number | null;
+  sodium?: number | null; // mg
+};
 
 interface NutritionDetailModalProps {
   visible: boolean;
@@ -25,6 +37,8 @@ interface NutritionDetailModalProps {
     carbs: number;
     fats: number;
   };
+  mealBreakdown?: Partial<Record<MealType, NutrientTotals>>;
+  dateLabel?: string;
 }
 
 interface ProgressBarProps {
@@ -58,16 +72,28 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ label, current, goal, unit, c
 
 interface NutritionRowProps {
   label: string;
-  value: string;
-  isHeader?: boolean;
+  primary?: string; // main left value (e.g., "0g/98g (Goal)")
+  secondary?: string; // small subtext under primary
+  percent?: string; // right side percent text
+  onPress?: () => void;
 }
 
-const NutritionRow: React.FC<NutritionRowProps> = ({ label, value, isHeader = false }) => (
-  <View style={[styles.nutritionRow, isHeader && styles.nutritionHeaderRow]}>
-    <Text style={[styles.nutritionLabel, isHeader && styles.nutritionHeaderLabel]}>{label}</Text>
-    <Text style={[styles.nutritionValue, isHeader && styles.nutritionHeaderValue]}>{value}</Text>
-  </View>
-);
+const NutritionRow: React.FC<NutritionRowProps> = ({ label, primary = '', secondary = '', percent = '', onPress }) => {
+  const Row = onPress ? TouchableOpacity : View;
+  return (
+    <Row style={styles.nutritionRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.nutritionLeft}>
+        <Text style={styles.nutritionLabel}>{label}</Text>
+        {!!primary && <Text style={styles.nutritionPrimary}>{primary}</Text>}
+        {!!secondary && <Text style={styles.nutritionSecondary}>{secondary}</Text>}
+      </View>
+      <View style={styles.nutritionRight}>
+        <Text style={styles.nutritionPercent}>{percent}</Text>
+        <ChevronRight size={18} color={Colors.lightText} />
+      </View>
+    </Row>
+  );
+};
 
 export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
   visible,
@@ -77,50 +103,40 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
   carbs,
   fats,
   goals,
+  mealBreakdown,
+  dateLabel,
 }) => {
+  const [activeMeal, setActiveMeal] = useState<MealType>('all');
   const remainingCalories = Math.max(0, goals.dailyCalories - calories);
   
-  // Calculate detailed nutrition breakdown (mock data - replace with real data)
-  const detailedNutrition = {
-    // Fats breakdown
-    saturatedFat: Math.round(fats * 0.3),
-    monounsaturatedFat: Math.round(fats * 0.4),
-    polyunsaturatedFat: Math.round(fats * 0.2),
-    transFat: Math.round(fats * 0.1),
-    
-    // Other nutrients
-    cholesterol: Math.round(calories * 0.1),
-    sodium: Math.round(calories * 2.3),
-    salt: Math.round(calories * 0.006),
-    water: Math.round(calories * 1.2),
-    alcohol: 0,
-    
-    // Vitamins (mock percentages of daily value)
-    vitaminA: Math.round(Math.random() * 100),
-    vitaminB1: Math.round(Math.random() * 100),
-    vitaminB11: Math.round(Math.random() * 100),
-    vitaminB12: Math.round(Math.random() * 100),
-    vitaminB2: Math.round(Math.random() * 100),
-    vitaminB3: Math.round(Math.random() * 100),
-    vitaminB5: Math.round(Math.random() * 100),
-    vitaminB6: Math.round(Math.random() * 100),
-    vitaminB7: Math.round(Math.random() * 100),
-    vitaminC: Math.round(Math.random() * 100),
-    vitaminD: Math.round(Math.random() * 100),
-    vitaminE: Math.round(Math.random() * 100),
-    vitaminK: Math.round(Math.random() * 100),
-    
-    // Minerals
-    calcium: Math.round(Math.random() * 100),
-    copper: Math.round(Math.random() * 100),
-    iron: Math.round(Math.random() * 100),
-    magnesium: Math.round(Math.random() * 100),
-    manganese: Math.round(Math.random() * 100),
-    phosphorus: Math.round(Math.random() * 100),
-    potassium: Math.round(Math.random() * 100),
-    selenium: Math.round(Math.random() * 100),
-    zinc: Math.round(Math.random() * 100),
-  };
+  // Select totals based on active meal (fallback to aggregated props)
+  const selectedTotals: NutrientTotals = useMemo(() => {
+    const fallback: NutrientTotals = {
+      calories,
+      protein,
+      carbs,
+      fats,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+    };
+    if (!mealBreakdown) return fallback;
+    const mb = mealBreakdown[activeMeal] || mealBreakdown.all;
+    return mb ? { ...fallback, ...mb } : fallback;
+  }, [activeMeal, mealBreakdown, calories, protein, carbs, fats]);
+
+  // Derived rows for the Nutrition Facts list based on available data
+  const nutritionFacts = useMemo(() => {
+    return {
+      carbs: {
+        fiber: selectedTotals.fiber,
+        sugar: selectedTotals.sugar,
+      },
+      other: {
+        sodium: selectedTotals.sodium, // mg
+      },
+    } as const;
+  }, [selectedTotals]);
 
   return (
     <Modal
@@ -135,7 +151,7 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <ChevronLeft size={24} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Today</Text>
+          <Text style={styles.headerTitle}>{dateLabel || 'Today'}</Text>
           <TouchableOpacity style={styles.chartButton}>
             <TrendingUp size={24} color={Colors.primary} />
           </TouchableOpacity>
@@ -148,28 +164,28 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             <View style={styles.intakeCard}>
               <ProgressBar
                 label="Calories"
-                current={calories}
+                current={selectedTotals.calories}
                 goal={goals.dailyCalories}
                 unit="kcal"
                 color="#FDB813"
               />
               <ProgressBar
                 label="Carbs"
-                current={carbs}
+                current={selectedTotals.carbs}
                 goal={goals.carbs}
                 unit="g"
                 color="#45B7D1"
               />
               <ProgressBar
                 label="Protein"
-                current={protein}
+                current={selectedTotals.protein}
                 goal={goals.protein}
                 unit="g"
                 color="#FF6B6B"
               />
               <ProgressBar
                 label="Fat"
-                current={fats}
+                current={selectedTotals.fats}
                 goal={goals.fats}
                 unit="g"
                 color="#4ECDC4"
@@ -177,8 +193,33 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             </View>
           </View>
 
-          {/* Meals Section */}
+          {/* Meal Selector (interactive) */}
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Meals</Text>
+            <View style={styles.mealsContainer}>
+              {([
+                { key: 'all', label: 'All' },
+                { key: 'breakfast', label: '🍳 Breakfast' },
+                { key: 'lunch', label: '🥗 Lunch' },
+                { key: 'dinner', label: '🍽️ Dinner' },
+                { key: 'snack', label: '🍎 Snacks' },
+              ] as { key: MealType; label: string }[]).map(({ key, label }) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.mealChip,
+                    activeMeal === key && { backgroundColor: Colors.primary + '20', borderColor: Colors.primary },
+                  ]}
+                  onPress={() => setActiveMeal(key)}
+                >
+                  <Text style={[styles.mealChipText, activeMeal === key && { color: Colors.primary }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Meals Section (legacy hidden) */}
+          <View style={[styles.section, { display: 'none' }]}>
             <Text style={styles.sectionTitle}>Meals (Example)</Text>
             <View style={styles.mealsContainer}>
               <View style={styles.mealChip}>
@@ -199,67 +240,60 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
           {/* Nutrition Facts */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Nutrition Facts</Text>
-            
-            {/* Macronutrients */}
+
+            {/* Calories and Macronutrients summary */}
             <View style={styles.nutritionCard}>
-              <NutritionRow label="Calories" value={`${Math.round(calories)} kcal`} isHeader />
-              <NutritionRow label="Protein" value={`${Math.round(protein)} g`} isHeader />
-              <NutritionRow label="Carbs" value={`${Math.round(carbs)} g`} isHeader />
-              <View style={styles.subNutrientContainer}>
-                <NutritionRow label="Dietary Fiber" value="-- g" />
-                <NutritionRow label="Total Sugars" value="-- g" />
-                <NutritionRow label="Added Sugars" value="-- g" />
+              <NutritionRow label="Calories" primary={`${Math.round(selectedTotals.calories)} kcal`} />
+              <NutritionRow label="Protein" primary={`${Math.round(selectedTotals.protein)} g`} />
+              <View style={styles.nutritionHeaderRow}>
+                <Text style={styles.nutritionHeaderLabel}>Carbs</Text>
+                <Text style={styles.nutritionHeaderValue}>{Math.round(selectedTotals.carbs)} g</Text>
               </View>
-              
-              <NutritionRow label="Fat" value={`${Math.round(fats)} g`} isHeader />
+              {/* Carbs sub-rows */}
               <View style={styles.subNutrientContainer}>
-                <NutritionRow label="Saturated Fat" value={`${detailedNutrition.saturatedFat} g`} />
-                <NutritionRow label="Monounsaturated Fat" value={`${detailedNutrition.monounsaturatedFat} g`} />
-                <NutritionRow label="Polyunsaturated Fat" value={`${detailedNutrition.polyunsaturatedFat} g`} />
-                <NutritionRow label="Trans Fat" value={`${detailedNutrition.transFat} g`} />
+                <NutritionRow label="Dietary Fiber" primary={
+                  nutritionFacts.carbs.fiber != null ? `${Math.round(nutritionFacts.carbs.fiber)} g` : '—'
+                } />
+                <NutritionRow label="Total Sugars" primary={
+                  nutritionFacts.carbs.sugar != null ? `${Math.round(nutritionFacts.carbs.sugar)} g` : '—'
+                } />
+              </View>
+
+              <View style={styles.nutritionHeaderRow}>
+                <Text style={styles.nutritionHeaderLabel}>Fat</Text>
+                <Text style={styles.nutritionHeaderValue}>{Math.round(selectedTotals.fats)} g</Text>
+              </View>
+              {/* Fat sub-rows (not yet tracked) */}
+              <View style={styles.subNutrientContainer}>
+                <NutritionRow label="Saturated Fat" primary={'—'} />
+                <NutritionRow label="Monounsaturated Fat" primary={'—'} />
+                <NutritionRow label="Polyunsaturated Fat" primary={'—'} />
+                <NutritionRow label="Trans Fat" primary={'—'} />
               </View>
             </View>
 
-            {/* Other Nutrients */}
+            {/* Other nutrients */}
             <View style={styles.nutritionCard}>
-              <NutritionRow label="Other" value="" isHeader />
-              <NutritionRow label="Cholesterol" value={`${detailedNutrition.cholesterol} mg`} />
-              <NutritionRow label="Sodium" value={`${detailedNutrition.sodium} mg`} />
-              <NutritionRow label="Salt" value={`${detailedNutrition.salt} g`} />
-              <NutritionRow label="Water" value={`${detailedNutrition.water} ml`} />
-              <NutritionRow label="Alcohol" value={`${detailedNutrition.alcohol} g`} />
+              <NutritionRow label="Sodium" primary={
+                nutritionFacts.other.sodium != null ? `${Math.round(nutritionFacts.other.sodium)} mg` : '—'
+              } />
+              <NutritionRow label="Cholesterol" primary={'—'} />
+              <NutritionRow label="Water" primary={'—'} />
+              <NutritionRow label="Alcohol" primary={'—'} />
             </View>
 
             {/* Vitamins */}
             <View style={styles.nutritionCard}>
-              <NutritionRow label="Vitamins" value="" isHeader />
-              <NutritionRow label="Vitamin A" value={`${detailedNutrition.vitaminA}% DV`} />
-              <NutritionRow label="Vitamin B1 (Thiamin)" value={`${detailedNutrition.vitaminB1}% DV`} />
-              <NutritionRow label="Vitamin B11 (Folic Acid/Folate)" value={`${detailedNutrition.vitaminB11}% DV`} />
-              <NutritionRow label="Vitamin B12" value={`${detailedNutrition.vitaminB12}% DV`} />
-              <NutritionRow label="Vitamin B2 (Riboflavin)" value={`${detailedNutrition.vitaminB2}% DV`} />
-              <NutritionRow label="Vitamin B3 (Niacin)" value={`${detailedNutrition.vitaminB3}% DV`} />
-              <NutritionRow label="Vitamin B5 (Pantothenic Acid)" value={`${detailedNutrition.vitaminB5}% DV`} />
-              <NutritionRow label="Vitamin B6" value={`${detailedNutrition.vitaminB6}% DV`} />
-              <NutritionRow label="Vitamin B7 (Biotin)" value={`${detailedNutrition.vitaminB7}% DV`} />
-              <NutritionRow label="Vitamin C" value={`${detailedNutrition.vitaminC}% DV`} />
-              <NutritionRow label="Vitamin D" value={`${detailedNutrition.vitaminD}% DV`} />
-              <NutritionRow label="Vitamin E" value={`${detailedNutrition.vitaminE}% DV`} />
-              <NutritionRow label="Vitamin K" value={`${detailedNutrition.vitaminK}% DV`} />
+              {['Vitamin A','Vitamin B1 (Thiamin)','Folate (B9)','Vitamin B12','Vitamin C','Vitamin D','Vitamin E','Vitamin K'].map((v) => (
+                <NutritionRow key={v} label={v} primary={'—'} />
+              ))}
             </View>
 
             {/* Minerals */}
             <View style={styles.nutritionCard}>
-              <NutritionRow label="Minerals" value="" isHeader />
-              <NutritionRow label="Calcium" value={`${detailedNutrition.calcium}% DV`} />
-              <NutritionRow label="Copper" value={`${detailedNutrition.copper}% DV`} />
-              <NutritionRow label="Iron" value={`${detailedNutrition.iron}% DV`} />
-              <NutritionRow label="Magnesium" value={`${detailedNutrition.magnesium}% DV`} />
-              <NutritionRow label="Manganese" value={`${detailedNutrition.manganese}% DV`} />
-              <NutritionRow label="Phosphorus" value={`${detailedNutrition.phosphorus}% DV`} />
-              <NutritionRow label="Potassium" value={`${detailedNutrition.potassium}% DV`} />
-              <NutritionRow label="Selenium" value={`${detailedNutrition.selenium}% DV`} />
-              <NutritionRow label="Zinc" value={`${detailedNutrition.zinc}% DV`} />
+              {['Calcium','Iron','Magnesium','Potassium','Zinc'].map((m) => (
+                <NutritionRow key={m} label={m} primary={'—'} />
+              ))}
             </View>
           </View>
         </ScrollView>
@@ -366,11 +400,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  mainCard: {
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+  },
   nutritionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
+  },
+  nutritionLeft: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  nutritionPrimary: {
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginTop: 2,
+  },
+  nutritionSecondary: {
+    fontSize: 12,
+    color: Colors.lightText,
+    marginTop: 2,
+  },
+  nutritionRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  nutritionPercent: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginRight: 6,
   },
   nutritionHeaderRow: {
     borderBottomWidth: 1,

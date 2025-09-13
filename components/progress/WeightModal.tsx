@@ -9,26 +9,20 @@ import {
   ScrollView,
   Alert,
   Dimensions,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   X, 
   Scale, 
-  TrendingDown, 
-  Calendar,
-  Camera,
-  Image as ImageIcon,
-  ChevronRight,
+  TrendingDown,
+  Trash2,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { useWeightTracking } from '@/hooks/useWeightTracking';
 import { LineChart } from 'react-native-chart-kit';
-import * as ImagePicker from 'expo-image-picker';
-import { useProgressPhotos } from '@/hooks/useProgressPhotos';
-import { useRouter } from 'expo-router';
+ 
 
 interface WeightModalProps {
   visible: boolean;
@@ -38,20 +32,21 @@ interface WeightModalProps {
 const screenWidth = Dimensions.get('window').width;
 
 export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) => {
-  const router = useRouter();
   const { 
     entries, 
     goal, 
     getCurrentWeight, 
     getProgressStats, 
     getWeightTrend,
-    addWeightEntry 
+    addWeightEntry,
+    removeWeightEntry,
   } = useWeightTracking();
   
   const [newWeight, setNewWeight] = useState('');
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'W' | '30D' | '90D' | 'Y' | 'ALL'>('30D');
-  const { photos, addPhoto } = useProgressPhotos();
+  const [showHistory, setShowHistory] = useState(false);
+  
 
   const currentWeight = getCurrentWeight();
   const progressStats = getProgressStats();
@@ -79,6 +74,57 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
     setShowWeightInput(false);
   };
 
+  // --- Derived range entries and stats for the selected timeframe (no useMemo) ---
+  const computeRangeEntries = () => {
+    if (!entries || entries.length === 0) return [] as typeof entries;
+    const now = new Date();
+    let rangeStart: Date | null = null;
+    switch (selectedTimeframe) {
+      case 'W':
+        rangeStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30D':
+        rangeStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90D':
+        rangeStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'Y':
+        rangeStart = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      case 'ALL':
+        rangeStart = null;
+        break;
+    }
+    return entries
+      .filter(e => (rangeStart ? new Date(e.date) >= rangeStart : true))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const rangeEntries = computeRangeEntries();
+
+  const computeRangeStats = () => {
+    if (rangeEntries.length === 0) return null as null | {
+      highest: number; lowest: number; avg: number; start: number; end: number; delta: number; rangeText: string;
+    };
+    let highest = rangeEntries[0].weight;
+    let lowest = rangeEntries[0].weight;
+    let sum = 0;
+    for (const e of rangeEntries) {
+      highest = Math.max(highest, e.weight);
+      lowest = Math.min(lowest, e.weight);
+      sum += e.weight;
+    }
+    const avg = sum / rangeEntries.length;
+    const start = rangeEntries[0].weight;
+    const end = rangeEntries[rangeEntries.length - 1].weight;
+    const delta = end - start;
+    const rangeText = `${new Date(rangeEntries[0].date).toLocaleDateString()} ~ ${new Date(rangeEntries[rangeEntries.length - 1].date).toLocaleDateString()}`;
+    return { highest, lowest, avg, start, end, delta, rangeText };
+  };
+
+  const rangeStats = computeRangeStats();
+
   const getChartData = () => {
     if (entries.length === 0) {
       return {
@@ -87,45 +133,7 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
       };
     }
 
-    // Filter entries based on timeframe
-    const now = new Date();
-    let filteredEntries = entries;
-    
-    switch (selectedTimeframe) {
-      case 'W':
-        filteredEntries = entries.filter(entry => {
-          const entryDate = new Date(entry.date);
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return entryDate >= weekAgo;
-        });
-        break;
-      case '30D':
-        filteredEntries = entries.filter(entry => {
-          const entryDate = new Date(entry.date);
-          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          return entryDate >= monthAgo;
-        });
-        break;
-      case '90D':
-        filteredEntries = entries.filter(entry => {
-          const entryDate = new Date(entry.date);
-          const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-          return entryDate >= threeMonthsAgo;
-        });
-        break;
-      case 'Y':
-        filteredEntries = entries.filter(entry => {
-          const entryDate = new Date(entry.date);
-          const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-          return entryDate >= yearAgo;
-        });
-        break;
-    }
-
-    // Sort by date and take last 10 points for readability
-    const sortedEntries = filteredEntries
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-10);
+    const sortedEntries = rangeEntries;
 
     if (sortedEntries.length === 0) {
       return {
@@ -259,11 +267,39 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.historyButton}>
-              <ImageIcon size={16} color={Colors.primary} />
-              <Text style={styles.historyButtonText}>View Weight History</Text>
+            <TouchableOpacity style={styles.historyButton} onPress={() => setShowHistory(s => !s)}>
+              <Text style={styles.historyButtonText}>{showHistory ? 'Hide Weight History' : 'View Weight History'}</Text>
             </TouchableOpacity>
           </View>
+
+          {showHistory && (
+            <View style={styles.section}>
+              <View style={styles.statsHeader}>
+                <Scale size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Weight History</Text>
+              </View>
+              {entries.length === 0 ? (
+                <Text style={styles.noDataText}>No entries yet</Text>
+              ) : (
+                <View style={styles.historyList}>
+                  {entries
+                    .slice()
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((e) => (
+                      <View key={e.id} style={styles.historyRow}>
+                        <Text style={styles.historyDate}>{new Date(e.date).toLocaleDateString()}</Text>
+                        <View style={styles.historyRight}>
+                          <Text style={styles.historyWeight}>{e.weight.toFixed(1)} kg</Text>
+                          <TouchableOpacity onPress={() => removeWeightEntry(e.id)} accessibilityRole="button" accessibilityLabel="Delete entry">
+                            <Trash2 size={16} color={Colors.lightText} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Weight Chart */}
           <View style={styles.section}>
@@ -295,6 +331,23 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
               ))}
             </View>
 
+            {/* Range summary and hi/lo */}
+            {rangeStats && (
+              <View style={styles.rangeRow}>
+                <Text style={styles.rangeText}>{rangeStats.rangeText}</Text>
+                <View style={styles.hlRow}>
+                  <View style={styles.hlItem}>
+                    <Text style={styles.hlValue}>{rangeStats.highest.toFixed(1)} kg</Text>
+                    <Text style={styles.hlLabel}>Highest</Text>
+                  </View>
+                  <View style={styles.hlItem}>
+                    <Text style={styles.hlValue}>{rangeStats.lowest.toFixed(1)} kg</Text>
+                    <Text style={styles.hlLabel}>Lowest</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Chart */}
             <View style={styles.chartContainer}>
               {entries.length > 0 ? (
@@ -306,8 +359,12 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
                     backgroundGradientFrom: Colors.card,
                     backgroundGradientTo: Colors.card,
                     decimalPlaces: 1,
-                    color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+                    color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
                     labelColor: (opacity = 1) => Colors.lightText,
+                    fillShadowGradient: '#7C3AED',
+                    fillShadowGradientOpacity: 0.15,
+                    propsForDots: { r: '3' },
+                    propsForBackgroundLines: { strokeDasharray: '', stroke: Colors.border },
                   }}
                   bezier
                   style={styles.chart}
@@ -319,6 +376,14 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
                 </View>
               )}
             </View>
+
+            {rangeStats && (
+              <View style={styles.deltaRow}>
+                <Text style={styles.deltaText}>
+                  Change: {rangeStats.delta >= 0 ? '+' : ''}{rangeStats.delta.toFixed(1)} kg · Avg {rangeStats.avg.toFixed(1)} kg
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Weight Trend Forecast */}
@@ -357,52 +422,6 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
             </View>
           </View>
 
-          {/* BMI Section */}
-          <TouchableOpacity style={styles.bmiSection}>
-            <View style={styles.bmiIcon}>
-              <Text style={styles.bmiIconText}>BMI</Text>
-            </View>
-            <Text style={styles.bmiText}>
-              Your BMI is {currentWeight ? (currentWeight.weight / 1.75 / 1.75).toFixed(1) : '--'}
-            </Text>
-            <ChevronRight size={20} color={Colors.lightText} />
-          </TouchableOpacity>
-
-          {/* Progress Photos Section */}
-          <View style={styles.section}>
-            <View style={styles.statsHeader}>
-              <Camera size={20} color={Colors.primary} />
-              <Text style={styles.sectionTitle}>Progress Photos</Text>
-            </View>
-
-            <Text style={styles.photosSubtitle}>
-              The Photo Gallery can help you visualize your progress as you move toward your goal
-            </Text>
-
-            <Button
-              title={photos.length === 0 ? 'Add First Photo' : 'Add Photo'}
-              onPress={async () => {
-                // request media library permission and pick image
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== 'granted') {
-                  Alert.alert('Permission required', 'Please allow photo library access to add progress photos.');
-                  return;
-                }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                  quality: 0.8,
-                });
-                if (!result.canceled && result.assets && result.assets.length > 0) {
-                  await addPhoto(result.assets[0].uri);
-                }
-              }}
-              style={styles.addPhotoButton}
-            />
-
-            <TouchableOpacity style={styles.viewPhotosButton} onPress={() => router.push('/(tabs)/coach/progress-photos')}>
-              <Text style={styles.viewPhotosText}>View Photos</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -612,6 +631,40 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 16,
   },
+  rangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  rangeText: {
+    fontSize: 12,
+    color: Colors.lightText,
+  },
+  hlRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  hlItem: {
+    alignItems: 'flex-end',
+  },
+  hlValue: {
+    fontSize: 16,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+  },
+  hlLabel: {
+    fontSize: 11,
+    color: Colors.lightText,
+  },
+  deltaRow: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  deltaText: {
+    fontSize: 12,
+    color: Colors.lightText,
+  },
   noDataContainer: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -646,64 +699,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.lightText,
     fontWeight: Typography.weights.medium,
-  },
-  bmiSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 16,
-    padding: 20,
-  },
-  bmiIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#22C55E15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  bmiIconText: {
-    fontSize: 12,
-    fontWeight: Typography.weights.bold,
-    color: '#22C55E',
-  },
-  bmiText: {
-    flex: 1,
-    fontSize: 16,
-    color: Colors.text,
-  },
-  photosSubtitle: {
-    fontSize: 12,
-    color: Colors.lightText,
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  addPhotoButton: {
-    backgroundColor: Colors.primary,
-    marginBottom: 12,
-  },
-  viewPhotosButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  viewPhotosText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
-  },
-  photosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  photoThumb: {
-    width: (screenWidth - 32 - 8 * 3) / 3,
-    height: (screenWidth - 32 - 8 * 3) / 3,
-    borderRadius: 10,
-    backgroundColor: Colors.background,
   },
 });

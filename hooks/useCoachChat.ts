@@ -11,6 +11,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNutrition } from '@/hooks/useNutrition';
 import { buildAIContext } from '@/utils/aiContext';
 import { buildStructuredSystemPrompt, tryExtractJSON, StructuredResponse } from '@/utils/aiFormat';
+import { buildCoachSystemPrompt } from '@/utils/coach/contextBuilder';
 
 export type ChatMessage = {
   id: string;
@@ -32,12 +33,14 @@ export function useCoachChat() {
   const { addMealIngredientsToList, generateShoppingListFromMealPlan } = useShoppingList();
   const { showToast } = useToast();
   const { profile } = useUserProfile();
-  const { todayTotals, last7Days, goals } = useNutrition();
+  const { getDailyProgress, last7Days, goals } = useNutrition();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const idSeq = useRef(0);
   const newId = () => `${Date.now()}-${idSeq.current++}`;
+  // Optional recipe context to include with AI requests
+  const recipeContextRef = useRef<any | null>(null);
 
   const recipesWithAvailability = useMemo(() => calculateMultipleRecipeAvailability(meals as Meal[], inventory), [meals, inventory]);
 
@@ -47,6 +50,18 @@ export function useCoachChat() {
 
   function pushUser(text: string) {
     setMessages(prev => [...prev, { id: newId(), role: 'user', text }]);
+  }
+
+  function openChatWithRecipe(recipe: any) {
+    try {
+      recipeContextRef.current = recipe;
+      // Push a helpful coach message summarizing the recipe so the user sees context immediately
+      const ingredients = (recipe.ingredients || []).map((i: any) => i.name).slice(0, 12).join(', ');
+      const summary = `${recipe.title} — Servings: ${recipe.servings || 'N/A'}. Ingredients: ${ingredients}${(recipe.ingredients || []).length > 12 ? ', …' : ''}`;
+      pushCoach({ text: `Context: ${summary}`, source: 'heuristic' });
+    } catch (err) {
+      console.warn('[AI] openChatWithRecipe failed to seed context', err);
+    }
   }
 
   function addAllToPlanner(entries: Array<{ recipe: RecipeWithAvailability; mealType?: PlannedMeal['mealType'] }>) {
@@ -108,6 +123,7 @@ export function useCoachChat() {
   }
 
   async function sendMessage(text: string) {
+    if (isTyping) return; // simple rate guard
     const lower = text.trim().toLowerCase();
     pushUser(text);
     if (/plan (my )?day|plan today|plan the day/.test(lower)) {
@@ -125,7 +141,7 @@ export function useCoachChat() {
     // Default -> Ask AI via Supabase Edge Function
     try {
       // Build context for Edge Function
-      const ctx: AiContext = {
+      const ctx: any = {
         profile: profile ? {
           display_name: profile.basics?.name,
           units: profile.metrics?.unitSystem,
@@ -151,8 +167,52 @@ export function useCoachChat() {
         })),
       };
 
+      // If a recipe context was seeded, include a compact representation
+      if (recipeContextRef.current) {
+        const r = recipeContextRef.current;
+        ctx.recipe = {
+          id: r.id,
+          title: r.title,
+          servings: r.servings,
+          ingredients: (r.ingredients || []).map((ing: any) => ({ name: ing.name, amount: ing.amount, unit: ing.unit })),
+          nutrition: r.nutritionPerServing || null,
+          steps: r.steps || [],
+          sourceUrl: r.sourceUrl || null,
+        };
+      }
+
+      // Build a clear system prompt with today + 7d summary
+      const todayISO = new Date().toISOString().split('T')[0];
+      const progress = getDailyProgress(todayISO);
+      const seven = (() => {
+        const recent = last7Days;
+        const avg = recent.length ? recent.reduce((s, d) => s + d.calories.consumed, 0) / recent.length : 0;
+        const met = recent.filter(d => d.status === 'met').length;
+        return { avgCalories: Math.round(avg), daysMetGoal: met, totalDays: recent.length };
+      })();
+      const coachSystem = buildCoachSystemPrompt({
+        profile: {
+          name: profile.basics?.name,
+          dietaryRestrictions: profile.preferences?.dietaryRestrictions || [],
+          allergies: profile.preferences?.allergies || [],
+          preferences: profile.preferences || null,
+          units: profile.metrics?.unitSystem || null,
+        },
+        goals: goals || null,
+        today: {
+          calories: { consumed: progress.calories.consumed, goal: progress.calories.goal, remaining: progress.calories.remaining },
+          protein: { consumed: progress.macros.protein.consumed, goal: progress.macros.protein.goal },
+          carbs: { consumed: progress.macros.carbs.consumed, goal: progress.macros.carbs.goal },
+          fats: { consumed: progress.macros.fats.consumed, goal: progress.macros.fats.goal },
+        },
+        sevenDay: seven,
+      });
+
       setIsTyping(true);
-      const apiMessages: ApiChatMessage[] = [{ role: 'user', content: text }];
+      const apiMessages: ApiChatMessage[] = [
+        { role: 'system', content: coachSystem },
+        { role: 'user', content: text },
+      ];
       try {
         // Primary path: Supabase Edge Function (no client key exposure)
         const resp = await aiChat(apiMessages, ctx);
@@ -163,8 +223,8 @@ export function useCoachChat() {
         // Fallback: Direct AI call if configured
         console.warn('[AI] Edge function failed, attempting direct AI fallback:', edgeErr?.message || edgeErr);
         try {
-          const reply = await createChatCompletion(apiMessages);
-          pushCoach({ text: reply, source: 'ai' });
+        const reply = await createChatCompletion(apiMessages);
+        pushCoach({ text: reply, source: 'ai' });
         } catch (directErr: any) {
           console.warn('[AI] Direct AI fallback also failed:', directErr?.message || directErr);
           pushCoach({ text: "I can plan today or the week, and generate a shopping list. Try 'Plan my day'.", source: 'builtin' });
@@ -193,7 +253,7 @@ export function useCoachChat() {
     }
   }
 
-  return { messages, sendMessage, performInlineAction, isTyping };
+  return { messages, sendMessage, performInlineAction, isTyping, openChatWithRecipe };
 }
 
 

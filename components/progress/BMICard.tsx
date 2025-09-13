@@ -7,9 +7,10 @@ import { useWeightTracking } from '@/hooks/useWeightTracking';
 
 interface BMICardProps {
   onPress: () => void;
+  onHelpPress?: () => void;
 }
 
-export const BMICard: React.FC<BMICardProps> = ({ onPress }) => {
+export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress }) => {
   const { getCurrentWeight } = useWeightTracking();
   const currentWeight = getCurrentWeight();
   
@@ -31,7 +32,12 @@ export const BMICard: React.FC<BMICardProps> = ({ onPress }) => {
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Your BMI</Text>
-          <TouchableOpacity style={styles.helpButton}>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={onHelpPress}
+            accessibilityRole="button"
+            accessibilityLabel="Learn more about BMI"
+          >
             <HelpCircle size={16} color={Colors.lightText} />
           </TouchableOpacity>
         </View>

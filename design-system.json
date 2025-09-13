@@ -1,0 +1,197 @@
+{
+  "project": {
+    "name": "NutriAI",
+    "description": "Smart Kitchen & Nutrition Companion",
+    "platforms": ["iOS", "Android"],
+    "techStack": {
+      "frontend": "React Native with Expo SDK 53",
+      "backend": "Supabase (planned)",
+      "stateManagement": "React Query",
+      "navigation": "Expo Router"
+    }
+  },
+  "designSystem": {
+    "typography": {
+      "primaryFont": "Soria",
+      "variants": ["h1", "h2", "h3", "body", "bodyBold", "bodySmall", "button", "caption"],
+      "baseSize": 16,
+      "lineHeightMultiplier": 1.5
+    },
+    "colors": {
+      "primary": "#746a2e",
+      "background": "#f8edd9",
+      "text": {
+        "primary": "#4f301d",
+        "secondary": "#898681",
+        "tertiary": "#BDBAAE"
+      },
+      "status": {
+        "success": "#7C8C56",
+        "warning": "#C9A788",
+        "error": "#B87B4B"
+      },
+      "surfaces": {
+        "card": "#F8F2E2",
+        "muted": "#F5EFE3",
+        "border": "#DCD4C6"
+      }
+    },
+    "spacing": {
+      "base": 8,
+      "small": 4,
+      "medium": 16,
+      "large": 24,
+      "xlarge": 32
+    },
+    "borderRadius": {
+      "small": 4,
+      "medium": 8,
+      "large": 16,
+      "xlarge": 24,
+      "full": 9999
+    },
+    "shadows": {
+      "small": "0 1px 3px rgba(0,0,0,0.12)",
+      "medium": "0 4px 6px rgba(0,0,0,0.1)",
+      "large": "0 10px 15px rgba(0,0,0,0.1)"
+    },
+    "components": {
+      "buttons": {
+        "primary": {
+          "backgroundColor": "primary",
+          "textColor": "white",
+          "padding": "12px 24px",
+          "borderRadius": "medium"
+        },
+        "secondary": {
+          "backgroundColor": "transparent",
+          "borderColor": "primary",
+          "borderWidth": 1,
+          "textColor": "primary"
+        }
+      },
+      "cards": {
+        "default": {
+          "backgroundColor": "card",
+          "borderRadius": "large",
+          "padding": "medium",
+          "shadow": "small"
+        }
+      },
+      "inputs": {
+        "default": {
+          "height": 48,
+          "padding": "medium",
+          "borderRadius": "medium",
+          "borderColor": "border",
+          "borderWidth": 1
+        }
+      }
+    }
+  },
+  "screens": {
+    "auth": {
+      "signIn": {
+        "description": "User authentication screen with email/password fields"
+      },
+      "signUp": {
+        "description": "New user registration flow"
+      }
+    },
+    "onboarding": {
+      "welcome": {
+        "description": "Initial app introduction and feature highlights"
+      },
+      "dietaryPreferences": {
+        "description": "User selects dietary restrictions and preferences"
+      },
+      "goals": {
+        "description": "User sets initial health and nutrition goals"
+      }
+    },
+    "mainTabs": {
+      "dashboard": {
+        "description": "Home screen with quick actions, recent activity, and AI suggestions"
+      },
+      "inventory": {
+        "description": "Pantry and fridge inventory management with barcode scanning"
+      },
+      "mealPlanner": {
+        "description": "Weekly meal planning with drag-and-drop functionality"
+      },
+      "shoppingList": {
+        "description": "Smart shopping list with auto-categorization"
+      },
+      "healthHub": {
+        "description": "Nutrition insights and progress tracking"
+      }
+    },
+    "recipes": {
+      "browse": {
+        "description": "Browse and search recipe collection"
+      },
+      "detail": {
+        "description": "View recipe details, ingredients, and instructions"
+      },
+      "add": {
+        "description": "Add new recipes manually or import from URL"
+      }
+    }
+  },
+  "navigation": {
+    "type": "bottom-tabs",
+    "tabs": [
+      {
+        "name": "Dashboard",
+        "icon": "home"
+      },
+      {
+        "name": "Inventory",
+        "icon": "package"
+      },
+      {
+        "name": "Planner",
+        "icon": "calendar"
+      },
+      {
+        "name": "Shopping",
+        "icon": "shopping-cart"
+      },
+      {
+        "name": "Health",
+        "icon": "activity"
+      }
+    ]
+  },
+  "assets": {
+    "icons": {
+      "library": "phosphor-react-native",
+      "sizes": [16, 20, 24, 32],
+      "weights": ["regular", "bold", "fill"]
+    },
+    "images": {
+      "formats": ["svg", "png"],
+      "sizes": ["@1x", "@2x", "@3x"]
+    }
+  },
+  "accessibility": {
+    "minimumTouchTargetSize": 44,
+    "colorContrast": {
+      "text": 4.5,
+      "largeText": 3.0
+    },
+    "textScaling": true
+  },
+  "animations": {
+    "duration": {
+      "short": 150,
+      "medium": 300,
+      "long": 500
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "decelerate": "cubic-bezier(0.0, 0.0, 0.2, 1)",
+      "accelerate": "cubic-bezier(0.4, 0.0, 1, 1)"
+    }
+  }
+}
