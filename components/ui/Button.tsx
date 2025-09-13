@@ -2,13 +2,15 @@ import React, { useRef } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, Animated } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { Fonts } from '@/utils/fonts';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'xs' | 'sm' | 'md' | 'lg';
+  shape?: 'rect' | 'capsule';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -25,6 +27,7 @@ export const Button: React.FC<ButtonProps> = ({
   onPress,
   variant = 'primary',
   size = 'md',
+  shape = 'capsule',
   disabled = false,
   loading = false,
   fullWidth = false,
@@ -64,6 +67,7 @@ export const Button: React.FC<ButtonProps> = ({
     styles.base,
     styles[variant],
     styles[size],
+    shape === 'capsule' && styles.capsule,
     fullWidth && styles.fullWidth,
     isDisabled && styles.disabled,
     style,
@@ -93,7 +97,16 @@ export const Button: React.FC<ButtonProps> = ({
         accessibilityState={{ disabled: isDisabled }}
       >
         {loading ? (
-          <LoadingSpinner size="small" color={variant === 'primary' ? Colors.white : Colors.primary} />
+          <LoadingSpinner
+            size="small"
+            color={
+              variant === 'primary'
+                ? Colors.onPrimary
+                : variant === 'danger'
+                ? Colors.onDanger
+                : Colors.primary
+            }
+          />
         ) : (
           icon && (typeof icon === 'string' ? (
             <Text style={textStyles}>{icon}</Text>
@@ -114,15 +127,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 6, // more rectangular corners per new spec
   },
+  capsule: {
+    borderRadius: 999,
+  },
   
   // Variants
   primary: {
     backgroundColor: Colors.primary,
   },
   secondary: {
-    backgroundColor: Colors.background, // surface per JSON patch
-    borderWidth: 2,
-    borderColor: Colors.primary,   // brand stroke
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.lightGray, // stroke.hard
   },
   outline: {
     backgroundColor: 'transparent',
@@ -131,6 +147,9 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
+  },
+  danger: {
+    backgroundColor: Colors.error,
   },
   
   // Sizes
@@ -167,13 +186,14 @@ const styles = StyleSheet.create({
   
   // Text styles
   text: {
+    fontFamily: Fonts.ui?.semibold ?? undefined,
     fontWeight: Typography.weights.medium, // 500 per JSON subtitle weight
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   primaryText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
   },
   secondaryText: {
     color: Colors.primary, // fg brand on surface
@@ -183,6 +203,9 @@ const styles = StyleSheet.create({
   },
   ghostText: {
     color: Colors.primary,
+  },
+  dangerText: {
+    color: Colors.onDanger,
   },
   disabledText: {
     opacity: 0.7,

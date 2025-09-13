@@ -18,22 +18,22 @@
       "lineHeightMultiplier": 1.5
     },
     "colors": {
-      "primary": "#746a2e",
-      "background": "#f8edd9",
+      "primary": "#5F5A24",
+      "background": "#FAF6EE",
       "text": {
-        "primary": "#4f301d",
-        "secondary": "#898681",
-        "tertiary": "#BDBAAE"
+        "primary": "#332B23",
+        "secondary": "#6A645B",
+        "tertiary": "#BEB3A0"
       },
       "status": {
-        "success": "#7C8C56",
-        "warning": "#C9A788",
-        "error": "#B87B4B"
+        "success": "#4C805E",
+        "warning": "#B97A28",
+        "error": "#B6543F"
       },
       "surfaces": {
-        "card": "#F8F2E2",
-        "muted": "#F5EFE3",
-        "border": "#DCD4C6"
+        "card": "#F3EEE4",
+        "muted": "#EAE3D6",
+        "border": "#D9D0C2"
       }
     },
     "spacing": {

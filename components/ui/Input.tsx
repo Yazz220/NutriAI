@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { Spacing, Typography as LegacyType, Shadows } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -90,7 +91,7 @@ export const Input: React.FC<InputProps> = ({
       
       {error && (
         <View style={styles.errorContainer}>
-          <AlertCircle size={16} color={Colors.expiring} />
+          <AlertCircle size={16} color={Colors.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -107,8 +108,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   label: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
+    ...Type.caption,
     color: Colors.text,
     marginBottom: Spacing.sm,
   },
@@ -131,9 +131,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    ...Type.body,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    fontSize: Typography.sizes.md,
     color: Colors.text,
   },
   inputWithLeftIcon: {
@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   errorText: {
-    fontSize: Typography.sizes.sm,
+    ...Type.caption,
     color: Colors.error,
     marginLeft: Spacing.xs,
     flex: 1,
   },
   hintText: {
-    fontSize: Typography.sizes.sm,
+    ...Type.caption,
     color: Colors.lightText,
     marginTop: Spacing.sm,
   },

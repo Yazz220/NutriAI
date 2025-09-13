@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
-import { Typography } from '@/constants/spacing';
+import { Typography as LegacyType } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { useProgressPhotos } from '@/hooks/useProgressPhotos';
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Images, Trash2, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react-native';
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   headerBtn: { width: 40, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: Typography.weights.bold, color: Colors.text },
+  headerTitle: { ...Type.h3, fontSize: 18, color: Colors.text },
   segment: {
     flexDirection: 'row',
     alignSelf: 'center',
@@ -426,13 +427,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   segmentBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12 },
-  segmentText: { color: Colors.lightText, fontWeight: '600' },
+  segmentText: { ...Type.caption, color: Colors.lightText },
   segmentActive: { backgroundColor: Colors.text },
-  segmentActiveText: { color: Colors.white, fontWeight: '700' },
+  segmentActiveText: { ...Type.caption, color: Colors.white },
 
   emptyState: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 40 },
-  emptyTitle: { marginTop: 16, color: Colors.text, fontSize: 16, fontWeight: Typography.weights.semibold, textAlign: 'center' },
-  emptySubtitle: { marginTop: 8, color: Colors.lightText, fontSize: 13, lineHeight: 18, textAlign: 'center' },
+  emptyTitle: { ...Type.h3, fontSize: 16, marginTop: 16, color: Colors.text, textAlign: 'center' },
+  emptySubtitle: { ...Type.caption, marginTop: 8, color: Colors.lightText, textAlign: 'center' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap, paddingHorizontal: 16, paddingTop: 16 },
   gridItemWrap: { width: itemSize, height: itemSize, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
 
   bottomBar: { position: 'absolute', left: 16, right: 16, bottom: 0 },
   selectionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
-  selectionText: { color: Colors.text, fontWeight: Typography.weights.medium },
+  selectionText: { ...Type.body, color: Colors.text },
 
   viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   viewerImage: { width: screenWidth, height: screenWidth * 1.2 },

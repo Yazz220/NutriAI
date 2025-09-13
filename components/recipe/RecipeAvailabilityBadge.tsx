@@ -13,7 +13,7 @@ interface RecipeAvailabilityBadgeProps {
 
 function getAvailabilityStatus(availability: RecipeAvailability): {
   status: 'ready' | 'mostly-ready' | 'partial' | 'missing';
-  color: string;
+  textColor: string;
   backgroundColor: string;
   icon: React.ComponentType<any>;
   label: string;
@@ -24,16 +24,16 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
     if (expiringIngredients.length > 0) {
       return {
         status: 'ready',
-        color: Colors.error,
-        backgroundColor: Colors.errorLight || '#FEF2F2',
+        textColor: Colors.onDanger,
+        backgroundColor: Colors.error,
         icon: AlertTriangle,
         label: 'Cook Soon!'
       };
     }
     return {
       status: 'ready',
-      color: Colors.success,
-      backgroundColor: Colors.successLight || '#F0FDF4',
+      textColor: Colors.onSuccess,
+      backgroundColor: Colors.success,
       icon: CheckCircle,
       label: 'Ready to Cook'
     };
@@ -42,8 +42,8 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
   if (availabilityPercentage >= 75) {
     return {
       status: 'mostly-ready',
-      color: Colors.warning,
-      backgroundColor: Colors.warningLight || '#FFFBEB',
+      textColor: Colors.onWarning,
+      backgroundColor: Colors.warning,
       icon: Clock,
       label: 'Almost Ready'
     };
@@ -52,8 +52,8 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
   if (availabilityPercentage >= 25) {
     return {
       status: 'partial',
-      color: Colors.primary,
-      backgroundColor: '#EFF6FF',
+      textColor: Colors.onAccent,
+      backgroundColor: Colors.accentPrimary,
       icon: ShoppingCart,
       label: 'Some Ingredients'
     };
@@ -61,8 +61,8 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
   
   return {
     status: 'missing',
-    color: Colors.lightText,
-    backgroundColor: Colors.secondary,
+    textColor: Colors.onSurface.high,
+    backgroundColor: Colors.gray[200],
     icon: ShoppingCart,
     label: 'Need Ingredients'
   };
@@ -105,23 +105,23 @@ export const RecipeAvailabilityBadge: React.FC<RecipeAvailabilityBadgeProps> = (
       currentSize.container,
       { 
         backgroundColor: statusInfo.backgroundColor,
-        borderColor: statusInfo.color,
+        borderColor: statusInfo.backgroundColor,
         padding: currentSize.padding,
       }
     ]}>
       <View style={styles.mainContent}>
-        <Icon size={currentSize.icon} color={statusInfo.color} />
+        <Icon size={currentSize.icon} color={statusInfo.textColor} />
         <Text style={[
           styles.label,
           currentSize.text,
-          { color: statusInfo.color }
+          { color: statusInfo.textColor }
         ]}>
           {statusInfo.label}
         </Text>
         <Text style={[
           styles.percentage,
           currentSize.text,
-          { color: statusInfo.color }
+          { color: statusInfo.textColor }
         ]}>
           {availability.availabilityPercentage}%
         </Text>
@@ -129,18 +129,18 @@ export const RecipeAvailabilityBadge: React.FC<RecipeAvailabilityBadgeProps> = (
       
       {showDetails && size !== 'small' && (
         <View style={styles.details}>
-          <Text style={[styles.detailText, { color: statusInfo.color }]}>
+          <Text style={[styles.detailText, { color: statusInfo.textColor }]}>
             {availability.availableIngredients}/{availability.totalIngredients} ingredients
           </Text>
           
           {availability.expiringIngredients.length > 0 && (
-            <Text style={[styles.detailText, { color: Colors.error }]}>
+            <Text style={[styles.detailText, { color: statusInfo.textColor }]}>
               {availability.expiringIngredients.length} expiring soon
             </Text>
           )}
           
           {availability.missingIngredients.length > 0 && (
-            <Text style={[styles.detailText, { color: Colors.lightText }]}>
+            <Text style={[styles.detailText, { color: statusInfo.textColor }]}>
               {availability.missingIngredients.length} missing
             </Text>
           )}

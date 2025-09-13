@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock } from 'lucide-react-native';
 // Header now uses ScreenHeader
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Spacing, Typography as LegacyType } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -321,14 +322,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   statPillValue: {
+    ...Type.body,
     color: Colors.text,
     fontWeight: '700',
     marginRight: 6,
   },
   statPillLabel: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '500',
-    fontSize: 12,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -363,10 +364,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   smartListText: {
+    ...Type.body,
     color: Colors.white,
     fontWeight: '600',
     marginLeft: 8,
-    fontSize: 16,
   },
   exportButton: {
     paddingVertical: 12,
@@ -379,9 +380,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exportButtonText: {
+    ...Type.body,
     color: Colors.primary,
     fontWeight: '600',
-    fontSize: 16,
   },
   clearButton: {
     paddingVertical: 12,
@@ -394,17 +395,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   clearButtonText: {
+    ...Type.body,
     color: '#FF6B6B',
     fontWeight: '600',
-    fontSize: 16,
   },
   listContent: {
     padding: 16,
     paddingTop: 0,
   },
   sectionHeader: {
+    ...Type.h3,
     fontSize: 18,
-    fontWeight: '600',
     color: Colors.text,
     marginTop: 24,
     marginBottom: 8,
@@ -417,13 +418,13 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   emptyText: {
+    ...Type.h3,
     fontSize: 18,
-    fontWeight: '600',
     color: Colors.text,
     marginBottom: 8,
   },
   emptySubtext: {
-    fontSize: 14,
+    ...Type.body,
     color: Colors.lightText,
     textAlign: 'center',
     marginBottom: 24,
@@ -443,8 +444,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   emptySmartButtonText: {
+    ...Type.body,
     color: Colors.white,
-    fontSize: 16,
     fontWeight: '500',
     marginLeft: 8,
   },
@@ -452,8 +453,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   emptyAddButtonText: {
+    ...Type.body,
     color: Colors.white,
-    fontSize: 16,
     fontWeight: '500',
     marginLeft: 8,
   },
@@ -462,8 +463,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   recentlyPurchasedTitle: {
+    ...Type.h3,
     fontSize: 16,
-    fontWeight: '600',
     color: Colors.text,
     marginBottom: 12,
   },
@@ -478,7 +479,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   recentlyPurchasedText: {
-    fontSize: 14,
+    ...Type.caption,
     color: Colors.lightText,
   },
   checkedText: {

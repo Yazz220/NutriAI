@@ -3,7 +3,8 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
-import { Typography } from '@/constants/spacing';
+import { Typography as LegacyType } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { Input } from '@/components/ui/Input';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/contexts/ToastContext';
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
   profileName: {
     color: Colors.white,
     fontSize: 24,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: LegacyType.weights.semibold,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   profileSubtitle: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 16,
-    fontWeight: Typography.weights.medium,
+    fontWeight: LegacyType.weights.medium,
   },
   quickStats: {
     flexDirection: 'row',
@@ -369,15 +370,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
+    ...Type.body,
+    fontSize: 18,
+    fontWeight: LegacyType.weights.semibold,
     color: Colors.text,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
+    ...Type.caption,
+    fontSize: 14,
     color: Colors.lightText,
-    fontWeight: Typography.weights.medium,
   },
   sectionsContainer: {
     padding: 20,
@@ -416,8 +418,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   cardTitle: {
+    ...Type.h3,
     fontSize: 18,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: LegacyType.weights.semibold,
     color: Colors.text,
   },
   saveButton: {
@@ -429,9 +432,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   saveButtonText: {
-    color: Colors.primary,
+    ...Type.caption,
     fontSize: 14,
-    fontWeight: Typography.weights.medium,
+    color: Colors.primary,
     marginLeft: 4,
   },
   cardContent: {
@@ -461,8 +464,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   chipSelectorLabel: {
+    ...Type.body,
     fontSize: 16,
-    fontWeight: Typography.weights.medium,
     color: Colors.text,
     marginBottom: 12,
   },
@@ -485,14 +488,15 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   modernChipText: {
+    ...Type.caption,
     color: Colors.text,
     fontSize: 14,
-    fontWeight: Typography.weights.medium,
     textTransform: 'capitalize',
   },
   modernChipTextActive: {
+    ...Type.caption,
     color: Colors.primary,
-    fontWeight: Typography.weights.semibold,
+    fontWeight: LegacyType.weights.semibold,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -508,7 +512,7 @@ const styles = StyleSheet.create({
   signOutText: {
     color: Colors.error,
     fontSize: 16,
-    fontWeight: Typography.weights.medium,
+    fontWeight: LegacyType.weights.medium,
     marginLeft: 8,
   },
   bottomSpacer: {

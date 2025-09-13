@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
+import { Typography as Type } from '@/constants/typography';
 import { useInventory, useInventoryByFreshness } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useToast } from '@/contexts/ToastContext';
@@ -79,14 +80,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   statPillValue: {
+    ...Type.body,
     color: Colors.text,
     fontWeight: '700',
     marginRight: 6,
   },
   statPillLabel: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '500',
-    fontSize: 12,
   },
   searchContainer: {
     marginTop: 6,
@@ -131,15 +132,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expiringTitle: {
+    ...Type.h3,
     fontSize: 18,
-    fontWeight: '700',
     color: Colors.text,
     marginLeft: 8,
   },
   expiringCount: {
-    fontSize: 14,
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '500',
   },
   expiringScroll: {
     marginHorizontal: -16,
@@ -150,8 +150,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   sectionHeader: {
+    ...Type.h3,
     fontSize: 18,
-    fontWeight: '700',
     color: Colors.text,
     marginTop: 24, // section gap spec
     marginBottom: 8,
@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   itemTitle: {
+    ...Type.body,
     color: Colors.text,
     fontWeight: '700',
     fontSize: 16,
@@ -203,8 +204,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   qtyText: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontSize: 12,
   },
   categoryBadge: {
     paddingHorizontal: 8,
@@ -215,8 +216,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   categoryBadgeText: {
+    ...Type.caption,
     color: Colors.text,
-    fontSize: 10,
     fontWeight: '600',
   },
   itemRight: {
@@ -238,11 +239,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emptyText: {
+    ...Type.h3,
     fontSize: 18,
     color: Colors.text,
     marginBottom: 8,
     textAlign: 'center',
-    fontWeight: '600',
   },
   quickAddContainer: {
     position: 'absolute',
@@ -331,8 +332,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   previewButtonText: {
+    ...Type.body,
     color: Colors.white,
-    fontSize: 16,
     fontWeight: '600',
   },
   stickyHeader: {
@@ -516,7 +517,7 @@ export default function InventoryScreen() {
     try {
       setIsAnalyzing(true);
       // Convert to base64 data URL for model input
-      const base64 = await FileSystem.readAsStringAsync(capturedImage, { encoding: FileSystem.EncodingType.Base64 });
+      const base64 = await FileSystem.readAsStringAsync(capturedImage, { encoding: 'base64' });
       const dataUrl = `data:image/jpeg;base64,${base64}`;
       const items = await detectItemsFromImage({ imageDataUrl: dataUrl });
       setDetectedItems(items);

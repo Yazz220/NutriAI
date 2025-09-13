@@ -19,6 +19,7 @@ import { X } from 'lucide-react-native';
 // Removed gradient header in favor of ScreenHeader
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { Typography as Type } from '@/constants/typography';
 import { Spacing } from '@/constants/spacing';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -619,12 +620,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentText: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '600',
   },
   segmentTextActive: {
+    ...Type.caption,
     color: Colors.text,
-    fontWeight: '700',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -641,6 +642,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    ...Type.body,
     paddingVertical: 12,
     marginLeft: 8,
     color: Colors.text,
@@ -669,12 +671,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   folderChipText: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '600',
   },
   folderChipActiveText: {
+    ...Type.caption,
     color: Colors.white,
-    fontWeight: '700',
   },
   createFolderBtn: {
     flexDirection: 'row',
@@ -683,8 +685,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   createFolderBtnText: {
+    ...Type.caption,
     color: Colors.primary,
-    fontWeight: '600',
     marginLeft: 4,
   },
   listContentContainer: {
@@ -701,6 +703,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
   },
   recipeImage: {
     width: 80,
@@ -715,8 +724,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   recipeTitle: {
+    ...Type.h3,
     fontSize: 16,
-    fontWeight: '600',
     color: Colors.text,
   },
   recipeMeta: {
@@ -731,11 +740,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    fontSize: 14,
+    ...Type.caption,
     color: Colors.lightText,
   },
   caloriesText: {
-    fontSize: 14,
+    ...Type.caption,
     color: Colors.primary,
     fontWeight: '600',
   },

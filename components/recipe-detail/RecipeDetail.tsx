@@ -5,7 +5,8 @@ import { Button } from '../ui/Button';
 import { IngredientIcon } from '@/components/common/IngredientIcon';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/colors';
-import { Spacing, Typography, Radii } from '@/constants/spacing';
+import { Spacing, Typography as LegacyType, Radii } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { slugifyIngredient } from '@/utils/ingredientSlug';
 import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType, InventoryItem } from '../../types';
 import { useInventory } from '@/hooks/useInventoryStore';
@@ -323,6 +324,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 onPress={() => (isSaved ? onRemove?.(recipe) : onSave?.(recipe))}
                 size="xs"
                 variant={isSaved ? 'primary' : 'primary'}
+                shape="capsule"
                 icon={isSaved ? <Bookmark size={14} color={Colors.white} /> : <BookmarkPlus size={14} color={Colors.white} />}
               />
               <Button
@@ -330,9 +332,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 onPress={() => setShowMealTypeSelector(true)}
                 size="xs"
                 variant="secondary"
+                shape="capsule"
                 icon={<Plus size={14} color={Colors.primary} />}
               />
-              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -359,6 +362,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                   }}
                   size="xs"
                   variant={missingIngredientsAdded ? 'primary' : 'secondary'}
+                  shape="capsule"
                   disabled={missingIngredientsAdded}
                 />
               )}
@@ -372,10 +376,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 }}
                 size="xs"
                 variant="secondary"
+                shape="capsule"
                 icon={<MessageCircle size={14} color={Colors.primary} />}
               />
-
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
 
@@ -386,9 +390,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 onPress={() => setShowMealTypeSelector(true)}
                 size="xs"
                 variant="primary"
+                shape="capsule"
                 icon={<Plus size={14} color={Colors.white} />}
               />
-              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -419,22 +424,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 />
               )}
 
-              <Button title="Ask AI" onPress={() => setShowAiChat(true)} size="xs" variant="secondary" icon={<MessageCircle size={14} color={Colors.primary} />} />
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Ask AI" onPress={() => setShowAiChat(true)} size="xs" variant="secondary" shape="capsule" icon={<MessageCircle size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
 
           {mode === 'ai' && (
             <>
-              <Button title="Save" onPress={() => onSave?.(recipe)} size="xs" variant="primary" />
+              <Button title="Save" onPress={() => onSave?.(recipe)} size="xs" variant="primary" shape="capsule" />
               <Button
                 title="Log"
                 onPress={() => setShowMealTypeSelector(true)}
                 size="xs"
                 variant="secondary"
+                shape="capsule"
                 icon={<Plus size={14} color={Colors.primary} />}
               />
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
         </View>
@@ -501,6 +507,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             <Button
               title="View Source"
               onPress={() => onOpenSource?.(recipe)}
+              shape="capsule"
               icon={<ExternalLink size={16} color={Colors.white} />}
             />
           </View>
@@ -591,15 +598,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   backBtn: { padding: Spacing.xs, marginRight: Spacing.sm },
   headerSafeTop: { paddingTop: Platform.OS === 'ios' ? 44 : Spacing.lg },
-  title: { flex: 1, fontSize: Typography.h2.fontSize, fontWeight: Typography.h2.fontWeight, color: Colors.text, marginRight: Spacing.lg },
+  title: { flex: 1, ...Type.h2, color: Colors.text, marginRight: Spacing.lg },
   closeBtn: { padding: Spacing.xs },
   metaRow: { flexDirection: 'row', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   metaItem: { alignItems: 'center' },
-  metaText: { fontSize: Typography.caption.fontSize, color: Colors.text, marginTop: 4 },
+  metaText: { ...Type.caption, color: Colors.text, marginTop: 4 },
   actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs },
   section: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
-  sectionTitle: { fontSize: Typography.h2.fontSize, fontWeight: Typography.h2.fontWeight, color: Colors.text, marginBottom: Spacing.sm },
-  bodyText: { fontSize: Typography.body.fontSize, lineHeight: Typography.body.lineHeight, color: Colors.lightText },
+  sectionTitle: { ...Type.h2, color: Colors.text, marginBottom: Spacing.sm },
+  bodyText: { ...Type.body, color: Colors.lightText },
   row: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, borderRadius: Radii.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.sm },
   // New styles for improved instructions/steps UI
@@ -608,30 +615,30 @@ const styles = StyleSheet.create({
   stepLeft: { width: 40, alignItems: 'center' },
   stepConnector: { borderLeftWidth: 2, borderLeftColor: Colors.border, borderStyle: 'dashed', marginTop: 6, opacity: 0.6, height: 48 },
   stepRight: { flex: 1, paddingLeft: Spacing.sm },
-  stepTitle: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginBottom: Spacing.xs, fontWeight: Typography.weights.medium },
-  stepBody: { fontSize: Typography.body.fontSize, lineHeight: Typography.body.lineHeight + 6, color: Colors.lightText },
+  stepTitle: { ...Type.caption, color: Colors.lightText, marginBottom: Spacing.xs },
+  stepBody: { ...Type.body, lineHeight: Type.body.lineHeight + 6, color: Colors.lightText },
   stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   stepBadgeText: { color: Colors.white, fontSize: 12, fontWeight: '600' },
   nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, borderRadius: Radii.md, minWidth: 140, alignItems: 'center' },
-  nutritionLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginBottom: Spacing.xs },
+  nutritionLabel: { ...Type.caption, color: Colors.lightText, marginBottom: Spacing.xs },
   nutritionValue: { fontSize: 16, fontWeight: '600', color: Colors.text },
   // Macro line items (used by MacroItem component)
   macroItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginRight: Spacing.md, marginBottom: Spacing.xs },
   macroDot: { width: 8, height: 8, borderRadius: 4, marginRight: 4 },
-  macroLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText },
-  macroValue: { fontSize: Typography.caption.fontSize, fontWeight: '600', color: Colors.text },
+  macroLabel: { ...Type.caption, color: Colors.lightText },
+  macroValue: { ...Type.caption, fontWeight: '600', color: Colors.text },
   // Servings selector styles
   servingsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   servingsRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   servingsBtnSm: { width: 32, height: 32, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
   servingsBtnText: { fontSize: 16, color: Colors.text },
   servingsValueSm: { fontSize: 15, fontWeight: '700', color: Colors.text, minWidth: 22, textAlign: 'center' },
-  servingsInlineLabel: { fontSize: Typography.caption.fontSize, color: Colors.lightText, marginLeft: Spacing.xs },
-  servingsNote: { marginTop: Spacing.xs, fontSize: Typography.caption.fontSize, color: Colors.lightText },
-  perServingHint: { marginTop: Spacing.xs, fontSize: Typography.caption.fontSize, color: Colors.lightText },
+  servingsInlineLabel: { ...Type.caption, color: Colors.lightText, marginLeft: Spacing.xs },
+  servingsNote: { marginTop: Spacing.xs, ...Type.caption, color: Colors.lightText },
+  perServingHint: { marginTop: Spacing.xs, ...Type.caption, color: Colors.lightText },
   caloriesBadge: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: 9999 },
-  caloriesBadgeText: { fontSize: Typography.caption.fontSize, fontWeight: '600', color: Colors.text },
+  caloriesBadgeText: { ...Type.caption, fontWeight: '600', color: Colors.text },
   // Compact Nutrition Styles
   nutritionSection: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
   ingredientsGrid: {
@@ -663,7 +670,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.white,
   },
   ingredientName: {
-    fontSize: Typography.caption.fontSize,
+    ...Type.caption,
     fontWeight: '600',
     color: Colors.text,
     textAlign: 'center',
@@ -675,7 +682,7 @@ const styles = StyleSheet.create({
   },
   ingredientQuantityScaled: {
     color: Colors.primary,
-    fontWeight: Typography.weights.medium,
+    fontWeight: LegacyType.weights.medium,
   },
   scaledIndicator: {
     position: 'absolute',
@@ -691,7 +698,7 @@ const styles = StyleSheet.create({
   scaledIndicatorText: {
     color: Colors.white,
     fontSize: 10,
-    fontWeight: Typography.weights.bold,
+    fontWeight: LegacyType.weights.bold,
   },
 });
 

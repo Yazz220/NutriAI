@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack } from 'expo-router';
 import { Brain, CaretLeft, CaretRight, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar, MagnifyingGlass, Camera } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
+import { Typography as Type } from '@/constants/typography';
 import { WEEK_RINGS_SCALE } from '@/constants/theme';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -1409,15 +1410,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   mealRowTitle: {
+    ...Type.h3,
     color: Colors.text,
     fontSize: 20,
     lineHeight: 28,
-    fontWeight: Typography.weights.semibold,
   },
   mealRowSub: {
+    ...Type.body,
     color: Colors.lightText,
-    fontSize: 15,
-    lineHeight: 22,
     marginTop: 2,
   },
   mealRowSubRow: {
@@ -1484,9 +1484,9 @@ const styles = StyleSheet.create({
   mealContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mealImage: { width: 64, height: 64, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
   mealInfo: { flex: 1 },
-  mealName: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  mealName: { ...Type.body, color: Colors.text, fontSize: 14, fontWeight: '600' },
   mealStats: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  mealKcal: { color: Colors.text, fontSize: 12, fontWeight: '600' },
+  mealKcal: { ...Type.caption, color: Colors.text, fontWeight: '600' },
   emptyMealContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   emptyMealText: { color: Colors.lightText, fontSize: 14, fontWeight: '500' },
   // ... (rest of the styles remain the same)
@@ -1682,9 +1682,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   calendarMonthLabel: {
+    ...Type.body,
     color: Colors.text,
     fontSize: 16,
-    fontWeight: Typography.weights.semibold,
   },
   calendarWeekdaysRow: {
     flexDirection: 'row',
@@ -1695,9 +1695,8 @@ const styles = StyleSheet.create({
   calendarWeekdayText: {
     width: 44,
     textAlign: 'center',
+    ...Type.caption,
     color: Colors.lightText,
-    fontSize: 12,
-    fontWeight: '600',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -1736,9 +1735,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   calendarTopBarAction: {
+    ...Type.caption,
     color: Colors.primary,
-    fontSize: 14,
-    fontWeight: Typography.weights.semibold,
   },
   calendarStatsRow: {
     flexDirection: 'row',
@@ -1750,23 +1748,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   calendarStatLabel: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontSize: 12,
     marginBottom: 4,
-    fontWeight: '600',
   },
   calendarStatValue: {
+    ...Type.caption,
     color: Colors.text,
-    fontSize: 14,
-    fontWeight: Typography.weights.semibold,
   },
   calendarCellText: {
+    ...Type.caption,
     color: Colors.text,
-    fontWeight: Typography.weights.semibold,
   },
   calendarCellTextSelected: {
+    ...Type.caption,
     color: Colors.white,
-    fontWeight: Typography.weights.semibold,
   },
   calendarCellInner: {
     position: 'absolute',
@@ -1801,8 +1797,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   nutritionCoachTitle: {
+    ...Type.h3,
     fontSize: 20,
-    fontWeight: Typography.weights.bold,
     color: Colors.text,
   },
   closeCoachButton: {
@@ -1814,9 +1810,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeCoachText: {
+    ...Type.body,
     fontSize: 18,
     color: Colors.text,
-    fontWeight: Typography.weights.bold,
   },
 });
 

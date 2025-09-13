@@ -1,0 +1,2 @@
+// (reverted) theme adapter removed
+

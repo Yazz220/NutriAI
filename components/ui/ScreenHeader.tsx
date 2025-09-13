@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ViewStyle, TextStyle, Platform } from 'react-na
 import { BlurView } from 'expo-blur';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import { Fonts } from '@/utils/fonts';
 
 export type ScreenHeaderProps = {
   title: string;
@@ -85,10 +86,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.displayMd,
+    fontFamily: Fonts.display.bold,
     color: Colors.text,
   },
   subtitle: {
     ...Typography.bodySm,
+    fontFamily: Fonts.ui.regular,
     color: Colors.lightText,
     marginTop: 2,
   },

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle, Text, StyleProp } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Shadows, Radii } from '@/constants/spacing';
+import { Tokens } from '@/constants/tokens';
 
 interface CardProps {
   children: React.ReactNode;
@@ -36,15 +37,34 @@ export const Card: React.FC<CardProps> = ({
     return child as React.ReactNode;
   });
 
-  return <View style={cardStyle}>{normalizedChildren}</View>;
+  return (
+    <View style={cardStyle}>
+      {/* Inner edge for subtle depth */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          borderRadius: Tokens.component.card.base.radius,
+          borderWidth: 1,
+          borderColor: `rgba(0,0,0,${Tokens.component.card.base.innerEdgeOpacity})`,
+        }}
+      />
+      {normalizedChildren}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Radii.md, // shape.radius.card per paper/line system
+    backgroundColor: Tokens.component.card.base.bg,
+    borderRadius: Tokens.component.card.base.radius, // shape.radius.card per token
     marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.border, // divider
+    borderColor: Tokens.component.card.base.borderColor, // divider
+    position: 'relative',
   },
 });

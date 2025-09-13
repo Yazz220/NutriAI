@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Meal } from '@/types';
 import { Colors } from '@/constants/colors';
+import { Typography as Type } from '@/constants/typography';
 import { Clock, Users, Edit, Trash2 } from 'lucide-react-native';
 
 interface MealCardProps {
@@ -103,13 +104,12 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   name: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...Type.h3,
     color: Colors.text,
     marginBottom: 4,
   },
   description: {
-    fontSize: 14,
+    ...Type.body,
     color: Colors.lightText,
     marginBottom: 8,
   },
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   metaText: {
-    fontSize: 12,
+    ...Type.caption,
     color: Colors.lightText,
     marginLeft: 4,
   },

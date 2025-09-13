@@ -39,8 +39,8 @@ function RootLayoutNav() {
     async function prepare() {
       try {
         await loadFonts();
-        // Set global default font family to Soria for all RN <Text />
-        // This ensures existing components pick up the new font without code changes
+        // Set global default font family to Manrope (UI) for all RN <Text />
+        // This ensures existing components pick up the new UI font without code changes
         // while we gradually migrate to the custom Typography/Text components.
         // Merge with any existing default styles to avoid clobbering them.
         // Note: defaultProps is safe for RN Text in app code (not on web SSR).
@@ -48,7 +48,7 @@ function RootLayoutNav() {
         (RNText as any).defaultProps = {
           ...(RNText as any).defaultProps,
           style: [
-            { fontFamily: Fonts.regular },
+            { fontFamily: Fonts.ui?.regular ?? Fonts.regular },
             (RNText as any).defaultProps && (RNText as any).defaultProps.style,
           ],
         };
