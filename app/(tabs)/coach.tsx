@@ -1321,12 +1321,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   segmentText: {
+    ...Type.caption,
     color: Colors.lightText,
-    fontWeight: '600',
   },
   segmentTextActive: {
+    ...Type.caption,
     color: Colors.text,
-    fontWeight: '700',
+    fontWeight: Typography.weights.semibold,
   },
   macrosGrid: {
     flexDirection: 'row',

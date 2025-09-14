@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Keyboa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { Brain, Send, Target, TrendingUp, AlertCircle, CheckCircle, RotateCcw, MoreVertical } from 'lucide-react-native';
 import { useNutrition } from '@/hooks/useNutrition';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -1009,18 +1010,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     paddingBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 24,
-    backgroundColor: Colors.card,
+    borderRadius: 12,
+    backgroundColor: Colors.tabBackground,
     zIndex: 100,
   },
   input: {
     flex: 1,
     maxHeight: 100,
+    ...Type.body,
     paddingVertical: Spacing.sm,
     color: Colors.text,
     backgroundColor: 'transparent',
@@ -1054,17 +1056,21 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   quickActionButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: 16,
     marginRight: Spacing.xs,
     marginBottom: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 28,
   },
   quickActionText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.white,
-    fontWeight: Typography.weights.medium,
+    ...Type.caption,
+    color: Colors.primary,
   },
   mealSuggestionsContainer: {
     marginTop: Spacing.sm,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { Folder } from 'lucide-react-native';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -52,7 +53,10 @@ export const CreateFolderSheet: React.FC<CreateFolderSheetProps> = ({
       <View style={styles.overlay}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.container}>
-            <Text style={styles.title}>Create Folder</Text>
+            <View style={styles.titleRow}>
+              <Folder size={20} color={Colors.text} style={{ marginRight: Spacing.xs }} />
+              <Text style={styles.title}>Create Folder</Text>
+            </View>
             <Input
               label="Folder name"
               value={name}
@@ -86,11 +90,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: Spacing.lg,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
   title: {
     fontSize: Typography.sizes.lg,
     fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: 0,
   },
   error: {
     color: Colors.danger,

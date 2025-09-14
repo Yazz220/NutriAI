@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   mealTypeCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.primary,
   },
   mealTypeHeader: {
     position: 'relative',
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   mealTypeLabelSelected: {
-    color: Colors.primary,
+    color: Colors.white,
   },
   mealTypeButton: {
     paddingVertical: 12,
@@ -229,9 +229,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.secondary,
-    borderRadius: 8,
+    backgroundColor: Colors.tabBackground,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
     paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 12,
   },
   searchInput: {

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { Folder } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
@@ -37,7 +38,10 @@ export const AddToFolderSheet: React.FC<AddToFolderSheetProps> = ({ visible, rec
                   const inFolder = recipeId ? assignedIds.has(f.id) : false;
                   return (
                     <View key={f.id} style={styles.row}>
-                      <Text style={styles.name}>{f.name}</Text>
+                      <View style={styles.nameRow}>
+                        <Folder size={18} color={Colors.text} style={{ marginRight: 8 }} />
+                        <Text style={styles.name}>{f.name}</Text>
+                      </View>
                       {inFolder ? (
                         <Button title="Remove" variant="secondary" onPress={() => recipeId && removeRecipeFromFolder(f.id, recipeId)} />
                       ) : (
@@ -50,7 +54,10 @@ export const AddToFolderSheet: React.FC<AddToFolderSheetProps> = ({ visible, rec
             </ScrollView>
             <View style={styles.footer}>
               <TouchableOpacity style={styles.newBtn} onPress={onCreateNew}>
-                <Text style={styles.newBtnText}>+ New Folder</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Folder size={16} color={Colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.newBtnText}>New Folder</Text>
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -87,6 +94,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   name: { fontSize: 16, color: Colors.text },
   empty: { color: Colors.lightText, paddingVertical: 12, textAlign: 'center' },
   footer: { marginTop: Spacing.md, alignItems: 'center' },
