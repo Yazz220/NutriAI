@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "kaggle:1",
+    "title": "Bone Broth From 'Nom Nom Paleo'",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 5,
+      "carbs": 1,
+      "fats": 3
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "1"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:2",
+    "title": "Paleo Effect Asian-Glazed Pork Sides, A Sweet & Crispy Appetizer",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 181,
+      "carbs": 28,
+      "fats": 146
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "2"
+    },
+    "tags": [
+      "south east asian"
+    ]
+  },
+  {
+    "id": "kaggle:3",
+    "title": "Paleo Pumpkin Pie",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 30,
+      "carbs": 302,
+      "fats": 96
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "3"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:4",
+    "title": "Strawberry Guacamole recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 9,
+      "carbs": 75,
+      "fats": 59
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "4"
+    },
+    "tags": [
+      "mexican"
+    ]
+  },
+  {
+    "id": "kaggle:5",
+    "title": "Asian Cauliflower Fried \"Rice\" From 'Nom Nom Paleo'",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 39,
+      "carbs": 54,
+      "fats": 71
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "5"
+    },
+    "tags": [
+      "chinese"
+    ]
+  },
+  {
+    "id": "kaggle:6",
+    "title": "Paleo Shrimp-Stuffed Mushrooms recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 68,
+      "carbs": 34,
+      "fats": 42
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "6"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:7",
+    "title": "Paleo Pumpkin Pie recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 30,
+      "carbs": 275,
+      "fats": 97
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "7"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:8",
+    "title": "Autoimmune Paleo Pesto",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 4,
+      "carbs": 14,
+      "fats": 72
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "8"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:9",
+    "title": "Baked Banana Chip Encrusted French Toast",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 152,
+      "carbs": 1874,
+      "fats": 385
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "9"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:10",
+    "title": "Vietnamese Pho Pressure Cooker (Noodle Soup)",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 602,
+      "carbs": 274,
+      "fats": 400
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "10"
+    },
+    "tags": [
+      "south east asian"
+    ]
+  },
+  {
+    "id": "kaggle:11",
+    "title": "Paleo Collard Burrito",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 44,
+      "carbs": 28,
+      "fats": 78
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "11"
+    },
+    "tags": [
+      "mexican"
+    ]
+  },
+  {
+    "id": "kaggle:12",
+    "title": "Paleo Chawanmushi (Savory Egg Custard) recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 61,
+      "carbs": 13,
+      "fats": 24
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "12"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:13",
+    "title": "‘paleo' banana bread",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 46,
+      "carbs": 192,
+      "fats": 156
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "13"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:14",
+    "title": "Leftover Turkey Sandwich recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 54,
+      "carbs": 34,
+      "fats": 14
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "14"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:15",
+    "title": "Paleo Pumpkin Waffles",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 51,
+      "carbs": 89,
+      "fats": 78
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "15"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:16",
+    "title": "Fudgy Paleo Brownies",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 64,
+      "carbs": 263,
+      "fats": 176
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "16"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:17",
+    "title": "Magic Wings recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 320,
+      "carbs": 28,
+      "fats": 252
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "17"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:18",
+    "title": "Turkey Club Sandwich",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 46,
+      "carbs": 39,
+      "fats": 19
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "18"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:19",
+    "title": "Easy Paleo Meatloaf",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 185,
+      "carbs": 47,
+      "fats": 260
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "19"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:20",
+    "title": "Paleo Crepes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 15,
+      "carbs": 15,
+      "fats": 49
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "20"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:21",
+    "title": "Chocolate Pecan Pie recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 59,
+      "carbs": 567,
+      "fats": 320
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "21"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:22",
+    "title": "Simple Crab Salad recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 82,
+      "carbs": 4,
+      "fats": 20
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "22"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:23",
+    "title": "Chocolate Pecan Pie",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 54,
+      "carbs": 503,
+      "fats": 320
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "23"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:24",
+    "title": "Asian Meatballs recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 167,
+      "carbs": 55,
+      "fats": 210
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "24"
+    },
+    "tags": [
+      "indian"
+    ]
+  },
+  {
+    "id": "kaggle:25",
+    "title": "Blueberry French Toast Casserole",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 78,
+      "carbs": 290,
+      "fats": 84
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "25"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:26",
+    "title": "Paleo Spanish Rice",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 28,
+      "carbs": 64,
+      "fats": 37
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "26"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:27",
+    "title": "Whole30® Sriracha",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 12,
+      "carbs": 85,
+      "fats": 2
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "27"
+    },
+    "tags": [
+      "south east asian"
+    ]
+  },
+  {
+    "id": "kaggle:28",
+    "title": "Banana Cream Pie",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 17,
+      "carbs": 215,
+      "fats": 304
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "28"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:29",
+    "title": "Spicy Salmon Cucumber Bites recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 49,
+      "carbs": 17,
+      "fats": 75
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "29"
+    },
+    "tags": [
+      "nordic"
+    ]
+  },
+  {
+    "id": "kaggle:30",
+    "title": "Blueberry French Toast Casserole recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 78,
+      "carbs": 290,
+      "fats": 84
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "30"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:31",
+    "title": "Paleo Honey Cake",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 87,
+      "carbs": 258,
+      "fats": 259
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "31"
+    },
+    "tags": [
+      "eastern europe"
+    ]
+  },
+  {
+    "id": "kaggle:32",
+    "title": "Chocolate Pumpkin Pie recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 44,
+      "carbs": 429,
+      "fats": 162
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "32"
+    },
+    "tags": [
+      "central europe"
+    ]
+  },
+  {
+    "id": "kaggle:33",
+    "title": "Paleo Creamy Alfredo",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 16,
+      "carbs": 32,
+      "fats": 91
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "33"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:34",
+    "title": "Paleo Blini recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 15,
+      "carbs": 12,
+      "fats": 23
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "34"
+    },
+    "tags": [
+      "eastern europe"
+    ]
+  },
+  {
+    "id": "kaggle:35",
+    "title": "Paleo Tzimmes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 16,
+      "carbs": 236,
+      "fats": 3
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "35"
+    },
+    "tags": [
+      "kosher"
+    ]
+  },
+  {
+    "id": "kaggle:36",
+    "title": "Paleo Pumpkin Bars",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 39,
+      "carbs": 169,
+      "fats": 117
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "36"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:37",
+    "title": "Paleo Fruitcake",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 82,
+      "carbs": 271,
+      "fats": 204
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "37"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:38",
+    "title": "Paleo Chocolate Frosting",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 14,
+      "carbs": 85,
+      "fats": 150
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "38"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:39",
+    "title": "Paleo Crepes recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 27,
+      "carbs": 9,
+      "fats": 61
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "39"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:40",
+    "title": "Paleo Peach Crisp",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 39,
+      "carbs": 126,
+      "fats": 97
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "40"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:41",
+    "title": "Paleo Pumpkin Bars",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 36,
+      "carbs": 182,
+      "fats": 105
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "41"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:42",
+    "title": "Paleo Honey Cake",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 87,
+      "carbs": 258,
+      "fats": 259
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "42"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:43",
+    "title": "Paleo Carrot Soup",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 27,
+      "carbs": 116,
+      "fats": 125
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "43"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:44",
+    "title": "Paleo Fruitcake recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 85,
+      "carbs": 271,
+      "fats": 207
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "44"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:45",
+    "title": "Best Paleo Chili",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 193,
+      "carbs": 83,
+      "fats": 227
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "45"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:46",
+    "title": "Perfect Paleo Pizza",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 123,
+      "carbs": 75,
+      "fats": 235
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "46"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:47",
+    "title": "Grain-Free Cauliflower Fried Rice recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 37,
+      "carbs": 56,
+      "fats": 53
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "47"
+    },
+    "tags": [
+      "chinese"
+    ]
+  },
+  {
+    "id": "kaggle:48",
+    "title": "Paleo Chocolate Frosting recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 7,
+      "carbs": 112,
+      "fats": 269
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "48"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:49",
+    "title": "Paleo Eggplant Lasagna",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 172,
+      "carbs": 186,
+      "fats": 467
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "49"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:50",
+    "title": "Paleo Pecan Tart Crust",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 20,
+      "carbs": 24,
+      "fats": 111
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "50"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:51",
+    "title": "Paleo Shepherd’s Pie",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 189,
+      "carbs": 143,
+      "fats": 300
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "51"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:52",
+    "title": "Paleo Pie Crust recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 56,
+      "carbs": 43,
+      "fats": 143
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "52"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:53",
+    "title": "Paleo Mug Cake recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 10,
+      "carbs": 19,
+      "fats": 12
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "53"
+    },
+    "tags": [
+      "british"
+    ]
+  },
+  {
+    "id": "kaggle:54",
+    "title": "Paleo Flourless Chocolate Cake",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 83,
+      "carbs": 384,
+      "fats": 324
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "54"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:55",
+    "title": "Mini Paleo Egg Bites",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 118,
+      "carbs": 6,
+      "fats": 61
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "55"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:56",
+    "title": "Egg-Free Paleo Macaroons",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 9,
+      "carbs": 99,
+      "fats": 110
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "56"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:57",
+    "title": "Paleo Raw Chocolate Bites",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 46,
+      "carbs": 261,
+      "fats": 147
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "57"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:58",
+    "title": "Paleo Mushroom Soup recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 60,
+      "carbs": 112,
+      "fats": 52
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "58"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:59",
+    "title": "Paleo Birthday Cake recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 68,
+      "carbs": 199,
+      "fats": 161
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "59"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:60",
+    "title": "Paleo Avocado Tuna Salad",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 32,
+      "carbs": 24,
+      "fats": 31
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "60"
+    },
+    "tags": [
+      "mexican"
+    ]
+  },
+  {
+    "id": "kaggle:61",
+    "title": "Paleo Honey Cake recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 90,
+      "carbs": 258,
+      "fats": 261
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "61"
+    },
+    "tags": [
+      "eastern europe"
+    ]
+  },
+  {
+    "id": "kaggle:62",
+    "title": "Paleo Pumpkin Bars recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 49,
+      "carbs": 412,
+      "fats": 116
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "62"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:63",
+    "title": "Perfect Paleo Baked Salmon",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 161,
+      "carbs": 1,
+      "fats": 160
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "63"
+    },
+    "tags": [
+      "nordic"
+    ]
+  },
+  {
+    "id": "kaggle:64",
+    "title": "Chocolate Mousse (Paleo! Keto!)",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 20,
+      "carbs": 126,
+      "fats": 153
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "64"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:65",
+    "title": "Crab + Avocado Temaki recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 88,
+      "carbs": 32,
+      "fats": 55
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "65"
+    },
+    "tags": [
+      "caribbean"
+    ]
+  },
+  {
+    "id": "kaggle:66",
+    "title": "Red Cabbage Slaw with Tangy Carrot Ginger Dressing recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 9,
+      "carbs": 42,
+      "fats": 83
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "66"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:67",
+    "title": "Paleo Prosciutto Egg Cups",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 80,
+      "carbs": 6,
+      "fats": 113
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "67"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:68",
+    "title": "Paleo Chicken Adobo recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 123,
+      "carbs": 61,
+      "fats": 107
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "68"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:69",
+    "title": "Cranberry Apple Stuffing",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 47,
+      "carbs": 285,
+      "fats": 93
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "69"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:70",
+    "title": "Paleo Dirty Rice recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 26,
+      "carbs": 80,
+      "fats": 35
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "70"
+    },
+    "tags": [
+      "caribbean"
+    ]
+  },
+  {
+    "id": "kaggle:71",
+    "title": "Slow-Cooker Paleo Meatballs",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 145,
+      "carbs": 102,
+      "fats": 144
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "71"
+    },
+    "tags": [
+      "eastern europe"
+    ]
+  },
+  {
+    "id": "kaggle:72",
+    "title": "Delicata Squash Stuffed with Spiced Meat and Tomatoes (serves 2) and a side of Sauteed Chard recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 100,
+      "carbs": 92,
+      "fats": 360
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "72"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:73",
+    "title": "Paleo Pork Chili Verde",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 107,
+      "carbs": 68,
+      "fats": 28
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "73"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:74",
+    "title": "Paleo Steak and Egg Salad",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 65,
+      "carbs": 17,
+      "fats": 69
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "74"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:75",
+    "title": "Easy Paleo Beef with Broccoli",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 102,
+      "carbs": 38,
+      "fats": 98
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "75"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:76",
+    "title": "Paleo Party Pork Carnitas",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 268,
+      "carbs": 128,
+      "fats": 334
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "76"
+    },
+    "tags": [
+      "mexican"
+    ]
+  },
+  {
+    "id": "kaggle:77",
+    "title": "Paleo Pecan Tart Crust recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 21,
+      "carbs": 25,
+      "fats": 112
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "77"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:78",
+    "title": "Paleo Shepherd's Pie recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 189,
+      "carbs": 143,
+      "fats": 300
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "78"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:79",
+    "title": "Paleo Vanilla Birthday Cake recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 71,
+      "carbs": 159,
+      "fats": 147
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "79"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:80",
+    "title": "Egg-Free Paleo Macaroons recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 10,
+      "carbs": 105,
+      "fats": 110
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "80"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:81",
+    "title": "Paleo Raw Chocolate Bites recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 46,
+      "carbs": 261,
+      "fats": 147
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "81"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:82",
+    "title": "Perfect Paleo Pie Crust recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 43,
+      "carbs": 104,
+      "fats": 160
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "82"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:83",
+    "title": "Practical Paleo: Mint Chip Truffles",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 3,
+      "carbs": 23,
+      "fats": 80
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "83"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:84",
+    "title": "Cindy's Paleo Harvest Chili",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 210,
+      "carbs": 139,
+      "fats": 272
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "84"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:85",
+    "title": "Instant Pot Paleo Pork Tenderloin",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 362,
+      "carbs": 16,
+      "fats": 64
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "85"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:86",
+    "title": "Paleo Pecan-Crusted Chicken | everydaypaleo.com",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 258,
+      "carbs": 55,
+      "fats": 103
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "86"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:87",
+    "title": "Entertain Meatloaf Style",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 197,
+      "carbs": 70,
+      "fats": 110
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "87"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:88",
+    "title": "Semi-Homemade Paleo Spaghetti And Meatballs",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 128,
+      "carbs": 366,
+      "fats": 166
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "88"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:89",
+    "title": "Easy Paleo Herb Gravy recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 23,
+      "carbs": 39,
+      "fats": 42
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "89"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:90",
+    "title": "Homemade Mayo (Paleo and Whole30 Friendly!)",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 2,
+      "carbs": 1,
+      "fats": 112
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "90"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:91",
+    "title": "Paleo and Vegan Pesto stuffed mushrooms",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 10,
+      "carbs": 15,
+      "fats": 49
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "91"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:92",
+    "title": "Paleo Un-Stuffed Cabbage Soup",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 141,
+      "carbs": 55,
+      "fats": 198
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "92"
+    },
+    "tags": [
+      "italian"
+    ]
+  },
+  {
+    "id": "kaggle:93",
+    "title": "Sweet Potato Chili (Paleo-Friendly!)",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 98,
+      "carbs": 191,
+      "fats": 176
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "93"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:94",
+    "title": "Paleo Dirty Cauliflower ‘Rice’ Recipe",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 26,
+      "carbs": 80,
+      "fats": 35
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "94"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:95",
+    "title": "Spicy Paleo Pumpkin Muffins recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 121,
+      "carbs": 413,
+      "fats": 317
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "95"
+    },
+    "tags": [
+      "british"
+    ]
+  },
+  {
+    "id": "kaggle:96",
+    "title": "Paleo Cauliflower Bacon Fried Rice Recipe",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 28,
+      "carbs": 50,
+      "fats": 48
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "96"
+    },
+    "tags": [
+      "chinese"
+    ]
+  },
+  {
+    "id": "kaggle:97",
+    "title": "Paleo Beef and Sweet Potato Stew",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 200,
+      "carbs": 153,
+      "fats": 102
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "97"
+    },
+    "tags": [
+      "american"
+    ]
+  },
+  {
+    "id": "kaggle:98",
+    "title": "Paleo Comfort Foods’ Poached Pears recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 9,
+      "carbs": 214,
+      "fats": 3
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "98"
+    },
+    "tags": [
+      "french"
+    ]
+  },
+  {
+    "id": "kaggle:99",
+    "title": "Madras Chicken Salad recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 150,
+      "carbs": 41,
+      "fats": 123
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "99"
+    },
+    "tags": [
+      "mediterranean"
+    ]
+  },
+  {
+    "id": "kaggle:100",
+    "title": "Slow Cooker Cheater Pork Stew recipes",
+    "ingredients": [],
+    "steps": [],
+    "nutritionPerServing": {
+      "protein": 244,
+      "carbs": 69,
+      "fats": 249
+    },
+    "source": {
+      "providerType": "unknown",
+      "providerId": "100"
+    },
+    "tags": [
+      "french"
+    ]
+  }
+]

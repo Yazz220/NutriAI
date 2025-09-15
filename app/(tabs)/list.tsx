@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock } from 'lucide-react-native';
+import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock, FileDown } from 'lucide-react-native';
 // Header now uses ScreenHeader
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography as LegacyType } from '@/constants/spacing';
@@ -168,6 +168,7 @@ export default function ShoppingListScreen() {
             variant="outline"
             size="xs"
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
+            icon={<FileDown size={14} color={Colors.primary} />}
           />
 
           {shoppingList.some(item => item.checked) && (
@@ -248,13 +249,16 @@ export default function ShoppingListScreen() {
 // StatRow with three outline panels (compact)
 const StatRow = ({ items, activeFilter }: { items: { icon?: React.ReactNode; label: string; value: string; onPress: () => void }[], activeFilter: string }) => (
   <View style={styles.statRow}>
-    {items.map((it, idx) => (
-      <TouchableOpacity key={idx} style={[styles.statPill, activeFilter === it.label.toLowerCase() && styles.activeStatPill]} onPress={it.onPress}>
-        {it.icon ? <View style={{ marginRight: 6 }}>{it.icon}</View> : null}
-        <Text style={styles.statPillValue}>{it.value}</Text>
-        <Text style={styles.statPillLabel}>{it.label}</Text>
-      </TouchableOpacity>
-    ))}
+    {items.map((it, idx) => {
+      const isActive = activeFilter === it.label.toLowerCase();
+      return (
+        <TouchableOpacity key={idx} style={[styles.statPill, isActive && styles.activeStatPill]} onPress={it.onPress}>
+          {it.icon ? <View style={styles.statPillIcon}>{it.icon}</View> : null}
+          <Text style={[styles.statPillValue, isActive && styles.statPillValueActive]}>{it.value}</Text>
+          <Text style={[styles.statPillLabel, isActive && styles.statPillLabelActive]}>{it.label}</Text>
+        </TouchableOpacity>
+      );
+    })}
   </View>
 );
 
@@ -310,26 +314,36 @@ const styles = StyleSheet.create({
   },
   statPill: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    minHeight: 68,
+    gap: 2,
   },
   activeStatPill: {
     backgroundColor: Colors.primary,
   },
+  statPillIcon: { marginBottom: 4 },
   statPillValue: {
     ...Type.body,
     color: Colors.text,
     fontWeight: '700',
-    marginRight: 6,
+  },
+  statPillValueActive: {
+    color: Colors.white,
   },
   statPillLabel: {
     ...Type.caption,
     color: Colors.lightText,
+  },
+  statPillLabelActive: {
+    color: Colors.white,
+    opacity: 0.9,
   },
   actionsContainer: {
     flexDirection: 'row',

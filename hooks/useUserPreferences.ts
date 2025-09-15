@@ -7,7 +7,6 @@ const defaultPreferences: UserPreferences = {
   dietaryPreferences: [],
   allergies: [],
   mealPlanDays: 7,
-  autoAddPurchasedToInventory: false,
   goals: {
     dailyCalories: 2000,
     protein: 120,
@@ -70,13 +69,6 @@ export const [UserPreferencesProvider, useUserPreferences] = createContextHook((
     }));
   };
 
-  const updateAutoAddPurchasedToInventory = (enabled: boolean) => {
-    setPreferences(prev => ({
-      ...prev,
-      autoAddPurchasedToInventory: enabled,
-    }));
-  };
-
   const updateGoals = (goals: NutritionGoals) => {
     setPreferences(prev => ({
       ...prev,
@@ -90,7 +82,6 @@ export const [UserPreferencesProvider, useUserPreferences] = createContextHook((
     updateDietaryPreferences,
     updateAllergies,
     updateMealPlanDays,
-    updateAutoAddPurchasedToInventory,
     updateGoals,
   };
 });

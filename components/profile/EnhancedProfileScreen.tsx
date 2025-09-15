@@ -6,7 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Edit3, Target, Heart, ChefHat, Settings, ArrowLeft, ChevronRight, Award, Clock } from 'lucide-react-native';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
@@ -22,20 +26,14 @@ type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
 export default function EnhancedProfileScreen() {
   const { profile, isLoading } = useUserProfileStore();
   const [activeSection, setActiveSection] = useState<ProfileSection>('overview');
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
+
+  const closeSheet = () => { setSheetVisible(false); setSheetSection(null); };
 
   const renderSectionContent = () => {
-    switch (activeSection) {
-      case 'personal':
-        return <PersonalInfoSection onBack={() => setActiveSection('overview')} />;
-      case 'dietary':
-        return <DietaryPreferencesSection onBack={() => setActiveSection('overview')} />;
-      case 'goals':
-        return <HealthGoalsSection onBack={() => setActiveSection('overview')} />;
-      case 'cooking':
-        return <CookingPreferencesSection onBack={() => setActiveSection('overview')} />;
-      default:
-        return renderOverview();
-    }
+    // Main area shows overview only; detail pages are shown in slide-up sheet
+    return renderOverview();
   };
 
   const renderOverview = () => (
@@ -59,7 +57,7 @@ export default function EnhancedProfileScreen() {
       <View style={styles.menuSection}>
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => setActiveSection('personal')}
+          onPress={() => { setSheetSection('personal'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
             <User size={20} color={Colors.text} />
@@ -70,7 +68,7 @@ export default function EnhancedProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => setActiveSection('dietary')}
+          onPress={() => { setSheetSection('dietary'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
             <Heart size={20} color={Colors.text} />
@@ -81,7 +79,7 @@ export default function EnhancedProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => setActiveSection('goals')}
+          onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
             <Target size={20} color={Colors.text} />
@@ -92,7 +90,7 @@ export default function EnhancedProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => setActiveSection('cooking')}
+          onPress={() => { setSheetSection('cooking'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
             <ChefHat size={20} color={Colors.text} />
@@ -165,6 +163,28 @@ export default function EnhancedProfileScreen() {
       <View style={styles.content}>
         {renderSectionContent()}
       </View>
+
+      {/* Slide-up detail sheet for profile sections */}
+      <Modal animationType="slide" transparent visible={sheetVisible} onRequestClose={closeSheet}>
+        <View style={styles.sheetOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.sheetContainer}>
+              {sheetSection === 'personal' && (
+                <PersonalInfoSection onBack={closeSheet} />
+              )}
+              {sheetSection === 'dietary' && (
+                <DietaryPreferencesSection onBack={closeSheet} />
+              )}
+              {sheetSection === 'goals' && (
+                <HealthGoalsSection onBack={closeSheet} />
+              )}
+              {sheetSection === 'cooking' && (
+                <CookingPreferencesSection onBack={closeSheet} />
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -174,6 +194,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '92%',
+    width: '100%',
+    overflow: 'hidden',
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',

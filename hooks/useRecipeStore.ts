@@ -1,19 +1,16 @@
 // Enhanced Recipe Store Hook
-// Now exclusively uses Supabase dataset for discovery/search (legacy external providers removed)
+// Wired to TheMealDB for discovery/search
 
-import React, { useState, useEffect, useCallback, useMemo, useContext, createContext, PropsWithChildren, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useContext, createContext, PropsWithChildren, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExternalRecipe } from '@/types/external';
+import { searchMealsByName, getRandomMeals, filterByCategory } from '@/utils/providers/mealdb';
 import { Meal, RecipeWithAvailability } from '@/types';
-import { supabase } from '../supabase/functions/_shared/supabaseClient';
-import { edamamSearchRecipes } from '@/utils/providers/edamam';
 
-// Source selection
-const RECIPE_SOURCE = (process.env.EXPO_PUBLIC_RECIPE_SOURCE || 'dataset').toLowerCase();
+// External source
+const RECIPE_SOURCE = 'mealdb';
 
-// Dataset configuration (Supabase)
-// Storage bucket for dataset images
-const IMAGES_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_IMAGES_BUCKET || 'recipe-images';
+// External dataset/backend disabled
 
 // Create a stable numeric hash from a string (for ExternalRecipe.id requirements)
 const hashToNumber = (str: string): number => {
@@ -114,78 +111,20 @@ const normalizeImageUrl = (input?: string | null): string => {
   return url;
 };
 
-// Convert a storage object path into a public URL if the candidate is missing or not an http(s) URL
-const toPublicImageUrl = (candidate: string, row: DBRecipeRow): string => {
-  if (candidate && candidate.startsWith('http')) return candidate;
-  const path = row.image_path || (candidate && !candidate.startsWith('http') ? candidate : '');
-  if (!path) return candidate || '';
-  try {
-    const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(path);
-    return data.publicUrl || '';
-  } catch {
-    return candidate || '';
-  }
+// Convert a storage object path into a public URL
+// Clean slate: no external storage resolution; return candidate as-is
+const toPublicImageUrl = (candidate: string, _row: DBRecipeRow): string => {
+  return candidate || '';
 };
 
-const mapDbRowToExternal = async (row: DBRecipeRow): Promise<ExternalRecipe> => {
-  const key = `${row.provider || 'dataset'}|${row.external_id || row.id}`;
-  let nutrition = row.nutrition_json;
-  if (!nutrition) {
-    try {
-      const res = await supabase.functions.invoke('nutrition-analyze', {
-        body: {
-          title: row.title,
-          ingr: row.ingredients_json?.map(i => i.original),
-        },
-      });
-      if (res.data) nutrition = res.data;
-    } catch (e) {
-      console.error('Failed to analyze nutrition for', row.title, e);
-    }
-  }
-  const imageCandidate = normalizeImageUrl(
-    row.image_url || row.image || row.thumbnail_url || (row.nutrition_json && (row.nutrition_json.image || row.nutrition_json.image_url)) || row.image_path || ''
-  );
-  const finalImage = toPublicImageUrl(imageCandidate, row);
-  // Build analyzedInstructions if provided as steps_json
-  const analyzedInstructions = row.analyzed_instructions
-    || (Array.isArray(row.steps_json) && row.steps_json.length
-      ? [{ name: 'Steps', steps: row.steps_json.map((s: any, i: number) => ({ number: s.number || i + 1, step: s.step || s.text || String(s) })) }]
-      : undefined);
-  // Ingredients mapping
-  const ingredients = Array.isArray(row.ingredients_json)
-    ? row.ingredients_json.map((ing: any) => ({
-        name: ing.name || ing.ingredient || ing.item || '',
-        amount: ing.amount || ing.quantity || 0,
-        unit: ing.unit || ing.measure || '',
-        original: ing.original || [ing.amount || ing.quantity, ing.unit || ing.measure, ing.name || ing.ingredient || ing.item].filter(Boolean).join(' '),
-      }))
-    : undefined;
-  // Plain instructions fallback (join steps)
-  const plainInstructions = row.instructions
-    || (Array.isArray(row.steps_json) ? row.steps_json.map((s: any) => s.step || s.text || String(s)).join('\n') : undefined)
-    || undefined;
+const mapDbRowToExternal = async (_row: DBRecipeRow): Promise<ExternalRecipe> => {
+  // Clean slate: no DB mapping
   return {
-    id: hashToNumber(key),
-    title: row.title || '',
-    image: finalImage,
-    servings: row.servings ?? 1,
-    readyInMinutes: row.ready_in_minutes ?? 0,
-    sourceUrl: row.source_url || undefined,
-    cuisines: row.cuisines || undefined,
-    dishTypes: row.dish_types || undefined,
-    vegetarian: row.vegetarian ?? undefined,
-    vegan: row.vegan ?? undefined,
-    glutenFree: row.gluten_free ?? undefined,
-    dairyFree: row.dairy_free ?? undefined,
-    healthScore: row.health_score ?? undefined,
-    spoonacularScore: row.spoonacular_score ?? undefined,
-    nutrition: nutrition || undefined,
-    analyzedInstructions,
-    ingredients,
-    instructions: plainInstructions,
-    // Some datasets include a short summary
-    summary: row.summary || undefined,
+    id: Date.now(),
+    title: '',
+    image: '',
+    servings: 1,
+    readyInMinutes: 0,
   } as ExternalRecipe;
 };
 
@@ -224,6 +163,7 @@ export interface RecipeStoreActions {
   getTrendingRecipes: () => Promise<void>;
   getRecipeRecommendations: (ingredients: string[]) => Promise<void>;
   getRandomRecipes: (tags?: string[], count?: number, append?: boolean) => Promise<void>;
+  clearSearchResults: () => void;
   
   // Utility methods
   getRecipeById: (id: string, type?: 'local' | 'external') => Meal | ExternalRecipe | null;
@@ -279,34 +219,34 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
 
   // Provider initialization removed — dataset only
 
+  // Helper: merge unique by id
+  const mergeUnique = (a: ExternalRecipe[], b: ExternalRecipe[]): ExternalRecipe[] => {
+    const map = new Map<string, ExternalRecipe>();
+    a.forEach(r => map.set(String(r.id), r));
+    b.forEach(r => { const k = String(r.id); if (!map.has(k)) map.set(k, r); });
+    return Array.from(map.values());
+  };
+
   // Search recipes
-  const searchRecipes = useCallback(async (params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
+  const searchRecipes = useCallback(async (_params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
     setState(prev => ({ ...prev, isSearching: true, error: null }));
     try {
-      if (RECIPE_SOURCE === 'edamam') {
-        const q = params.query && params.query.trim().length > 0 ? params.query.trim() : 'healthy';
-        const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(params.number || 20, 20) });
-        const mapped = results.map(mapEdamamCanonicalToExternal);
-        setState(prev => ({ ...prev, searchResults: mapped, isSearching: false }));
-        return;
+      const { query, type, number } = _params || {};
+      let results: ExternalRecipe[] = [];
+      if (type) {
+        // map meal types to categories where possible
+        const categoryMap: Record<string, string> = {
+          breakfast: 'Breakfast',
+          lunch: 'Beef', // TheMealDB lacks lunch; use protein category as proxy
+          dinner: 'Chicken',
+          dessert: 'Dessert',
+        };
+        const cat = categoryMap[type.toLowerCase()] || type;
+        results = await filterByCategory(cat, Math.max(4, Math.min(number || 20, 24)));
+      } else if (query) {
+        results = await searchMealsByName(query);
       }
-      // Supabase full-text or title search
-      let query = supabase
-        .from('recipes')
-        .select('*')
-        .limit(params.number || 20);
-
-      if (params.query && params.query.trim().length > 0) {
-        // Prefer text search if tsv exists; fallback to ilike on title
-        query = query.textSearch ? query.textSearch('tsv', params.query.trim(), { type: 'websearch' }) : query.ilike('title', `%${params.query.trim()}%`);
-      }
-      if (params.cuisine) query = query.contains('cuisines', [params.cuisine]);
-      if (params.type) query = query.contains('dish_types', [params.type]);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
-      setState(prev => ({ ...prev, searchResults: mapped, isSearching: false }));
+      setState(prev => ({ ...prev, searchResults: results, isSearching: false }));
     } catch (error) {
       setState(prev => ({ 
         ...prev, 
@@ -319,23 +259,13 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   const getTrendingRecipes = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      // API call disabled for now
-      // if (RECIPE_SOURCE === 'edamam') {
-      //   const seedTerms = ['healthy', 'high protein', 'salad', 'bowl', 'mediterranean', 'low carb'];
-      //   const q = seedTerms[new Date().getDay() % seedTerms.length];
-      //   const results = await edamamSearchRecipes({ q, from: 0, to: 12 });
-      //   const mapped = results.map(mapEdamamCanonicalToExternal);
-      //   setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
-      //   return;
-      // }
-      // const { data, error } = await supabase
-      //   .from('recipes')
-      //   .select('*')
-      //   .limit(12);
-      // if (error) throw error;
-      // const mapped = (data || []).map(mapDbRowToExternal);
-      // setState(prev => ({ ...prev, trendingRecipes: mapped, isLoading: false }));
-      setState(prev => ({ ...prev, trendingRecipes: [], isLoading: false }));
+      // Use popular categories as a proxy for trending
+      const categories = ['Chicken', 'Pasta', 'Seafood', 'Vegetarian', 'Dessert'];
+      const batches = await Promise.all(categories.map(c => filterByCategory(c, 4)));
+      const merged: Record<string, ExternalRecipe> = {};
+      batches.flat().forEach(r => { merged[String(r.id)] = r; });
+      const results = Object.values(merged).slice(0, 24);
+      setState(prev => ({ ...prev, trendingRecipes: results, isLoading: false }));
     } catch (error) {
       console.error('[useRecipeStore] Failed to fetch trending recipes:', error);
       setState(prev => ({ 
@@ -346,23 +276,12 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
     }
   }, []);
 
-  const getRecipeRecommendations = useCallback(async (ingredients: string[]) => {
+  const getRecipeRecommendations = useCallback(async (_ingredients: string[]) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      if (RECIPE_SOURCE === 'edamam') {
-        const q = ingredients.filter(Boolean).join(' ') || 'chicken';
-        const results = await edamamSearchRecipes({ q, from: 0, to: 10 });
-        const mapped = results.map(mapEdamamCanonicalToExternal);
-        setState(prev => ({ ...prev, externalRecipes: mapped, isLoading: false }));
-        return;
-      }
-      const q = ingredients[0]?.trim();
-      let query = supabase.from('recipes').select('*').limit(10);
-      if (q) query = query.ilike('title', `%${q}%`);
-      const { data, error } = await query;
-      if (error) throw error;
-      const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
-      setState(prev => ({ ...prev, externalRecipes: mapped, isLoading: false }));
+      // Simple fallback: return random meals; future: match by ingredient names with search
+      const randoms = await getRandomMeals(8);
+      setState(prev => ({ ...prev, externalRecipes: randoms, isLoading: false }));
     } catch (error) {
       setState(prev => ({ 
         ...prev, 
@@ -372,39 +291,15 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
     }
   }, []);
 
-  const getRandomRecipes = useCallback(async (tags?: string[], count: number = 10, append: boolean = true) => {
+  const getRandomRecipes = useCallback(async (_tags?: string[], _count: number = 10, _append: boolean = true) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      // API call disabled for now
-      // if (RECIPE_SOURCE === 'edamam') {
-      //   const seeds = ['healthy', 'quick', 'high protein', 'veggie', 'pasta', 'soup', 'stir fry'];
-      //   const q = tags && tags.length ? tags.join(' ') : seeds[(Date.now() / 3600000) % seeds.length | 0];
-      //   const results = await edamamSearchRecipes({ q, from: 0, to: Math.min(count, 20) });
-      //   const mapped = results.map(mapEdamamCanonicalToExternal);
-      //   setState(prev => ({
-      //     ...prev,
-      //     externalRecipes: append
-      //       ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
-      //       : mapped,
-      //     isLoading: false,
-      //   }));
-      //   return;
-      // }
-      // const offset = append ? (externalCountRef.current || 0) : 0;
-      // const { data, error } = await supabase
-      //   .from('recipes')
-      //   .select('*')
-      //   .range(offset, offset + count - 1);
-      // if (error) throw error;
-      // const mapped = await Promise.all((data || []).map(mapDbRowToExternal));
-      // setState(prev => ({
-      //   ...prev,
-      //   externalRecipes: append
-      //     ? Array.from(new Map([...(prev.externalRecipes || []), ...mapped].map(r => [r.id, r])).values())
-      //     : mapped,
-      //   isLoading: false,
-      // }));
-      setState(prev => ({ ...prev, externalRecipes: [], isLoading: false }));
+      const randoms = await getRandomMeals(_count || 10);
+      setState(prev => ({ 
+        ...prev, 
+        externalRecipes: _append ? mergeUnique(prev.externalRecipes, randoms) : randoms, 
+        isLoading: false 
+      }));
     } catch (error) {
       console.error('[useRecipeStore] Failed to fetch random recipes:', error);
       setState(prev => ({ 
@@ -413,6 +308,10 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
         isLoading: false 
       }));
     }
+  }, []);
+
+  const clearSearchResults = useCallback(() => {
+    setState(prev => ({ ...prev, searchResults: [] }));
   }, []);
 
   const addLocalRecipe = useCallback((recipe: Omit<Meal, 'id'>) => {
@@ -461,53 +360,7 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
     } as Meal);
     addLocalRecipe(convertedRecipe);
 
-    try {
-      const { data: userRes } = await supabase.auth.getUser();
-      const userId = userRes?.user?.id;
-      if (!userId) {
-        console.warn('[Recipes] No authenticated user; skipping Supabase save');
-        return;
-      }
-
-      const recipeRow = {
-        provider: 'dataset',
-        external_id: String(externalRecipe.id),
-        title: externalRecipe.title,
-        image_url: (externalRecipe as any).image || null,
-        source_url: externalRecipe.sourceUrl || null,
-        ready_in_minutes: externalRecipe.readyInMinutes ?? null,
-        servings: externalRecipe.servings ?? null,
-        cuisines: externalRecipe.cuisines ?? [],
-        dish_types: externalRecipe.dishTypes ?? [],
-        vegetarian: externalRecipe.vegetarian ?? null,
-        vegan: externalRecipe.vegan ?? null,
-        gluten_free: (externalRecipe as any).glutenFree ?? null,
-        dairy_free: (externalRecipe as any).dairyFree ?? null,
-        health_score: (externalRecipe as any).healthScore ?? null,
-        spoonacular_score: (externalRecipe as any).spoonacularScore ?? null,
-        nutrition_json: (externalRecipe as any).nutrition ?? null,
-      };
-
-      const { data: upserted, error: upsertErr } = await supabase
-        .from('recipes')
-        .upsert(recipeRow, { onConflict: 'provider,external_id' })
-        .select('id')
-        .single();
-
-      if (upsertErr) throw upsertErr;
-      const recipeId = upserted?.id;
-      if (!recipeId) throw new Error('Upsert returned no id');
-
-      const { error: linkErr } = await supabase
-        .from('user_saved_recipes')
-        .insert({ user_id: userId, recipe_id: recipeId });
-      if (linkErr && !String(linkErr.message || '').includes('duplicate')) {
-        throw linkErr;
-      }
-    } catch (e) {
-      console.warn('[Recipes] Supabase save failed', e);
-      setState(prev => ({ ...prev, error: prev.error ?? 'Saved locally. Cloud sync failed.' }));
-    }
+    // Clean slate: skip cloud save
   }, [addLocalRecipe, setState]);
 
   const getRecipeById = useCallback((id: string, type?: 'local' | 'external'): Meal | ExternalRecipe | null => {
@@ -597,6 +450,7 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
     getTrendingRecipes,
     getRecipeRecommendations,
     getRandomRecipes,
+  clearSearchResults,
     getRecipeById,
     getAllRecipes,
     getRecipesWithAvailability,

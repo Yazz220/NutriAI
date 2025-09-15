@@ -489,7 +489,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 <React.Fragment key={`step-${i}`}>
                   <View style={styles.stepItem}>
                     <View style={styles.stepLeft}>
-                      <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{i + 1}</Text></View>
+                      <View style={styles.stepBullet} />
                       {i < recipe.steps.length - 1 && <View style={styles.stepConnector} />}
                     </View>
                     <View style={styles.stepRight}>
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   metaText: { ...Type.caption, color: Colors.text, marginTop: 4 },
   actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs },
   section: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
-  sectionTitle: { ...Type.h2, color: Colors.text, marginBottom: Spacing.sm },
+  sectionTitle: { ...Type.h3, color: Colors.text, marginBottom: Spacing.sm },
   bodyText: { ...Type.body, color: Colors.lightText },
   row: { backgroundColor: Colors.surfaceTile, borderWidth: 1, borderColor: Colors.border, borderRadius: Radii.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.sm },
@@ -617,8 +617,7 @@ const styles = StyleSheet.create({
   stepRight: { flex: 1, paddingLeft: Spacing.sm },
   stepTitle: { ...Type.caption, color: Colors.lightText, marginBottom: Spacing.xs },
   stepBody: { ...Type.body, lineHeight: Type.body.lineHeight + 6, color: Colors.lightText },
-  stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  stepBadgeText: { color: Colors.white, fontSize: 12, fontWeight: '600' },
+  stepBullet: { width: 10, height: 10, backgroundColor: Colors.primary, transform: [{ rotate: '45deg' }], borderRadius: 2, marginTop: 4, borderWidth: 1, borderColor: Colors.border },
   nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, borderRadius: Radii.md, minWidth: 140, alignItems: 'center' },
   nutritionLabel: { ...Type.caption, color: Colors.lightText, marginBottom: Spacing.xs },

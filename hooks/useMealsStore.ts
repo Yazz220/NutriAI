@@ -3,8 +3,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { Meal, MealIngredient } from '@/types';
 
-// Mock data for initial meals
-const initialMeals: Meal[] = [
+// Mock data for initial meals (default)
+let initialMeals: Meal[] = [
   {
     id: '1',
     name: 'Chicken Stir Fry',
@@ -100,6 +100,39 @@ const initialMeals: Meal[] = [
   }
 ];
 
+// If a developer sample file exists at data/sampleRecipes.json, use it as the initial seed.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const samplePath = require('../data/sampleRecipes.json');
+  if (Array.isArray(samplePath) && samplePath.length > 0) {
+    const mapped = (samplePath as any[]).map((r: any) => ({
+      id: r.id || Date.now().toString(),
+      name: r.title || r.name || 'Imported Recipe',
+      description: r.description || '',
+      ingredients: (r.ingredients || []).map((ing: any) => ({
+        name: ing.name || ing.original || 'Ingredient',
+        quantity: typeof ing.amount === 'number' ? ing.amount : 1,
+        unit: ing.unit || 'pcs',
+        optional: !!ing.optional,
+      })),
+      steps: r.steps || [],
+      image: r.image || undefined,
+      tags: r.tags || [],
+      prepTime: r.prepTimeMinutes || r.prepTime || 0,
+      cookTime: r.cookTimeMinutes || r.cookTime || 0,
+      servings: r.servings || 1,
+      nutritionPerServing: r.nutritionPerServing || undefined,
+    } as Meal));
+
+    if (mapped.length) {
+      initialMeals = mapped;
+      console.log('[Meals] Loaded developer sampleRecipes.json as initial seed (count=' + mapped.length + ')');
+    }
+  }
+} catch (e) {
+  // No sample file present — that's fine for production
+}
+
 export const [MealsProvider, useMeals] = createContextHook(() => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -188,6 +221,43 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
       await AsyncStorage.setItem('meals', JSON.stringify(initialMeals));
     } catch (e) {
       console.error('[Meals] Failed to reset meals', e);
+    }
+  };
+
+  // Developer helper: import sampleRecipes.json (if present in project data) at runtime
+  const importSampleRecipes = async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const sample = require('../data/sampleRecipes.json');
+      if (!Array.isArray(sample) || sample.length === 0) {
+        console.warn('[Meals] sampleRecipes.json is empty or not an array');
+        return;
+      }
+
+      const mapped = (sample as any[]).map((r: any) => ({
+        id: r.id || Date.now().toString(),
+        name: r.title || r.name || 'Imported Recipe',
+        description: r.description || '',
+        ingredients: (r.ingredients || []).map((ing: any) => ({
+          name: ing.name || ing.original || 'Ingredient',
+          quantity: typeof ing.amount === 'number' ? ing.amount : 1,
+          unit: ing.unit || 'pcs',
+          optional: !!ing.optional,
+        })),
+        steps: r.steps || [],
+        image: r.image || undefined,
+        tags: r.tags || [],
+        prepTime: r.prepTimeMinutes || r.prepTime || 0,
+        cookTime: r.cookTimeMinutes || r.cookTime || 0,
+        servings: r.servings || 1,
+        nutritionPerServing: r.nutritionPerServing || undefined,
+      } as Meal));
+
+      setMeals(mapped);
+      await AsyncStorage.setItem('meals', JSON.stringify(mapped));
+      console.log('[Meals] Imported', mapped.length, 'recipes from sampleRecipes.json');
+    } catch (e) {
+      console.error('[Meals] Failed to import sampleRecipes.json', e);
     }
   };
 

@@ -12,29 +12,8 @@ export interface RecipeProviderConfig {
 }
 
 // Predefined configs per provider
-export const RECIPE_API_CONFIGS: Record<string, Omit<RecipeProviderConfig, 'apiKey'>> = {
-  spoonacular: {
-    baseUrl: 'https://api.spoonacular.com/recipes',
-    timeout: 15000,
-    maxResults: 20,
-    providerType: 'spoonacular',
-    requiresAuth: true,
-  },
-  edamam: {
-    baseUrl: 'https://api.edamam.com/api/recipes/v2',
-    timeout: 15000,
-    maxResults: 20,
-    providerType: 'edamam',
-    requiresAuth: true,
-  },
-  mealdb: {
-    baseUrl: 'https://www.themealdb.com/api/json/v1/1',
-    timeout: 15000,
-    maxResults: 20,
-    providerType: 'mealdb',
-    requiresAuth: false,
-  },
-};
+// Clean slate: keep empty configs to discourage external usage
+export const RECIPE_API_CONFIGS: Record<string, Omit<RecipeProviderConfig, 'apiKey'>> = {};
 
 export interface RecipeSearchParams {
   query?: string;
@@ -168,37 +147,18 @@ export class RecipeProviderService {
   private readonly providerType: RecipeProviderType;
 
   constructor(providerType: RecipeProviderType, config: RecipeProviderConfig) {
+    // Clean slate: disable external provider functionality
     this.providerType = providerType;
     this.config = {
       ...config,
       timeout: config.timeout ?? 15000,
       maxResults: config.maxResults ?? 20,
       requiresAuth: config.requiresAuth ?? true,
-    };
-    
-    // Validate configuration
-    if (!this.config.baseUrl) {
-      throw new Error(`Invalid configuration for ${providerType}: missing baseUrl`);
-    }
-    
-    if (!this.config.apiKey && this.config.requiresAuth) {
-      console.warn(`[RecipeAPI] Warning: ${providerType} requires authentication but no API key provided`);
-    }
-    
-    // Set up proxy for web platform: prefer custom proxy if provided, otherwise fall back
-    if (Platform.OS === 'web') {
-      if (!this.proxyBase || this.proxyBase.trim().length === 0) {
-        this.proxyBase = 'https://api.allorigins.win/raw';
-      }
-      console.log('[RecipeAPI] Web proxy configured', { proxyBase: this.proxyBase });
-    }
-    
-    console.log('[RecipeAPI] Provider initialized', { 
-      providerType, 
-      baseUrl: this.config.baseUrl,
-      hasApiKey: !!this.config.apiKey,
-      platform: Platform.OS 
-    });
+      baseUrl: config.baseUrl || '',
+      apiKey: config.apiKey || '',
+    } as Required<RecipeProviderConfig>;
+
+    console.warn('[RecipeAPI] External recipe providers are disabled for a clean slate.');
   }
 
   // Get provider type
@@ -207,265 +167,29 @@ export class RecipeProviderService {
   }
 
   // Search for recipes with various filters
-  async searchRecipes(params: RecipeSearchParams): Promise<RecipeSearchResponse> {
-    const cacheKey = `search:${this.providerType}:${JSON.stringify(params)}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-      if (this.providerType === 'mealdb') {
-        // TheMealDB: prefer query by name; otherwise try category/area filter
-        let url: string | null = null;
-        if (params.query) {
-          const qp = new URLSearchParams();
-          qp.append('s', params.query);
-          url = `${this.config.baseUrl}/search.php?${qp.toString()}`;
-        } else if (params.type) {
-          const qp = new URLSearchParams();
-          qp.append('c', params.type);
-          url = `${this.config.baseUrl}/filter.php?${qp.toString()}`;
-        } else if (params.cuisine) {
-          const qp = new URLSearchParams();
-          qp.append('a', params.cuisine);
-          url = `${this.config.baseUrl}/filter.php?${qp.toString()}`;
-        } else {
-          // Fallback: random a few to mimic discovery
-          const random = await this.getRandomRecipes({ number: params.number || this.config.maxResults });
-          const resp = { results: random } as RecipeSearchResponse;
-          this.setCached(cacheKey, resp);
-          return resp;
-        }
-
-        const data = await this.makeRequest(url);
-        const meals = data?.meals || [];
-        const mapped = meals.map((m: any) => this.mapMealDBMealToExternal(m));
-        const resp = { results: mapped } as RecipeSearchResponse;
-        this.setCached(cacheKey, resp);
-        return resp;
-      }
-
-      const queryParams = new URLSearchParams();
-      
-      // Add search parameters
-      if (params.query) queryParams.append('query', params.query);
-      if (params.cuisine) queryParams.append('cuisine', params.cuisine);
-      if (params.diet) queryParams.append('diet', params.diet);
-      if (params.intolerances?.length) queryParams.append('intolerances', params.intolerances.join(','));
-      if (params.maxReadyTime) queryParams.append('maxReadyTime', params.maxReadyTime.toString());
-      if (params.minProtein) queryParams.append('minProtein', params.minProtein.toString());
-      if (params.maxCalories) queryParams.append('maxCalories', params.maxCalories.toString());
-      if (params.type) queryParams.append('type', params.type);
-      if (params.sort) queryParams.append('sort', params.sort);
-      if (params.sortDirection) queryParams.append('sortDirection', params.sortDirection);
-      
-      // Always include these for better data
-      queryParams.append('addRecipeInformation', 'true');
-      queryParams.append('fillIngredients', 'true');
-      queryParams.append('addRecipeNutrition', 'true');
-      queryParams.append('number', (params.number || this.config.maxResults || 20).toString());
-      if (params.offset) queryParams.append('offset', params.offset.toString());
-
-      queryParams.append('apiKey', this.config.apiKey);
-      const url = `${this.config.baseUrl}/recipes/complexSearch?${queryParams.toString()}`;
-      const response = await this.makeRequest(url);
-      
-      this.setCached(cacheKey, response);
-      return response;
-    } catch (error) {
-      console.error('Recipe search failed:', error);
-      throw new Error(`Failed to search recipes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  async searchRecipes(_params: RecipeSearchParams): Promise<RecipeSearchResponse> {
+    // Clean slate: return empty results
+    return { results: [] };
   }
 
   // Get detailed recipe information by ID
-  async getRecipeInformation(id: number): Promise<RecipeInformationResponse> {
-    const cacheKey = `recipe:${this.providerType}:${id}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-      if (this.providerType === 'mealdb') {
-        const url = `${this.config.baseUrl}/lookup.php?i=${encodeURIComponent(String(id))}`;
-        const data = await this.makeRequest(url);
-        const meal = data?.meals?.[0];
-        const mapped = this.mapMealDBMealToExternal(meal);
-        this.setCached(cacheKey, mapped);
-        return mapped as RecipeInformationResponse;
-      }
-
-      const url = `${this.config.baseUrl}/recipes/${id}/information?apiKey=${encodeURIComponent(this.config.apiKey)}`;
-      const response = await this.makeRequest(url);
-      
-      this.setCached(cacheKey, response);
-      return response;
-    } catch (error) {
-      console.error('Recipe information fetch failed:', error);
-      throw new Error(`Failed to fetch recipe information: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  async getRecipeInformation(_id: number): Promise<RecipeInformationResponse> {
+    throw new Error('[RecipeAPI] Disabled: no recipe information available.');
   }
 
   // Get random recipes
-  async getRandomRecipes(params: { tags?: string[]; number?: number } = {}): Promise<ExternalRecipe[]> {
-    const cacheKey = `random:${this.providerType}:${JSON.stringify(params)}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) {
-      console.log('[RecipeAPI] Returning cached random recipes', { 
-        count: cached.length, 
-        providerType: this.providerType 
-      });
-      return cached;
-    }
-
-    try {
-      console.log('[RecipeAPI] Fetching random recipes', { 
-        providerType: this.providerType, 
-        params,
-        baseUrl: this.config.baseUrl 
-      });
-      
-      if (this.providerType === 'mealdb') {
-        const count = Math.max(1, Math.min(params.number || 10, 20));
-        console.log('[RecipeAPI] Fetching MealDB random recipes', { count });
-        
-        const results: ExternalRecipe[] = [];
-        for (let i = 0; i < count; i++) {
-          const url = `${this.config.baseUrl}/random.php`;
-          console.log('[RecipeAPI] Fetching random meal', { index: i + 1, url });
-          
-          const data = await this.makeRequest(url);
-          const meal = data?.meals?.[0];
-          
-          if (meal) {
-            console.log('[RecipeAPI] Random meal received', { 
-              id: meal.idMeal, 
-              title: meal.strMeal,
-              hasImage: !!meal.strMealThumb 
-            });
-            results.push(this.mapMealDBMealToExternal(meal));
-          } else {
-            console.warn('[RecipeAPI] No meal data in response', { 
-              dataType: typeof data,
-              hasMeals: data?.meals ? true : false,
-              dataKeys: Object.keys(data || {})
-            });
-          }
-        }
-        
-        console.log('[RecipeAPI] Random recipes completed', { 
-          requested: count, 
-          received: results.length,
-          providerType: this.providerType 
-        });
-        
-        this.setCached(cacheKey, results);
-        return results;
-      }
-
-      const queryParams = new URLSearchParams();
-      if (params.tags?.length) queryParams.append('tags', params.tags.join(','));
-      queryParams.append('number', (params.number || 10).toString());
-      queryParams.append('addRecipeInformation', 'true');
-      queryParams.append('fillIngredients', 'true');
-      queryParams.append('addRecipeNutrition', 'true');
-
-      queryParams.append('apiKey', this.config.apiKey);
-      const url = `${this.config.baseUrl}/recipes/random?${queryParams.toString()}`;
-      const response = await this.makeRequest(url);
-      
-      this.setCached(cacheKey, response.recipes || response);
-      return response.recipes || response;
-    } catch (error) {
-      console.error('[RecipeAPI] Random recipes fetch failed', { 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        providerType: this.providerType,
-        params 
-      });
-      throw new Error(`Failed to fetch random recipes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  async getRandomRecipes(_params: { tags?: string[]; number?: number } = {}): Promise<ExternalRecipe[]> {
+    return [];
   }
 
   // Get recipe recommendations based on ingredients
-  async getRecipeRecommendations(ingredients: string[]): Promise<ExternalRecipe[]> {
-    const cacheKey = `recommendations:${this.providerType}:${ingredients.sort().join(',')}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-      if (this.providerType === 'mealdb') {
-        // Free API supports only one ingredient in filter
-        const first = ingredients[0] || '';
-        const qp = new URLSearchParams();
-        if (first) qp.append('i', first);
-        const url = `${this.config.baseUrl}/filter.php?${qp.toString()}`;
-        const data = await this.makeRequest(url);
-        const meals = data?.meals || [];
-        const mapped = meals.map((m: any) => this.mapMealDBMealToExternal(m));
-        this.setCached(cacheKey, mapped);
-        return mapped;
-      }
-
-      const queryParams = new URLSearchParams();
-      queryParams.append('ingredients', ingredients.join(','));
-      queryParams.append('ranking', '2');
-      queryParams.append('ignorePantry', 'true');
-      queryParams.append('number', '10');
-      queryParams.append('addRecipeInformation', 'true');
-      queryParams.append('fillIngredients', 'true');
-      queryParams.append('addRecipeNutrition', 'true');
-
-      queryParams.append('apiKey', this.config.apiKey);
-      const url = `${this.config.baseUrl}/recipes/findByIngredients?${queryParams.toString()}`;
-      const response = await this.makeRequest(url);
-      
-      this.setCached(cacheKey, response);
-      return response;
-    } catch (error) {
-      console.error('Recipe recommendations fetch failed:', error);
-      throw new Error(`Failed to fetch recipe recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  async getRecipeRecommendations(_ingredients: string[]): Promise<ExternalRecipe[]> {
+    return [];
   }
 
   // Get trending recipes
   async getTrendingRecipes(): Promise<ExternalRecipe[]> {
-    const cacheKey = `trending:${this.providerType}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) {
-      console.log('[RecipeAPI] Returning cached trending recipes', { 
-        count: cached.length, 
-        providerType: this.providerType 
-      });
-      return cached;
-    }
-
-    try {
-      console.log('[RecipeAPI] Fetching trending recipes', { providerType: this.providerType });
-      
-      if (this.providerType === 'mealdb') {
-        console.log('[RecipeAPI] Using random recipes as trending for MealDB');
-        const random = await this.getRandomRecipes({ number: 10 });
-        console.log('[RecipeAPI] Trending recipes completed', { 
-          count: random.length, 
-          providerType: this.providerType 
-        });
-        this.setCached(cacheKey, random);
-        return random;
-      }
-      
-      console.log('[RecipeAPI] Using random recipes with tags for trending');
-      const random = await this.getRandomRecipes({ tags: ['popular', 'healthy'], number: 10 });
-      console.log('[RecipeAPI] Trending recipes completed', { 
-        count: random.length, 
-        providerType: this.providerType 
-      });
-      this.setCached(cacheKey, random);
-      return random;
-    } catch (error) {
-      console.error('[RecipeAPI] Error fetching trending recipes', { 
-        providerType: this.providerType, 
-        error: error instanceof Error ? error.message : String(error) 
-      });
-      throw error;
-    }
+    return [];
   }
 
   // Convert external recipe to internal format

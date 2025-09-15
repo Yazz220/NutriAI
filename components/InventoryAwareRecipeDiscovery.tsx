@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bookmark, Clock, AlertTriangle, CheckCircle, Filter } from 'lucide-react-native';
+import { Bookmark, Clock, AlertTriangle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -23,11 +23,7 @@ const COLUMN_GAP = 16;
 interface InventoryAwareRecipeDiscoveryProps {
   onRecipePress: (recipe: ExternalRecipe) => void;
   onSaveRecipe: (recipe: ExternalRecipe) => void;
-  onSearch?: (params: any) => Promise<void>;
 }
-
-type FilterType = 'all' | 'available' | 'ready-to-cook' | 'use-soon' | 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'vegetarian' | 'vegan';
-type SortType = 'availability' | 'time' | 'trending' | 'expiring';
 
 interface EnhancedRecipe extends ExternalRecipe {
   availability?: RecipeAvailability;
@@ -36,116 +32,31 @@ interface EnhancedRecipe extends ExternalRecipe {
 export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscoveryProps> = ({
   onRecipePress,
   onSaveRecipe,
-  onSearch
 }) => {
   const insets = useSafeAreaInsets();
   const { inventory } = useInventory();
   const { trendingRecipes, externalRecipes, searchResults, isLoading, getTrendingRecipes, getRandomRecipes, searchRecipes } = useRecipeStore();
 
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [sortBy, setSortBy] = useState<SortType>('availability');
   const [refreshing, setRefreshing] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [showFilters, setShowFilters] = useState(false);
-
-  const FILTERS = useMemo(() => ([
-    { key: 'all' as FilterType, label: 'All Recipes', icon: null },
-    { key: 'ready-to-cook' as FilterType, label: 'Ready to Cook', icon: CheckCircle },
-    { key: 'available' as FilterType, label: 'Available Ingredients', icon: null },
-    { key: 'use-soon' as FilterType, label: 'Use Soon', icon: AlertTriangle },
-    { key: 'breakfast' as FilterType, label: 'Breakfast', icon: null },
-    { key: 'lunch' as FilterType, label: 'Lunch', icon: null },
-    { key: 'dinner' as FilterType, label: 'Dinner', icon: null },
-    { key: 'dessert' as FilterType, label: 'Dessert', icon: null },
-    { key: 'vegetarian' as FilterType, label: 'Vegetarian', icon: null },
-    { key: 'vegan' as FilterType, label: 'Vegan', icon: null },
-  ] as const), []);
-
-  const SORT_OPTIONS = useMemo(() => ([
-    { key: 'availability' as SortType, label: 'Best Match', description: 'Most available ingredients' },
-    { key: 'expiring' as SortType, label: 'Use Soon', description: 'Expiring ingredients first' },
-    { key: 'time' as SortType, label: 'Quick Meals', description: 'Shortest cooking time' },
-    { key: 'trending' as SortType, label: 'Popular', description: 'Most saved recipes' },
-  ] as const), []);
+ 
+  // Helper to merge unique recipes
+  const mergeUnique = useCallback((a: ExternalRecipe[], b: ExternalRecipe[]): ExternalRecipe[] => {
+    const map = new Map<string, ExternalRecipe>();
+    a.forEach(r => map.set(String(r.id), r));
+    b.forEach(r => { const k = String(r.id); if (!map.has(k)) map.set(k, r); });
+    return Array.from(map.values());
+  }, []);
 
   // Enhanced recipes with availability data
   const enhancedRecipes = useMemo(() => {
-    const baseRecipes = searchResults.length ? searchResults : (externalRecipes.length ? externalRecipes : trendingRecipes);
-
+    // Merge trending and random results; ignore searchResults for now
+    const baseRecipes = mergeUnique(trendingRecipes, externalRecipes);
     return baseRecipes.map(recipe => ({
       ...recipe,
       availability: calculateRecipeAvailability(recipe, inventory)
     }));
-  }, [searchResults, externalRecipes, trendingRecipes, inventory]);
-
-  // Filtered and sorted recipes
-  const filteredRecipes = useMemo(() => {
-    let filtered = enhancedRecipes;
-
-    // Apply filters
-    switch (activeFilter) {
-      case 'ready-to-cook':
-        filtered = filtered.filter(recipe => recipe.availability?.canCookNow);
-        break;
-      case 'available':
-        filtered = filtered.filter(recipe => (recipe.availability?.availabilityPercentage || 0) >= 50);
-        break;
-      case 'use-soon':
-        filtered = filtered.filter(recipe => (recipe.availability?.expiringIngredients.length || 0) > 0);
-        break;
-      case 'breakfast':
-      case 'lunch':
-      case 'dinner':
-      case 'dessert':
-        filtered = filtered.filter(recipe =>
-          recipe.dishTypes?.includes(activeFilter) ||
-          recipe.title.toLowerCase().includes(activeFilter)
-        );
-        break;
-      case 'vegetarian':
-        filtered = filtered.filter(recipe => recipe.vegetarian);
-        break;
-      case 'vegan':
-        filtered = filtered.filter(recipe => recipe.vegan);
-        break;
-    }
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'availability':
-        filtered.sort((a, b) => {
-          const aAvail = a.availability?.availabilityPercentage || 0;
-          const bAvail = b.availability?.availabilityPercentage || 0;
-          if (aAvail !== bAvail) return bAvail - aAvail;
-
-          // Secondary sort by expiring ingredients (more urgent first)
-          const aUrgency = a.availability?.urgencyScore || 0;
-          const bUrgency = b.availability?.urgencyScore || 0;
-          return bUrgency - aUrgency;
-        });
-        break;
-      case 'expiring':
-        filtered.sort((a, b) => {
-          const aUrgency = a.availability?.urgencyScore || 0;
-          const bUrgency = b.availability?.urgencyScore || 0;
-          if (aUrgency !== bUrgency) return bUrgency - aUrgency;
-
-          // Secondary sort by availability
-          const aAvail = a.availability?.availabilityPercentage || 0;
-          const bAvail = b.availability?.availabilityPercentage || 0;
-          return bAvail - aAvail;
-        });
-        break;
-      case 'time':
-        filtered.sort((a, b) => (a.readyInMinutes || 999) - (b.readyInMinutes || 999));
-        break;
-      case 'trending':
-        // Keep original order for trending
-        break;
-    }
-
-    return filtered;
-  }, [enhancedRecipes, activeFilter, sortBy]);
+  }, [externalRecipes, trendingRecipes, inventory, mergeUnique]);
 
   // Get expiring ingredient recipes for special section
   const expiringRecipes = useMemo(() => {
@@ -165,26 +76,11 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     })();
   }, []);
 
-  const applyFilter = useCallback(async (key: FilterType) => {
-    setActiveFilter(key);
-
-    // Load more recipes if needed for specific filters
-    if (key === 'breakfast' || key === 'lunch' || key === 'dinner' || key === 'dessert') {
-      const params: any = { type: key, number: 20 };
-      if (onSearch) await onSearch(params);
-      else await searchRecipes(params);
-    } else if (key === 'vegetarian' || key === 'vegan') {
-      const params: any = { query: key, number: 20 };
-      if (onSearch) await onSearch(params);
-      else await searchRecipes(params);
-    }
-  }, [onSearch, searchRecipes]);
-
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await getTrendingRecipes();
-      await applyFilter(activeFilter);
+      await getRandomRecipes(undefined, 12, false); // replace randoms
     } finally {
       setRefreshing(false);
     }
@@ -289,9 +185,6 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
       <View style={{ paddingHorizontal: GUTTER, paddingTop: 8 }}>
         <View style={styles.headerRow}>
           <Text style={styles.heading}>Recipe Discovery</Text>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
-            <Filter size={16} color={Colors.primary} />
-          </TouchableOpacity>
         </View>
         {inventory.length > 0 && (
           <Text style={styles.inventoryHint}>
@@ -324,42 +217,11 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
         </View>
       )}
 
-      <View style={{ height: showFilters ? 'auto' : 50 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: GUTTER, paddingVertical: 8, gap: 8 }}>
-          {FILTERS.map(f => {
-            const Icon = f.icon;
-            const isActive = activeFilter === f.key;
-            return (
-              <TouchableOpacity key={f.key} style={isActive ? styles.chipActive : styles.chip} onPress={() => applyFilter(f.key)}>
-                {Icon && <Icon size={14} color={isActive ? Colors.white : Colors.lightText} />}
-                <Text style={isActive ? styles.chipActiveText : styles.chipText}>{f.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {showFilters && (
-          <View style={styles.sortSection}>
-            <Text style={styles.sortTitle}>Sort by:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.sortOptions}>
-                {SORT_OPTIONS.map(option => (
-                  <TouchableOpacity key={option.key} style={[styles.sortOption, sortBy === option.key && styles.sortOptionActive]} onPress={() => setSortBy(option.key)}>
-                    <Text style={[styles.sortOptionText, sortBy === option.key && styles.sortOptionTextActive]}>
-                      {option.label}
-                    </Text>
-                    <Text style={styles.sortOptionDescription}>{option.description}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-      </View>
+      {/* Filters removed for now */}
 
       <View style={{ flex: 1 }}>
         <FlatList
-          data={filteredRecipes}
+          data={enhancedRecipes}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 24 + Math.max(insets.bottom, 12) }}
