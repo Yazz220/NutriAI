@@ -1,0 +1,3 @@
+# Public token broker for FatSecret OAuth2 client credentials
+# This function does not require a Supabase JWT (it returns no user data)
+verify_jwt = false

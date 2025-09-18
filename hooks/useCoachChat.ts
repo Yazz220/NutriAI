@@ -186,16 +186,20 @@ export function useCoachChat() {
       const progress = getDailyProgress(todayISO);
       const seven = (() => {
         const recent = last7Days;
-        const avg = recent.length ? recent.reduce((s, d) => s + d.calories.consumed, 0) / recent.length : 0;
-        const met = recent.filter(d => d.status === 'met').length;
+        const avg = recent.length ? recent.reduce((s, d) => s + d.calories, 0) / recent.length : 0;
+        // Recompute status using getDailyProgress for each date
+        const met = recent.reduce((count, d) => {
+          const prog = getDailyProgress(d.date);
+          return count + (prog.status === 'met' ? 1 : 0);
+        }, 0);
         return { avgCalories: Math.round(avg), daysMetGoal: met, totalDays: recent.length };
       })();
       const coachSystem = buildCoachSystemPrompt({
         profile: {
           name: profile.basics?.name,
-          dietaryRestrictions: profile.preferences?.dietaryRestrictions || [],
+          dietaryRestrictions: profile.preferences?.dietary ? [profile.preferences.dietary] : [],
           allergies: profile.preferences?.allergies || [],
-          preferences: profile.preferences || null,
+          preferences: (profile.preferences as unknown as Record<string, unknown>) || null,
           units: profile.metrics?.unitSystem || null,
         },
         goals: goals || null,

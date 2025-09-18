@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { CheckCircle, AlertTriangle, Clock, ShoppingCart, Package, ChefHat } from 'lucide-react-native';
+import { CheckCircle, ShoppingCart, Package, ChefHat } from 'lucide-react-native';
+
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { RecipeAvailability, formatAvailabilityStatus, getShoppingSuggestions } from '@/utils/inventoryRecipeMatching';
@@ -35,9 +36,7 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
   compact = false
 }) => {
   const shoppingSuggestions = getShoppingSuggestions(availability);
-  const urgencyColor = getUrgencyColor(availability.urgencyScore);
-  const urgencyLabel = getUrgencyLabel(availability.urgencyScore);
-  
+
   if (compact) {
     return (
       <View style={styles.compactContainer}>
@@ -52,17 +51,8 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
               {availability.availabilityPercentage}% available
             </Text>
           </View>
-          
-          {availability.expiringIngredients.length > 0 && (
-            <View style={styles.compactUrgency}>
-              <AlertTriangle size={14} color={Colors.error} />
-              <Text style={[styles.compactUrgencyText, { color: Colors.error }]}>
-                {availability.expiringIngredients.length} expiring
-              </Text>
-            </View>
-          )}
         </View>
-        
+
         {availability.canCookNow && onStartCooking && (
           <TouchableOpacity style={styles.compactCookButton} onPress={onStartCooking}>
             <ChefHat size={14} color={Colors.white} />
@@ -81,15 +71,6 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
           <Package size={20} color={Colors.text} />
           <Text style={styles.title}>Ingredient Availability</Text>
         </View>
-        
-        {availability.urgencyScore > 0 && (
-          <View style={[styles.urgencyBadge, { backgroundColor: urgencyColor + '20', borderColor: urgencyColor }]}>
-            <AlertTriangle size={14} color={urgencyColor} />
-            <Text style={[styles.urgencyText, { color: urgencyColor }]}>
-              {urgencyLabel}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Status Summary */}
@@ -132,16 +113,6 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
           </View>
         )}
 
-        {/* Expiring Ingredients */}
-        {availability.expiringIngredients.length > 0 && (
-          <View style={styles.detailRow}>
-            <AlertTriangle size={16} color={Colors.error} />
-            <Text style={[styles.detailLabel, { color: Colors.error }]}>
-              Expiring Soon ({availability.expiringIngredients.length})
-            </Text>
-          </View>
-        )}
-
         {/* Missing Ingredients */}
         {availability.missingIngredients.length > 0 && (
           <View style={styles.detailRow}>
@@ -152,27 +123,6 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
           </View>
         )}
       </View>
-
-      {/* Expiring Ingredients List */}
-      {availability.expiringIngredients.length > 0 && (
-        <View style={styles.expiringSection}>
-          <Text style={styles.sectionTitle}>Expiring Ingredients:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.expiringList}>
-              {availability.expiringIngredients.map((ingredient, index) => (
-                <View key={index} style={styles.expiringItem}>
-                  <Text style={styles.expiringName}>{ingredient.name}</Text>
-                  <Text style={styles.expiringDays}>
-                    {ingredient.daysUntilExpiry === 0 ? 'Today' : 
-                     ingredient.daysUntilExpiry === 1 ? 'Tomorrow' :
-                     `${ingredient.daysUntilExpiry} days`}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      )}
 
       {/* Missing Ingredients List */}
       {availability.missingIngredients.length > 0 && (

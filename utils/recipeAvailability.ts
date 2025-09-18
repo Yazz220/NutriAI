@@ -117,29 +117,11 @@ export const calculateRecipeAvailability = (
       // Cannot convert units, assume available if inventory item exists
       availableIngredients++;
       
-      // Check if expiring (within 3 days)
-      if (inventoryItem.expiryDate) {
-        const expiryDate = new Date(inventoryItem.expiryDate);
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-        
-        if (expiryDate <= threeDaysFromNow) {
-          expiringIngredients.push(ingredient);
-        }
-      }
+      // Expiration tracking removed
     } else if (convertedQuantity >= ingredient.quantity) {
       availableIngredients++;
       
-      // Check if expiring
-      if (inventoryItem.expiryDate) {
-        const expiryDate = new Date(inventoryItem.expiryDate);
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-        
-        if (expiryDate <= threeDaysFromNow) {
-          expiringIngredients.push(ingredient);
-        }
-      }
+      // Expiration tracking removed
     } else {
       // Not enough quantity
       missingIngredients.push({
@@ -189,10 +171,7 @@ export const sortRecipesByAvailability = (
         return b.availability.expiringIngredients.length - a.availability.expiringIngredients.length;
       
       case 'expiring':
-        // Sort by number of expiring ingredients (descending), then by availability
-        if (a.availability.expiringIngredients.length !== b.availability.expiringIngredients.length) {
-          return b.availability.expiringIngredients.length - a.availability.expiringIngredients.length;
-        }
+        // Expiration removed; fallback to availability sort
         return b.availability.availabilityPercentage - a.availability.availabilityPercentage;
       
       case 'prepTime':
@@ -237,9 +216,8 @@ export const filterRecipesByAvailability = (
 export const getRecipesUsingExpiringIngredients = (
   recipesWithAvailability: RecipeWithAvailability[]
 ): RecipeWithAvailability[] => {
-  return recipesWithAvailability.filter(recipe => 
-    recipe.availability.expiringIngredients.length > 0
-  );
+  // Expiration removed; return empty list or simply return all
+  return [];
 };
 
 // Calculate total missing ingredients for multiple recipes (for shopping list generation)

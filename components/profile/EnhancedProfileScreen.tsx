@@ -164,11 +164,19 @@ export default function EnhancedProfileScreen() {
         {renderSectionContent()}
       </View>
 
-      {/* Slide-up detail sheet for profile sections */}
-      <Modal animationType="slide" transparent visible={sheetVisible} onRequestClose={closeSheet}>
+      {/* Slide-up detail sheet for profile sections (partial height, bottom-aligned) */}
+      <Modal
+        animationType="slide"
+        transparent
+        presentationStyle="overFullScreen"
+        visible={sheetVisible}
+        onRequestClose={closeSheet}
+      >
         <View style={styles.sheetOverlay}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0} style={{ flex: 1 }}>
             <View style={styles.sheetContainer}>
+              <View style={styles.sheetHandle} />
               {sheetSection === 'personal' && (
                 <PersonalInfoSection onBack={closeSheet} />
               )}
@@ -199,13 +207,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
+  },
   sheetContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: '92%',
     width: '100%',
+    height: '85%',
     overflow: 'hidden',
+    zIndex: 2,
+    elevation: 10,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 48,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: Colors.border,
+    marginVertical: 8,
   },
 
   header: {

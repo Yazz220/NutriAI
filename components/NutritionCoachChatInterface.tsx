@@ -148,18 +148,6 @@ const ProgressSummary: React.FC<ProgressSummaryProps> = ({ context, onViewDetail
           <Target size={20} color={Colors.text} />
           <Text style={styles.progressTitleText}>Today's Progress</Text>
         </View>
-        <View style={styles.progressHeaderActions}>
-          {onViewDetails && (
-            <TouchableOpacity onPress={onViewDetails} style={styles.viewDetailsButton}>
-              <Text style={styles.viewDetailsText}>Details</Text>
-            </TouchableOpacity>
-          )}
-          {onOptionsPress && (
-            <TouchableOpacity onPress={onOptionsPress} style={styles.optionsButton}>
-              <MoreVertical size={20} color={Colors.text} />
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
       <View style={styles.progressGrid}>
@@ -701,9 +689,7 @@ export const NutritionCoachChatInterface: React.FC<NutritionCoachChatProps> = ({
     >
       {/* Progress Summary */}
       <ProgressSummary 
-        context={aiContext} 
-        onViewDetails={onViewProgress}
-        onOptionsPress={handleOptionsMenuPress}
+        context={aiContext}
       />
 
       {/* Options Menu */}

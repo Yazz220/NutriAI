@@ -3,43 +3,43 @@
 // while aligning their values to the new palette. New keys are added for accents.
 export const Colors = {
   // Brand
-  primary: "#5F5A24", // brand.primary (deep olive)
-  brandPrimary: "#5F5A24", // alias for clarity
+  primary: "#1C2A4B", // Primary - Navy
+  brandPrimary: "#1C2A4B", // alias for clarity
   onPrimary: "#FFFFFF", // on brand primary
 
   // Accents for charts/visualizations and interactive emphasis
-  accentPrimary: "#D6A156", // brand.accent (warm amber)
-  onAccent: "#1A1208", // semantic on-accent
-  accentSecondary: "#5F5A24", // fallback to brand primary for cohesion
-  accentTertiary: "#BEB3A0", // complementary neutral accent
+  accentPrimary: "#B5EAD7", // Accent - Mint Green
+  onAccent: "#1C2A4B", // readable on mint
+  accentSecondary: "#FFCB77", // Secondary - Gold/Champagne
+  accentTertiary: "#BFC4C9", // Neutral accent
   // Keep 'secondary' for legacy usage, map to earthy olive
-  secondary: "#5F5A24",
+  secondary: "#FFCB77",
 
   // Surfaces
-  background: "#FAF6EE", // surface.0 (warm cream)
-  card: "#F3EEE4", // surface.1
-  surfaceMuted: "#EAE3D6", // surface.2
-  surfaceTile: "#E0D6C6", // surface.3
-  tabBackground: "#F3EEE4",
+  background: "#FAF9F6", // Background - Ivory/Stone
+  card: "#FFFFFF", // elevated surface on ivory background
+  surfaceMuted: "#F3F2EF", // subtle surface
+  surfaceTile: "#ECEBE7", // tiles
+  tabBackground: "#FFFFFF",
 
   // Text
-  text: "#332B23", // text.primary (deep cocoa)
-  lightText: "#6A645B", // text.secondary
-  subtleText: "#BEB3A0", // light neutral aligning to stroke.hard
+  text: "#1C2A4B", // primary text - Navy
+  lightText: "#667085", // secondary text
+  subtleText: "#BFC4C9", // Neutral
   white: "#FFFFFF",
-  textInverse: "#F8F5EF", // text.inverse
+  textInverse: "#FAF9F6", // on dark surfaces
 
   // On-surface semantic helpers
   onSurface: {
-    high: "#332B23",
-    medium: "#6A645B",
-    inverse: "#F8F5EF",
+    high: "#1C2A4B",
+    medium: "#667085",
+    inverse: "#FAF9F6",
   },
 
   // Borders and elevation overlay
-  border: "#D9D0C2", // stroke.soft
+  border: "#BFC4C9", // Neutral
   shadow: "rgba(0,0,0,0.06)",
-  lightGray: "#BEB3A0", // neutral hard
+  lightGray: "#BFC4C9", // Neutral
 
   // Status & semantic (kept, but you may tune later to palette if desired)
   success: "#4C805E",
@@ -47,7 +47,7 @@ export const Colors = {
   error: "#B6543F", // danger
   info: "#2B68A4",
   onSuccess: "#FFFFFF",
-  onWarning: "#1A1208",
+  onWarning: "#1C2A4B",
   onDanger: "#FFFFFF",
   onInfo: "#FFFFFF",
   successLight: "#E6EFEA",
@@ -56,28 +56,28 @@ export const Colors = {
 
   // Freshness indicators (kept for inventory features)
   fresh: "#4C805E", // align to success
-  aging: "#D6A156", // use accent as mid-stage
+  aging: "#B5EAD7", // use accent as mid-stage
   expiring: "#B97A28", // warning
   danger: "#B6543F",
 
   // Additional tints
   tints: {
-    brandTintSoft: "#FAF6EE",
-    brandTintStrong: "#D6A156",
+    brandTintSoft: "#E8EBF3", // soft navy tint
+    brandTintStrong: "#FFCB77", // strong brand accent
   },
 
   // Gray scale (mapped to new neutrals where applicable)
   gray: {
-    50: "#FAF6EE", // surface.0
-    100: "#F3EEE4", // surface.1
-    200: "#EAE3D6", // surface.2
-    300: "#E0D6C6", // surface.3
-    400: "#D9D0C2", // stroke.soft
-    500: "#BEB3A0", // stroke.hard
-    600: "#9A8F7C",
-    700: "#796F5E",
-    800: "#5E5547",
-    900: "#332B23", // text.primary
+    50: "#FAF9F6", // background ivory
+    100: "#F3F4F6", // light surface
+    200: "#E5E7EB", // subtle surface
+    300: "#D1D5DB", // neutral light
+    400: "#BFC4C9", // neutral
+    500: "#9AA1A8", // neutral hard
+    600: "#6B7280",
+    700: "#4B5563",
+    800: "#374151",
+    900: "#1C2A4B", // navy
   },
 
   red: { 500: "#B6543F" },
@@ -96,6 +96,6 @@ export const Colors = {
     pressedOpacity: 0.12,
     dragOpacity: 0.08,
     disabledOpacity: 0.38,
-    focusRing: { color: "#5F5A24", width: 2, offset: 2, radius: 8 },
+    focusRing: { color: "#1C2A4B", width: 2, offset: 2, radius: 8 },
   },
 };

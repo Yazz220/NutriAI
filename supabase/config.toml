@@ -1,2 +1,2 @@
-""" Supabase functions config: import-related functions removed. """
-verify_jwt = false
+# Supabase functions config (root)
+# Note: Per-function settings should live under supabase/functions/<func>/config.toml

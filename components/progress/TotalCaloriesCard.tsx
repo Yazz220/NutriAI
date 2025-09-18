@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
-import { GlassSurface } from '@/components/common/GlassSurface';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 interface TotalCaloriesCardProps { onPress?: () => void; onOpenPeriod?: (period: 'week' | 'month' | 'quarter') => void }
 
@@ -44,7 +44,7 @@ export const TotalCaloriesCard: React.FC<TotalCaloriesCardProps> = ({ onPress, o
   }, [getDailyProgress]);
 
   return (
-    <GlassSurface pressable={!!onPress} onPress={onPress} style={styles.card} padding={20}>
+    <ProgressCardContainer onPress={onPress} style={styles.card} padding={20}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Total Calories</Text>
         <Text style={styles.expandHint}>Summary</Text>
@@ -75,7 +75,7 @@ export const TotalCaloriesCard: React.FC<TotalCaloriesCardProps> = ({ onPress, o
           </TouchableOpacity>
         );
       })}
-    </GlassSurface>
+    </ProgressCardContainer>
   );
 };
 

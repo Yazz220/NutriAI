@@ -5,7 +5,7 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 ## ✨ Features
 
 ### 📦 Inventory (Core)
-- Smart categorization and expiration tracking with "Expiring Soon" surfacing
+- Smart categorization and fast item entry
 - Fast add: manual entry, barcode scan, and camera capture
 - Powerful search and filters
 - **Enhanced Folder System**: Create folders to organize recipes with multi-select functionality
@@ -22,7 +22,7 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 
 ### 🛒 Shopping List
 - Auto-generate from planned recipes and missing ingredients
-- "Mark as Purchased" flow prompts for expiry, then moves items to Inventory
+- "Mark as Purchased" flow moves items to Inventory
 - Toast notifications with Undo for safe, reversible actions
 - One-tap "Add Missing Ingredients" from the recipe page action bar
 
@@ -87,6 +87,42 @@ These steps will reduce EBADENGINE warnings and help ensure native modules like 
    - Expo public vars must be prefixed with `EXPO_PUBLIC_`
    - Prefer using a backend proxy for AI calls instead of embedding secrets
    - See `env.example` for placeholders (AI, Firebase/AWS, feature flags)
+
+### FatSecret Integration (Recipes)
+
+We use FatSecret as the primary external recipe/food provider. To keep credentials secure, the app requests a short‑lived OAuth2 access token from a Supabase Edge Function instead of storing secrets client‑side.
+
+1. Create the token broker function
+
+   The repository includes `supabase/functions/fatsecret-token/index.ts`. Deploy it to your Supabase project and set two function secrets:
+
+   - `FATSECRET_CLIENT_ID`
+   - `FATSECRET_CLIENT_SECRET`
+
+   Deploy (PowerShell):
+
+   ```powershell
+   supabase functions deploy fatsecret-token --project-ref <PROJECT_REF>
+   ```
+
+2. Configure client environment
+
+   In your `.env`, set the public token URL so the app can request an access token:
+
+   ```env
+   EXPO_PUBLIC_FATSECRET_TOKEN_URL=https://<PROJECT_REF>.supabase.co/functions/v1/fatsecret-token
+   ```
+
+   Do NOT set `FATSECRET_CLIENT_ID` or `FATSECRET_CLIENT_SECRET` in the client. Keep them only in Supabase Function secrets.
+
+3. Run the app
+
+   ```powershell
+   npm run start
+   ```
+   npx expo start --tunnel
+
+   The Recipes → Discover tab will load results via FatSecret. If the function or secrets are missing, discovery will show an empty state and log an error in the console.
 
 ## 🧭 Milestone: Supabase Backend & AI Proxy
 
@@ -219,6 +255,35 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
    - **Explore Recipes**: Browse and see availability based on your inventory
    - **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
 
+### ✅ Testing the Onboarding Flow
+
+The onboarding experience is integrated with routing and persistence. If onboarding is not completed, the app automatically routes to `app/(onboarding)/`.
+
+1. Start the app
+   ```powershell
+   npx expo start --tunnel
+   ```
+   Scan the QR with Expo Go on your device.
+
+2. Walk through the steps
+   - Welcome → Health Goals → Basic Profile → Dietary Preferences → Pantry Setup → AI Coach Intro → Completion
+   - Progress is persisted locally. You can close/reopen the app and resume.
+
+3. Complete onboarding
+   - On the final screen, pick an auth option (Sign up/Sign in/Guest) and tap "Start Tracking!".
+   - Your profile is mapped and saved, and onboarding is marked completed.
+
+4. Reset onboarding for testing (developer-only)
+   - In `.env`, set:
+     ```env
+     EXPO_PUBLIC_DEV_RESET_ONBOARDING=true
+     ```
+     Then restart the dev server.
+   - A small "Reset onboarding (dev)" link appears on the completion screen. Tap it to clear onboarding storage and restart the flow (reload the app afterward).
+
+Troubleshooting:
+- If you completed onboarding but want to see it again without the dev link, you can also clear app storage from your device settings (Expo Go) or reinstall Expo Go.
+
 ## 🎯 Key Workflows
 
 ### Adding Inventory Items
@@ -238,13 +303,13 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 1. Plan your meals for the week
 2. From any recipe page, tap "Add missing (N)" in the action bar to send missing ingredients to the Shopping List
 3. Review or auto-generate your Shopping List from planned meals and missing ingredients
-4. Check off items as you shop; marking as purchased prompts expiry and transfers to Inventory
+4. Check off items as you shop; marking as purchased transfers to Inventory
 
 ## 📱 App Structure
 
 NutriAI uses a 4-tab layout focused on core nutrition workflows:
 
-1. **Inventory** — Item management and expiry tracking
+1. **Inventory** — Item management and categorization
 2. **Recipes** — Library and discovery
 3. **Shopping List** — Grocery management and checkout to Inventory
 4. **Nutrition Dashboard** — Macros, goals, and proactive insights
@@ -253,7 +318,7 @@ NutriAI uses a 4-tab layout focused on core nutrition workflows:
 
 Add images or GIFs to showcase core flows:
 - Coach dashboard planning
-- Mark as Purchased flow with expiry prompt
+- Mark as Purchased flow
 - Nutrition Dashboard with macros and trends
 
 Place files under `docs/images/` and reference here, for example:
@@ -295,7 +360,6 @@ components/
     AddRecipesModal.tsx # Multi-select recipe addition to folders
     CreateFolderSheet.tsx # Enhanced folder creation with empty states
     ...                 # Other folder components
-  onboarding/           # Onboarding flow components
   recipe-detail/        # Recipe detail view components
   ...                   # Other component categories
 hooks/                   # State and AI hooks (e.g., useNutrition, useCoach)

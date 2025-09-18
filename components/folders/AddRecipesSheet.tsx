@@ -192,7 +192,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: Spacing.lg,
-    maxHeight: '80%',
+    height: '92%',
+    width: '100%',
   },
   title: {
     fontSize: 20,

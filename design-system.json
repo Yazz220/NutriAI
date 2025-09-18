@@ -98,17 +98,6 @@
         "description": "New user registration flow"
       }
     },
-    "onboarding": {
-      "welcome": {
-        "description": "Initial app introduction and feature highlights"
-      },
-      "dietaryPreferences": {
-        "description": "User selects dietary restrictions and preferences"
-      },
-      "goals": {
-        "description": "User sets initial health and nutrition goals"
-      }
-    },
     "mainTabs": {
       "dashboard": {
         "description": "Home screen with quick actions, recent activity, and AI suggestions"

@@ -11,6 +11,7 @@ export interface GlassSurfaceProps {
   padding?: number;
   pressable?: boolean;
   onPress?: () => void;
+  borderless?: boolean; // when true, removes the outline border
   children?: React.ReactNode;
 }
 
@@ -22,13 +23,14 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
   padding = 12,
   pressable = false,
   onPress,
+  borderless = false,
   children,
 }) => {
   const Container = pressable ? Pressable : View;
 
   return (
     <View
-      style={[styles.wrapper, { borderRadius: radius }, style]}
+      style={[styles.wrapper, borderless && styles.borderless, { borderRadius: radius }, style]}
       pointerEvents={pressable ? 'auto' : 'box-none'}
     >
       <BlurView
@@ -54,10 +56,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  borderless: {
+    borderWidth: 0,
   },
   content: {
     flexDirection: 'column',

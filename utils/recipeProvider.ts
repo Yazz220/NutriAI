@@ -1,4 +1,4 @@
-// Recipe Provider Service for external recipe APIs (Spoonacular, Edamam, TheMealDB, etc.)
+// Recipe Provider Service for external recipe APIs (Spoonacular, Edamam, etc.)
 // This service handles recipe discovery, search, and detailed information
 import { Platform } from 'react-native';
 
@@ -7,7 +7,7 @@ export interface RecipeProviderConfig {
   baseUrl: string;
   timeout?: number;
   maxResults?: number;
-  providerType: 'spoonacular' | 'edamam' | 'mealdb';
+  providerType: 'spoonacular' | 'edamam' | 'unknown';
   requiresAuth: boolean; // Indicates if the provider requires an API key
 }
 
@@ -17,13 +17,13 @@ export const RECIPE_API_CONFIGS: Record<string, Omit<RecipeProviderConfig, 'apiK
 
 export interface RecipeSearchParams {
   query?: string;
-  cuisine?: string; // maps to Area in TheMealDB
+  cuisine?: string;
   diet?: string;
   intolerances?: string[];
   maxReadyTime?: number;
   minProtein?: number;
   maxCalories?: number;
-  type?: string; // maps to Category in TheMealDB
+  type?: string;
   addRecipeInformation?: boolean;
   fillIngredients?: boolean;
   addRecipeNutrition?: boolean;
@@ -137,7 +137,7 @@ export interface RecipeInformationResponse extends ExternalRecipe {
   // Extended with full recipe details where supported
 }
 
-export type RecipeProviderType = 'spoonacular' | 'edamam' | 'mealdb';
+export type RecipeProviderType = 'spoonacular' | 'edamam' | 'unknown';
 
 export class RecipeProviderService {
   private config: Required<RecipeProviderConfig>;
@@ -236,53 +236,7 @@ export class RecipeProviderService {
     };
   }
 
-  // Helper method to map TheMealDB meal to ExternalRecipe
-  private mapMealDBMealToExternal(meal: any): ExternalRecipe {
-    if (!meal) {
-      return {
-        id: 0,
-        title: '',
-        image: '',
-        servings: 1,
-        readyInMinutes: 0,
-      } as ExternalRecipe;
-    }
-
-    // Collect ingredients 1..20 with measures
-    const ingredients: RecipeIngredient[] = [];
-    for (let i = 1; i <= 20; i++) {
-      const name = meal[`strIngredient${i}`];
-      const measure = meal[`strMeasure${i}`];
-      if (name && String(name).trim()) {
-        ingredients.push({
-          name: String(name).trim(),
-          amount: 0,
-          unit: (measure || '').toString().trim(),
-          original: `${measure || ''} ${name}`.trim(),
-        });
-      }
-    }
-
-    return {
-      id: parseInt(meal.idMeal, 10),
-      title: meal.strMeal,
-      image: meal.strMealThumb || '',
-      servings: 1,
-      readyInMinutes: 0,
-      sourceName: meal.strSource ? 'TheMealDB' : undefined,
-      sourceUrl: meal.strSource || undefined,
-      instructions: meal.strInstructions || '',
-      cuisines: meal.strArea ? [meal.strArea] : [],
-      dishTypes: meal.strCategory ? [meal.strCategory] : [],
-      vegetarian: undefined,
-      vegan: undefined,
-      glutenFree: undefined,
-      dairyFree: undefined,
-      nutrition: undefined,
-      ingredients,
-      analyzedInstructions: undefined,
-    } as ExternalRecipe;
-  }
+  // (Provider-specific mappers will be added for new providers like FatSecret.)
 
   // Helper method to get nutrient value
   private getNutrientValue(nutrients: NutritionNutrient[] = [], name: string): number {

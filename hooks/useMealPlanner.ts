@@ -104,7 +104,7 @@ export const [MealPlannerProvider, useMealPlanner] = createContextHook((meals?: 
     const local: PlannedMeal = { ...meal, id: `local-${Date.now()}` };
     setPlannedMeals(prev => [...prev, local]);
 
-    // If offline/no user OR recipeId is not a UUID (local/MealDB ids like "1"),
+  // If offline/no user OR recipeId is not a UUID (e.g., numeric string ids),
     // keep the local entry only to avoid Supabase 22P02 errors.
     if (!user || OFFLINE_ONLY || !isUuid(meal.recipeId)) {
       if (user && !OFFLINE_ONLY && !isUuid(meal.recipeId)) {

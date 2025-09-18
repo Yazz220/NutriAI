@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ruler, CaretRight } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
-import { GlassSurface } from '@/components/common/GlassSurface';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 import { useMeasurements } from '@/hooks/useMeasurements';
 
 interface MeasurementCardProps {
@@ -25,7 +25,7 @@ export const MeasurementCard: React.FC<MeasurementCardProps> = ({ onPress, lastU
   ]), [weight, waist, bodyFat]);
 
   return (
-    <GlassSurface pressable onPress={onPress} style={styles.card} padding={18}>
+    <ProgressCardContainer onPress={onPress} style={styles.card} padding={18}>
       <View style={styles.headerRow}>
         <View style={styles.iconContainer}>
           <Ruler size={22} color={Colors.primary} weight="bold" />
@@ -46,7 +46,7 @@ export const MeasurementCard: React.FC<MeasurementCardProps> = ({ onPress, lastU
       </View>
 
       <Text style={styles.updatedText}>Last update: {lastUpdatedLabel ?? label}</Text>
-    </GlassSurface>
+    </ProgressCardContainer>
   );
 };
 

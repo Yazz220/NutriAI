@@ -1,57 +1,69 @@
  import React from "react";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Refrigerator, BookOpen, ShoppingCart, LayoutDashboard, User } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
-import { Spacing } from '@/constants/spacing';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={({ route }) => ({
         tabBarShowLabel: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.lightText,
+        tabBarActiveTintColor: Colors.secondary,
+        tabBarInactiveTintColor: Colors.gray[400],
         headerStyle: styles.header,
         headerTitleStyle: styles.headerTitle,
         headerTintColor: Colors.text,
         headerShadowVisible: false,
-        tabBarStyle: styles.pillBar,
+        tabBarStyle: [styles.clearBar],
         tabBarItemStyle: styles.tabItem,
-        tabBarIcon: ({ focused, color, size }) => {
-          const iconColor = focused ? Colors.white : Colors.lightText;
-          const activeBg = Colors.primary; // use system primary accent
+        tabBarBackground: () => (
+          <View style={styles.tabBg} />
+        ),
+        tabBarIcon: ({ focused }) => {
+          const iconColor = focused ? Colors.secondary : Colors.lightText;
+          const stroke = focused ? 2.75 : 2;
+          const size = focused ? 22 : 20;
+          const wrapStyle = styles.iconWrap; // no circle background on focus
           if (route.name === 'coach') return (
-            <View style={focused ? [styles.iconWrap, { backgroundColor: activeBg }] : styles.iconWrap}>
-              <LayoutDashboard size={20} color={iconColor} />
+            <View style={wrapStyle}>
+              <LayoutDashboard size={size} color={iconColor} strokeWidth={stroke} />
+              {focused ? <View style={styles.activeDot} /> : null}
             </View>
           );
           if (route.name === 'index') return (
-            <View style={focused ? [styles.iconWrap, { backgroundColor: activeBg }] : styles.iconWrap}>
-              <Refrigerator size={20} color={iconColor} />
+            <View style={wrapStyle}>
+              <Refrigerator size={size} color={iconColor} strokeWidth={stroke} />
+              {focused ? <View style={styles.activeDot} /> : null}
             </View>
           );
           if (route.name === 'recipes') return (
-            <View style={focused ? [styles.iconWrap, { backgroundColor: activeBg }] : styles.iconWrap}>
-              <BookOpen size={20} color={iconColor} />
+            <View style={wrapStyle}>
+              <BookOpen size={size} color={iconColor} strokeWidth={stroke} />
+              {focused ? <View style={styles.activeDot} /> : null}
             </View>
           );
           if (route.name === 'list') return (
-            <View style={focused ? [styles.iconWrap, { backgroundColor: activeBg }] : styles.iconWrap}>
-              <ShoppingCart size={20} color={iconColor} />
+            <View style={wrapStyle}>
+              <ShoppingCart size={size} color={iconColor} strokeWidth={stroke} />
+              {focused ? <View style={styles.activeDot} /> : null}
             </View>
           );
           if (route.name === 'profile') return (
-            <View style={focused ? [styles.iconWrap, { backgroundColor: activeBg }] : styles.iconWrap}>
-              <User size={20} color={iconColor} />
+            <View style={wrapStyle}>
+              <User size={size} color={iconColor} strokeWidth={stroke} />
+              {focused ? <View style={styles.activeDot} /> : null}
             </View>
           );
           return null;
         },
       })}
     >
-      <Tabs.Screen name="coach" options={{ title: 'Dashboard' }} />
+      <Tabs.Screen name="coach" options={{ title: 'Tracking' }} />
       <Tabs.Screen name="index" options={{ title: 'Inventory' }} />
       <Tabs.Screen name="recipes" options={{ title: 'Recipes' }} />
       <Tabs.Screen name="list" options={{ title: 'Shopping List' }} />
@@ -67,40 +79,46 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  pillBar: {
-    position: 'absolute',
-    bottom: 12,
-    left: 16,
-    right: 16,
-    height: 56,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.90)',
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
+  // Non-absolute bar with reserved height; gradient background renders via tabBarBackground
+  clearBar: {
+    position: 'relative',
+    height: 64,
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
   },
+  tabBg: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  // lock each of the 5 items to equal width for perfect centering
   tabItem: {
-    // Lock each of the 5 items to 20% width for perfect symmetry
     flex: 0,
     width: '20%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    backgroundColor: 'transparent',
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.secondary,
+    marginTop: 4,
+  },
+  iconWrapActive: {
+    // No background for active state per design (icon color changes instead)
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   header: {
     backgroundColor: 'rgba(255, 255, 255, 0.90)',

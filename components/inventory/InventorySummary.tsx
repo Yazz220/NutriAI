@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Package, AlertTriangle, Clock, CheckCircle, HelpCircle } from 'lucide-react-native';
+import { Package } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { InventoryItem, ItemCategory } from '@/types';
@@ -14,35 +14,15 @@ interface InventorySummaryProps {
 interface CategorySummary {
   category: ItemCategory;
   count: number;
-  expiring: number;
-  aging: number;
-  fresh: number;
-  untracked: number;
 }
 
 interface FreshnessSummary {
-  fresh: number;
-  aging: number;
-  expiring: number;
   untracked: number;
-}
-
-function getFreshnessStatus(expiryDateStr?: string): 'fresh' | 'aging' | 'expiring' | 'untracked' {
-  if (!expiryDateStr) return 'untracked';
-
-  const now = new Date();
-  const expiryDate = new Date(expiryDateStr);
-  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  
-  if (daysUntilExpiry <= 1) return 'expiring';
-  if (daysUntilExpiry <= 3) return 'aging';
-  return 'fresh';
 }
 
 function calculateCategorySummary(inventory: InventoryItem[]): CategorySummary[] {
   const categoryMap = new Map<ItemCategory, CategorySummary>();
   
-  // Initialize all categories
   const allCategories: ItemCategory[] = [
     'Produce', 'Dairy', 'Meat', 'Seafood', 'Frozen', 
     'Pantry', 'Bakery', 'Beverages', 'Other'
@@ -52,68 +32,20 @@ function calculateCategorySummary(inventory: InventoryItem[]): CategorySummary[]
     categoryMap.set(category, {
       category,
       count: 0,
-      expiring: 0,
-      aging: 0,
-      fresh: 0,
-      untracked: 0
     });
   });
   
-  // Count items by category and freshness
   inventory.forEach(item => {
     const category = item.category || 'Other';
     const summary = categoryMap.get(category)!;
-    const freshness = getFreshnessStatus(item.expiryDate);
-    
     summary.count++;
-    summary[freshness]++;
   });
   
-  // Return only categories with items
   return Array.from(categoryMap.values()).filter(summary => summary.count > 0);
 }
 
 function calculateFreshnessSummary(inventory: InventoryItem[]): FreshnessSummary {
-  const summary: FreshnessSummary = {
-    fresh: 0,
-    aging: 0,
-    expiring: 0,
-    untracked: 0
-  };
-  
-  inventory.forEach(item => {
-    const freshness = getFreshnessStatus(item.expiryDate);
-    summary[freshness]++;
-  });
-  
-  return summary;
-}
-
-function getFreshnessIcon(status: keyof FreshnessSummary) {
-  switch (status) {
-    case 'fresh': return CheckCircle;
-    case 'aging': return Clock;
-    case 'expiring': return AlertTriangle;
-    case 'untracked': return HelpCircle;
-  }
-}
-
-function getFreshnessColor(status: keyof FreshnessSummary): string {
-  switch (status) {
-    case 'fresh': return Colors.success;
-    case 'aging': return Colors.warning;
-    case 'expiring': return Colors.error;
-    case 'untracked': return Colors.lightText;
-  }
-}
-
-function getFreshnessLabel(status: keyof FreshnessSummary): string {
-  switch (status) {
-    case 'fresh': return 'Fresh';
-    case 'aging': return 'Use Soon';
-    case 'expiring': return 'Expiring';
-    case 'untracked': return 'No Date';
-  }
+  return { untracked: inventory.length };
 }
 
 export const InventorySummary: React.FC<InventorySummaryProps> = ({
@@ -126,7 +58,6 @@ export const InventorySummary: React.FC<InventorySummaryProps> = ({
   
   return (
     <View style={styles.container}>
-      {/* Overall Stats */}
       <View style={styles.overallStats}>
         <View style={styles.totalSection}>
           <Package size={24} color={Colors.primary} />
@@ -135,28 +66,8 @@ export const InventorySummary: React.FC<InventorySummaryProps> = ({
             <Text style={styles.totalLabel}>Total Items</Text>
           </View>
         </View>
-        
-        <View style={styles.freshnessGrid}>
-          {(Object.keys(freshnessSummary) as Array<keyof FreshnessSummary>).map(status => {
-            const count = freshnessSummary[status];
-            if (count === 0) return null;
-            
-            const Icon = getFreshnessIcon(status);
-            const color = getFreshnessColor(status);
-            const label = getFreshnessLabel(status);
-            
-            return (
-              <View key={status} style={styles.freshnessItem}>
-                <Icon size={16} color={color} />
-                <Text style={[styles.freshnessCount, { color }]}>{count}</Text>
-                <Text style={styles.freshnessLabel}>{label}</Text>
-              </View>
-            );
-          })}
-        </View>
       </View>
       
-      {/* Category Breakdown */}
       {showCategories && categorySummary.length > 0 && (
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>By Category</Text>
@@ -170,27 +81,6 @@ export const InventorySummary: React.FC<InventorySummaryProps> = ({
               >
                 <Text style={styles.categoryName}>{category.category}</Text>
                 <Text style={styles.categoryCount}>{category.count} items</Text>
-                
-                {(category.expiring > 0 || category.aging > 0) && (
-                  <View style={styles.categoryAlerts}>
-                    {category.expiring > 0 && (
-                      <View style={styles.categoryAlert}>
-                        <AlertTriangle size={12} color={Colors.error} />
-                        <Text style={[styles.categoryAlertText, { color: Colors.error }]}>
-                          {category.expiring}
-                        </Text>
-                      </View>
-                    )}
-                    {category.aging > 0 && (
-                      <View style={styles.categoryAlert}>
-                        <Clock size={12} color={Colors.warning} />
-                        <Text style={[styles.categoryAlertText, { color: Colors.warning }]}>
-                          {category.aging}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
               </TouchableOpacity>
             ))}
           </View>

@@ -1,301 +1,94 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { View, Text, StyleSheet, Animated, AccessibilityInfo } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
-import { OnboardingStep } from '@/types';
+import { Typography } from '@/constants/spacing';
 
 interface ProgressIndicatorProps {
-  currentStep: OnboardingStep;
-  completedSteps: Set<OnboardingStep>;
-  totalSteps?: number;
-  showLabels?: boolean;
-  compact?: boolean;
+  currentStep: number;
+  totalSteps: number;
+  animated?: boolean;
 }
 
-export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
-  currentStep,
-  completedSteps,
-  totalSteps = 7,
-  showLabels = false,
-  compact = false,
-}) => {
+export function ProgressIndicator({ 
+  currentStep, 
+  totalSteps, 
+  animated = true 
+}: ProgressIndicatorProps) {
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnims = useRef(
-    Array.from({ length: totalSteps }, () => new Animated.Value(1))
-  ).current;
+  const progress = currentStep / totalSteps;
 
-  // Calculate progress percentage
-  const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
-
-  // Animate progress bar
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: progressPercentage,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [progressPercentage, progressAnim]);
-
-  // Animate step indicators
-  useEffect(() => {
-    scaleAnims.forEach((anim, index) => {
-      const isActive = index === currentStep;
-      const isCompleted = completedSteps.has(index as OnboardingStep);
-      
-      if (isActive || isCompleted) {
-        Animated.spring(anim, {
-          toValue: 1.1,
-          useNativeDriver: true,
-          tension: 300,
-          friction: 10,
-        }).start(() => {
-          Animated.spring(anim, {
-            toValue: 1,
-            useNativeDriver: true,
-            tension: 300,
-            friction: 10,
-          }).start();
-        });
-      }
-    });
-  }, [currentStep, completedSteps, scaleAnims]);
-
-  const getStepLabel = (step: number): string => {
-    const labels = [
-      'Welcome',
-      'Account',
-      'Diet',
-      'Habits',
-      'Inventory',
-      'AI Coach',
-      'Complete',
-    ];
-    return labels[step] || `Step ${step + 1}`;
-  };
-
-  const renderStepIndicator = (step: number) => {
-    const isActive = step === currentStep;
-    const isCompleted = completedSteps.has(step as OnboardingStep);
-    const isPast = step < currentStep;
-    const isFuture = step > currentStep;
-
-    let backgroundColor = Colors.gray[300];
-    let borderColor = Colors.gray[300];
-    let textColor = Colors.lightText;
-
-    if (isCompleted) {
-      backgroundColor = Colors.success;
-      borderColor = Colors.success;
-      textColor = Colors.white;
-    } else if (isActive) {
-      backgroundColor = Colors.primary;
-      borderColor = Colors.primary;
-      textColor = Colors.white;
-    } else if (isPast) {
-      backgroundColor = Colors.gray[400];
-      borderColor = Colors.gray[400];
-      textColor = Colors.lightText;
+    if (animated) {
+      Animated.timing(progressAnim, {
+        toValue: progress,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      progressAnim.setValue(progress);
     }
 
-    return (
-      <Animated.View
-        key={step}
-        style={[
-          styles.stepIndicator,
-          compact && styles.stepIndicatorCompact,
-          {
-            backgroundColor,
-            borderColor,
-            transform: [{ scale: scaleAnims[step] }],
-          },
-        ]}
-      >
-        {isCompleted ? (
-          <Check size={compact ? 12 : 16} color={Colors.white} />
-        ) : (
-          <Text
-            style={[
-              styles.stepNumber,
-              compact && styles.stepNumberCompact,
-              { color: textColor },
-            ]}
-          >
-            {step + 1}
-          </Text>
-        )}
-      </Animated.View>
-    );
-  };
+    // Announce progress change for screen readers
+    const progressText = `Step ${currentStep} of ${totalSteps}`;
+    AccessibilityInfo.announceForAccessibility(progressText);
+  }, [progress, animated, currentStep, totalSteps]);
 
-  const renderStepLabel = (step: number) => {
-    if (!showLabels) return null;
-
-    const isActive = step === currentStep;
-    const isCompleted = completedSteps.has(step as OnboardingStep);
-
-    return (
-      <Text
-        key={`label-${step}`}
-        style={[
-          styles.stepLabel,
-          compact && styles.stepLabelCompact,
-          (isActive || isCompleted) && styles.stepLabelActive,
-        ]}
-      >
-        {getStepLabel(step)}
-      </Text>
-    );
-  };
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <View style={[styles.container, compact && styles.containerCompact]}>
-      {/* Progress Bar Background */}
-      <View style={[styles.progressTrack, compact && styles.progressTrackCompact]}>
-        {/* Animated Progress Fill */}
-        <Animated.View
-          style={[
-            styles.progressFill,
-            compact && styles.progressFillCompact,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%'],
-                extrapolate: 'clamp',
-              }),
-            },
-          ]}
-        />
-      </View>
-
-      {/* Step Indicators */}
-      <View style={[styles.stepsContainer, compact && styles.stepsContainerCompact]}>
-        {Array.from({ length: totalSteps }, (_, index) => (
-          <View key={index} style={styles.stepWrapper}>
-            {renderStepIndicator(index)}
-            {renderStepLabel(index)}
-          </View>
-        ))}
-      </View>
-
-      {/* Progress Text */}
-      {!compact && (
-        <View style={styles.progressTextContainer}>
-          <Text style={styles.progressText}>
-            Step {currentStep + 1} of {totalSteps}
-          </Text>
-          <Text style={styles.progressPercentage}>
-            {Math.round(progressPercentage)}% Complete
-          </Text>
+    <View style={styles.container}>
+      <View style={styles.progressBarContainer}>
+        <View style={styles.progressBarBackground}>
+          <Animated.View 
+            style={[
+              styles.progressBarFill,
+              { width: progressWidth }
+            ]}
+          />
         </View>
-      )}
+      </View>
+      
+      <Text 
+        style={styles.progressText}
+        accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
+        accessibilityRole="text"
+      >
+        {currentStep} of {totalSteps}
+      </Text>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  containerCompact: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+  progressBarContainer: {
+    flex: 1,
+    marginRight: 16,
   },
-
-  // Progress Track
-  progressTrack: {
+  progressBarBackground: {
     height: 4,
-    backgroundColor: Colors.gray[200],
+    backgroundColor: Colors.border,
     borderRadius: 2,
-    marginBottom: Spacing.lg,
+    overflow: 'hidden',
   },
-  progressTrackCompact: {
-    height: 2,
-    marginBottom: Spacing.md,
-  },
-  progressFill: {
+  progressBarFill: {
     height: '100%',
     backgroundColor: Colors.primary,
     borderRadius: 2,
   },
-  progressFillCompact: {
-    backgroundColor: Colors.primary,
-  },
-
-  // Steps Container
-  stepsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  stepsContainerCompact: {
-    marginBottom: Spacing.sm,
-  },
-
-  // Step Wrapper
-  stepWrapper: {
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  // Step Indicator
-  stepIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xs,
-  },
-  stepIndicatorCompact: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: Spacing.xs / 2,
-  },
-
-  // Step Number
-  stepNumber: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-  },
-  stepNumberCompact: {
-    fontSize: Typography.sizes.xs,
-  },
-
-  // Step Label
-  stepLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.lightText,
-    textAlign: 'center',
-    fontWeight: Typography.weights.medium,
-  },
-  stepLabelCompact: {
-    fontSize: 10,
-  },
-  stepLabelActive: {
-    color: Colors.text,
-    fontWeight: Typography.weights.semibold,
-  },
-
-  // Progress Text
-  progressTextContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
   progressText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text,
+    fontSize: 14,
     fontWeight: Typography.weights.medium,
-    marginBottom: Spacing.xs / 2,
-  },
-  progressPercentage: {
-    fontSize: Typography.sizes.xs,
     color: Colors.lightText,
-    fontWeight: Typography.weights.regular,
+    minWidth: 50,
+    textAlign: 'right',
   },
 });

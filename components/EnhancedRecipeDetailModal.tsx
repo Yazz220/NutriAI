@@ -1,7 +1,7 @@
 // Enhanced Recipe Detail Modal
 // Shows comprehensive recipe information from external APIs
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,8 @@ import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { trackEvent } from '@/utils/analytics';
 import { useRecipeChat } from '@/hooks/useRecipeChat';
 import { StructuredMessage } from '@/components/StructuredMessage';
+import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
+import { cleanupRecipeText, stripHtml as stripHtmlBasic, isInstructionLikeText } from '@/utils/text/recipeCleanup';
 
 interface EnhancedRecipeDetailModalProps {
   visible: boolean;
@@ -74,16 +76,28 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
 
   const { saveExternalRecipe, removeLocalRecipe, localRecipes } = useRecipeStore();
 
-  // Build Recipe shape for chat context
+  // Direct step extraction (no summarization): prefer analyzed steps, else raw instructions split by line breaks
+  const getDirectSteps = useCallback((): string[] => {
+    const analyzed = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
+      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step);
+    if (analyzed?.length) return analyzed.filter(Boolean).map((s: string) => String(s).trim()).filter(Boolean);
+    const raw = (recipeDetails?.instructions || recipe.instructions || '') as string;
+    const clean = stripHtmlBasic(raw);
+    // Prefer explicit line breaks; if not present, fall back to sentence breaks without filtering content
+    const lineSplit = clean.split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
+    if (lineSplit.length > 1) return lineSplit;
+    const sentences = clean.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+    return sentences;
+  }, [recipe, recipeDetails, recipeDetails?.analyzedInstructions, recipeDetails?.instructions]);
+
+  // Build Recipe shape for chat context using direct steps
   const recipeForChat: Recipe = useMemo(() => {
     const ingredients = (recipeDetails?.ingredients || recipe.ingredients || []).map((ing: any) => ({
       name: ing?.name || ing?.original || '',
       quantity: typeof ing?.amount === 'number' ? ing.amount : (ing?.amount || 0),
       unit: ing?.unit || '',
     })) as RecipeIngredient[];
-    const steps: string[] = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-      || (recipeDetails?.instructions || recipe.instructions || '').split('\n').filter(Boolean);
+    const steps: string[] = getDirectSteps();
     return {
       id: String(recipe.id),
       name: recipe.title,
@@ -95,7 +109,7 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
       ingredients,
       instructions: steps,
     } as Recipe;
-  }, [recipe, recipeDetails]);
+  }, [recipe, recipeDetails, getDirectSteps]);
 
   const { messages, isTyping, sendMessage, quickChips, performInlineAction } = useRecipeChat(recipeForChat);
 
@@ -121,14 +135,11 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
 
   const loadRecipeDetails = async () => {
     if (!recipe) return;
+    // External provider removed: use provided recipe fields directly
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      // Dataset-only: rely on fields present on the recipe object; no external fetch
       setRecipeDetails(null);
-      setError(null);
-    } catch (error) {
-      console.error('Error loading recipe details:', error);
-      setError('Failed to load recipe details');
     } finally {
       setIsLoading(false);
     }
@@ -197,21 +208,19 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
       if (ingredients.length > 10) lines.push(`…and ${ingredients.length - 10} more`);
     }
 
-    // Instructions: prefer analyzed steps; otherwise use plain instructions
-    const steps: string[] | undefined = recipeDetails?.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-      || recipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step)
-      || undefined;
-    const plainInstructions = (recipeDetails?.instructions || recipe.instructions || '').replace(/<[^>]*>/g, '');
+    // Instructions (direct, no summarization)
+    const steps = getDirectSteps();
+    const plain = (recipeDetails?.instructions || recipe.instructions || '') || undefined;
 
     if (steps?.length) {
       lines.push('');
       lines.push('Instructions:');
-      steps.slice(0, 5).forEach((s, idx) => lines.push(`${idx + 1}. ${s}`));
+  steps.slice(0, 5).forEach((s: string, idx: number) => lines.push(`${idx + 1}. ${s}`));
       if (steps.length > 5) lines.push(`…and ${steps.length - 5} more steps`);
-    } else if (plainInstructions) {
+    } else if (plain) {
       lines.push('');
       lines.push('Instructions:');
-      lines.push(plainInstructions);
+      lines.push(stripHtmlBasic(plain));
     }
 
     // Optional: source URL if present on details
@@ -227,8 +236,42 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   if (!recipe) return null;
 
   // Canonical mapping for unified detail UI
-  const providerType: RecipeProviderType = 'mealdb';
-  const canonical = useMemo(() => toCanonicalFromExternal(recipe, providerType), [recipe]);
+  // Provider removed; set to 'unknown' until the new provider is integrated
+  const providerType: RecipeProviderType = 'unknown';
+  const canonical = useMemo(() => {
+    const base = toCanonicalFromExternal(recipe, providerType);
+    // Steps: fetch directly without summarization or filtering
+    const steps = getDirectSteps();
+    const MAX_SUMMARY_CHARS = 260;
+    const rawDesc = recipe.summary || (recipe as any)?.summary || base.description;
+    const cleanDesc = rawDesc ? stripHtmlBasic(rawDesc) : '';
+    if (cleanDesc && !isInstructionLikeText(cleanDesc) && cleanDesc.length <= MAX_SUMMARY_CHARS) {
+      base.description = cleanDesc;
+    } else {
+      base.description = undefined as any;
+    }
+    if (steps?.length) {
+      base.steps = steps;
+    }
+    // Improve serving default when provider doesn't supply a realistic one
+    const estServings = estimateServingsForExternalRecipe(recipe);
+    if (!base.servings || base.servings <= 1) {
+      base.servings = estServings;
+    }
+    // Compute nutrition per serving if missing
+    if (!base.nutritionPerServing) {
+      const computed = computeForExternalRecipe({ ...recipe, servings: base.servings } as any);
+      if (computed) {
+        base.nutritionPerServing = {
+          calories: computed.calories,
+          protein: computed.protein,
+          carbs: computed.carbs,
+          fats: computed.fats,
+        } as any;
+      }
+    }
+    return base;
+  }, [recipe]);
 
   return (
     <Modal visible={visible} onClose={onClose} title="Recipe Details" size="full" hasHeader={false}>
@@ -319,6 +362,8 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
           </View>
         )}
 
+        {/* Bottom fade overlay removed per request */}
+
         {/* Plan Modal preserved */}
         <MealPlanModal
           visible={showPlanModal}
@@ -354,6 +399,7 @@ const styles = StyleSheet.create({
   modal: {
     flex: 1,
     backgroundColor: Colors.background,
+    position: 'relative',
   },
   header: {
     flexDirection: 'row',
@@ -634,6 +680,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontSize: 14,
   },
+  
 });
 
 // Removed custom ActionPill in favor of shared Button component

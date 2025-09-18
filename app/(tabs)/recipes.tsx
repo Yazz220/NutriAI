@@ -477,19 +477,7 @@ export default function RecipesScreen() {
             </ScrollView>
           </View>
 
-          {activeFolderId && (
-            <View style={styles.folderActions}>
-              <Button
-                title="Add Recipes to Folder"
-                onPress={() => {
-                  setNewFolderId(activeFolderId);
-                  setNewFolderName(folders.find((f: RecipeFolder) => f.id === activeFolderId)?.name || '');
-                  setShowAddRecipesModal(true);
-                }}
-                variant="outline"
-              />
-            </View>
-          )}
+          {/* Moved Add-to-Folder action to a floating button for cleaner layout */}
 
           <FlatList
             data={activeFolderId ? folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds.map((id: string) => localRecipes.find((r: Meal) => r.id === id)).filter(Boolean) as Meal[] : filteredLocalRecipes}
@@ -567,6 +555,28 @@ export default function RecipesScreen() {
         onClose={() => setShowAddRecipesModal(false)}
         onAddRecipes={handleAddRecipesToNewFolder}
       />
+
+      {/* Floating action to add recipes to current folder */}
+      {activeFolderId && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: Math.max(20, (insets?.bottom ?? 0) + 56 + 20) },
+          ]}
+          onPress={() => {
+            setNewFolderId(activeFolderId);
+            setNewFolderName(
+              folders.find((f: RecipeFolder) => f.id === activeFolderId)?.name || ''
+            );
+            setShowAddRecipesModal(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Add recipes to folder"
+          activeOpacity={0.9}
+        >
+          <Plus size={22} color={Colors.white} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -692,10 +702,7 @@ const styles = StyleSheet.create({
   listContentContainer: {
     paddingHorizontal: 16,
   },
-  folderActions: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
+  
   recipeCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -747,5 +754,21 @@ const styles = StyleSheet.create({
     ...Type.caption,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  // Floating Add button (consistent with app FAB usage)
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });

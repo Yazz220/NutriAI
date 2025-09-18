@@ -206,8 +206,8 @@ const styles = StyleSheet.create({
   servingsDisplay: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.sm,
-    minWidth: 60,
+    marginHorizontal: Spacing.xs,
+    minWidth: 52,
   },
   servingsNumber: {
     fontSize: 20,

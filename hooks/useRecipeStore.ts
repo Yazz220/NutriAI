@@ -1,14 +1,16 @@
 // Enhanced Recipe Store Hook
-// Wired to TheMealDB for discovery/search
+// Provider-agnostic (MealDB removed); wire in FatSecret next
 
 import React, { useState, useEffect, useCallback, useContext, createContext, PropsWithChildren, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExternalRecipe } from '@/types/external';
-import { searchMealsByName, getRandomMeals, filterByCategory } from '@/utils/providers/mealdb';
+// MealDB removed; temporary no-op implementations will be used until FatSecret integration
+import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 import { Meal, RecipeWithAvailability } from '@/types';
+import { mockRecipesSearch, mockGetRecipe, mockGetTrendingRecipes, mockGetRandomRecipes } from '@/utils/providers/mockRecipes';
 
-// External source
-const RECIPE_SOURCE = 'mealdb';
+// External source (to be set when provider integrated)
+const RECIPE_SOURCE = 'unknown';
 
 // External dataset/backend disabled
 
@@ -20,7 +22,7 @@ const hashToNumber = (str: string): number => {
   }
   // Ensure non-zero
   return hash || 1;
-};
+}
 
 // Map a minimal Canonical-like recipe (from Edamam mapper) to ExternalRecipe
 const mapEdamamCanonicalToExternal = (r: any): ExternalRecipe => {
@@ -171,8 +173,9 @@ export interface RecipeStoreActions {
   getRecipesWithAvailability: (inventory: any[]) => RecipeWithAvailability[];
 }
 
-// Internal provider implementation
-const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
+// No external provider currently configured; using mock provider exclusively
+
+function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
   const [state, setState] = useState<RecipeStoreState>({
     localRecipes: [],
     externalRecipes: [],
@@ -189,6 +192,9 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   useEffect(() => {
     externalCountRef.current = state.externalRecipes.length;
   }, [state.externalRecipes.length]);
+
+  // cooldown for repeated failing random fetches (timestamp ms)
+  const lastRandomFailureRef = useRef<number | null>(null);
 
   // Load local recipes from storage on mount
   useEffect(() => {
@@ -227,86 +233,57 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
     return Array.from(map.values());
   };
 
-  // Search recipes
-  const searchRecipes = useCallback(async (_params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
+  // Search recipes (mock)
+  const searchRecipes = useCallback(async (params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
     setState(prev => ({ ...prev, isSearching: true, error: null }));
     try {
-      const { query, type, number } = _params || {};
-      let results: ExternalRecipe[] = [];
-      if (type) {
-        // map meal types to categories where possible
-        const categoryMap: Record<string, string> = {
-          breakfast: 'Breakfast',
-          lunch: 'Beef', // TheMealDB lacks lunch; use protein category as proxy
-          dinner: 'Chicken',
-          dessert: 'Dessert',
-        };
-        const cat = categoryMap[type.toLowerCase()] || type;
-        results = await filterByCategory(cat, Math.max(4, Math.min(number || 20, 24)));
-      } else if (query) {
-        results = await searchMealsByName(query);
-      }
+      const results = await mockRecipesSearch({
+        query: params.query,
+        type: params.type,
+        number: params.number ?? 24,
+      });
       setState(prev => ({ ...prev, searchResults: results, isSearching: false }));
-    } catch (error) {
-      setState(prev => ({ 
-        ...prev, 
-        error: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isSearching: false 
-      }));
+    } catch (e) {
+      console.error('[RecipeStore] searchRecipes failed', e);
+      setState(prev => ({ ...prev, error: 'Search failed', searchResults: [], isSearching: false }));
     }
   }, []);
 
   const getTrendingRecipes = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      // Use popular categories as a proxy for trending
-      const categories = ['Chicken', 'Pasta', 'Seafood', 'Vegetarian', 'Dessert'];
-      const batches = await Promise.all(categories.map(c => filterByCategory(c, 4)));
-      const merged: Record<string, ExternalRecipe> = {};
-      batches.flat().forEach(r => { merged[String(r.id)] = r; });
-      const results = Object.values(merged).slice(0, 24);
-      setState(prev => ({ ...prev, trendingRecipes: results, isLoading: false }));
-    } catch (error) {
-      console.error('[useRecipeStore] Failed to fetch trending recipes:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: `Failed to fetch trending recipes: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isLoading: false 
-      }));
+      const list = await mockGetTrendingRecipes();
+      setState(prev => ({ ...prev, trendingRecipes: list, isLoading: false }));
+    } catch (e) {
+      console.error('[RecipeStore] getTrendingRecipes failed', e);
+      setState(prev => ({ ...prev, error: 'Failed to load trending recipes', trendingRecipes: [], isLoading: false }));
     }
   }, []);
 
-  const getRecipeRecommendations = useCallback(async (_ingredients: string[]) => {
+  const getRecipeRecommendations = useCallback(async (ingredients: string[]) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      // Simple fallback: return random meals; future: match by ingredient names with search
-      const randoms = await getRandomMeals(8);
-      setState(prev => ({ ...prev, externalRecipes: randoms, isLoading: false }));
-    } catch (error) {
-      setState(prev => ({ 
-        ...prev, 
-        error: `Failed to fetch recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isLoading: false 
-      }));
+      const query = ingredients.slice(0, 3).join(' ');
+      const list = await mockRecipesSearch({ query, number: 12 });
+      setState(prev => ({ ...prev, externalRecipes: list, isLoading: false }));
+    } catch (e) {
+      console.error('[RecipeStore] getRecipeRecommendations failed', e);
+      setState(prev => ({ ...prev, error: 'Failed to get recommendations', isLoading: false }));
     }
   }, []);
 
-  const getRandomRecipes = useCallback(async (_tags?: string[], _count: number = 10, _append: boolean = true) => {
+  const getRandomRecipes = useCallback(async (tags?: string[], count: number = 10, append: boolean = true) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      const randoms = await getRandomMeals(_count || 10);
-      setState(prev => ({ 
-        ...prev, 
-        externalRecipes: _append ? mergeUnique(prev.externalRecipes, randoms) : randoms, 
-        isLoading: false 
+      const list = await mockGetRandomRecipes(tags, count);
+      setState(prev => ({
+        ...prev,
+        externalRecipes: append ? mergeUnique(prev.externalRecipes, list) : list,
+        isLoading: false,
       }));
-    } catch (error) {
-      console.error('[useRecipeStore] Failed to fetch random recipes:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: `Failed to fetch random recipes: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isLoading: false 
-      }));
+    } catch (e) {
+      console.error('[RecipeStore] getRandomRecipes failed', e);
+      setState(prev => ({ ...prev, error: 'Failed to load recipes', isLoading: false }));
     }
   }, []);
 
@@ -337,26 +314,37 @@ const useProvideRecipeStore = (): RecipeStoreState & RecipeStoreActions => {
   }, []);
 
   const saveExternalRecipe = useCallback(async (externalRecipe: ExternalRecipe) => {
+    // Improve serving default for external recipes lacking servings
+    const estServings = estimateServingsForExternalRecipe(externalRecipe);
+    const withServings = { ...externalRecipe, servings: estServings } as ExternalRecipe;
+    // Compute nutrition if possible (per-serving based on estimated servings)
+    const computed = computeForExternalRecipe(withServings);
     const convertedRecipe = ({
-      id: String(externalRecipe.id),
-      name: externalRecipe.title,
-      description: externalRecipe.instructions || externalRecipe.title || '',
-      image: externalRecipe.image || undefined,
+      id: String(withServings.id),
+      name: withServings.title,
+      description: withServings.instructions || withServings.title || '',
+      image: withServings.image || undefined,
       tags: [
-        ...((externalRecipe.cuisines || [])),
-        ...((externalRecipe.diets || [])),
-        ...((externalRecipe.dishTypes || [])),
+        ...((withServings.cuisines || [])),
+        ...((withServings.diets || [])),
+        ...((withServings.dishTypes || [])),
       ].filter(Boolean),
-      prepTime: externalRecipe.preparationMinutes || externalRecipe.readyInMinutes || 0,
-      cookTime: externalRecipe.cookingMinutes || 0,
-      servings: externalRecipe.servings || 1,
-      ingredients: externalRecipe.ingredients?.map((ing: any) => ({
+      prepTime: withServings.preparationMinutes || withServings.readyInMinutes || 0,
+      cookTime: withServings.cookingMinutes || 0,
+      servings: withServings.servings || 1,
+      ingredients: withServings.ingredients?.map((ing: any) => ({
         name: ing.name,
         quantity: ing.amount,
         unit: ing.unit,
         optional: false,
       })) || [],
-      steps: externalRecipe.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step) || [],
+      steps: withServings.analyzedInstructions?.[0]?.steps?.map((s: any) => s.step) || [],
+      nutritionPerServing: computed ? {
+        calories: computed.calories,
+        protein: computed.protein,
+        carbs: computed.carbs,
+        fats: computed.fats,
+      } : undefined,
     } as Meal);
     addLocalRecipe(convertedRecipe);
 

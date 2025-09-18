@@ -9,9 +9,9 @@ export interface RecipeAvailability {
   totalIngredients: number;
   availabilityPercentage: number;
   missingIngredients: MissingIngredient[];
-  expiringIngredients: ExpiringIngredient[];
+  expiringIngredients: ExpiringIngredient[]; // kept in type for compatibility but will be empty
   canCookNow: boolean;
-  urgencyScore: number;
+  urgencyScore: number; // will be 0 with expiration removed
   recommendationReason: string;
 }
 
@@ -237,32 +237,7 @@ export function calculateRecipeAvailability(
       if (isAvailable) {
         availableCount++;
         
-        // Check if ingredient is expiring
-        if (inventoryMatch.expiryDate) {
-          const expiryDate = new Date(inventoryMatch.expiryDate);
-          const now = new Date();
-          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          
-          let freshnessStatus: 'fresh' | 'aging' | 'expiring' = 'fresh';
-          if (daysUntilExpiry <= 1) {
-            freshnessStatus = 'expiring';
-            urgencyScore += 10; // High urgency for expiring ingredients
-          } else if (daysUntilExpiry <= 3) {
-            freshnessStatus = 'aging';
-            urgencyScore += 5; // Medium urgency for aging ingredients
-          }
-          
-          if (freshnessStatus !== 'fresh') {
-            expiringIngredients.push({
-              name: inventoryMatch.name,
-              quantity: inventoryMatch.quantity,
-              unit: inventoryMatch.unit,
-              expiryDate: inventoryMatch.expiryDate,
-              daysUntilExpiry,
-              freshnessStatus
-            });
-          }
-        }
+        // Expiration removed: do not compute urgency or expiring lists
       } else {
         const shortfall = requiredConverted.quantity - availableConverted.quantity;
         missingIngredients.push({
@@ -306,8 +281,6 @@ export function calculateRecipeAvailability(
     }
   } else if (availabilityPercentage >= 75) {
     recommendationReason = `Almost ready! You have ${availabilityPercentage}% of ingredients.`;
-  } else if (expiringIngredients.length > 0) {
-    recommendationReason = `Good way to use ${expiringIngredients.length} expiring ingredients.`;
   } else {
     recommendationReason = `You have ${availabilityPercentage}% of ingredients available.`;
   }
@@ -381,33 +354,8 @@ export function getExpiringIngredientRecipes(
   inventory: InventoryItem[], 
   recipes: (ExternalRecipe | Meal)[]
 ): Array<{ recipe: ExternalRecipe | Meal; availability: RecipeAvailability }> {
-  // Get ingredients expiring within 3 days
-  const expiringIngredients = inventory.filter(item => {
-    if (!item.expiryDate) return false;
-    const expiryDate = new Date(item.expiryDate);
-    const now = new Date();
-    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 3 && daysUntilExpiry >= 0;
-  });
-
-  if (expiringIngredients.length === 0) return [];
-
-  const expiringIngredientNames = expiringIngredients.map(item => item.name);
-  const relevantRecipes = findRecipesForIngredients(expiringIngredientNames, recipes);
-  
-  return relevantRecipes
-    .map(recipe => ({
-      recipe,
-      availability: calculateRecipeAvailability(recipe, inventory)
-    }))
-    .filter(item => item.availability.expiringIngredients.length > 0)
-    .sort((a, b) => {
-      // Sort by urgency score (descending) then by availability percentage (descending)
-      if (a.availability.urgencyScore !== b.availability.urgencyScore) {
-        return b.availability.urgencyScore - a.availability.urgencyScore;
-      }
-      return b.availability.availabilityPercentage - a.availability.availabilityPercentage;
-    });
+  // Expiration logic removed; return empty set
+  return [];
 }
 
 export function getRecipesWithAvailability(
@@ -448,9 +396,7 @@ export function getShoppingSuggestions(availability: RecipeAvailability): string
 // Utility function to format availability for display
 export function formatAvailabilityStatus(availability: RecipeAvailability): string {
   if (availability.canCookNow) {
-    return availability.expiringIngredients.length > 0 
-      ? `Ready to cook! (${availability.expiringIngredients.length} ingredients expiring soon)`
-      : 'Ready to cook!';
+    return 'Ready to cook!';
   }
   
   const missing = availability.missingIngredients.length;

@@ -50,19 +50,13 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   };
 
   const getExpiringItems = () => {
-    const threeDays = new Date();
-    threeDays.setDate(threeDays.getDate() + 3);
-    return inventory.filter(i => i.expiryDate && new Date(i.expiryDate) <= threeDays);
+    // Expiration tracking has been removed. Keep API but return empty.
+    return [] as InventoryItem[];
   };
 
   const getFreshnessStatus = (expiryDateStr?: string): 'fresh' | 'aging' | 'expiring' | 'untracked' => {
-    if (!expiryDateStr) return 'untracked';
-    const now = new Date();
-    const expiry = new Date(expiryDateStr);
-    const days = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 1) return 'expiring';
-    if (days <= 3) return 'aging';
-    return 'fresh';
+    // Expiration tracking removed. Always treat as untracked.
+    return 'untracked';
   };
 
   const getItemsByCategory = (category: ItemCategory) => inventory.filter(i => i.category === category);
@@ -101,10 +95,11 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
 });
 
 export function useInventoryByFreshness() {
-  const { inventory, getFreshnessStatus } = useInventory();
-  const fresh = inventory.filter(i => getFreshnessStatus(i.expiryDate) === 'fresh');
-  const aging = inventory.filter(i => getFreshnessStatus(i.expiryDate) === 'aging');
-  const expiring = inventory.filter(i => getFreshnessStatus(i.expiryDate) === 'expiring');
-  const untracked = inventory.filter(i => getFreshnessStatus(i.expiryDate) === 'untracked');
+  const { inventory } = useInventory();
+  // With expiration removed, place all items into untracked and leave others empty.
+  const fresh: InventoryItem[] = [];
+  const aging: InventoryItem[] = [];
+  const expiring: InventoryItem[] = [];
+  const untracked: InventoryItem[] = inventory;
   return { fresh, aging, expiring, untracked };
 }

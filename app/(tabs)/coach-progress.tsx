@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Brain } from 'phosphor-react-native';
+import { EnhancedDayStreakCard } from '@/components/progress/EnhancedDayStreakCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import ScreenHeader from '@/components/ui/ScreenHeader';
@@ -34,14 +35,8 @@ export default function CoachProgressScreen() {
         <WeightCard onPress={() => setShowWeightModal(true)} />
 
         <MeasurementCard onPress={() => setShowMeasurementModal(true)} />
-        
-        {/* Placeholder for future progress cards */}
-        <GlassSurface style={styles.placeholderSection}>
-          <Text style={styles.placeholderTitle}>More Progress Features</Text>
-          <Text style={styles.placeholderSubtitle}>
-            Additional progress tracking features will be added here
-          </Text>
-        </GlassSurface>
+
+        <EnhancedDayStreakCard streak={7} lastTracked="2025-09-15" />
       </ScrollView>
 
       <WeightModal 

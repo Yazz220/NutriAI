@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
+import { resetOnboarding } from '@/components/onboarding';
 import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -38,6 +39,18 @@ export default function SignUpScreen() {
       Alert.alert('Sign up failed', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const devResetEnabled = process.env.EXPO_PUBLIC_DEV_RESET_ONBOARDING === 'true';
+
+  const onDevResetOnboarding = async () => {
+    try {
+      await resetOnboarding();
+      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboarding…');
+      router.replace('/(onboarding)');
+    } catch (e) {
+      Alert.alert('Reset Failed', 'Could not reset onboarding. Check logs.');
     }
   };
 
@@ -97,6 +110,12 @@ export default function SignUpScreen() {
           </TouchableOpacity>
         </Link>
       </View>
+
+      {devResetEnabled && (
+        <TouchableOpacity style={styles.devResetLink} onPress={onDevResetOnboarding} accessibilityRole="button" accessibilityLabel="Reset onboarding (developer)">
+          <Text style={styles.devResetText}>Reset onboarding (dev)</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -158,6 +177,14 @@ const styles = StyleSheet.create({
   link: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  devResetLink: {
+    marginTop: Spacing.md,
+    alignItems: 'center',
+  },
+  devResetText: {
+    color: Colors.lightText,
+    textDecorationLine: 'underline',
   },
   error: {
     color: Colors.error,

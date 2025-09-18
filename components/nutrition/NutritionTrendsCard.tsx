@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
 import { LineChart } from 'react-native-chart-kit';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 interface NutritionTrendsCardProps { onPress?: () => void }
 
@@ -49,7 +50,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
   const chartHeight = 180;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+    <ProgressCardContainer style={styles.card} onPress={onPress} padding={16}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Nutrition Trends</Text>
         <View style={styles.viewRow}>
@@ -85,8 +86,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
             decimalPlaces: 0,
             color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
             labelColor: (opacity = 1) => Colors.lightText,
-            propsForDots: { r: '3' },
-            propsForBackgroundLines: { stroke: Colors.border, strokeDasharray: '' },
+            propsForBackgroundLines: { stroke: Colors.border },
           }}
           bezier
           style={styles.chart}
@@ -94,19 +94,15 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
       </View>
 
       <Text style={styles.hint}>Tap card for full details and zoom</Text>
-    </TouchableOpacity>
+    </ProgressCardContainer>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
     borderRadius: 16,
-    padding: 16,
     marginHorizontal: 16,
     marginVertical: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   title: { fontSize: Typography.sizes.md, fontWeight: Typography.weights.semibold, color: Colors.text },

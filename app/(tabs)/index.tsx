@@ -22,7 +22,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
-import { useInventory, useInventoryByFreshness } from '@/hooks/useInventoryStore';
+import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useToast } from '@/contexts/ToastContext';
 import { InventoryItemCard } from '@/components/InventoryItemCard';
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
 export default function InventoryScreen() {
   const insets = useSafeAreaInsets();
   const { inventory, isLoading, addItem, removeItem, refresh } = useInventory();
-  const { expiring } = useInventoryByFreshness();
+  // Freshness/expiration removed; no categorized freshness usage
   const { addItem: addToShoppingList } = useShoppingList();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ category?: string }>();
@@ -459,7 +459,7 @@ export default function InventoryScreen() {
     }
   };
 
-  const handleAddItem = async (item: Partial<{ name: string; category: ItemCategory; addedDate: string; quantity?: number; unit?: string; expiryDate?: string }>) => {
+  const handleAddItem = async (item: Partial<{ name: string; category: ItemCategory; addedDate: string; quantity?: number; unit?: string }>) => {
     // Guard and normalize the incoming item shape from AddItemModal
     const name = (item.name || '').trim();
     if (!name) {
@@ -473,7 +473,8 @@ export default function InventoryScreen() {
     const addedDate = item.addedDate ?? new Date().toISOString();
 
     try {
-      await addItem({ name, category, quantity, unit, addedDate, expiryDate: item.expiryDate });
+      // Do not track expiration dates
+      await addItem({ name, category, quantity, unit, addedDate });
       setModalVisible(false);
       showToast({ message: `Added ${name}`, type: 'success', duration: 2000 });
     } catch (e) {
@@ -548,8 +549,6 @@ export default function InventoryScreen() {
   const addSelectedToInventory = async () => {
     if (!detectedItems) return;
     const now = new Date();
-    const expiry = new Date();
-    expiry.setDate(now.getDate() + 7);
     try {
       const tasks: Promise<any>[] = [];
       let addedCount = 0;
@@ -562,7 +561,6 @@ export default function InventoryScreen() {
           unit: (edit?.unit as any) || (it.unit as any) || 'pcs',
           category: (edit?.category as ItemCategory) || (mapCategory(it.category, it.name || '', isReceiptMode)) || 'Other',
           addedDate: now.toISOString(),
-          expiryDate: expiry.toISOString(),
         };
         addedCount += 1;
         tasks.push(addItem(item));

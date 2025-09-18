@@ -6,7 +6,7 @@ import { useMeals } from '@/hooks/useMealsStore';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { calculateMultipleRecipeAvailability, getRecipesUsingExpiringIngredients } from '@/utils/recipeAvailability';
+import { calculateMultipleRecipeAvailability } from '@/utils/recipeAvailability';
 import { Meal, PlannedMeal, RecipeWithAvailability } from '@/types';
 
 export type CoachActionIntent =
@@ -49,7 +49,7 @@ function getCurrentMealTypeByTime(): 'breakfast' | 'lunch' | 'dinner' | 'snack' 
 }
 
 export function useCoach() {
-  const { inventory, getExpiringItems } = useInventory();
+  const { inventory } = useInventory();
   const { meals } = useMeals();
   const { addPlannedMeal } = useMealPlanner();
   const { addItem: addToShoppingList, addMealIngredientsToList } = useShoppingList();
@@ -60,18 +60,13 @@ export function useCoach() {
     return calculateMultipleRecipeAvailability(meals as Meal[], inventory);
   }, [meals, inventory]);
 
-  const expiringItems = useMemo(() => getExpiringItems().sort((a, b) => {
-    const aTime = a.expiryDate ? new Date(a.expiryDate).getTime() : Infinity;
-    const bTime = b.expiryDate ? new Date(b.expiryDate).getTime() : Infinity;
-    return aTime - bTime;
-  }), [getExpiringItems]);
+  // Expiration removed; no expiring items
 
   const primaryMealSuggestion: CoachSuggestion | null = useMemo(() => {
     if (!recipesWithAvailability.length) return null;
 
     const timeMealType = getCurrentMealTypeByTime();
-    const expiringRecipes = getRecipesUsingExpiringIngredients(recipesWithAvailability);
-    const candidates = (expiringRecipes.length ? expiringRecipes : recipesWithAvailability)
+    const candidates = recipesWithAvailability
       .slice()
       .sort((a, b) => {
         // Prefer higher availability, then shorter prep time
@@ -96,7 +91,7 @@ export function useCoach() {
       recipe,
       meta: {
         readyInMins: 'prepTime' in recipe ? (recipe as any).prepTime + (recipe as any).cookTime : undefined,
-        highlight: recipe.availability.expiringIngredients.length > 0 ? 'Uses expiring items' : 'High availability',
+        highlight: 'High availability',
         missingCount,
       },
       actions: [
@@ -108,23 +103,7 @@ export function useCoach() {
     };
   }, [recipesWithAvailability]);
 
-  const headsUpSuggestion: CoachSuggestion | null = useMemo(() => {
-    const first = expiringItems[0];
-    if (!first) return null;
-    return {
-      id: `heads-up-${first.id}`,
-      type: 'heads_up',
-      title: 'Inventory Alert',
-      subtitle: `${first.name} expires soon. Plan a meal to avoid waste.`,
-      expiringItemName: first.name,
-      expiringItemId: first.id,
-      actions: [
-        { label: `Find recipes with ${first.name}`, intent: 'FIND_RECIPES_WITH', args: { ingredient: first.name }, variant: 'outline' },
-        { label: 'Mark as used', intent: 'MARK_USED', args: { itemId: first.id } },
-      ],
-      score: 0.8,
-    };
-  }, [expiringItems]);
+  const headsUpSuggestion: CoachSuggestion | null = null;
 
   const goalPulseSuggestion: CoachSuggestion = useMemo(() => {
     // Simple placeholder goal pulse: use mealPlanDays as weekly target

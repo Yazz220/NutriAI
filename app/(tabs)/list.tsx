@@ -10,7 +10,6 @@ import {
   Alert
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Sparkles, RotateCcw, ShoppingCart, CheckCircle, Clock, FileDown } from 'lucide-react-native';
 // Header now uses ScreenHeader
 import { Colors } from '@/constants/colors';
@@ -43,11 +42,9 @@ export default function ShoppingListScreen() {
     clearRecentlyPurchased
   } = useShoppingList();
   const { addItem: addInventoryItem } = useInventory();
-  const { preferences, updateAutoAddPurchasedToInventory } = useUserPreferences();
+  const { preferences } = useUserPreferences();
   const { showToast } = useToast();
-  const insets = useSafeAreaInsets();
-  const TAB_BAR_HEIGHT = 56; // matches pill bar height in app/(tabs)/_layout.tsx
-  const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
+  // Bottom padding is handled by the tab bar itself (non-absolute). Keep lists compact.
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingListItem | null>(null);
   const [exportVisible, setExportVisible] = useState(false);
@@ -157,11 +154,7 @@ export default function ShoppingListScreen() {
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
             icon={<Plus size={14} color={Colors.primary} />}
           />
-          <View style={{ justifyContent: 'center', marginLeft: 8 }}>
-            <TouchableOpacity onPress={() => updateAutoAddPurchasedToInventory(!preferences?.autoAddPurchasedToInventory)} style={styles.autoAddToggle}>
-              <Text style={{ color: preferences?.autoAddPurchasedToInventory ? Colors.white : Colors.text, fontWeight: '600' }}>{preferences?.autoAddPurchasedToInventory ? 'Auto add: ON' : 'Auto add: OFF'}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Auto-add toggle removed by request */}
           <Button
             title="Export"
             onPress={() => setExportVisible(true)}
@@ -210,7 +203,7 @@ export default function ShoppingListScreen() {
           )}
           stickySectionHeadersEnabled={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 24 }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Your shopping list is empty</Text>
@@ -238,8 +231,7 @@ export default function ShoppingListScreen() {
 
         <ExportShoppingModal visible={exportVisible} onClose={() => setExportVisible(false)} />
         
-        {/* Bottom spacer to ensure content clears the absolute tab bar */}
-        <View style={{ height: bottomPad }} />
+        {/* Bottom spacer no longer needed since tab bar is non-absolute */}
         
       </View>
     </>
@@ -352,16 +344,7 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
   },
-  autoAddToggle: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  
   smartListButton: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 import { useWeightTracking } from '@/hooks/useWeightTracking';
-import { GlassSurface } from '@/components/common/GlassSurface';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 interface WeightCardProps {
   onPress: () => void;
@@ -30,7 +30,7 @@ export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
   };
 
   return (
-    <GlassSurface pressable onPress={onPress} style={styles.card} padding={20}>
+    <ProgressCardContainer onPress={onPress} style={styles.card} padding={20} noMargins>
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <Text style={styles.title}>My Weight</Text>
@@ -52,7 +52,7 @@ export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
           <Text style={styles.nextWeighIn}>Last weigh-in: {formatLastWeighIn()}</Text>
         </View>
       </View>
-    </GlassSurface>
+    </ProgressCardContainer>
   );
 };
 

@@ -48,7 +48,7 @@ const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate, cellS
           // Get first 3 letters of the weekday and ensure proper case
           const dayAbbrev = weekday.length > 3 ? weekday.substring(0, 3) : weekday;
           // apply scale to the base cell size
-          const effectiveCell = Math.max(32, Math.floor(cellSize * scale)); // Slightly increased minimum cell size
+          const effectiveCell = Math.max(32, Math.floor(cellSize * scale)); // unified min ensures alignment with rings row
           return (
             <View key={`winit-${iso}`} style={[styles.weekInitialCell, { width: effectiveCell }]}>
               <View style={styles.weekInitialInner}>
@@ -68,7 +68,7 @@ const WeekRings: React.FC<WeekRingsProps> = ({ selectedDate, onSelectDate, cellS
             .reduce((acc, m) => ({ calories: acc.calories + m.calories }), { calories: 0 });
           const pct = goals?.dailyCalories ? Math.min(1, totals.calories / goals.dailyCalories) : 0;
           const ring: RingSpec = { pct, color: ringColor };
-          const effectiveCell = Math.max(28, Math.floor(cellSize * scale));
+          const effectiveCell = Math.max(32, Math.floor(cellSize * scale)); // match initials row to keep columns aligned
           const effectiveRing = Math.max(22, Math.floor(ringSize * scale));
           return (
             <TouchableOpacity
@@ -120,7 +120,6 @@ const styles = {
   },
   weekInitialCell: {
     alignItems: 'center' as const,
-    paddingHorizontal: 1, // Add small horizontal padding
   },
   weekInitialInner: {
     zIndex: 2 as const,

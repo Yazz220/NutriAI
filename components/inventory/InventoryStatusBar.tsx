@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { AlertTriangle, Package, Clock, Plus } from 'lucide-react-native';
+import { Package, Plus } from 'lucide-react-native';
+
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { InventoryItem } from '@/types';
@@ -14,41 +15,10 @@ interface InventoryStatusBarProps {
 
 interface InventoryStats {
   total: number;
-  expiring: number;
-  aging: number;
-  fresh: number;
-  untracked: number;
 }
 
 function calculateInventoryStats(inventory: InventoryItem[]): InventoryStats {
-  const stats: InventoryStats = {
-    total: inventory.length,
-    expiring: 0,
-    aging: 0,
-    fresh: 0,
-    untracked: 0
-  };
-
-  inventory.forEach(item => {
-    if (!item.expiryDate) {
-      stats.untracked++;
-      return;
-    }
-
-    const now = new Date();
-    const expiryDate = new Date(item.expiryDate);
-    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntilExpiry <= 1) {
-      stats.expiring++;
-    } else if (daysUntilExpiry <= 3) {
-      stats.aging++;
-    } else {
-      stats.fresh++;
-    }
-  });
-
-  return stats;
+  return { total: inventory.length };
 }
 
 export const InventoryStatusBar: React.FC<InventoryStatusBarProps> = ({
@@ -65,14 +35,6 @@ export const InventoryStatusBar: React.FC<InventoryStatusBarProps> = ({
         <View style={styles.compactStats}>
           <Package size={16} color={Colors.text} />
           <Text style={styles.compactText}>{stats.total} items</Text>
-          {stats.expiring > 0 && (
-            <>
-              <AlertTriangle size={14} color={Colors.error} />
-              <Text style={[styles.compactText, { color: Colors.error }]}>
-                {stats.expiring} expiring
-              </Text>
-            </>
-          )}
         </View>
         {onViewInventory && (
           <TouchableOpacity onPress={onViewInventory} style={styles.compactButton}>
@@ -102,53 +64,7 @@ export const InventoryStatusBar: React.FC<InventoryStatusBarProps> = ({
           <Text style={styles.statNumber}>{stats.total}</Text>
           <Text style={styles.statLabel}>Total Items</Text>
         </View>
-
-        {stats.expiring > 0 && (
-          <View style={[styles.statItem, styles.urgentStat]}>
-            <View style={styles.urgentHeader}>
-              <AlertTriangle size={16} color={Colors.error} />
-              <Text style={[styles.statNumber, { color: Colors.error }]}>
-                {stats.expiring}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: Colors.error }]}>
-              Expiring Soon
-            </Text>
-          </View>
-        )}
-
-        {stats.aging > 0 && (
-          <View style={styles.statItem}>
-            <View style={styles.agingHeader}>
-              <Clock size={16} color={Colors.warning} />
-              <Text style={[styles.statNumber, { color: Colors.warning }]}>
-                {stats.aging}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: Colors.warning }]}>
-              Use Soon
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: Colors.success }]}>
-            {stats.fresh}
-          </Text>
-          <Text style={[styles.statLabel, { color: Colors.success }]}>
-            Fresh
-          </Text>
-        </View>
       </View>
-
-      {stats.expiring > 0 && (
-        <View style={styles.alertContainer}>
-          <AlertTriangle size={16} color={Colors.error} />
-          <Text style={styles.alertText}>
-            {stats.expiring} ingredient{stats.expiring !== 1 ? 's' : ''} expiring within 24 hours
-          </Text>
-        </View>
-      )}
 
       {onViewInventory && (
         <TouchableOpacity onPress={onViewInventory} style={styles.viewButton}>

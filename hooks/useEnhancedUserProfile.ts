@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EnhancedUserProfile, DietaryRestriction, HealthGoal, ActivityLevel, CookingSkill } from '../types';
+import { EnhancedUserProfile, DietaryRestriction, HealthGoal, ActivityLevel } from '../types';
 import { useUserProfile } from './useUserProfile';
 
 const STORAGE_KEY = 'enhanced_user_profile';
@@ -156,7 +156,7 @@ export const useUserProfileStore = () => {
   };
 
   const setCookingPreferences = async (preferences: {
-    cookingSkill?: CookingSkill;
+    cookingSkill?: string;
     maxCookingTime?: number;
     preferredMealTypes: string[];
   }) => {

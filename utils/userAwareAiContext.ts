@@ -52,10 +52,6 @@ export const createUserAwareSystemPrompt = (
       prompt += `\n- Preferred Cuisines: ${profile.preferredCuisines.join(', ')}`;
     }
 
-    if (profile.cookingSkill) {
-      prompt += `\n- Cooking Skill: ${profile.cookingSkill}`;
-    }
-
     if (profile.maxCookingTime) {
       prompt += `\n- Max Cooking Time: ${profile.maxCookingTime} minutes`;
     }

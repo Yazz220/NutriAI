@@ -6,7 +6,6 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { Brain, Send, ChefHat, Package } from 'lucide-react-native';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { InventoryStatusBar } from '@/components/inventory/InventoryStatusBar';
-import { ExpiringIngredientsAlert } from '@/components/inventory/ExpiringIngredientsAlert';
 import { createChatCompletion, type ChatMessage as AiChatMessage } from '@/utils/aiClient';
 import { 
   buildInventoryAwareAiContext, 
@@ -54,22 +53,21 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
   onAddIngredient,
   userPreferences = {
     dietaryRestrictions: [],
-    cookingSkillLevel: 'intermediate',
     preferredCuisines: [],
     timeConstraints: 30,
     avoidIngredients: []
   }
 }) => {
-  const { inventory, getExpiringItems } = useInventory();
+  const { inventory } = useInventory();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [showExpiringAlert, setShowExpiringAlert] = useState(true);
+
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const messageIdRef = useRef(0);
 
-  const expiringItems = useMemo(() => getExpiringItems(), [inventory, getExpiringItems]);
   const quickPrompts = useMemo(() => getQuickSuggestionPrompts(inventory), [inventory]);
 
   const aiContext = useMemo(() => 
@@ -104,12 +102,7 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
     } else {
       greeting += `I can see you have ${inventory.totalItems} ingredients in your kitchen. `;
       
-      if (inventory.expiringItems.length > 0) {
-        greeting += `I notice ${inventory.expiringItems.length} ingredient${inventory.expiringItems.length !== 1 ? 's' : ''} expiring soon. `;
-        greeting += "Let me suggest some recipes to help you use them up!";
-      } else {
-        greeting += "What would you like to cook today?";
-      }
+      greeting += "What would you like to cook today?";
     }
     
     return greeting;
@@ -189,12 +182,6 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
     sendMessage(prompt);
   };
 
-  const handleSuggestRecipesForExpiring = (ingredients: string[]) => {
-    const prompt = `What recipes can I make using ${ingredients.join(', ')}? These ingredients are expiring soon.`;
-    handleQuickPrompt(prompt);
-    setShowExpiringAlert(false);
-  };
-
   const TAB_BAR_HEIGHT = 56;
   const TAB_BAR_OFFSET = 12;
   const composerBottomOffset = TAB_BAR_HEIGHT + TAB_BAR_OFFSET + Math.max(insets.bottom, 0);
@@ -213,14 +200,6 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
           onAddIngredient={onAddIngredient}
           compact={true}
         />
-        
-        {showExpiringAlert && expiringItems.length > 0 && (
-          <ExpiringIngredientsAlert
-            expiringItems={expiringItems}
-            onSuggestRecipes={handleSuggestRecipesForExpiring}
-            onDismiss={() => setShowExpiringAlert(false)}
-          />
-        )}
       </View>
 
       {/* Messages */}

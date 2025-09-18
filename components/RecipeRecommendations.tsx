@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { Sparkles, Clock, Users, Plus, AlertCircle } from 'lucide-react-native';
+import { Sparkles, Clock, Users, Plus } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { RecipeWithAvailability } from '@/types';
-import { sortRecipesByAvailability, getRecipesUsingExpiringIngredients } from '@/utils/recipeAvailability';
+import { sortRecipesByAvailability } from '@/utils/recipeAvailability';
 
 interface RecipeRecommendationsProps {
   recipesWithAvailability: RecipeWithAvailability[];
@@ -100,34 +100,21 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   availabilityHigh: {
-    backgroundColor: Colors.fresh,
+    backgroundColor: Colors.primary,
   },
   availabilityHighText: {
     color: Colors.white,
   },
   availabilityMedium: {
-    backgroundColor: Colors.aging,
+    backgroundColor: Colors.secondary,
   },
   availabilityLow: {
-    backgroundColor: Colors.expiring,
+    backgroundColor: Colors.secondary,
   },
   availabilityLowText: {
     color: Colors.white,
   },
-  expiringBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.expiring,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  expiringText: {
-    fontSize: 10,
-    color: Colors.white,
-    marginLeft: 2,
-    fontWeight: '500',
-  },
+  // Expiring badge removed
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -169,17 +156,8 @@ export const RecipeRecommendations: React.FC<RecipeRecommendationsProps> = ({
   onAddToMealPlan,
   onRecipePress,
 }) => {
-  // Get recipes that use expiring ingredients first, then sort by availability
-  const expiringRecipes = getRecipesUsingExpiringIngredients(recipesWithAvailability);
-  const sortedRecipes = sortRecipesByAvailability(recipesWithAvailability, 'availability');
-  
-  // Combine expiring recipes with high-availability recipes, removing duplicates
-  const recommendations = [
-    ...expiringRecipes.slice(0, 2), // Top 2 recipes using expiring ingredients
-    ...sortedRecipes
-      .filter(recipe => !expiringRecipes.some(er => er.id === recipe.id))
-      .slice(0, 3) // Top 3 other high-availability recipes
-  ].slice(0, 5); // Limit to 5 total recommendations
+  // Sort recommendations by availability only
+  const recommendations = sortRecipesByAvailability(recipesWithAvailability, 'availability').slice(0, 5);
 
   const getAvailabilityBadgeStyle = (percentage: number) => {
     if (percentage >= 80) {
@@ -209,8 +187,6 @@ export const RecipeRecommendations: React.FC<RecipeRecommendationsProps> = ({
   };
 
   const renderRecommendationCard = (recipe: RecipeWithAvailability) => {
-    const hasExpiringIngredients = recipe.availability.expiringIngredients.length > 0;
-    
     return (
       <TouchableOpacity 
         key={recipe.id} 
@@ -250,12 +226,7 @@ export const RecipeRecommendations: React.FC<RecipeRecommendationsProps> = ({
               </Text>
             </View>
             
-            {hasExpiringIngredients && (
-              <View style={styles.expiringBadge}>
-                <AlertCircle size={10} color={Colors.white} />
-                <Text style={styles.expiringText}>Expiring</Text>
-              </View>
-            )}
+            {/* Expiring badge removed */}
           </View>
           
           <TouchableOpacity
@@ -294,7 +265,7 @@ export const RecipeRecommendations: React.FC<RecipeRecommendationsProps> = ({
       </View>
       
       <Text style={styles.subtitle}>
-        Based on your current inventory and expiring ingredients
+        Based on your current inventory
       </Text>
       
       <ScrollView

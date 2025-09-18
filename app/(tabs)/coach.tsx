@@ -33,7 +33,7 @@ import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { BMICard } from '@/components/progress/BMICard';
 import BMIModal from '@/components/progress/BMIModal';
-import { DayStreakCard } from '@/components/progress/DayStreakCard';
+import { EnhancedDayStreakCard } from '@/components/progress/EnhancedDayStreakCard';
 import { TotalCaloriesCard } from '@/components/progress/TotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
@@ -336,8 +336,8 @@ export default function CoachScreen() {
       />
       {/* Unified Screen Header */}
       <ScreenHeader
-        title={activeTab === 'progress' ? 'Progress' : 'Coach'}
-        icon={<Brain size={28} color={Colors.text} />}
+        title={activeTab === 'progress' ? 'Progress' : 'Tracking'}
+        icon={activeTab === 'progress' ? <TrendUp size={28} color={Colors.text} /> : <Target size={28} color={Colors.text} />}
       />
       {/* Segmented control: Tracking | Progress */}
       <View
@@ -395,7 +395,7 @@ export default function CoachScreen() {
         </View>
         {/* Only WeekRings swipes */}
         <View
-          style={{ overflow: 'visible', marginTop: 4, marginBottom: 12, width: '100%', minHeight: 44 }}
+          style={{ overflow: 'visible', marginTop: 12, marginBottom: 12, width: '100%', minHeight: 44 }}
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width; // use actual container width (full width)
             if (w > 0 && Math.abs(w - ringsWidth) > 0.5) setRingsWidth(w);
@@ -606,7 +606,7 @@ export default function CoachScreen() {
               <WeightCard onPress={() => setShowWeightModal(true)} />
             </View>
             <View style={styles.halfWidth}>
-              <DayStreakCard />
+              <EnhancedDayStreakCard streak={7} lastTracked={new Date().toISOString().split('T')[0]} />
             </View>
           </View>
 
@@ -723,6 +723,7 @@ export default function CoachScreen() {
           {/* Top header with Today / Close */}
           <View style={styles.calendarTopBar}>
             <TouchableOpacity
+              style={{ paddingHorizontal: 8 }}
               onPress={() => {
                 const today = new Date().toISOString().split('T')[0];
                 setDayISO(today);
@@ -732,7 +733,11 @@ export default function CoachScreen() {
             >
               <Text style={styles.calendarTopBarAction}>Today</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setCalendarOpen(false)} accessibilityRole="button">
+            <TouchableOpacity
+              style={{ paddingHorizontal: 8 }}
+              onPress={() => setCalendarOpen(false)}
+              accessibilityRole="button"
+            >
               <Text style={styles.calendarTopBarAction}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -1681,6 +1686,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+    paddingHorizontal: 4,
   },
   calendarMonthLabel: {
     ...Type.body,
@@ -1689,12 +1695,12 @@ const styles = StyleSheet.create({
   },
   calendarWeekdaysRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginBottom: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
   },
   calendarWeekdayText: {
-    width: 44,
+    width: '14.2857%',
     textAlign: 'center',
     ...Type.caption,
     color: Colors.lightText,
@@ -1702,11 +1708,11 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 8,
   },
   calendarCell: {
-    width: 56,
+    width: '14.2857%',
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
@@ -1726,13 +1732,14 @@ const styles = StyleSheet.create({
   calendarContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   calendarTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 4, // base; combined with container padding to keep ample edge space
     marginBottom: 8,
   },
   calendarTopBarAction: {

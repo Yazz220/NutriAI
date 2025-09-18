@@ -10,20 +10,12 @@ import {
 } from 'react-native';
 import { ArrowLeft, Save, Plus, X } from 'lucide-react-native';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
-import { CookingSkill } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 
 interface CookingPreferencesSectionProps {
   onBack: () => void;
 }
-
-const COOKING_SKILL_OPTIONS: { value: CookingSkill; label: string; description: string }[] = [
-  { value: 'beginner', label: 'Beginner', description: 'Simple recipes with basic techniques' },
-  { value: 'intermediate', label: 'Intermediate', description: 'Moderate complexity recipes' },
-  { value: 'advanced', label: 'Advanced', description: 'Complex recipes and techniques' },
-  { value: 'expert', label: 'Expert', description: 'Professional-level cooking skills' },
-];
 
 const TIME_OPTIONS = [
   { value: 15, label: '15 minutes or less' },
@@ -51,7 +43,6 @@ export function CookingPreferencesSection({ onBack }: CookingPreferencesSectionP
   const { profile, setCookingPreferences } = useUserProfileStore();
   
   const [formData, setFormData] = useState({
-    cookingSkill: profile?.cookingSkill || 'beginner',
     maxCookingTime: profile?.maxCookingTime || 60,
     preferredMealTypes: profile?.preferredMealTypes || [],
   });
@@ -91,7 +82,6 @@ export function CookingPreferencesSection({ onBack }: CookingPreferencesSectionP
   const handleSave = async () => {
     try {
       await setCookingPreferences({
-        cookingSkill: formData.cookingSkill,
         maxCookingTime: formData.maxCookingTime,
         preferredMealTypes: formData.preferredMealTypes,
       });
@@ -116,43 +106,6 @@ export function CookingPreferencesSection({ onBack }: CookingPreferencesSectionP
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Cooking Skill Level</Text>
-          <Text style={styles.sectionDescription}>
-            Select your cooking experience level:
-          </Text>
-          
-          <View style={styles.skillOptions}>
-            {COOKING_SKILL_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.skillOption,
-                  formData.cookingSkill === option.value && styles.skillOptionSelected,
-                ]}
-                onPress={() => setFormData({ ...formData, cookingSkill: option.value })}
-              >
-                <Text
-                  style={[
-                    styles.skillTitle,
-                    formData.cookingSkill === option.value && styles.skillTitleSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.skillDescription,
-                    formData.cookingSkill === option.value && styles.skillDescriptionSelected,
-                  ]}
-                >
-                  {option.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Maximum Cooking Time</Text>
           <Text style={styles.sectionDescription}>

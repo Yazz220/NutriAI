@@ -1,6 +1,6 @@
 import React from 'react';
-import { OnboardingFlow } from '@/components/onboarding';
+import { Redirect } from 'expo-router';
 
-export default function OnboardingScreen() {
-  return <OnboardingFlow />;
+export default function OnboardingIndex() {
+  return <Redirect href="/(onboarding)/welcome" />;
 }

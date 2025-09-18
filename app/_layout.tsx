@@ -21,8 +21,7 @@ import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
-
-// (onboarding) stack remains accessible but not forced by root
+import { isOnboardingCompleted } from '@/contexts/OnboardingContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -33,8 +32,9 @@ function RootLayoutNav() {
   const { initializing, session } = useAuth();
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
-  // Load fonts
+  // Load fonts and check onboarding status
   useEffect(() => {
     async function prepare() {
       try {
@@ -52,8 +52,13 @@ function RootLayoutNav() {
             (RNText as any).defaultProps && (RNText as any).defaultProps.style,
           ],
         };
+        
+        // Check onboarding completion status
+        const completed = await isOnboardingCompleted();
+        setOnboardingCompleted(completed);
       } catch (e) {
         console.warn('Error loading fonts:', e);
+        setOnboardingCompleted(false); // Default to showing onboarding on error
       } finally {
         setFontsLoaded(true);
       }
@@ -68,15 +73,11 @@ function RootLayoutNav() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || onboardingCompleted === null) {
     return null; // Or a loading screen
   }
   
-  // No onboarding gating in root; keep it simple while we iterate on importing flow
-
   // splash hide is handled by the fontsLoaded effect above
-
-  // No onboarding checks
 
   if (initializing) {
     return (
@@ -88,15 +89,27 @@ function RootLayoutNav() {
     );
   }
 
+  // Determine which screen to show based on onboarding and auth status
+  const getInitialScreen = () => {
+    // If onboarding not completed, show onboarding (value-first approach)
+    if (!onboardingCompleted) {
+      return <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />;
+    }
+    
+    // If onboarding completed but not authenticated, show auth
+    if (!devBypass && !session) {
+      return <Stack.Screen name="(auth)" options={{ headerShown: false }} />;
+    }
+    
+    // If authenticated (or dev bypass), show main app
+    return <Stack.Screen name="(tabs)" options={{ headerShown: false }} />;
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
-        {devBypass || session ? (
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        ) : (
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        )}
+        {getInitialScreen()}
       </Stack>
     </GestureHandlerRootView>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { CheckCircle, AlertTriangle, Clock, ShoppingCart } from 'lucide-react-native';
+import { CheckCircle, ShoppingCart } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { RecipeAvailability } from '@/utils/inventoryRecipeMatching';
@@ -18,18 +18,9 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
   icon: React.ComponentType<any>;
   label: string;
 } {
-  const { availabilityPercentage, canCookNow, expiringIngredients } = availability;
+  const { availabilityPercentage, canCookNow } = availability;
   
   if (canCookNow) {
-    if (expiringIngredients.length > 0) {
-      return {
-        status: 'ready',
-        textColor: Colors.onDanger,
-        backgroundColor: Colors.error,
-        icon: AlertTriangle,
-        label: 'Cook Soon!'
-      };
-    }
     return {
       status: 'ready',
       textColor: Colors.onSuccess,
@@ -42,9 +33,9 @@ function getAvailabilityStatus(availability: RecipeAvailability): {
   if (availabilityPercentage >= 75) {
     return {
       status: 'mostly-ready',
-      textColor: Colors.onWarning,
-      backgroundColor: Colors.warning,
-      icon: Clock,
+      textColor: Colors.onAccent,
+      backgroundColor: Colors.accentPrimary,
+      icon: ShoppingCart,
       label: 'Almost Ready'
     };
   }
@@ -133,11 +124,7 @@ export const RecipeAvailabilityBadge: React.FC<RecipeAvailabilityBadgeProps> = (
             {availability.availableIngredients}/{availability.totalIngredients} ingredients
           </Text>
           
-          {availability.expiringIngredients.length > 0 && (
-            <Text style={[styles.detailText, { color: statusInfo.textColor }]}>
-              {availability.expiringIngredients.length} expiring soon
-            </Text>
-          )}
+          {/* Expiring details removed */}
           
           {availability.missingIngredients.length > 0 && (
             <Text style={[styles.detailText, { color: statusInfo.textColor }]}>

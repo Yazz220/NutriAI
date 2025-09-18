@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bookmark, Clock, AlertTriangle } from 'lucide-react-native';
+import { Heart, Clock, Flame, ShoppingCart } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -12,7 +12,6 @@ import { RecipeAvailabilityBadge } from '@/components/recipe/RecipeAvailabilityB
 import {
   calculateRecipeAvailability,
   getRecipesWithAvailability,
-  getExpiringIngredientRecipes,
   RecipeAvailability
 } from '@/utils/inventoryRecipeMatching';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,10 +34,11 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
 }) => {
   const insets = useSafeAreaInsets();
   const { inventory } = useInventory();
-  const { trendingRecipes, externalRecipes, searchResults, isLoading, getTrendingRecipes, getRandomRecipes, searchRecipes } = useRecipeStore();
+  const { trendingRecipes, externalRecipes, isLoading, isSearching, getTrendingRecipes, getRandomRecipes } = useRecipeStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  // Filters removed for initial integration
  
   // Helper to merge unique recipes
   const mergeUnique = useCallback((a: ExternalRecipe[], b: ExternalRecipe[]): ExternalRecipe[] => {
@@ -48,9 +48,8 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     return Array.from(map.values());
   }, []);
 
-  // Enhanced recipes with availability data
+  // Enhanced recipes with availability data (merged pools)
   const enhancedRecipes = useMemo(() => {
-    // Merge trending and random results; ignore searchResults for now
     const baseRecipes = mergeUnique(trendingRecipes, externalRecipes);
     return baseRecipes.map(recipe => ({
       ...recipe,
@@ -58,18 +57,21 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     }));
   }, [externalRecipes, trendingRecipes, inventory, mergeUnique]);
 
-  // Get expiring ingredient recipes for special section
-  const expiringRecipes = useMemo(() => {
-    if (inventory.length === 0) return [];
-    return getExpiringIngredientRecipes(inventory, enhancedRecipes).slice(0, 5);
-  }, [inventory, enhancedRecipes]);
+  // No client-side filters — placeholder for future filters
+  const filteredRecipes = useMemo(() => enhancedRecipes, [enhancedRecipes]);
+
+  // Expiring section removed
 
   // Initial load
   useEffect(() => {
     (async () => {
       try {
         if (!trendingRecipes.length) await getTrendingRecipes();
-        if (!externalRecipes.length) await getRandomRecipes(['popular'], 12, true);
+        if (!externalRecipes.length) await getRandomRecipes(undefined, 12, true);
+        // Safety: if still empty, trigger another random batch with defaults
+        if (trendingRecipes.length + externalRecipes.length === 0) {
+          await getRandomRecipes(undefined, 12, true);
+        }
       } catch (e) {
         console.error('[Discover] init load failed', e);
       }
@@ -133,48 +135,54 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
           resizeMode="cover"
         />
 
-        {item.availability && (
-          <View style={styles.availabilityBadge}>
-            <RecipeAvailabilityBadge availability={item.availability} size="small" />
-          </View>
-        )}
-
         <View style={{ paddingVertical: 10 }}>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.metaRow}>
-            {typeof item.readyInMinutes === 'number' && item.readyInMinutes > 0 && (
+            {/* Time */}
+            {typeof item.readyInMinutes === 'number' && item.readyInMinutes > 0 ? (
               <View style={styles.metaItem}>
                 <Clock size={12} color={Colors.lightText} />
                 <Text style={styles.metaText}>{formatCookTime(item.readyInMinutes)}</Text>
               </View>
-            )}
+            ) : <View />}
 
-            {item.availability && (
-              <Text style={[styles.availabilityText, {
-                color: item.availability.canCookNow
-                  ? Colors.success
-                  : item.availability.availabilityPercentage >= 75
-                  ? Colors.warning
-                  : Colors.lightText,
-              }]}>
-                {item.availability.availabilityPercentage}% available
-              </Text>
-            )}
+            {/* Calories (if provided on recipe.nutrition) */}
+            {'nutrition' in item && (item as any)?.nutrition?.nutrients?.length ? (
+              (() => {
+                const cal = ((item as any).nutrition.nutrients.find((n: any) => (n.name || '').toLowerCase() === 'calories')?.amount) as number | undefined;
+                if (!cal || isNaN(cal)) return <View />;
+                return (
+                  <View style={styles.metaItem}>
+                    <Flame size={12} color={Colors.lightText} />
+                    <Text style={styles.metaText}>{Math.round(cal)} kcal</Text>
+                  </View>
+                );
+              })()
+            ) : <View />}
+
+            {/* Availability with cart icon */}
+            {item.availability ? (
+              <View style={styles.metaItem}>
+                <ShoppingCart size={12} color={item.availability.canCookNow ? Colors.success : Colors.lightText} />
+                <Text style={[styles.metaText, {
+                  color: item.availability.canCookNow
+                    ? Colors.success
+                    : item.availability.availabilityPercentage >= 75
+                    ? Colors.warning
+                    : Colors.lightText,
+                }]}>
+                  {item.availability.availabilityPercentage}%
+                </Text>
+              </View>
+            ) : <View />}
           </View>
 
-          {!!item.availability?.expiringIngredients?.length && (
-            <View style={styles.urgencyIndicator}>
-              <AlertTriangle size={12} color={Colors.error} />
-              <Text style={styles.urgencyText}>
-                {item.availability.expiringIngredients.length} expiring
-              </Text>
-            </View>
-          )}
+          {/* Expiring urgency indicator removed */}
         </View>
 
         <TouchableOpacity style={styles.bookmark} onPress={() => toggleSave(item)}>
-          <Bookmark size={16} color={savedIds.has(String(item.id)) ? Colors.primary : Colors.lightText} />
+          <Heart size={16} color={savedIds.has(String(item.id)) ? '#e5484d' : Colors.lightText} fill={savedIds.has(String(item.id)) ? '#e5484d' : 'transparent'} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -193,44 +201,24 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
         )}
       </View>
 
-      {expiringRecipes.length > 0 && (
-        <View style={styles.expiringSection}>
-          <Text style={styles.sectionTitle}>🚨 Use These Ingredients Soon</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.expiringList}>
-              {expiringRecipes
-                .filter(({ recipe }) => 'title' in (recipe as any) && 'image' in (recipe as any))
-                .map(({ recipe, availability }) => {
-                  const r = recipe as ExternalRecipe;
-                  return (
-                    <TouchableOpacity key={r.id} style={styles.expiringCard} onPress={() => onRecipePress(r)}>
-                      <Image source={{ uri: r.image }} style={styles.expiringImage} />
-                      <Text style={styles.expiringTitle} numberOfLines={2}>{r.title}</Text>
-                      <Text style={styles.expiringUrgency}>
-                        {availability.expiringIngredients.length} expiring ingredient{availability.expiringIngredients.length !== 1 ? 's' : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-            </View>
-          </ScrollView>
-        </View>
-      )}
+      {/* Expiring section removed */}
 
-      {/* Filters removed for now */}
+      {/* Filters removed */}
 
       <View style={{ flex: 1 }}>
         <FlatList
-          data={enhancedRecipes}
+          data={filteredRecipes}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
           contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 12, paddingBottom: 24 + Math.max(insets.bottom, 12) }}
           onEndReachedThreshold={0.6}
-          onEndReached={() => getRandomRecipes(undefined, 12, true)}
+          onEndReached={() => {
+            getRandomRecipes(undefined, 12, true);
+          }}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={
-            isLoading ? (
+            (isLoading || isSearching) ? (
               <LoadingSpinner />
             ) : (
               <View style={styles.emptyState}>
@@ -377,12 +365,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: 16,
     position: 'relative'
-  },
-  availabilityBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    zIndex: 1,
   },
   title: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 4 },
   metaRow: {
