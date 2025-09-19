@@ -103,7 +103,7 @@ export const Button: React.FC<ButtonProps> = ({
               variant === 'primary'
                 ? Colors.onPrimary
                 : variant === 'danger'
-                ? Colors.onDanger
+                ? Colors.onError
                 : Colors.primary
             }
           />
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   dangerText: {
-    color: Colors.onDanger,
+    color: Colors.onError,
   },
   disabledText: {
     opacity: 0.7,

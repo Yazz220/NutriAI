@@ -17,6 +17,8 @@ import { ProgressSection } from '@/components/nutrition/ProgressSection';
 import { NutritionTrends } from '@/components/nutrition/NutritionTrends';
 import { NutritionTrendsCard } from '@/components/nutrition/NutritionTrendsCard';
 import { NutritionTrendsModal } from '@/components/nutrition/NutritionTrendsModal';
+import { StreakCard } from '@/components/nutrition/StreakCard';
+import { EnhancedAnalyticsCard } from '@/components/progress/EnhancedAnalyticsCard';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -33,8 +35,9 @@ import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { BMICard } from '@/components/progress/BMICard';
 import BMIModal from '@/components/progress/BMIModal';
-import { EnhancedDayStreakCard } from '@/components/progress/EnhancedDayStreakCard';
-import { TotalCaloriesCard } from '@/components/progress/TotalCaloriesCard';
+// Removed EnhancedDayStreakCard from Progress page; keep StreakCard in Tracking
+// Removed unused TotalCaloriesCard import; using EnhancedTotalCaloriesCard instead
+import { EnhancedTotalCaloriesCard } from '@/components/progress/EnhancedTotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
 import { StructuredMessage } from '@/components/StructuredMessage';
@@ -42,6 +45,8 @@ import { DayCell, DateCarousel, WeekRings, CoachErrorBoundary } from '@/componen
 import { ProgressPhotosCard } from '@/components/progress/ProgressPhotosCard';
 import { useRouter } from 'expo-router';
 import { NutritionCoachChatInterface } from '@/components/NutritionCoachChatInterface';
+import { EnhancedFloatingChatButton } from '@/components/coach/EnhancedFloatingChatButton';
+import { EnhancedChatInterface } from '@/components/coach/EnhancedChatInterface';
 import {
   getWeekStartISO,
   formatWeekRange,
@@ -586,6 +591,15 @@ export default function CoachScreen() {
           </View>
         </View>
 
+        {/* Streak Tracking Card */}
+        <StreakCard onPress={() => {
+          // Optional: Navigate to detailed streak view or show streak tips
+          showToast({ 
+            type: 'info', 
+            message: 'Keep logging your meals to maintain your streak!' 
+          });
+        }} />
+
         {/* Progress Section (hidden for cleaner UI) */}
         {/* <ProgressSection /> */}
 
@@ -600,18 +614,14 @@ export default function CoachScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 24, paddingTop: 16 }}
         >
-          {/* Top Row: Weight and Streak Cards */}
-          <View style={styles.topRow}>
-            <View style={styles.halfWidth}>
-              <WeightCard onPress={() => setShowWeightModal(true)} />
-            </View>
-            <View style={styles.halfWidth}>
-              <EnhancedDayStreakCard streak={7} lastTracked={new Date().toISOString().split('T')[0]} />
-            </View>
-          </View>
+          {/* Weight Card - full width */}
+          <WeightCard onPress={() => setShowWeightModal(true)} />
 
-          {/* Total Calories by Period */}
-          <TotalCaloriesCard onOpenPeriod={(p) => {
+          {/* Enhanced Analytics Dashboard */}
+          <EnhancedAnalyticsCard onPress={() => setShowTrendsModal(true)} />
+
+          {/* Enhanced Total Calories Card */}
+          <EnhancedTotalCaloriesCard onOpenPeriod={(p) => {
             // Map to trends initial period and open modal
             const map: Record<string, '7d' | '30d' | '90d'> = { week: '7d', month: '30d', quarter: '90d' };
             setTrendsInitialPeriod(map[p]);
@@ -659,58 +669,19 @@ export default function CoachScreen() {
         initialPeriod={trendsInitialPeriod}
       />
 
-      {/* Floating Chat Button */}
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          { bottom: Math.max(20, (insets?.bottom ?? 0) + 56 + 24), zIndex: 999, elevation: 20 },
-        ]}
+      {/* Enhanced Floating Chat Button */}
+      <EnhancedFloatingChatButton
         onPress={() => setChatOpen(true)}
-      >
-        <Brain size={24} color={Colors.white} />
-      </TouchableOpacity>
+        bottom={Math.max(20, (insets?.bottom ?? 0) + 56 + 24)}
+        hasUnreadMessages={false}
+        isTyping={isTyping}
+      />
 
-      {/* Nutrition Coach Chat Modal */}
-      <Modal
+      {/* Enhanced Chat Interface */}
+      <EnhancedChatInterface
         visible={chatOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setChatOpen(false)}
-      >
-        <View style={styles.nutritionCoachContainer}>
-          <View style={styles.nutritionCoachHeader}>
-            <Text style={styles.nutritionCoachTitle}>Nutrition Coach</Text>
-            <TouchableOpacity 
-              style={styles.closeCoachButton}
-              onPress={() => setChatOpen(false)}
-            >
-              <Text style={styles.closeCoachText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-          <NutritionCoachChatInterface 
-            onViewProgress={() => {
-              // Could navigate to detailed progress view
-              console.log('View progress details');
-            }}
-            onLogMeal={(meal) => {
-              // Integration with meal logging
-              console.log('Log meal:', meal);
-            }}
-            onUpdateGoals={(goals) => {
-              // Integration with goal updates
-              console.log('Update goals:', goals);
-            }}
-            onQuickLogFood={(foodName, calories) => {
-              // Quick food logging
-              console.log('Quick log:', foodName, calories);
-            }}
-            onSetReminder={(type, time) => {
-              // Set reminders
-              console.log('Set reminder:', type, time);
-            }}
-          />
-        </View>
-      </Modal>
+        onClose={() => setChatOpen(false)}
+      />
 
       {/* Calendar Modal */}
       <Modal

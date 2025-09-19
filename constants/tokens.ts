@@ -40,7 +40,7 @@ export const Tokens = {
       info: Colors.info,
       onSuccess: Colors.onSuccess,
       onWarning: Colors.onWarning,
-      onDanger: Colors.onDanger,
+      onDanger: Colors.onError, // use onError instead of legacy onDanger
       onInfo: Colors.onInfo,
     },
     alpha: {
@@ -72,7 +72,7 @@ export const Tokens = {
         },
         content: {
           fg: Colors.onPrimary,
-          disabledFg: Colors.onSurface.high,
+          disabledFg: Colors.textSecondary,
           disabledOpacity: Colors.state.disabledOpacity,
         },
         border: { width: 0 },
@@ -86,7 +86,7 @@ export const Tokens = {
         },
         content: {
           fg: Colors.primary,
-          disabledFg: Colors.onSurface.high,
+          disabledFg: Colors.textSecondary,
           disabledOpacity: Colors.state.disabledOpacity,
         },
         border: { width: 1, color: Colors.lightGray, disabledColor: Colors.border },
@@ -108,8 +108,8 @@ export const Tokens = {
           disabledBg: Colors.surfaceMuted,
         },
         content: {
-          fg: Colors.onDanger,
-          disabledFg: Colors.onSurface.high,
+          fg: Colors.onError,
+          disabledFg: Colors.textSecondary,
           disabledOpacity: Colors.state.disabledOpacity,
         },
         border: { width: 0 },

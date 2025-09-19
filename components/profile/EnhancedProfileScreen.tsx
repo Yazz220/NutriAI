@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Edit3, Target, Heart, ChefHat, Settings, ArrowLeft, ChevronRight, Award, Clock } from 'lucide-react-native';
+import { User, Edit3, Target, Heart, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut, Camera } from 'lucide-react-native';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
+import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { PersonalInfoSection } from './PersonalInfoSection';
 import { DietaryPreferencesSection } from './DietaryPreferencesSection';
 import { HealthGoalsSection } from './HealthGoalsSection';
@@ -25,11 +27,27 @@ type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
 
 export default function EnhancedProfileScreen() {
   const { profile, isLoading } = useUserProfileStore();
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<ProfileSection>('overview');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
 
   const closeSheet = () => { setSheetVisible(false); setSheetSection(null); };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: () => supabase.auth.signOut()
+        }
+      ]
+    );
+  };
 
   const renderSectionContent = () => {
     // Main area shows overview only; detail pages are shown in slide-up sheet
@@ -38,20 +56,75 @@ export default function EnhancedProfileScreen() {
 
   const renderOverview = () => (
     <ScrollView style={styles.overview} showsVerticalScrollIndicator={false}>
-      {/* Profile Header Card */}
-      <View style={styles.profileCard}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>
-              {(profile?.name || 'User').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+      {/* Header with Settings Icon */}
+      <View style={styles.headerRow}>
+        <View style={styles.profileIcon}>
+          <User size={24} color={Colors.white} />
         </View>
-        <Text style={styles.userName}>{profile?.name || 'Alex Smith'}</Text>
-        
-        {/* Stats Row removed as requested */}
+        <TouchableOpacity style={styles.settingsIcon}>
+          <Settings size={24} color={Colors.text} />
+        </TouchableOpacity>
       </View>
 
+      {/* Hero Profile Card */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroBackground} />
+        <View style={styles.heroContent}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarCircle}>
+              <User size={32} color={Colors.lightText} />
+            </View>
+            <TouchableOpacity style={styles.cameraButton}>
+              <Camera size={16} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.userName}>{profile?.name || 'Yasir A'}</Text>
+          <Text style={styles.joinDate}>Joined {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
+          
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{profile?.height || '170'} cm</Text>
+              <Text style={styles.statLabel}>Height</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{profile?.weight || '70'} kg</Text>
+              <Text style={styles.statLabel}>Weight</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{profile?.age || '19'}</Text>
+              <Text style={styles.statLabel}>Age</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Goals Card */}
+      <View style={styles.goalsCard}>
+        <View style={styles.goalsHeader}>
+          <Target size={20} color={Colors.text} />
+          <Text style={styles.goalsTitle}>Goals</Text>
+        </View>
+        <Text style={styles.goalsSubtitle}>You're tackling 1 goal right now, keep at it or add more!</Text>
+        
+        <View style={styles.goalItem}>
+          <View style={styles.goalIcon}>
+            <Target size={16} color={Colors.text} />
+          </View>
+          <View style={styles.goalContent}>
+            <Text style={styles.goalName}>Lose Weight</Text>
+            <Text style={styles.goalTarget}>-20 kg by November 16</Text>
+          </View>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.manageGoalsButton}
+          onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
+        >
+          <Text style={styles.manageGoalsText}>Manage goals</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Menu Items */}
       <View style={styles.menuSection}>
@@ -62,7 +135,7 @@ export default function EnhancedProfileScreen() {
           <View style={styles.menuIconContainer}>
             <User size={20} color={Colors.text} />
           </View>
-          <Text style={styles.menuText}>Personal info</Text>
+          <Text style={styles.menuText}>Personal Information</Text>
           <ChevronRight size={20} color={Colors.lightText} />
         </TouchableOpacity>
 
@@ -79,17 +152,6 @@ export default function EnhancedProfileScreen() {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
-        >
-          <View style={styles.menuIconContainer}>
-            <Target size={20} color={Colors.text} />
-          </View>
-          <Text style={styles.menuText}>Health Goals</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
           onPress={() => { setSheetSection('cooking'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
@@ -98,40 +160,20 @@ export default function EnhancedProfileScreen() {
           <Text style={styles.menuText}>Cooking Preferences</Text>
           <ChevronRight size={20} color={Colors.lightText} />
         </TouchableOpacity>
+      </View>
 
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Award size={20} color={Colors.text} />
+      {/* Account Section */}
+      <View style={styles.accountSection}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <View style={styles.logoutIconContainer}>
+            <LogOut size={20} color={Colors.error} />
           </View>
-          <Text style={styles.menuText}>Achievements</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconContainer}>
-            <Clock size={20} color={Colors.text} />
-          </View>
-          <Text style={styles.menuText}>Meal History</Text>
+          <Text style={styles.logoutText}>Sign Out</Text>
           <ChevronRight size={20} color={Colors.lightText} />
         </TouchableOpacity>
       </View>
 
-      {/* Help Section */}
-      <View style={styles.helpSection}>
-        <Text style={styles.helpTitle}>Help Center</Text>
-        <TouchableOpacity style={styles.helpItem}>
-          <Text style={styles.helpText}>Contact Us</Text>
-          <ChevronRight size={16} color={Colors.lightText} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.helpItem}>
-          <Text style={styles.helpText}>FAQs</Text>
-          <ChevronRight size={16} color={Colors.lightText} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.helpItem}>
-          <Text style={styles.helpText}>Privacy Policy</Text>
-          <ChevronRight size={16} color={Colors.lightText} />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 
@@ -201,6 +243,193 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  
+  // Header styles
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  profileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsIcon: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Hero card styles
+  heroCard: {
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Shadows.md,
+  },
+  heroBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    backgroundColor: '#B8860B', // Golden color from reference
+  },
+  heroContent: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  joinDate: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    marginBottom: Spacing.lg,
+  },
+  
+  // Stats styles
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+  },
+  
+  // Goals card styles
+  goalsCard: {
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    ...Shadows.sm,
+  },
+  goalsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  goalsTitle: {
+    fontSize: Typography.sizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+    marginLeft: Spacing.sm,
+  },
+  goalsSubtitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: Spacing.lg,
+    lineHeight: 24,
+  },
+  goalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  goalIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  goalContent: {
+    flex: 1,
+  },
+  goalName: {
+    fontSize: Typography.sizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  goalTarget: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+  },
+  manageGoalsButton: {
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  manageGoalsText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  
+  // Account section styles
+  accountSection: {
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    borderRadius: Radii.lg,
+    marginBottom: Spacing.lg,
+    ...Shadows.sm,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+  },
+  logoutIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.error + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  logoutText: {
+    fontSize: Typography.sizes.md,
+    color: Colors.error,
+    flex: 1,
+    fontWeight: '500',
+  },
+  
+  bottomSpacer: {
+    height: 40,
   },
   sheetOverlay: {
     flex: 1,
@@ -421,57 +650,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     color: Colors.lightText,
     textAlign: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: Spacing.xl,
-  },
-  statCard: {
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.md,
-    minWidth: 80,
-  },
-  quickActions: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  actionContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  actionTitle: {
-    fontSize: Typography.sizes.md,
-    color: Colors.text,
-    fontWeight: '600',
-    marginBottom: Spacing.xs / 2,
-  },
-  actionSubtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.lightText,
-  },
-  sectionContainer: {
-    padding: Spacing.lg,
-  },
-  sectionText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.lightText,
-    textAlign: 'center',
-    marginTop: Spacing.md,
   },
 });
