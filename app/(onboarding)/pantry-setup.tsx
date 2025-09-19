@@ -119,9 +119,6 @@ export default function PantrySetupScreen() {
             <Text style={styles.mainIcon}>📦</Text>
           </View>
           <Text style={styles.title}>Let's set up your digital pantry</Text>
-          <Text style={styles.subtitle}>
-            Track your ingredients and never wonder "what can I make?" again
-          </Text>
         </Animated.View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -412,7 +409,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   buttonRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
+    flexDirection: 'row', 
+    gap: Spacing.md, 
+    justifyContent: 'center', 
+    alignItems: 'center'
   },
 });

@@ -3,159 +3,140 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  RefreshControl,
   Alert,
   TouchableOpacity,
   Image,
   FlatList,
-  LayoutChangeEvent,
   TextInput,
   Animated,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpenText, CookingPot, MagnifyingGlass, Brain, Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
-import { X } from 'lucide-react-native';
-// Removed gradient header in favor of ScreenHeader
 import { Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CookingPot, MagnifyingGlass, Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
+import { X } from 'lucide-react-native';
+
+// Constants
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
-import { Spacing } from '@/constants/spacing';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+// Components
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { useMeals } from '@/hooks/useMealsStore';
-import { useRecipeStore } from '@/hooks/useRecipeStore';
-// Replace elevated cards with OutlinePanel stack rows
-// Import UI removed: ImportMenu and ImportFlowModal
-import { MealPlanModal } from '@/components/MealPlanModal';
 import { InventoryAwareRecipeDiscovery } from '@/components/InventoryAwareRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
 import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
-import { Modal as UIModal } from '@/components/ui/Modal';
-import { ExternalRecipe } from '@/types/external';
-import { Meal, RecipeFolder } from '@/types';
-import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
-// { FolderCard } removed in favor of RecipeFolderCard grid
-import { NewFolderModal } from '@/components/folders/NewFolderModal';
 import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
 import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
-import RecipeFolderCard from '@/components/folders/RecipeFolderCard';
-// Inventory-aware chat removed in favor of contextual ChatModal; keep helper component available in components if needed
-import { TopTabsTheme } from '@/components/ui/TopTabsTheme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
+
+// Hooks
+import { useMeals } from '@/hooks/useMealsStore';
+import { useRecipeStore } from '@/hooks/useRecipeStore';
+import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+
+// Types
+import { ExternalRecipe } from '@/types/external';
+import { Meal, RecipeFolder } from '@/types';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
   // Import UI/state removed
+  // Modal states
   const [showEnhancedRecipeDetail, setShowEnhancedRecipeDetail] = useState(false);
-  // Local recipe detail modal removed temporarily (mismatch with ExternalRecipe modal)
   const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
+  
+  // Tab state
   const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
-  // Import preview-before-save
-  const [importPreviewMeal, setImportPreviewMeal] = useState<Omit<Meal, 'id'> | null>(null);
-  const [isEditingPreview, setIsEditingPreview] = useState(false);
-  const [isImprovingPreview, setIsImprovingPreview] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editIngredientsText, setEditIngredientsText] = useState(''); // one per line: qty unit name
-  const [editStepsText, setEditStepsText] = useState(''); // one per line
-  const tabs: { key: 'discovery' | 'local'; label: string }[] = [
-    { key: 'discovery', label: 'Discover' },
-    { key: 'local', label: 'Recipes' },
+  // Tab configuration and animation
+  const tabs = [
+    { key: 'discovery' as const, label: 'Discover' },
+    { key: 'local' as const, label: 'Recipes' },
   ];
   const activeIndex = tabs.findIndex(t => t.key === activeTab);
-  // Segmented control animation
   const [segWidth, setSegWidth] = useState(0);
   const indicatorX = useRef(new Animated.Value(0)).current;
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Animate tab indicator
   useEffect(() => {
     if (segWidth > 0 && activeIndex >= 0) {
-      const w = segWidth / tabs.length;
+      const segmentWidth = segWidth / tabs.length;
       Animated.spring(indicatorX, {
-        toValue: activeIndex * w,
+        toValue: activeIndex * segmentWidth,
         useNativeDriver: true,
         friction: 10,
         tension: 90,
       }).start();
     }
-  }, [activeIndex, segWidth]);
-  const TAB_BAR_HEIGHT = 56; // bottom pill tab bar height
-  const bottomPad = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 24;
-  const [refreshing, setRefreshing] = useState(false);
-  // Folders UI state
+  }, [activeIndex, segWidth, indicatorX]);
+  // Folder management state
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-  const [showFolderModal, setShowFolderModal] = useState(false);
   const [showCreateFolderSheet, setShowCreateFolderSheet] = useState(false);
   const [showRenameFolderSheet, setShowRenameFolderSheet] = useState(false);
-  const [folderModalMode, setFolderModalMode] = useState<'create' | 'rename'>('create');
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [addToFolderVisible, setAddToFolderVisible] = useState(false);
   const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
-  const [showMealPlanModal, setShowMealPlanModal] = useState(false);
-  const [selectedPlanRecipeId, setSelectedPlanRecipeId] = useState<string | null>(null);
-  // New folder flow state
   const [showAddRecipesModal, setShowAddRecipesModal] = useState(false);
   const [newFolderId, setNewFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
-  const [showCreateFolderEmptyState, setShowCreateFolderEmptyState] = useState(false);
-  // Grid-only layout (list option removed)
-  // Favorites (persisted locally)
+  
+  // Local search and favorites
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
-  // Load favorites on mount
+  // Load favorites from storage on mount
   useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem('favoriteRecipes');
-        if (stored) {
-          const arr: string[] = JSON.parse(stored);
-          setFavoriteIds(new Set(arr));
-        }
-      } catch (e) {
-        console.warn('Failed to load favorites', e);
-      }
-    })();
+    loadFavorites();
   }, []);
 
-  const persistFavorites = useCallback(async (setRef: Set<string>) => {
+  const loadFavorites = async () => {
     try {
-      await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(Array.from(setRef)));
-    } catch (e) {
-      console.warn('Failed to save favorites', e);
+      const stored = await AsyncStorage.getItem('favoriteRecipes');
+      if (stored) {
+        const favoriteArray: string[] = JSON.parse(stored);
+        setFavoriteIds(new Set(favoriteArray));
+      }
+    } catch (error) {
+      console.warn('Failed to load favorites:', error);
+    }
+  };
+
+  const persistFavorites = useCallback(async (favorites: Set<string>) => {
+    try {
+      await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(Array.from(favorites)));
+    } catch (error) {
+      console.warn('Failed to save favorites:', error);
     }
   }, []);
 
-  const toggleFavorite = useCallback((id: string) => {
+  const toggleFavorite = useCallback((recipeId: string) => {
     setFavoriteIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      // fire and forget
-      persistFavorites(next);
-      return next;
+      const updated = new Set(prev);
+      if (updated.has(recipeId)) {
+        updated.delete(recipeId);
+      } else {
+        updated.add(recipeId);
+      }
+      persistFavorites(updated);
+      return updated;
     });
   }, [persistFavorites]);
 
-  // Use meals from the meals store for local recipes
-  const { meals: localRecipes, addMeal, removeMeal, updateMeal } = useMeals();
-  const { folders, createFolder, renameFolder, deleteFolder, getFoldersForRecipe, removeRecipeFromAllFolders, toggleRecipeInFolder, addRecipeToFolder } = useRecipeFolders();
-
-  useEffect(() => {
-    console.log('Folders in RecipesScreen:', folders);
-  }, [folders]);
-
-  const {
-    searchRecipes,
-    getTrendingRecipes,
-    getRandomRecipes,
-  } = useRecipeStore();
-
-  // Local search state for saved recipes
-  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  // Hooks
+  const { meals: localRecipes, addMeal, removeMeal } = useMeals();
+  const { 
+    folders, 
+    createFolder, 
+    renameFolder, 
+    deleteFolder, 
+    toggleRecipeInFolder, 
+    addRecipeToFolder 
+  } = useRecipeFolders();
+  const { getTrendingRecipes, getRandomRecipes } = useRecipeStore();
 
   // Filter local recipes (and folder view) by name or tags
   const filteredLocalRecipes = React.useMemo(() => {
@@ -320,12 +301,10 @@ export default function RecipesScreen() {
 
   // Handle add to meal plan (handled within modal if needed)
 
-  // Folder actions
+  // Folder management functions
   const openCreateFolder = () => {
-    setFolderModalMode('create');
     setRenameFolderId(null);
     setShowCreateFolderSheet(true);
-    setShowCreateFolderEmptyState(false);
   };
 
   const handleCreateFolder = (name: string) => {
@@ -347,19 +326,28 @@ export default function RecipesScreen() {
   };
 
   const requestRenameFolder = (id: string) => {
-    setFolderModalMode('rename');
     setRenameFolderId(id);
     setShowRenameFolderSheet(true);
   };
 
-  const requestDeleteFolder = (id: string, name: string) => {
-    Alert.alert('Delete Folder', `Delete "${name}"? Recipes remain available in All Recipes.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        if (activeFolderId === id) setActiveFolderId(null);
-        deleteFolder(id);
-      } },
-    ]);
+  const requestDeleteFolder = (folderId: string, folderName: string) => {
+    Alert.alert(
+      'Delete Folder', 
+      `Delete "${folderName}"? Recipes remain available in All Recipes.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: () => {
+            if (activeFolderId === folderId) {
+              setActiveFolderId(null);
+            }
+            deleteFolder(folderId);
+          }
+        },
+      ]
+    );
   };
   
   return (

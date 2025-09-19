@@ -1,6 +1,7 @@
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useMemo, useState, useCallback } from 'react';
+
 import { LoggedMeal, Meal, MealType, NutritionGoals, PlannedMeal } from '@/types';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -15,6 +16,9 @@ import {
   ValidationResult
 } from '@/utils/goalCalculations';
 
+/**
+ * Converts a date to ISO date string (YYYY-MM-DD format)
+ */
 function isoDate(date = new Date()): string {
   return date.toISOString().split('T')[0];
 }
@@ -66,40 +70,54 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
   const { profile, savePartial } = useUserProfile();
   const { addPlannedMeal } = useMealPlanner();
 
+  // Load logged meals from storage on mount
   useEffect(() => {
-    const load = async () => {
+    const loadLoggedMeals = async () => {
       try {
-        const data = await AsyncStorage.getItem('loggedMeals');
-        if (data) setLoggedMeals(JSON.parse(data));
+        const storedData = await AsyncStorage.getItem('loggedMeals');
+        if (storedData) {
+          const parsedMeals: LoggedMeal[] = JSON.parse(storedData);
+          setLoggedMeals(parsedMeals);
+        }
+      } catch (error) {
+        console.warn('[Nutrition] Failed to load logged meals:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    load();
+    
+    loadLoggedMeals();
   }, []);
 
+  // Persist logged meals to storage when they change
   useEffect(() => {
     if (!isLoading) {
-      AsyncStorage.setItem('loggedMeals', JSON.stringify(loggedMeals)).catch(() => {});
+      AsyncStorage.setItem('loggedMeals', JSON.stringify(loggedMeals))
+        .catch(error => console.warn('[Nutrition] Failed to save logged meals:', error));
     }
   }, [loggedMeals, isLoading]);
 
+  /**
+   * Logs a meal from a recipe with calculated nutrition values
+   */
   const logMealFromRecipe = (meal: Meal, date: string, mealType: MealType, servings: number = 1) => {
-    const per = meal.nutritionPerServing || { calories: 0, protein: 0, carbs: 0, fats: 0 };
-    const entry: LoggedMeal = {
+    const nutrition = meal.nutritionPerServing || { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    
+    const logEntry: LoggedMeal = {
       id: Date.now().toString(),
       date,
       mealType,
       mealId: meal.id,
       servings,
-      calories: Math.round(per.calories * servings),
-      protein: Math.round(per.protein * servings),
-      carbs: Math.round(per.carbs * servings),
-      fats: Math.round(per.fats * servings),
+      calories: Math.round(nutrition.calories * servings),
+      protein: Math.round(nutrition.protein * servings),
+      carbs: Math.round(nutrition.carbs * servings),
+      fats: Math.round(nutrition.fats * servings),
     };
-    setLoggedMeals(prev => [...prev, entry]);
+    
+    setLoggedMeals(prev => [...prev, logEntry]);
 
-    // Also create a planned meal entry
+    // Create corresponding planned meal entry
     addPlannedMeal({
       recipeId: meal.id,
       date,
@@ -109,16 +127,19 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
       completedAt: new Date().toISOString(),
     });
 
-    return entry.id;
+    return logEntry.id;
   };
 
+  /**
+   * Logs a custom meal with manually entered nutrition values
+   */
   const logCustomMeal = (
     name: string,
     date: string,
     mealType: MealType,
     macros: { calories: number; protein: number; carbs: number; fats: number },
   ) => {
-    const entry: LoggedMeal = {
+    const customEntry: LoggedMeal = {
       id: Date.now().toString(),
       date,
       mealType,
@@ -129,24 +150,32 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
       carbs: macros.carbs,
       fats: macros.fats,
     };
-    setLoggedMeals(prev => [...prev, entry]);
-    return entry.id;
+    
+    setLoggedMeals(prev => [...prev, customEntry]);
+    return customEntry.id;
   };
 
-  const removeLoggedMeal = (id: string) => {
-    setLoggedMeals(prev => prev.filter(m => m.id !== id));
+  /**
+   * Removes a logged meal by ID
+   */
+  const removeLoggedMeal = (mealId: string) => {
+    setLoggedMeals(prev => prev.filter(meal => meal.id !== mealId));
   };
 
+  // Calculate today's nutrition totals
   const today = isoDate();
-  const todayMeals = useMemo(() => loggedMeals.filter(m => m.date === today), [loggedMeals, today]);
+  const todayMeals = useMemo(() => 
+    loggedMeals.filter(meal => meal.date === today), 
+    [loggedMeals, today]
+  );
 
   const todayTotals = useMemo(() => {
     return todayMeals.reduce(
-      (acc, m) => ({
-        calories: acc.calories + m.calories,
-        protein: acc.protein + m.protein,
-        carbs: acc.carbs + m.carbs,
-        fats: acc.fats + m.fats,
+      (totals, meal) => ({
+        calories: totals.calories + meal.calories,
+        protein: totals.protein + meal.protein,
+        carbs: totals.carbs + meal.carbs,
+        fats: totals.fats + meal.fats,
       }),
       { calories: 0, protein: 0, carbs: 0, fats: 0 },
     );

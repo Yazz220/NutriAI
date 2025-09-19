@@ -195,9 +195,6 @@ export default function CompletionScreen() {
           ]}
         >
           <Text style={styles.title}>Almost there!</Text>
-          <Text style={styles.subtitle}>
-            Just a couple more steps to personalize your experience
-          </Text>
         </Animated.View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -481,6 +478,8 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   devResetLink: {
     marginTop: Spacing.md,

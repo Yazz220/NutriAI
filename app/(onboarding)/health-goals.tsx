@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, OptionCard, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, SimpleOptionCard, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
 
 import { HealthGoal } from '@/types/onboarding';
 import { Colors } from '@/constants/colors';
@@ -9,44 +9,48 @@ import { Typography, Spacing } from '@/constants/spacing';
 const healthGoalOptions: Array<{
   id: HealthGoal;
   title: string;
-  description: string;
-  icon: string;
 }> = [
   {
     id: 'lose-weight',
-    title: 'Lose Weight',
-    description: 'Create a calorie deficit and lose weight safely',
-    icon: '📉'
-  },
-  {
-    id: 'gain-weight',
-    title: 'Gain Weight',
-    description: 'Build healthy mass with proper nutrition',
-    icon: '📈'
+    title: 'Lose weight',
   },
   {
     id: 'maintain-weight',
-    title: 'Maintain Weight',
-    description: 'Keep your current weight with balanced nutrition',
-    icon: '⚖️'
+    title: 'Maintain weight',
+  },
+  {
+    id: 'gain-weight',
+    title: 'Gain weight',
   },
   {
     id: 'build-muscle',
-    title: 'Build Muscle',
-    description: 'Optimize protein intake for muscle growth',
-    icon: '💪'
+    title: 'Build muscle',
   },
   {
     id: 'improve-health',
-    title: 'Improve Health',
-    description: 'Focus on overall wellness and nutrition quality',
-    icon: '❤️'
+    title: 'Improve health',
   },
   {
     id: 'manage-restrictions',
-    title: 'Manage Dietary Restrictions',
-    description: 'Navigate food allergies and dietary limitations',
-    icon: '🚫'
+    title: 'Manage dietary restrictions',
+  },
+];
+
+const educationalContent = [
+  {
+    title: "Personalized Nutrition Plans",
+    description: "Your goal shapes the type of nutritional guidance we provide. For example, weight loss focuses on creating sustainable calorie deficits, while muscle building emphasizes adequate protein intake and timing.",
+    reference: "Journal of the International Society of Sports Nutrition, 2022"
+  },
+  {
+    title: "Optimized Meal Recommendations",
+    description: "Each goal requires a unique approach to macronutrient distribution. Weight loss plans prioritize satiety and metabolic health, while maintenance focuses on balanced nutrition and lifestyle sustainability.",
+    reference: "American Journal of Clinical Nutrition, 2021"
+  },
+  {
+    title: "Progress Tracking Effectiveness",
+    description: "Knowing your primary goal allows us to monitor relevant metrics, such as body composition changes, energy levels, or dietary adherence, ensuring you stay on track to achieve your objectives.",
+    reference: "Nutrition Reviews, 2023"
   }
 ];
 
@@ -131,11 +135,14 @@ export default function HealthGoalsScreen() {
             }
           ]}
         >
-          <Text style={styles.title}>What's your primary goal?</Text>
-          <Text style={styles.subtitle}>
-            This helps us personalize your nutrition recommendations and calorie targets
-          </Text>
+          <Text style={styles.title}>What goal do you have in mind?</Text>
         </Animated.View>
+
+        <BehindTheQuestion
+          title="Behind the question"
+          subtitle="Personalized nutrition plans based on your goals..."
+          content={educationalContent}
+        />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {healthGoalOptions.map((option, index) => (
@@ -151,14 +158,12 @@ export default function HealthGoalsScreen() {
                 }]
               }}
             >
-              <OptionCard
+              <SimpleOptionCard
                 title={option.title}
-                description={option.description}
-                icon={<Text style={styles.optionIcon}>{option.icon}</Text>}
                 selected={selectedGoal === option.id}
                 onPress={() => handleGoalSelect(option.id)}
                 accessibilityLabel={`Select ${option.title} as your health goal`}
-                accessibilityHint={option.description}
+                accessibilityHint={`Choose ${option.title} as your primary health goal`}
               />
             </Animated.View>
           ))}
@@ -216,9 +221,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  optionIcon: {
-    fontSize: 24,
-  },
   errorContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -239,5 +241,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

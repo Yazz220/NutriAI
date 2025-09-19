@@ -51,14 +51,6 @@ export function ProgressIndicator({
           />
         </View>
       </View>
-      
-      <Text 
-        style={styles.progressText}
-        accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
-        accessibilityRole="text"
-      >
-        {currentStep} of {totalSteps}
-      </Text>
     </View>
   );
 }
@@ -67,7 +59,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   progressBarContainer: {
     flex: 1,
@@ -84,11 +75,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 2,
   },
-  progressText: {
-    fontSize: 14,
-    fontWeight: Typography.weights.medium,
-    color: Colors.lightText,
-    minWidth: 50,
-    textAlign: 'right',
-  },
+  // Removed visible page numbers to keep only the bar
 });

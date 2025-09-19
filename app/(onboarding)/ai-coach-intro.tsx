@@ -154,9 +154,6 @@ export default function AICoachIntroScreen() {
           </Animated.View>
           
           <Text style={styles.title}>Meet Your AI Nutrition Coach</Text>
-          <Text style={styles.subtitle}>
-            I'm here to help you achieve your nutrition goals with personalized guidance
-          </Text>
         </Animated.View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -438,8 +435,5 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
+  buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });

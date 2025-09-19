@@ -15,7 +15,7 @@ import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegrati
 
 const ONBOARDING_STORAGE_KEY = 'onboarding_data';
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 14;
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
@@ -60,16 +60,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const updateOnboardingData = useCallback((section: keyof OnboardingData, data: any) => {
     setOnboardingData(prev => {
-      const updated = {
+      const prevSection: any = (prev as any)[section];
+      const isMergeable = data !== null && typeof data === 'object' && !Array.isArray(data);
+      const nextSection = isMergeable ? { ...(prevSection || {}), ...data } : data;
+
+      const updated: OnboardingData = {
         ...prev,
-        [section]: typeof data === 'object' && data !== null 
-          ? { ...prev[section], ...data }
-          : data
+        [section]: nextSection as any,
       };
-      
+
       // Save to storage
       saveOnboardingData(updated);
-      
+
       return updated;
     });
   }, []);

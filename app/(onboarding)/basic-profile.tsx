@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
 
 import { AgeSlider } from '@/components/onboarding/AgeSlider';
 import { HeightInput, WeightInput } from '@/components/onboarding/HeightWeightInput';
@@ -10,6 +10,24 @@ import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
 type UnitSystem = 'metric' | 'imperial';
+
+const basicProfileEducationalContent = [
+  {
+    title: "Accurate Calorie Calculations",
+    description: "Age, gender, height, and weight are essential factors in calculating your Basal Metabolic Rate (BMR) - the calories your body needs at rest. This forms the foundation of your personalized nutrition plan.",
+    reference: "Mifflin-St Jeor Equation, American Journal of Clinical Nutrition, 1990"
+  },
+  {
+    title: "Activity-Based Adjustments",
+    description: "Your activity level helps us determine your Total Daily Energy Expenditure (TDEE). This ensures your meal recommendations match your lifestyle and energy needs for optimal health outcomes.",
+    reference: "Sports Medicine Research, 2021"
+  },
+  {
+    title: "Safe Goal Setting",
+    description: "Understanding your current metrics allows us to set realistic, medically-safe targets for weight changes. We follow evidence-based guidelines to ensure sustainable and healthy progress.",
+    reference: "American Heart Association Guidelines, 2022"
+  }
+];
 
 export default function BasicProfileScreen() {
   const { updateOnboardingData, nextStep, previousStep, onboardingData, validateCurrentStep } = useOnboarding();
@@ -66,10 +84,13 @@ export default function BasicProfileScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Tell us about yourself</Text>
-          <Text style={styles.subtitle}>
-            This helps us calculate your personalized nutrition targets
-          </Text>
         </View>
+
+        <BehindTheQuestion
+          title="Behind the question"
+          subtitle="Scientific approach to personalized nutrition..."
+          content={basicProfileEducationalContent}
+        />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Gender Selection */}

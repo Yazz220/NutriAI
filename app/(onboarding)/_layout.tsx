@@ -23,8 +23,15 @@ export default function OnboardingLayout() {
           }}
         />
         <Stack.Screen name="health-goals" />
-        <Stack.Screen name="basic-profile" />
+        <Stack.Screen name="gender" />
+        <Stack.Screen name="age" />
+        <Stack.Screen name="height" />
+        <Stack.Screen name="weight" />
+        <Stack.Screen name="target-weight" />
+        <Stack.Screen name="activity-level" />
         <Stack.Screen name="dietary-preferences" />
+        <Stack.Screen name="allergies" />
+        <Stack.Screen name="other-restrictions" />
         <Stack.Screen name="pantry-setup" />
         <Stack.Screen name="ai-coach-intro" />
         <Stack.Screen name="completion" />

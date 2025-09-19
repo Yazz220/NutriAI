@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+
 import { OptionCard } from './OptionCard';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -10,6 +11,8 @@ interface ActivityLevelSelectorProps {
   value: ActivityLevel | null;
   onValueChange: (level: ActivityLevel) => void;
   disabled?: boolean;
+  variant?: 'detailed' | 'compact';
+  levels?: ActivityLevel[]; // optional subset ordering for compact
 }
 
 const activityLevels: Array<{
@@ -65,52 +68,63 @@ const activityLevels: Array<{
 export function ActivityLevelSelector({
   value,
   onValueChange,
-  disabled = false
+  disabled = false,
+  variant = 'detailed',
+  levels,
 }: ActivityLevelSelectorProps) {
-  
+
   const handleLevelSelect = (level: ActivityLevel) => {
     onValueChange(level);
   };
 
+  const compactOrder: ActivityLevel[] = ['sedentary', 'lightly-active', 'moderately-active', 'very-active'];
+  const list = (levels && levels.length ? levels : (variant === 'compact' ? compactOrder : activityLevels.map(a => a.id)))
+    .map(id => activityLevels.find(a => a.id === id)!)
+    .filter(Boolean);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Activity Level</Text>
-        <Text style={styles.subtitle}>
-          How active are you on a typical day?
-        </Text>
-      </View>
+      {variant === 'detailed' && (
+        <View style={styles.header}>
+          <Text style={styles.title}>Activity Level</Text>
+          <Text style={styles.subtitle}>
+            How active are you on a typical day?
+          </Text>
+        </View>
+      )}
 
       <ScrollView 
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
       >
-        {activityLevels.map((level) => (
+        {list.map((level, idx) => (
           <View key={level.id} style={styles.optionContainer}>
             <OptionCard
               title={level.title}
-              description={level.description}
-              icon={<Text style={styles.optionIcon}>{level.icon}</Text>}
+              description={variant === 'compact' ? level.description : level.description}
+              icon={variant === 'compact' ? <BarsIcon bars={idx + 1} /> : <Text style={styles.optionIcon}>{level.icon}</Text>}
               selected={value === level.id}
               onPress={() => handleLevelSelect(level.id)}
               disabled={disabled}
               accessibilityLabel={`Select ${level.title} activity level`}
-              accessibilityHint={`${level.description}. ${level.examples}`}
+              accessibilityHint={level.description}
             />
-            
-            <View style={styles.detailsContainer}>
-              <Text style={styles.examplesText}>{level.examples}</Text>
-              <View style={styles.multiplierContainer}>
-                <Text style={styles.multiplierLabel}>Calorie multiplier:</Text>
-                <Text style={styles.multiplierValue}>{level.multiplier}x</Text>
+
+            {variant === 'detailed' && (
+              <View style={styles.detailsContainer}>
+                <Text style={styles.examplesText}>{level.examples}</Text>
+                <View style={styles.multiplierContainer}>
+                  <Text style={styles.multiplierLabel}>Calorie multiplier:</Text>
+                  <Text style={styles.multiplierValue}>{level.multiplier}x</Text>
+                </View>
               </View>
-            </View>
+            )}
           </View>
         ))}
       </ScrollView>
 
-      {value && (
+      {variant === 'detailed' && value && (
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedTitle}>Selected: {activityLevels.find(l => l.id === value)?.title}</Text>
           <Text style={styles.selectedDescription}>
@@ -118,6 +132,21 @@ export function ActivityLevelSelector({
           </Text>
         </View>
       )}
+    </View>
+  );
+}
+
+function BarsIcon({ bars }: { bars: number }) {
+  // Render 4 bars with increasing height, highlight up to `bars`
+  const heights = [10, 16, 22, 28];
+  return (
+    <View style={{ flexDirection: 'row', gap: 2, alignItems: 'flex-end' }}>
+      {heights.map((h, i) => (
+        <View
+          key={i}
+          style={{ width: 6, height: h, borderRadius: 3, backgroundColor: i < bars ? Colors.secondary : Colors.lightGray }}
+        />
+      ))}
     </View>
   );
 }

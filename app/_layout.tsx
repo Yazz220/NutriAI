@@ -1,27 +1,31 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { InventoryProvider } from "@/hooks/useInventoryStore";
-import { MealsProvider } from "@/hooks/useMealsStore";
-import { ShoppingListProvider } from "@/hooks/useShoppingListStore";
-import { UserPreferencesProvider } from "@/hooks/useUserPreferences";
-import { UserProfileProvider } from "@/hooks/useUserProfile";
-import { MealPlannerProvider } from "@/hooks/useMealPlanner";
-import { NutritionProvider } from "@/hooks/useNutrition";
-import { ToastProvider } from "@/contexts/ToastContext";
-import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
-import { useAuth } from "@/hooks/useAuth";
-import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
-import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
-import { Colors } from "@/constants/colors";
-import { StatusBar } from "expo-status-bar";
+
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, Text, Text as RNText } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+import { Colors } from '@/constants/colors';
 import { loadFonts, Fonts } from '@/utils/fonts';
 import { isOnboardingCompleted } from '@/contexts/OnboardingContext';
+import { useAuth } from '@/hooks/useAuth';
+import { GlobalErrorBoundary } from '@/components/ui/GlobalErrorBoundary';
+import { ToastProvider } from '@/contexts/ToastContext';
+
+// Store Providers
+import { InventoryProvider } from '@/hooks/useInventoryStore';
+import { MealsProvider } from '@/hooks/useMealsStore';
+import { ShoppingListProvider } from '@/hooks/useShoppingListStore';
+import { UserPreferencesProvider } from '@/hooks/useUserPreferences';
+import { UserProfileProvider } from '@/hooks/useUserProfile';
+import { MealPlannerProvider } from '@/hooks/useMealPlanner';
+import { NutritionProvider } from '@/hooks/useNutrition';
+import { RecipeStoreProvider } from '@/hooks/useRecipeStore';
+import { RecipeFoldersProvider } from '@/hooks/useRecipeFoldersStore';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -36,77 +40,76 @@ function RootLayoutNav() {
 
   // Load fonts and check onboarding status
   useEffect(() => {
-    async function prepare() {
+    const initializeApp = async () => {
       try {
         await loadFonts();
-        // Set global default font family to Manrope (UI) for all RN <Text />
-        // This ensures existing components pick up the new UI font without code changes
-        // while we gradually migrate to the custom Typography/Text components.
-        // Merge with any existing default styles to avoid clobbering them.
-        // Note: defaultProps is safe for RN Text in app code (not on web SSR).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (RNText as any).defaultProps = {
-          ...(RNText as any).defaultProps,
-          style: [
-            { fontFamily: Fonts.ui?.regular ?? Fonts.regular },
-            (RNText as any).defaultProps && (RNText as any).defaultProps.style,
-          ],
-        };
+        setupGlobalFontDefaults();
         
-        // Check onboarding completion status
         const completed = await isOnboardingCompleted();
         setOnboardingCompleted(completed);
-      } catch (e) {
-        console.warn('Error loading fonts:', e);
+      } catch (error) {
+        console.warn('Error initializing app:', error);
         setOnboardingCompleted(false); // Default to showing onboarding on error
       } finally {
         setFontsLoaded(true);
       }
-    }
-    prepare();
+    };
+    
+    initializeApp();
   }, []);
-  // Hide the splash screen once fonts are loaded. Declare this effect before
-  // any early returns so hook order remains stable across renders.
+
+  /**
+   * Sets up global font defaults for React Native Text components
+   * This ensures existing components pick up the new UI font without code changes
+   */
+  const setupGlobalFontDefaults = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (RNText as any).defaultProps = {
+      ...(RNText as any).defaultProps,
+      style: [
+        { fontFamily: Fonts.ui?.regular ?? Fonts.regular },
+        (RNText as any).defaultProps && (RNText as any).defaultProps.style,
+      ],
+    };
+  };
+  // Hide splash screen once fonts are loaded
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(console.warn);
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded || onboardingCompleted === null) {
-    return null; // Or a loading screen
-  }
-  
-  // splash hide is handled by the fontsLoaded effect above
-
-  if (initializing) {
+  // Show loading screen while initializing
+  if (!fontsLoaded || onboardingCompleted === null || initializing) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
+      <View style={styles.loadingContainer}>
         <StatusBar style="light" />
         <ActivityIndicator color={Colors.primary} />
-        <Text style={{ marginTop: 8, color: Colors.lightText }}>Loading…</Text>
+        <Text style={styles.loadingText}>Loading…</Text>
       </View>
     );
   }
 
-  // Determine which screen to show based on onboarding and auth status
+  /**
+   * Determines which screen to show based on onboarding and auth status
+   */
   const getInitialScreen = () => {
-    // If onboarding not completed, show onboarding (value-first approach)
+    // Priority 1: Onboarding (value-first approach)
     if (!onboardingCompleted) {
       return <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />;
     }
     
-    // If onboarding completed but not authenticated, show auth
+    // Priority 2: Authentication (unless dev bypass is enabled)
     if (!devBypass && !session) {
       return <Stack.Screen name="(auth)" options={{ headerShown: false }} />;
     }
     
-    // If authenticated (or dev bypass), show main app
+    // Priority 3: Main app (authenticated or dev bypass)
     return <Stack.Screen name="(tabs)" options={{ headerShown: false }} />;
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
+    <GestureHandlerRootView style={styles.rootContainer}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         {getInitialScreen()}
@@ -115,7 +118,10 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+/**
+ * Combines all app providers in a clean, readable structure
+ */
+const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <UserProfileProvider>
@@ -127,11 +133,11 @@ export default function RootLayout() {
                   <NutritionProvider>
                     <RecipeStoreProvider>
                       <RecipeFoldersProvider>
-                      <ToastProvider>
-                        <GlobalErrorBoundary>
-                          <RootLayoutNav />
-                        </GlobalErrorBoundary>
-                      </ToastProvider>
+                        <ToastProvider>
+                          <GlobalErrorBoundary>
+                            {children}
+                          </GlobalErrorBoundary>
+                        </ToastProvider>
                       </RecipeFoldersProvider>
                     </RecipeStoreProvider>
                   </NutritionProvider>
@@ -143,4 +149,30 @@ export default function RootLayout() {
       </UserProfileProvider>
     </QueryClientProvider>
   );
+};
+
+export default function RootLayout() {
+  return (
+    <AppProviders>
+      <RootLayoutNav />
+    </AppProviders>
+  );
 }
+
+// Styles
+const styles = {
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: Colors.background,
+  },
+  loadingText: {
+    marginTop: 8,
+    color: Colors.lightText,
+  },
+  rootContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+};

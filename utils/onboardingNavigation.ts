@@ -4,8 +4,15 @@ import { OnboardingData } from '@/types/onboarding';
 export type OnboardingStep = 
   | 'welcome'
   | 'health-goals'
-  | 'basic-profile'
+  | 'gender'
+  | 'age'
+  | 'height'
+  | 'weight'
+  | 'target-weight'
+  | 'activity-level'
   | 'dietary-preferences'
+  | 'allergies'
+  | 'other-restrictions'
   | 'pantry-setup'
   | 'ai-coach-intro'
   | 'completion';
@@ -13,8 +20,15 @@ export type OnboardingStep =
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   'welcome',
   'health-goals',
-  'basic-profile',
+  'gender',
+  'age',
+  'height',
+  'weight',
+  'target-weight',
+  'activity-level',
   'dietary-preferences',
+  'allergies',
+  'other-restrictions',
   'pantry-setup',
   'ai-coach-intro',
   'completion'
@@ -23,8 +37,15 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 export const STEP_ROUTES: Record<OnboardingStep, string> = {
   'welcome': '/(onboarding)/welcome',
   'health-goals': '/(onboarding)/health-goals',
-  'basic-profile': '/(onboarding)/basic-profile',
+  'gender': '/(onboarding)/gender',
+  'age': '/(onboarding)/age',
+  'height': '/(onboarding)/height',
+  'weight': '/(onboarding)/weight',
+  'target-weight': '/(onboarding)/target-weight',
+  'activity-level': '/(onboarding)/activity-level',
   'dietary-preferences': '/(onboarding)/dietary-preferences',
+  'allergies': '/(onboarding)/allergies',
+  'other-restrictions': '/(onboarding)/other-restrictions',
   'pantry-setup': '/(onboarding)/pantry-setup',
   'ai-coach-intro': '/(onboarding)/ai-coach-intro',
   'completion': '/(onboarding)/completion'
@@ -108,15 +129,42 @@ export class OnboardingNavigationManager {
       return 'health-goals';
     }
 
-    // Check basic profile completion
-    const { age, height, weight, activityLevel } = data.basicProfile;
-    if (!age || !height || !weight || !activityLevel) {
-      return 'basic-profile';
+    // Check gender
+    if (!data.basicProfile.gender) {
+      return 'gender';
     }
 
-    // Check dietary preferences
-    if (data.dietaryPreferences.restrictions.length === 0 && 
-        data.dietaryPreferences.allergies.length === 0) {
+    // Check age
+    if (!data.basicProfile.age) {
+      return 'age';
+    }
+
+    // Check height
+    if (!data.basicProfile.height) {
+      return 'height';
+    }
+
+    // Check weight
+    if (!data.basicProfile.weight) {
+      return 'weight';
+    }
+
+    // Check target weight for weight loss/gain goals
+    if ((data.healthGoal === 'lose-weight' || data.healthGoal === 'gain-weight') && 
+        !data.basicProfile.targetWeight) {
+      return 'target-weight';
+    }
+
+    // Check activity level
+    if (!data.basicProfile.activityLevel) {
+      return 'activity-level';
+    }
+
+    // Check dietary preferences (only require making a selection here).
+    // Allergies and other-restrictions are optional and will be offered in the sequence,
+    // but we don't gate resume logic on them.
+    const hasRestrictions = data.dietaryPreferences.restrictions.length > 0;
+    if (!hasRestrictions) {
       return 'dietary-preferences';
     }
 
@@ -147,32 +195,57 @@ export class OnboardingNavigationManager {
         }
         break;
 
-      case 'basic-profile':
-        const { age, height, weight, activityLevel, gender } = data.basicProfile;
-        if (!age) missingFields.push('Age');
-        if (!height) missingFields.push('Height');
-        if (!weight) missingFields.push('Weight');
-        if (!activityLevel) missingFields.push('Activity level');
-        if (!gender) missingFields.push('Gender');
-        
-        // Target weight is required for weight loss/gain goals
+      case 'gender':
+        if (!data.basicProfile.gender) {
+          missingFields.push('Gender selection');
+        }
+        break;
+
+      case 'age':
+        if (!data.basicProfile.age) {
+          missingFields.push('Age');
+        }
+        break;
+
+      case 'height':
+        if (!data.basicProfile.height) {
+          missingFields.push('Height');
+        }
+        break;
+
+      case 'weight':
+        if (!data.basicProfile.weight) {
+          missingFields.push('Weight');
+        }
+        break;
+
+      case 'target-weight':
+        // Only required for weight loss/gain goals
         if ((data.healthGoal === 'lose-weight' || data.healthGoal === 'gain-weight') && 
             !data.basicProfile.targetWeight) {
           missingFields.push('Target weight');
         }
         break;
 
-      case 'dietary-preferences':
-        // Dietary preferences are optional, but user should at least make a selection
-        // We'll consider it complete if they have any restrictions OR explicitly chose none
-        const hasRestrictions = data.dietaryPreferences.restrictions.length > 0;
-        const hasAllergies = data.dietaryPreferences.allergies.length > 0;
-        const hasCustom = data.dietaryPreferences.customRestrictions.length > 0;
-        
-        if (!hasRestrictions && !hasAllergies && !hasCustom) {
-          // We'll allow proceeding but could show a confirmation
+      case 'activity-level':
+        if (!data.basicProfile.activityLevel) {
+          missingFields.push('Activity level');
         }
         break;
+
+      case 'dietary-preferences':
+        // Encourage a choice but don't block progression
+        // Consider it complete if they selected any restriction or explicitly chose 'none'
+        // No missing fields enforced
+        break;
+
+      case 'allergies':
+        // Optional step; user can skip or add any
+        return { canProceed: true, missingFields: [] };
+
+      case 'other-restrictions':
+        // Optional step; user can skip or add any
+        return { canProceed: true, missingFields: [] };
 
       case 'pantry-setup':
         // Pantry setup is optional - user can skip or add items
@@ -250,8 +323,15 @@ export function getStepTitle(step: OnboardingStep): string {
   const titles: Record<OnboardingStep, string> = {
     'welcome': 'Welcome to NutriAI',
     'health-goals': 'Health Goals',
-    'basic-profile': 'Basic Profile',
+    'gender': 'Gender',
+    'age': 'Age',
+    'height': 'Height',
+    'weight': 'Current Weight',
+    'target-weight': 'Target Weight',
+    'activity-level': 'Activity Level',
     'dietary-preferences': 'Dietary Preferences',
+    'allergies': 'Food Allergies',
+    'other-restrictions': 'Other Restrictions',
     'pantry-setup': 'Pantry Setup',
     'ai-coach-intro': 'Meet Your AI Coach',
     'completion': 'You\'re All Set!'
@@ -265,8 +345,15 @@ export function getStepDescription(step: OnboardingStep): string {
   const descriptions: Record<OnboardingStep, string> = {
     'welcome': 'Your AI-powered nutrition assistant',
     'health-goals': 'Tell us what you want to achieve',
-    'basic-profile': 'Help us personalize your experience',
-    'dietary-preferences': 'Let us know about your dietary needs',
+    'gender': 'Help us personalize your nutrition',
+    'age': 'How old are you?',
+    'height': 'Your height helps us calculate your needs',
+    'weight': 'Your current weight',
+    'target-weight': 'What weight are you aiming for?',
+    'activity-level': 'How active are you?',
+    'dietary-preferences': 'Select any dietary styles you follow',
+    'allergies': 'Let us know about any food allergies',
+    'other-restrictions': 'Any other foods you avoid',
     'pantry-setup': 'Set up your digital pantry',
     'ai-coach-intro': 'Discover how AI can help you',
     'completion': 'Start your nutrition journey'

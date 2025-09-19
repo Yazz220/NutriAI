@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heart, Clock, Flame, ShoppingCart } from 'lucide-react-native';
+
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { ExternalRecipe } from '@/types/external';
-import { RecipeAvailabilityBadge } from '@/components/recipe/RecipeAvailabilityBadge';
 import {
   calculateRecipeAvailability,
-  getRecipesWithAvailability,
   RecipeAvailability
 } from '@/utils/inventoryRecipeMatching';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GUTTER = 16;
 const COLUMN_GAP = 16;
@@ -40,81 +39,153 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   // Filters removed for initial integration
  
-  // Helper to merge unique recipes
-  const mergeUnique = useCallback((a: ExternalRecipe[], b: ExternalRecipe[]): ExternalRecipe[] => {
-    const map = new Map<string, ExternalRecipe>();
-    a.forEach(r => map.set(String(r.id), r));
-    b.forEach(r => { const k = String(r.id); if (!map.has(k)) map.set(k, r); });
-    return Array.from(map.values());
+  /**
+   * Merges two recipe arrays, removing duplicates based on ID
+   */
+  const mergeUniqueRecipes = useCallback((recipes1: ExternalRecipe[], recipes2: ExternalRecipe[]): ExternalRecipe[] => {
+    const recipeMap = new Map<string, ExternalRecipe>();
+    
+    // Add recipes from first array
+    recipes1.forEach(recipe => recipeMap.set(String(recipe.id), recipe));
+    
+    // Add recipes from second array if not already present
+    recipes2.forEach(recipe => {
+      const id = String(recipe.id);
+      if (!recipeMap.has(id)) {
+        recipeMap.set(id, recipe);
+      }
+    });
+    
+    return Array.from(recipeMap.values());
   }, []);
 
-  // Enhanced recipes with availability data (merged pools)
+  /**
+   * Combines trending and external recipes with availability data
+   */
   const enhancedRecipes = useMemo(() => {
-    const baseRecipes = mergeUnique(trendingRecipes, externalRecipes);
-    return baseRecipes.map(recipe => ({
+    const combinedRecipes = mergeUniqueRecipes(trendingRecipes, externalRecipes);
+    
+    return combinedRecipes.map(recipe => ({
       ...recipe,
       availability: calculateRecipeAvailability(recipe, inventory)
     }));
-  }, [externalRecipes, trendingRecipes, inventory, mergeUnique]);
+  }, [externalRecipes, trendingRecipes, inventory, mergeUniqueRecipes]);
 
   // No client-side filters — placeholder for future filters
   const filteredRecipes = useMemo(() => enhancedRecipes, [enhancedRecipes]);
 
   // Expiring section removed
 
-  // Initial load
+  /**
+   * Loads initial recipe data on component mount
+   */
   useEffect(() => {
-    (async () => {
+    const loadInitialRecipes = async () => {
       try {
-        if (!trendingRecipes.length) await getTrendingRecipes();
-        if (!externalRecipes.length) await getRandomRecipes(undefined, 12, true);
-        // Safety: if still empty, trigger another random batch with defaults
+        // Load trending recipes if not already loaded
+        if (!trendingRecipes.length) {
+          await getTrendingRecipes();
+        }
+        
+        // Load external recipes if not already loaded
+        if (!externalRecipes.length) {
+          await getRandomRecipes(undefined, 12, true);
+        }
+        
+        // Fallback: ensure we have some recipes loaded
         if (trendingRecipes.length + externalRecipes.length === 0) {
           await getRandomRecipes(undefined, 12, true);
         }
-      } catch (e) {
-        console.error('[Discover] init load failed', e);
+      } catch (error) {
+        console.error('[RecipeDiscovery] Failed to load initial recipes:', error);
       }
-    })();
-  }, []);
+    };
+    
+    loadInitialRecipes();
+  }, [trendingRecipes.length, externalRecipes.length, getTrendingRecipes, getRandomRecipes]);
 
+  /**
+   * Handles pull-to-refresh functionality
+   */
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await getTrendingRecipes();
-      await getRandomRecipes(undefined, 12, false); // replace randoms
+      await Promise.all([
+        getTrendingRecipes(),
+        getRandomRecipes(undefined, 12, false) // Replace existing random recipes
+      ]);
+    } catch (error) {
+      console.error('[RecipeDiscovery] Refresh failed:', error);
     } finally {
       setRefreshing(false);
     }
   };
 
-  // Load saved bookmarks from storage
+  /**
+   * Loads saved recipe bookmarks from AsyncStorage
+   */
   useEffect(() => {
-    (async () => {
+    const loadSavedRecipes = async () => {
       try {
-        const raw = await AsyncStorage.getItem('discover_saved_ids');
-        if (raw) setSavedIds(new Set(JSON.parse(raw)));
-      } catch { }
-    })();
+        const savedData = await AsyncStorage.getItem('discover_saved_ids');
+        if (savedData) {
+          const savedArray: string[] = JSON.parse(savedData);
+          setSavedIds(new Set(savedArray));
+        }
+      } catch (error) {
+        console.warn('[RecipeDiscovery] Failed to load saved recipes:', error);
+      }
+    };
+    
+    loadSavedRecipes();
   }, []);
 
+  /**
+   * Toggles the saved state of a recipe and persists to storage
+   */
   const toggleSave = async (recipe: ExternalRecipe) => {
-    const id = String(recipe.id);
+    const recipeId = String(recipe.id);
+    const wasSaved = savedIds.has(recipeId);
+    
+    // Update local state
     setSavedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      AsyncStorage.setItem('discover_saved_ids', JSON.stringify(Array.from(next))).catch(() => { });
-      return next;
+      const updated = new Set(prev);
+      if (updated.has(recipeId)) {
+        updated.delete(recipeId);
+      } else {
+        updated.add(recipeId);
+      }
+      
+      // Persist to storage
+      AsyncStorage.setItem('discover_saved_ids', JSON.stringify(Array.from(updated)))
+        .catch(error => console.warn('Failed to save recipe bookmark:', error));
+      
+      return updated;
     });
-    if (!savedIds.has(id)) {
-      try { await onSaveRecipe(recipe); } catch { }
+    
+    // Call save callback if recipe is being saved (not unsaved)
+    if (!wasSaved) {
+      try {
+        await onSaveRecipe(recipe);
+      } catch (error) {
+        console.warn('Failed to save recipe:', error);
+      }
     }
   };
 
+  // Grid layout management
   const [gridWidth, setGridWidth] = useState(0);
-  const onGridLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w && Math.floor(w) !== Math.floor(gridWidth)) setGridWidth(Math.floor(w));
+  
+  /**
+   * Handles grid layout changes for responsive design
+   */
+  const handleGridLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    const flooredWidth = Math.floor(width);
+    
+    if (width && flooredWidth !== Math.floor(gridWidth)) {
+      setGridWidth(flooredWidth);
+    }
   };
 
   const renderRecipeCard = ({ item, index }: { item: EnhancedRecipe; index: number }) => {
@@ -189,7 +260,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
   };
 
   return (
-    <View style={styles.container} onLayout={onGridLayout}>
+    <View style={styles.container} onLayout={handleGridLayout}>
       <View style={{ paddingHorizontal: GUTTER, paddingTop: 8 }}>
         <View style={styles.headerRow}>
           <Text style={styles.heading}>Recipe Discovery</Text>

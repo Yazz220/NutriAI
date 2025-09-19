@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, OptionCard, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
 
 import { DietaryRestriction } from '@/types/index';
 import { Colors } from '@/constants/colors';
@@ -100,14 +100,8 @@ export default function DietaryPreferencesScreen() {
   const [selectedRestrictions, setSelectedRestrictions] = useState<DietaryRestriction[]>(
     onboardingData.dietaryPreferences.restrictions || []
   );
-  const [allergies, setAllergies] = useState<string[]>(
-    onboardingData.dietaryPreferences.allergies || []
-  );
-  const [customRestrictions, setCustomRestrictions] = useState<string[]>(
-    onboardingData.dietaryPreferences.customRestrictions || []
-  );
-  const [allergyInput, setAllergyInput] = useState('');
-  const [customInput, setCustomInput] = useState('');
+  const [allergies] = useState<string[]>(onboardingData.dietaryPreferences.allergies || []);
+  const [customRestrictions] = useState<string[]>(onboardingData.dietaryPreferences.customRestrictions || []);
 
   useEffect(() => {
     updateOnboardingData('dietaryPreferences', {
@@ -131,29 +125,7 @@ export default function DietaryPreferencesScreen() {
     }
   };
 
-  const handleAddAllergy = () => {
-    const trimmed = allergyInput.trim();
-    if (trimmed && !allergies.includes(trimmed)) {
-      setAllergies([...allergies, trimmed]);
-      setAllergyInput('');
-    }
-  };
-
-  const handleRemoveAllergy = (allergy: string) => {
-    setAllergies(allergies.filter(a => a !== allergy));
-  };
-
-  const handleAddCustomRestriction = () => {
-    const trimmed = customInput.trim();
-    if (trimmed && !customRestrictions.includes(trimmed)) {
-      setCustomRestrictions([...customRestrictions, trimmed]);
-      setCustomInput('');
-    }
-  };
-
-  const handleRemoveCustomRestriction = (restriction: string) => {
-    setCustomRestrictions(customRestrictions.filter(r => r !== restriction));
-  };
+  // Allergies and custom restrictions moved to dedicated pages
 
   const handleContinue = () => {
     nextStep();
@@ -167,134 +139,35 @@ export default function DietaryPreferencesScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Tell us about your dietary preferences</Text>
-          <Text style={styles.subtitle}>
-            This helps us suggest recipes that fit your lifestyle
-          </Text>
+          <Text style={styles.title}>What do you like?</Text>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Dietary Restrictions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
-            <Text style={styles.sectionSubtitle}>Select all that apply</Text>
-            
-            <View style={styles.optionsGrid}>
-              {dietaryOptions.map((option) => (
-                <View key={option.id} style={styles.optionWrapper}>
-                  <OptionCard
-                    title={option.title}
-                    description={option.description}
-                    icon={<Text style={styles.optionIcon}>{option.icon}</Text>}
-                    selected={selectedRestrictions.includes(option.id)}
-                    onPress={() => handleRestrictionToggle(option.id)}
-                    multiSelect={!option.isStandard}
-                    accessibilityLabel={`${option.isStandard ? 'Select' : 'Toggle'} ${option.title}`}
-                    accessibilityHint={option.description}
-                  />
+          <View style={styles.gridHeader}>
+            <Text style={styles.gridSubtitle}>Select any that apply</Text>
+          </View>
+
+          <View style={styles.circleGrid}>
+            {dietaryOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.circleItem, selectedRestrictions.includes(option.id) && styles.circleItemSelected]}
+                onPress={() => handleRestrictionToggle(option.id)}
+                accessibilityLabel={`Toggle ${option.title}`}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selectedRestrictions.includes(option.id) }}
+              >
+                <View style={[
+                  styles.circleIconWrap,
+                  selectedRestrictions.includes(option.id) && styles.circleIconWrapSelected
+                ]}>
+                  <Text style={styles.circleIcon}>{option.icon}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Allergies */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Food Allergies</Text>
-            <Text style={styles.sectionSubtitle}>
-              Let us know about any foods you're allergic to
-            </Text>
-            
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                value={allergyInput}
-                onChangeText={setAllergyInput}
-                placeholder="e.g., peanuts, shellfish, eggs"
-                placeholderTextColor={Colors.lightText}
-                onSubmitEditing={handleAddAllergy}
-                returnKeyType="done"
-                accessibilityLabel="Add food allergy"
-                accessibilityHint="Type an allergy and press done to add it"
-              />
-              <TouchableOpacity
-                style={[styles.addButton, !allergyInput.trim() && styles.disabledButton]}
-                onPress={handleAddAllergy}
-                disabled={!allergyInput.trim()}
-                accessibilityLabel="Add allergy"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.addButtonText, !allergyInput.trim() && styles.disabledButtonText]}>
-                  Add
+                <Text style={[styles.circleLabel, selectedRestrictions.includes(option.id) && styles.circleLabelSelected]}>
+                  {option.title}
                 </Text>
               </TouchableOpacity>
-            </View>
-
-            {allergies.length > 0 && (
-              <View style={styles.tagsContainer}>
-                {allergies.map((allergy) => (
-                  <TouchableOpacity
-                    key={allergy}
-                    style={styles.tag}
-                    onPress={() => handleRemoveAllergy(allergy)}
-                    accessibilityLabel={`Remove ${allergy} allergy`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.tagText}>{allergy}</Text>
-                    <Text style={styles.tagRemove}>×</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Custom Restrictions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Other Restrictions</Text>
-            <Text style={styles.sectionSubtitle}>
-              Any other foods you avoid or prefer not to eat
-            </Text>
-            
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                value={customInput}
-                onChangeText={setCustomInput}
-                placeholder="e.g., spicy food, raw fish"
-                placeholderTextColor={Colors.lightText}
-                onSubmitEditing={handleAddCustomRestriction}
-                returnKeyType="done"
-                accessibilityLabel="Add custom restriction"
-                accessibilityHint="Type a food restriction and press done to add it"
-              />
-              <TouchableOpacity
-                style={[styles.addButton, !customInput.trim() && styles.disabledButton]}
-                onPress={handleAddCustomRestriction}
-                disabled={!customInput.trim()}
-                accessibilityLabel="Add restriction"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.addButtonText, !customInput.trim() && styles.disabledButtonText]}>
-                  Add
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {customRestrictions.length > 0 && (
-              <View style={styles.tagsContainer}>
-                {customRestrictions.map((restriction) => (
-                  <TouchableOpacity
-                    key={restriction}
-                    style={styles.tag}
-                    onPress={() => handleRemoveCustomRestriction(restriction)}
-                    accessibilityLabel={`Remove ${restriction} restriction`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.tagText}>{restriction}</Text>
-                    <Text style={styles.tagRemove}>×</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            ))}
           </View>
         </ScrollView>
 
@@ -337,97 +210,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.lightText,
     lineHeight: 24,
-    fontWeight: Typography.weights.medium,
   },
   content: {
     flex: 1,
   },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: Colors.lightText,
-    marginBottom: Spacing.md,
-    lineHeight: 20,
-  },
-  optionsGrid: {
-    gap: Spacing.sm,
-  },
-  optionWrapper: {
-    marginBottom: Spacing.sm,
-  },
-  optionIcon: {
-    fontSize: 24,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  gridHeader: {
     marginBottom: Spacing.md,
   },
-  textInput: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: 16,
-    color: Colors.text,
-    backgroundColor: Colors.white,
-  },
-  addButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: Colors.lightGray,
-  },
-  addButtonText: {
-    color: Colors.white,
+  gridSubtitle: {
     fontSize: 14,
-    fontWeight: Typography.weights.semibold,
-  },
-  disabledButtonText: {
     color: Colors.lightText,
   },
-  tagsContainer: {
+  circleGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: Spacing.lg,
+  },
+  circleItem: {
+    width: '30%',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
-  tag: {
-    flexDirection: 'row',
+  circleItemSelected: {},
+  circleIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.lightGray,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.primary + '15',
-    borderRadius: 20,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
   },
-  tagText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: Typography.weights.medium,
-    marginRight: 4,
+  circleIconWrapSelected: {
+    backgroundColor: Colors.primary + '25',
+    borderWidth: 2,
+    borderColor: Colors.primary,
   },
-  tagRemove: {
-    fontSize: 16,
+  circleIcon: {
+    fontSize: 28,
+  },
+  circleLabel: {
+    fontSize: 12,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  circleLabelSelected: {
     color: Colors.primary,
-    fontWeight: Typography.weights.bold,
-    marginLeft: 4,
+    fontWeight: Typography.weights.semibold,
   },
   footer: {
     paddingTop: Spacing.lg,
@@ -436,5 +265,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

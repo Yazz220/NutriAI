@@ -38,6 +38,7 @@ export interface OnboardingData {
   healthGoal: HealthGoal | null;
   basicProfile: OnboardingBasicProfile;
   dietaryPreferences: OnboardingDietaryPreferences;
+  healthConcerns: string[]; // new: user-selected health concerns
   pantrySetup: OnboardingPantrySetup;
   notifications: OnboardingNotifications;
   authChoice: 'signup' | 'signin' | 'guest' | null;
@@ -79,6 +80,7 @@ export const defaultOnboardingData: OnboardingData = {
     allergies: [],
     customRestrictions: []
   },
+  healthConcerns: [],
   pantrySetup: {
     skipPantry: false,
     initialItems: []
