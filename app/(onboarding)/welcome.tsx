@@ -4,6 +4,7 @@ import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/comp
 
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
+import { APP_NAME, NOSH_HEADER_SUBTITLE } from '@/constants/brand';
 
 export default function WelcomeScreen() {
   const { updateOnboardingData, nextStep } = useOnboarding();
@@ -110,8 +111,8 @@ export default function WelcomeScreen() {
               transform: [{ translateY: titleTranslateY }]
             }}
           >
-            <Text style={styles.title}>NutriAI</Text>
-            <Text style={styles.tagline}>Your AI-Powered Nutrition Assistant</Text>
+            <Text style={styles.title}>{APP_NAME}</Text>
+            <Text style={styles.tagline}>{NOSH_HEADER_SUBTITLE}</Text>
           </Animated.View>
           
           <View style={styles.benefitsContainer}>
@@ -149,7 +150,7 @@ export default function WelcomeScreen() {
             onPress={handleGetStarted}
             variant="primary"
             accessibilityLabel="Start onboarding process"
-            accessibilityHint="Begin setting up your NutriAI profile"
+            accessibilityHint={`Begin setting up your ${APP_NAME} profile`}
           />
         </View>
       </View>

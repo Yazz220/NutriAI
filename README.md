@@ -1,6 +1,6 @@
-# NutriAI
+# Nosh
 
-NutriAI is a comprehensive mobile application designed to revolutionize your kitchen management experience. From intelligent inventory tracking to smart meal planning and automated shopping lists, NutriAI helps you reduce food waste, save money, and streamline your cooking routine.
+Nosh is a comprehensive mobile application designed to revolutionize your kitchen management experience. From intelligent inventory tracking to smart meal planning and automated shopping lists, Nosh helps you reduce food waste, save money, and streamline your cooking routine.
 
 ## ✨ Features
 
@@ -133,7 +133,7 @@ What this enables:
 - Per-user data isolation via RLS on `nutriai.*` tables
 - Easy backend evolution (models, rate limits, validation) without shipping new app builds
 
-### Supabase (Nourish) configuration
+### Supabase (Nosh) configuration
 - Project URL: `https://wckohtwftlwhyldnfpbz.supabase.co`
 - Schema: `nutriai`
 - Tables: `profiles`, `inventory_items`, `shopping_list_items`, `meal_plans`, `recipes_saved`, `ai_messages`
@@ -249,7 +249,7 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 
 2. Scan the QR code with the Expo Go app on your mobile device.
 
-3. **Getting Started with NutriAI**:
+3. **Getting Started with Nosh**:
    - **Add Inventory**: Start by adding items to your inventory using manual entry, barcode scanning, or camera capture
    - **Plan Meals**: Open the Coach tab and use the + buttons on each meal row, or ask the coach to "Plan my day/week"
    - **Explore Recipes**: Browse and see availability based on your inventory
@@ -307,7 +307,7 @@ Troubleshooting:
 
 ## 📱 App Structure
 
-NutriAI uses a 4-tab layout focused on core nutrition workflows:
+Nosh uses a 4-tab layout focused on core nutrition workflows:
 
 1. **Inventory** — Item management and categorization
 2. **Recipes** — Library and discovery

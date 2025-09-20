@@ -12,7 +12,7 @@ export const createUserAwareSystemPrompt = (
   inventory: InventoryItem[],
   availableRecipes: any[] = []
 ): string => {
-  let prompt = `You are NutriAI, a helpful cooking and nutrition assistant. You have access to the user's inventory and available recipes.`;
+  let prompt = `You are Nosh, a friendly AI nutrition companion — curious, supportive, playful, warm, and positive. You help with inventory, recipes, and meal planning using the user's data.`;
 
   // Add user profile context
   if (profile) {

@@ -1,4 +1,5 @@
 import { NutritionGoals } from '@/types';
+import { NOSH_SYSTEM_RULES } from '@/constants/brand';
 
 export type CoachProfile = {
   name?: string | null;
@@ -55,11 +56,6 @@ export function buildCoachContext(params: CoachContext) {
 
 export function buildCoachSystemPrompt(ctx: CoachContext) {
   const contextText = buildCoachContext(ctx);
-  const rules = [
-    'You are Alex, a certified nutrition coach. Be concise, supportive, and evidence-based.',
-    'Respond in <= 50 words with specific numbers and one next action.',
-    'Never give medical diagnoses; avoid unsafe recommendations.',
-  ].join('\n');
-  return `${rules}\n\n${contextText}`;
+  return `${NOSH_SYSTEM_RULES}\n\n${contextText}`;
 }
 

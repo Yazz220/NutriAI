@@ -1,5 +1,6 @@
 // Simple AI client for OpenRouter (OpenAI-compatible chat completions)
 // Uses Expo public env vars. For production, prefer routing through a secure backend proxy.
+import { APP_NAME, APP_WEBSITE } from '@/constants/brand';
 
 const AI_PROVIDER = process.env.EXPO_PUBLIC_AI_PROVIDER || 'openrouter';
 const AI_API_BASE = process.env.EXPO_PUBLIC_AI_API_BASE || 'https://openrouter.ai/api/v1';
@@ -74,8 +75,8 @@ async function requestWithRetry(messages: ChatMessage[], stream: boolean, maxRet
   if (!AI_PROXY_BASE && AI_API_KEY) {
     headers['Authorization'] = `Bearer ${AI_API_KEY}`;
     // Optional headers recommended by OpenRouter
-    headers['HTTP-Referer'] = 'https://nutriai.app';
-    headers['X-Title'] = 'NutriAI';
+    headers['HTTP-Referer'] = APP_WEBSITE;
+    headers['X-Title'] = APP_NAME;
   }
 
   const body = {
@@ -102,8 +103,8 @@ async function requestWithRetryVision(messages: ChatMessage[], stream: boolean, 
   };
   if (!AI_PROXY_BASE && AI_API_KEY) {
     headers['Authorization'] = `Bearer ${AI_API_KEY}`;
-    headers['HTTP-Referer'] = 'https://nutriai.app';
-    headers['X-Title'] = 'NutriAI';
+    headers['HTTP-Referer'] = APP_WEBSITE;
+    headers['X-Title'] = APP_NAME;
   }
 
   // Use vision model for image processing
@@ -177,8 +178,8 @@ async function requestWithRetryCustom(
   };
   if (!AI_PROXY_BASE && AI_API_KEY) {
     headers['Authorization'] = `Bearer ${AI_API_KEY}`;
-    headers['HTTP-Referer'] = 'https://nutriai.app';
-    headers['X-Title'] = 'NutriAI';
+    headers['HTTP-Referer'] = APP_WEBSITE;
+    headers['X-Title'] = APP_NAME;
   }
 
   const body: any = {

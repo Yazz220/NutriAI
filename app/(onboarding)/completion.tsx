@@ -128,7 +128,7 @@ export default function CompletionScreen() {
     {
       id: 'guest' as const,
       title: 'Continue as Guest',
-      description: 'Start using NutriAI right away',
+      description: 'Start using Nosh right away',
       icon: '👋',
       benefits: ['No registration needed', 'Full app access', 'Create account later']
     }
@@ -208,7 +208,7 @@ export default function CompletionScreen() {
             >
               <Text style={styles.sectionTitle}>Save Your Progress</Text>
               <Text style={styles.sectionSubtitle}>
-                Choose how you'd like to continue with NutriAI
+                Choose how you'd like to continue with Nosh
               </Text>
               
               <View style={styles.authOptionsContainer}>
@@ -313,7 +313,7 @@ export default function CompletionScreen() {
               variant="primary"
               loading={isLoading}
               disabled={!session && !authChoice}
-              accessibilityLabel="Complete onboarding and start using NutriAI"
+              accessibilityLabel="Complete onboarding and start using Nosh"
             />
           </View>
           {devResetEnabled && (

@@ -1,5 +1,5 @@
 import { OnboardingNavigationManager, ONBOARDING_STEPS, getStepTitle, getStepDescription } from '../onboardingNavigation';
-import { defaultOnboardingData, OnboardingData } from '@/types/onboarding';
+import { defaultOnboardingData, OnboardingData } from '../../types/onboarding';
 
 describe('OnboardingNavigationManager', () => {
   let navigationManager: OnboardingNavigationManager;
@@ -52,13 +52,13 @@ describe('OnboardingNavigationManager', () => {
       expect(step).toBe('health-goals');
     });
 
-    it('should return basic-profile when health goal is set but profile is incomplete', () => {
+    it('should return gender when health goal is set but profile is incomplete', () => {
       const data: OnboardingData = {
         ...defaultOnboardingData,
         healthGoal: 'lose-weight'
       };
       const step = navigationManager.calculateCurrentStepFromData(data);
-      expect(step).toBe('basic-profile');
+      expect(step).toBe('gender');
     });
 
     it('should return dietary-preferences when basic profile is complete', () => {
@@ -91,7 +91,7 @@ describe('OnboardingNavigationManager', () => {
       expect(validation2.missingFields).toHaveLength(0);
     });
 
-    it('should validate basic-profile step completion', () => {
+    it('should validate required fields across profile steps', () => {
       const incompleteData: OnboardingData = {
         ...defaultOnboardingData,
         healthGoal: 'lose-weight',
@@ -100,13 +100,11 @@ describe('OnboardingNavigationManager', () => {
           // Missing height, weight, activityLevel, gender
         }
       };
-      
-      const validation = navigationManager.validateStepCompletion('basic-profile', incompleteData);
-      expect(validation.canProceed).toBe(false);
-      expect(validation.missingFields).toContain('Height');
-      expect(validation.missingFields).toContain('Weight');
-      expect(validation.missingFields).toContain('Activity level');
-      expect(validation.missingFields).toContain('Gender');
+      // Each profile-related step should block progression when its field is missing
+      expect(navigationManager.validateStepCompletion('height', incompleteData).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('weight', incompleteData).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('activity-level', incompleteData).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('gender', incompleteData).canProceed).toBe(false);
     });
 
     it('should require target weight for weight loss/gain goals', () => {
@@ -123,7 +121,7 @@ describe('OnboardingNavigationManager', () => {
         }
       };
       
-      const validation = navigationManager.validateStepCompletion('basic-profile', dataWithoutTarget);
+      const validation = navigationManager.validateStepCompletion('target-weight', dataWithoutTarget);
       expect(validation.canProceed).toBe(false);
       expect(validation.missingFields).toContain('Target weight');
     });
@@ -142,21 +140,22 @@ describe('OnboardingNavigationManager', () => {
         }
       };
       
-      const validation = navigationManager.validateStepCompletion('basic-profile', dataForMaintenance);
+      const validation = navigationManager.validateStepCompletion('target-weight', dataForMaintenance);
       expect(validation.canProceed).toBe(true);
     });
   });
 
   describe('Progress Calculation', () => {
     it('should calculate correct progress percentage', () => {
-      expect(navigationManager.getProgressPercentage()).toBe(100 / 7); // Step 1 of 7
+      const total = ONBOARDING_STEPS.length;
+      expect(navigationManager.getProgressPercentage()).toBe(100 / total); // Step 1
       
       navigationManager.nextStep();
-      expect(navigationManager.getProgressPercentage()).toBe(200 / 7); // Step 2 of 7
+      expect(navigationManager.getProgressPercentage()).toBe((2 * 100) / total); // Step 2
     });
 
     it('should return correct total steps', () => {
-      expect(navigationManager.getTotalSteps()).toBe(7);
+      expect(navigationManager.getTotalSteps()).toBe(ONBOARDING_STEPS.length);
     });
   });
 
@@ -168,20 +167,20 @@ describe('OnboardingNavigationManager', () => {
 
     it('should prevent access to future steps with incomplete data', () => {
       const incompleteData = { ...defaultOnboardingData }; // No health goal
-      expect(navigationManager.isStepAccessible('basic-profile', incompleteData)).toBe(false);
+      expect(navigationManager.isStepAccessible('gender', incompleteData)).toBe(false);
     });
   });
 });
 
 describe('Helper Functions', () => {
   it('should return correct step titles', () => {
-    expect(getStepTitle('welcome')).toBe('Welcome to NutriAI');
+    expect(getStepTitle('welcome')).toBe('Welcome to Nosh');
     expect(getStepTitle('health-goals')).toBe('Health Goals');
     expect(getStepTitle('completion')).toBe('You\'re All Set!');
   });
 
   it('should return correct step descriptions', () => {
-    expect(getStepDescription('welcome')).toBe('Your AI-powered nutrition assistant');
+    expect(getStepDescription('welcome')).toBe('Your friendly nutrition companion');
     expect(getStepDescription('health-goals')).toBe('Tell us what you want to achieve');
     expect(getStepDescription('completion')).toBe('Start your nutrition journey');
   });

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Brain, ChatCircle } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
+import { APP_NAME } from '@/constants/brand';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface EnhancedFloatingChatButtonProps {
@@ -173,7 +174,7 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
           onPress={handlePress}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Open NutriAI Chat Assistant"
+          accessibilityLabel={`Open ${APP_NAME} Chat`}
           accessibilityHint="Tap to chat with your nutrition coach"
         >
           <LinearGradient

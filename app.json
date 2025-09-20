@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "NutriAI",
-    "slug": "nutri-ai",
+    "name": "Nosh",
+    "slug": "nosh",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "nutriai",
+    "scheme": "nosh",
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
@@ -13,9 +13,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "NutriAI uses your camera to scan barcodes and capture food items for inventory.",
-        "NSPhotoLibraryUsageDescription": "NutriAI needs access to your photo library to import images for recipes and inventory.",
-        "NSMicrophoneUsageDescription": "NutriAI may use the microphone for voice input features."
+        "NSCameraUsageDescription": "Nosh uses your camera to scan barcodes and capture food items for inventory.",
+        "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes and inventory.",
+        "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features."
       }
     },
     "android": {

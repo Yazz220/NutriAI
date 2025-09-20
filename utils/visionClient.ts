@@ -1,6 +1,7 @@
 // Vision AI client for extracting inventory items from images via OpenRouter
 // Uses OpenAI-compatible /chat/completions with image input.
 // For local images, pass a base64 data URL to avoid hosting.
+import { APP_NAME, APP_WEBSITE } from '@/constants/brand';
 
 const AI_API_BASE = process.env.EXPO_PUBLIC_AI_API_BASE || 'https://openrouter.ai/api/v1';
 const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY;
@@ -26,8 +27,8 @@ export async function detectItemsFromImage(params: {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (!AI_PROXY_BASE && AI_API_KEY) {
     headers['Authorization'] = `Bearer ${AI_API_KEY}`;
-    headers['HTTP-Referer'] = 'https://nutriai.app';
-    headers['X-Title'] = 'NutriAI';
+    headers['HTTP-Referer'] = APP_WEBSITE;
+    headers['X-Title'] = APP_NAME;
   }
 
   const messages = [

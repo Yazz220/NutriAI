@@ -17,7 +17,7 @@ export const exportToCSV = async (exportData: ExportData): Promise<void> => {
     let csvContent = '';
     
     // Add header with metadata
-    csvContent += `# NutriAI Export Report\n`;
+    csvContent += `# Nosh Export Report\n`;
     csvContent += `# Data Type: ${exportData.type}\n`;
     csvContent += `# Time Range: ${exportData.timeRange}\n`;
     csvContent += `# Date Range: ${exportData.summary.dateRange}\n`;
@@ -82,7 +82,7 @@ export const exportToCSV = async (exportData: ExportData): Promise<void> => {
 export const generateInsightsReport = (exportData: ExportData): string => {
   const { data, summary, type } = exportData;
   
-  let insights = `# NutriAI Insights Report\n\n`;
+  let insights = `# Nosh Insights Report\n\n`;
   insights += `**Data Type:** ${type.charAt(0).toUpperCase() + type.slice(1)}\n`;
   insights += `**Period:** ${summary.dateRange}\n`;
   insights += `**Total Entries:** ${summary.totalEntries}\n\n`;

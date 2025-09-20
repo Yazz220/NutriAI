@@ -181,8 +181,8 @@ export default function ProgressPhotosScreen() {
                 const uri = await captureRef.current?.capture?.();
                 if (uri) {
                   const asset = await MediaLibrary.createAssetAsync(uri);
-                  // Put in album "NutriAI Progress"
-                  const albumName = 'NutriAI Progress';
+                  // Put in album "Nosh Progress"
+                  const albumName = 'Nosh Progress';
                   const existing = await MediaLibrary.getAlbumAsync(albumName);
                   if (existing) await MediaLibrary.addAssetsToAlbumAsync([asset], existing, false);
                   else await MediaLibrary.createAlbumAsync(albumName, asset, false);

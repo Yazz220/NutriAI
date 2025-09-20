@@ -36,8 +36,8 @@ describe('WelcomeScreen', () => {
   it('renders welcome content correctly', () => {
     const { getByText } = render(<WelcomeScreen />);
     
-    expect(getByText('NutriAI')).toBeTruthy();
-    expect(getByText('Your AI-Powered Nutrition Assistant')).toBeTruthy();
+    expect(getByText('Nosh')).toBeTruthy();
+    expect(getByText('Your friendly nutrition companion')).toBeTruthy();
     expect(getByText('Track meals effortlessly with AI')).toBeTruthy();
     expect(getByText('Manage your pantry inventory')).toBeTruthy();
     expect(getByText('Get personalized meal suggestions')).toBeTruthy();

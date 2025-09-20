@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { OnboardingData } from '@/types/onboarding';
+import { NOSH_HEADER_SUBTITLE } from '@/constants/brand';
 
 export type OnboardingStep = 
   | 'welcome'
@@ -321,7 +322,7 @@ export function createNavigationGuard(
 // Helper to get step title for UI
 export function getStepTitle(step: OnboardingStep): string {
   const titles: Record<OnboardingStep, string> = {
-    'welcome': 'Welcome to NutriAI',
+    'welcome': 'Welcome to Nosh',
     'health-goals': 'Health Goals',
     'gender': 'Gender',
     'age': 'Age',
@@ -343,7 +344,7 @@ export function getStepTitle(step: OnboardingStep): string {
 // Helper to get step description for UI
 export function getStepDescription(step: OnboardingStep): string {
   const descriptions: Record<OnboardingStep, string> = {
-    'welcome': 'Your AI-powered nutrition assistant',
+    'welcome': NOSH_HEADER_SUBTITLE,
     'health-goals': 'Tell us what you want to achieve',
     'gender': 'Help us personalize your nutrition',
     'age': 'How old are you?',

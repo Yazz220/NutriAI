@@ -29,6 +29,7 @@ import {
 } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import { APP_NAME, NOSH_HEADER_SUBTITLE, NOSH_WELCOME_TITLE, NOSH_WELCOME_MESSAGE, CHAT_STORAGE_KEY, LEGACY_CHAT_STORAGE_KEY } from '@/constants/brand';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -52,7 +53,7 @@ interface ChatMessage {
   structured?: any;
 }
 
-const STORAGE_KEY = 'nutriai_chat_history';
+const STORAGE_KEY = CHAT_STORAGE_KEY;
 const MAX_STORED_MESSAGES = 50;
 
 export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
@@ -89,7 +90,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
     return combined.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }, [persistedMessages, hookMessages]);
 
-  // Load persisted messages on mount
+  // Load persisted messages on mount (with legacy key migration)
   useEffect(() => {
     loadPersistedMessages();
   }, []);
@@ -145,7 +146,16 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
 
   const loadPersistedMessages = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      let stored = await AsyncStorage.getItem(STORAGE_KEY);
+      // Migrate from legacy key if present
+      if (!stored) {
+        const legacy = await AsyncStorage.getItem(LEGACY_CHAT_STORAGE_KEY);
+        if (legacy) {
+          await AsyncStorage.setItem(STORAGE_KEY, legacy);
+          await AsyncStorage.removeItem(LEGACY_CHAT_STORAGE_KEY);
+          stored = legacy;
+        }
+      }
       if (stored) {
         const parsed = JSON.parse(stored).map((msg: any) => ({
           ...msg,
@@ -279,13 +289,13 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                       <Brain size={24} color={Colors.white} weight="fill" />
                     </View>
                     <View>
-                      <Text style={styles.headerTitle}>NutriAI Coach</Text>
+                      <Text style={styles.headerTitle}>{APP_NAME}</Text>
                       <Text style={styles.headerSubtitle}>
-                        {isTyping ? 'Thinking...' : 'Your nutrition assistant'}
+                        {isTyping ? 'Thinking...' : NOSH_HEADER_SUBTITLE}
                       </Text>
                     </View>
                   </View>
-                  
+
                   <View style={styles.headerRight}>
                     <TouchableOpacity
                       style={styles.headerButton}
@@ -323,10 +333,9 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                   <View style={styles.welcomeIcon}>
                     <Brain size={48} color={Colors.primary} weight="fill" />
                   </View>
-                  <Text style={styles.welcomeTitle}>Welcome to NutriAI Coach!</Text>
+                  <Text style={styles.welcomeTitle}>{NOSH_WELCOME_TITLE}</Text>
                   <Text style={styles.welcomeMessage}>
-                    I'm here to help you achieve your nutrition goals. Ask me about meal planning, 
-                    progress tracking, or get personalized recommendations.
+                    {NOSH_WELCOME_MESSAGE}
                   </Text>
                 </View>
               )}
@@ -346,7 +355,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                 <View style={[styles.messageBubble, styles.coachBubble]}>
                   <View style={styles.typingContainer}>
                     <ActivityIndicator size="small" color={Colors.primary} />
-                    <Text style={styles.typingText}>NutriAI is thinking...</Text>
+                    <Text style={styles.typingText}>{APP_NAME} is thinking...</Text>
                   </View>
                 </View>
               )}
@@ -388,7 +397,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                 >
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Ask about nutrition, meals, or progress..."
+                    placeholder={`Ask ${APP_NAME} about meals, planning, or progress...`}
                     placeholderTextColor={Colors.lightText}
                     value={input}
                     onChangeText={setInput}
