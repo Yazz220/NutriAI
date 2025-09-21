@@ -1,9 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { Brain, ChatCircle } from 'phosphor-react-native';
+import { Brain } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { APP_NAME } from '@/constants/brand';
 import { LinearGradient } from 'expo-linear-gradient';
+import CoachIcon from '@/assets/icons/coach.svg';
 
 interface EnhancedFloatingChatButtonProps {
   onPress: () => void;
@@ -184,9 +185,9 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
             end={{ x: 1, y: 1 }}
           >
             {isTyping ? (
-              <Brain size={28} color={Colors.white} weight="fill" />
+              <Brain size={40} color={Colors.white} weight="fill" />
             ) : (
-              <ChatCircle size={28} color={Colors.white} weight="fill" />
+              <CoachIcon width={64} height={64} color={Colors.white} />
             )}
           </LinearGradient>
 
@@ -236,13 +237,13 @@ const styles = StyleSheet.create({
     borderRadius: 40,
   },
   buttonContainer: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
   },
   button: {
     width: '100%',
     height: '100%',
-    borderRadius: 32,
+    borderRadius: 36,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 32,
+    borderRadius: 36,
   },
   shadow: {
     position: 'absolute',
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     left: 4,
     right: 4,
     bottom: 4,
-    borderRadius: 32,
+    borderRadius: 36,
     backgroundColor: Colors.shadow,
     zIndex: -2,
   },

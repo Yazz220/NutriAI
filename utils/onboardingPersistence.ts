@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { OnboardingData, defaultOnboardingData } from '@/types/onboarding';
+import { OnboardingData, defaultOnboardingData, OnboardingGoalPreferences, OnboardingCustomGoal, GoalDirection, MacroBreakdown } from '@/types/onboarding';
 
 // Storage keys
 const ONBOARDING_DATA_KEY = 'onboarding_data';
@@ -177,6 +177,9 @@ export class OnboardingPersistenceManager {
       validated.notifications = this.validateNotifications(data.notifications);
     }
 
+    validated.customGoal = this.validateCustomGoal(data.customGoal);
+    validated.goalPreferences = this.validateGoalPreferences(data.goalPreferences);
+
     // Validate auth choice
     if (data.authChoice && !this.isValidAuthChoice(data.authChoice)) {
       validated.authChoice = null;
@@ -225,6 +228,83 @@ export class OnboardingPersistenceManager {
     };
   }
 
+  private static validateCustomGoal(customGoal: any): OnboardingCustomGoal | null {
+    if (!customGoal) {
+      return null;
+    }
+
+    const title = typeof customGoal.title === 'string' ? customGoal.title.trim() : '';
+    const motivation = typeof customGoal.motivation === 'string' ? customGoal.motivation.trim() : undefined;
+    const goalType = this.isValidGoalDirection(customGoal.goalType) ? customGoal.goalType : null;
+
+    if (!title || !goalType) {
+      return null;
+    }
+
+    return {
+      title,
+      goalType,
+      motivation: motivation && motivation.length > 0 ? motivation : undefined,
+    };
+  }
+
+  private static validateGoalPreferences(preferences: any): OnboardingGoalPreferences {
+    const goalType = this.isValidGoalDirection(preferences?.goalType) ? preferences.goalType : null;
+    const recommendedCalories = this.validatePositiveNumber(preferences?.recommendedCalories);
+    const recommendedMacros = this.validateMacroTargets(preferences?.recommendedMacros);
+    const useCustomCalories = Boolean(preferences?.useCustomCalories);
+    const customCalorieTarget = this.validatePositiveNumber(preferences?.customCalorieTarget);
+    const customMacroTargets = this.validateMacroTargets(preferences?.customMacroTargets);
+
+    const sanitized: OnboardingGoalPreferences = {
+      goalType,
+      recommendedCalories: recommendedCalories ?? undefined,
+      recommendedMacros,
+      useCustomCalories,
+      customCalorieTarget: customCalorieTarget ?? undefined,
+      customMacroTargets,
+    };
+
+    if (!sanitized.useCustomCalories) {
+      sanitized.customCalorieTarget = undefined;
+      sanitized.customMacroTargets = undefined;
+    }
+
+    return sanitized;
+  }
+
+  private static validateMacroTargets(targets: any): MacroBreakdown | undefined {
+    if (!targets) {
+      return undefined;
+    }
+
+    const protein = this.validatePositiveNumber(targets.protein);
+    const carbs = this.validatePositiveNumber(targets.carbs);
+    const fats = this.validatePositiveNumber(targets.fats);
+
+    if (protein === undefined || carbs === undefined || fats === undefined) {
+      return undefined;
+    }
+
+    return { protein, carbs, fats };
+  }
+
+  private static validatePositiveNumber(value: any): number | undefined {
+    if (typeof value !== 'number') {
+      return undefined;
+    }
+
+    if (!Number.isFinite(value) || Number.isNaN(value) || value <= 0) {
+      return undefined;
+    }
+
+    return Math.round(value);
+  }
+
+  private static isValidGoalDirection(direction: any): direction is GoalDirection {
+    return direction === 'lose' || direction === 'gain' || direction === 'maintain';
+  }
+
   private static validateAge(age: any): number | undefined {
     if (typeof age !== 'number') return undefined;
     return age >= 13 && age <= 120 ? age : undefined;
@@ -241,7 +321,7 @@ export class OnboardingPersistenceManager {
   }
 
   private static isValidHealthGoal(goal: any): boolean {
-    const validGoals = ['lose-weight', 'gain-weight', 'maintain-weight', 'build-muscle', 'improve-health', 'manage-restrictions'];
+    const validGoals = ['lose-weight', 'gain-weight', 'maintain-weight', 'build-muscle', 'improve-health', 'manage-restrictions', 'custom'];
     return validGoals.includes(goal);
   }
 

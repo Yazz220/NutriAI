@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase/functions/_shared/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
+import { HealthGoal } from '@/types/onboarding';
 
 export type GoalType = 'maintain' | 'lose' | 'gain';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete';
@@ -24,6 +25,14 @@ export interface UserGoals {
   fatsTargetG?: number;
   goalType?: GoalType;
   activityLevel?: ActivityLevel;
+  customGoalLabel?: string;
+  customGoalMotivation?: string;
+  usesCustomCalorieTarget?: boolean;
+  recommendedCalories?: number;
+  recommendedProteinG?: number;
+  recommendedCarbsG?: number;
+  recommendedFatsG?: number;
+  healthGoalKey?: HealthGoal | null;
 }
 
 export interface UserPreferencesProfile {
@@ -130,6 +139,14 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         fatsTargetG: goals.fatsTargetG ?? goals.fats_target_g ?? undefined,
         goalType: goals.goalType ?? goals.goal_type ?? undefined,
         activityLevel: goals.activityLevel ?? goals.activity_level ?? undefined,
+        customGoalLabel: goals.customGoalLabel ?? goals.custom_goal_label ?? undefined,
+        customGoalMotivation: goals.customGoalMotivation ?? goals.custom_goal_motivation ?? undefined,
+        usesCustomCalorieTarget: goals.usesCustomCalorieTarget ?? goals.uses_custom_calorie_target ?? undefined,
+        recommendedCalories: goals.recommendedCalories ?? goals.recommended_calories ?? undefined,
+        recommendedProteinG: goals.recommendedProteinG ?? goals.recommended_protein_g ?? undefined,
+        recommendedCarbsG: goals.recommendedCarbsG ?? goals.recommended_carbs_g ?? undefined,
+        recommendedFatsG: goals.recommendedFatsG ?? goals.recommended_fats_g ?? undefined,
+        healthGoalKey: goals.healthGoalKey ?? goals.health_goal_key ?? undefined,
       },
       preferences: {
         allergies: prefs.allergies ?? [],

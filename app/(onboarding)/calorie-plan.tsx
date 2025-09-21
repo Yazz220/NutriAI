@@ -1,0 +1,491 @@
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, TextInput } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { Colors } from '@/constants/colors';
+import { Typography, Spacing } from '@/constants/spacing';
+import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
+import { HealthGoal, GoalDirection, healthGoalToProfileMapping } from '@/types/onboarding';
+
+interface RecommendationSummary {
+  calories: number;
+  macros: {
+    protein: number;
+    carbs: number;
+    fats: number;
+  };
+}
+
+const educationalContent = [
+  {
+    title: 'Evidence-based calorie targets',
+    description:
+      'We use validated formulas (Mifflin-St Jeor) plus your activity level and goal direction to set a safe starting point for your daily calories.',
+    reference: 'American Journal of Clinical Nutrition, 1990',
+  },
+  {
+    title: 'Adaptive nutrition planning',
+    description:
+      'Pick a custom target if you already work with a coach or prefer a specific calorie intake. Nosh will adjust your macros accordingly.',
+    reference: 'Sports Medicine Research, 2021',
+  },
+];
+
+const goalDirectionFromHealthGoal = (goal: HealthGoal | null): GoalDirection => {
+  if (!goal) return 'maintain';
+  return healthGoalToProfileMapping[goal]?.goalType ?? 'maintain';
+};
+
+const referenceGoalFromDirection = (direction: GoalDirection): HealthGoal => {
+  switch (direction) {
+    case 'lose':
+      return 'lose-weight';
+    case 'gain':
+      return 'gain-weight';
+    default:
+      return 'maintain-weight';
+  }
+};
+
+export default function CaloriePlanScreen() {
+  const { onboardingData, updateOnboardingData, nextStep, previousStep } = useOnboarding();
+  const { basicProfile, healthGoal, goalPreferences } = onboardingData;
+
+  const goalDirection: GoalDirection =
+    goalPreferences.goalType ?? goalDirectionFromHealthGoal(healthGoal);
+
+  const macroReferenceGoal: HealthGoal =
+    healthGoal && healthGoal !== 'custom'
+      ? healthGoal
+      : referenceGoalFromDirection(goalDirection);
+
+  const canCalculate = Boolean(
+    basicProfile.age &&
+      basicProfile.height &&
+      basicProfile.weight &&
+      basicProfile.activityLevel
+  );
+
+  const recommendation: RecommendationSummary | null = useMemo(() => {
+    if (!canCalculate) {
+      return null;
+    }
+
+    const calories = OnboardingProfileIntegration.calculateDailyCalories({
+      age: basicProfile.age!,
+      height: basicProfile.height!,
+      weight: basicProfile.weight!,
+      gender: basicProfile.gender || 'other',
+      activityLevel: basicProfile.activityLevel!,
+      goalType: goalDirection,
+      targetWeight: basicProfile.targetWeight,
+    });
+
+    const macros = OnboardingProfileIntegration.calculateMacroTargets(calories, macroReferenceGoal);
+    return { calories, macros };
+  }, [canCalculate, basicProfile.age, basicProfile.height, basicProfile.weight, basicProfile.gender, basicProfile.activityLevel, basicProfile.targetWeight, goalDirection, macroReferenceGoal]);
+
+  const [useCustom, setUseCustom] = useState(goalPreferences.useCustomCalories);
+  const [customCaloriesInput, setCustomCaloriesInput] = useState(() => {
+    if (goalPreferences.customCalorieTarget) {
+      return String(goalPreferences.customCalorieTarget);
+    }
+    if (recommendation?.calories) {
+      return String(recommendation.calories);
+    }
+    return '';
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  const recommendedCalories = recommendation?.calories;
+  const recommendedMacros = recommendation?.macros;
+  const storedCustomCalories = goalPreferences.customCalorieTarget;
+  const storedCustomMacros = goalPreferences.customMacroTargets;
+
+  useEffect(() => {
+    if (recommendation) {
+      const needsUpdate =
+        goalPreferences.goalType !== goalDirection ||
+        goalPreferences.recommendedCalories !== recommendation.calories ||
+        !goalPreferences.recommendedMacros ||
+        goalPreferences.recommendedMacros.protein !== recommendation.macros.protein ||
+        goalPreferences.recommendedMacros.carbs !== recommendation.macros.carbs ||
+        goalPreferences.recommendedMacros.fats !== recommendation.macros.fats;
+
+      if (needsUpdate) {
+        updateOnboardingData('goalPreferences', {
+          goalType: goalDirection,
+          recommendedCalories: recommendation.calories,
+          recommendedMacros: recommendation.macros,
+        });
+      }
+    }
+  }, [recommendation?.calories, recommendation?.macros.protein, recommendation?.macros.carbs, recommendation?.macros.fats, goalDirection]);
+
+  useEffect(() => {
+    if (goalPreferences.useCustomCalories !== useCustom) {
+      updateOnboardingData('goalPreferences', { useCustomCalories: useCustom });
+    }
+  }, [useCustom]);
+
+  useEffect(() => {
+    if (!useCustom) {
+      if (goalPreferences.customCalorieTarget !== undefined || goalPreferences.customMacroTargets) {
+        updateOnboardingData('goalPreferences', {
+          customCalorieTarget: undefined,
+          customMacroTargets: undefined,
+        });
+      }
+      return;
+    }
+
+    const parsed = parseFloat(customCaloriesInput);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return;
+    }
+
+    const rounded = Math.round(parsed);
+    if (storedCustomCalories === rounded && storedCustomMacros) {
+      return;
+    }
+
+    const customMacros = OnboardingProfileIntegration.calculateMacroTargets(rounded, macroReferenceGoal);
+    updateOnboardingData('goalPreferences', {
+      customCalorieTarget: rounded,
+      customMacroTargets: customMacros,
+    });
+  }, [useCustom, customCaloriesInput, macroReferenceGoal, storedCustomCalories, storedCustomMacros?.protein, storedCustomMacros?.carbs, storedCustomMacros?.fats]);
+
+  useEffect(() => {
+    if (useCustom && !customCaloriesInput && recommendedCalories) {
+      setCustomCaloriesInput(String(recommendedCalories));
+    }
+  }, [useCustom, recommendedCalories]);
+
+  const activeCalories = useCustom && storedCustomCalories ? storedCustomCalories : recommendedCalories;
+  const activeMacros = useCustom && storedCustomMacros ? storedCustomMacros : recommendedMacros;
+
+  const handleToggleCustom = (value: boolean) => {
+    setUseCustom(value);
+    setError(null);
+  };
+
+  const handleContinue = () => {
+    if (!useCustom && !recommendedCalories) {
+      setError('Complete your basic profile so we can calculate a target.');
+      return;
+    }
+
+    if (useCustom) {
+      const parsed = parseFloat(customCaloriesInput);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setError('Enter a positive calorie target.');
+        return;
+      }
+
+      const rounded = Math.round(parsed);
+      if (rounded < 800 || rounded > 6000) {
+        setError('Custom calories should be between 800 and 6000 for safety.');
+        return;
+      }
+
+      const customMacros = OnboardingProfileIntegration.calculateMacroTargets(rounded, macroReferenceGoal);
+      updateOnboardingData('goalPreferences', {
+        goalType: goalDirection,
+        useCustomCalories: true,
+        customCalorieTarget: rounded,
+        customMacroTargets: customMacros,
+        recommendedCalories,
+        recommendedMacros,
+      });
+    } else if (recommendation) {
+      updateOnboardingData('goalPreferences', {
+        goalType: goalDirection,
+        useCustomCalories: false,
+        recommendedCalories: recommendation.calories,
+        recommendedMacros: recommendation.macros,
+        customCalorieTarget: undefined,
+        customMacroTargets: undefined,
+      });
+    }
+
+    setError(null);
+    nextStep();
+  };
+
+  const handleBack = () => {
+    previousStep();
+  };
+
+  return (
+    <OnboardingScreenWrapper>
+      <View style={styles.container}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>Personalize your daily calories</Text>
+          <Text style={styles.subtitle}>
+            We start with a science-backed recommendation based on your profile. Switch to a custom value if you already know what works for you.
+          </Text>
+
+          <View style={styles.recommendationCard}>
+            <Text style={styles.cardHeading}>Recommended target</Text>
+            <Text style={styles.calorieValue}>
+              {recommendedCalories ? `${recommendedCalories.toLocaleString()} kcal` : '--'}
+            </Text>
+            <View style={styles.macrosRow}>
+              <View style={styles.macroColumn}>
+                <Text style={styles.macroLabel}>Protein</Text>
+                <Text style={styles.macroValue}>
+                  {recommendedMacros ? `${recommendedMacros.protein} g` : '--'}
+                </Text>
+              </View>
+              <View style={styles.macroColumn}>
+                <Text style={styles.macroLabel}>Carbs</Text>
+                <Text style={styles.macroValue}>
+                  {recommendedMacros ? `${recommendedMacros.carbs} g` : '--'}
+                </Text>
+              </View>
+              <View style={styles.macroColumn}>
+                <Text style={styles.macroLabel}>Fats</Text>
+                <Text style={styles.macroValue}>
+                  {recommendedMacros ? `${recommendedMacros.fats} g` : '--'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextContainer}>
+              <Text style={styles.toggleTitle}>Use a custom calorie goal</Text>
+              <Text style={styles.toggleSubtitle}>Set a manual target if you already track a specific intake.</Text>
+            </View>
+            <Switch value={useCustom} onValueChange={handleToggleCustom} thumbColor={useCustom ? Colors.primary : Colors.lightGray} />
+          </View>
+
+          {useCustom && (
+            <View style={styles.customCard}>
+              <Text style={styles.customLabel}>Daily calories</Text>
+              <TextInput
+                value={customCaloriesInput}
+                onChangeText={text => {
+                  setCustomCaloriesInput(text.replace(/[^0-9.]/g, ''));
+                  setError(null);
+                }}
+                keyboardType="numeric"
+                placeholder="e.g. 2100"
+                style={styles.customInput}
+              />
+              <Text style={styles.customHint}>
+                We will adjust macros automatically based on this target.
+              </Text>
+              {storedCustomCalories && storedCustomMacros && (
+                <View style={styles.customMacros}>
+                  <Text style={styles.customMacrosHeading}>Macro breakdown</Text>
+                  <View style={styles.macrosRow}>
+                    <View style={styles.macroColumn}>
+                      <Text style={styles.macroLabel}>Protein</Text>
+                      <Text style={styles.macroValue}>{storedCustomMacros.protein} g</Text>
+                    </View>
+                    <View style={styles.macroColumn}>
+                      <Text style={styles.macroLabel}>Carbs</Text>
+                      <Text style={styles.macroValue}>{storedCustomMacros.carbs} g</Text>
+                    </View>
+                    <View style={styles.macroColumn}>
+                      <Text style={styles.macroLabel}>Fats</Text>
+                      <Text style={styles.macroValue}>{storedCustomMacros.fats} g</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {!useCustom && activeCalories && (
+            <View style={styles.activeSummary}>
+              <Text style={styles.activeSummaryText}>
+                {`Your plan will start at ${activeCalories?.toLocaleString?.() ?? '--'} kcal with balanced macros.`}
+              </Text>
+            </View>
+          )}
+
+          <BehindTheQuestion
+            title="How we calculate this"
+            subtitle="Get clarity on your calorie target"
+            content={educationalContent}
+          />
+        </ScrollView>
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <View style={styles.footer}>
+          <View style={styles.buttonRow}>
+            <OnboardingButton title="Back" variant="ghost" onPress={handleBack} />
+            <OnboardingButton title="Continue" variant="primary" onPress={handleContinue} />
+          </View>
+        </View>
+      </View>
+    </OnboardingScreenWrapper>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  content: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: Spacing.lg,
+    lineHeight: 20,
+  },
+  recommendationCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+  },
+  cardHeading: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: Spacing.xs,
+  },
+  calorieValue: {
+    fontSize: 32,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+  macrosRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  macroColumn: {
+    flex: 1,
+  },
+  macroLabel: {
+    fontSize: 12,
+    color: Colors.lightText,
+  },
+  macroValue: {
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginTop: Spacing.xs,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    marginBottom: Spacing.lg,
+  },
+  toggleTextContainer: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  toggleTitle: {
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+  },
+  toggleSubtitle: {
+    fontSize: 13,
+    color: Colors.lightText,
+    marginTop: 2,
+  },
+  customCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  customLabel: {
+    fontSize: 14,
+    color: Colors.lightText,
+  },
+  customInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 18,
+    color: Colors.text,
+    marginTop: Spacing.sm,
+  },
+  customHint: {
+    fontSize: 12,
+    color: Colors.lightText,
+    marginTop: Spacing.sm,
+  },
+  customMacros: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  customMacrosHeading: {
+    fontSize: 13,
+    color: Colors.lightText,
+    marginBottom: Spacing.sm,
+  },
+  activeSummary: {
+    padding: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '12',
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+    marginBottom: Spacing.lg,
+  },
+  activeSummaryText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  errorContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.error + '10',
+    borderRadius: 8,
+    marginBottom: Spacing.md,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: 14,
+    fontWeight: Typography.weights.medium,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingBottom: Spacing.md,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+});
+
+
+

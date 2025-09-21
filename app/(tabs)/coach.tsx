@@ -3,7 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, 
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, CaretLeft, CaretRight, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar, MagnifyingGlass, Camera } from 'phosphor-react-native';
+import { Brain, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar } from 'phosphor-react-native';
+import SearchIcon from '@/assets/icons/search.svg';
+import CameraIcon from '@/assets/icons/Camera.svg';
+import LeftArrowIcon from '@/assets/icons/left arrow.svg';
+import RightArrowIcon from '@/assets/icons/right arrow.svg';
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
 import { WEEK_RINGS_SCALE } from '@/constants/theme';
@@ -464,7 +468,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Search and log food"
             >
-              <MagnifyingGlass size={16} color={Colors.white} />
+              <SearchIcon width={20} height={20} color={Colors.white} />
               <Text style={styles.statPillActionText}>Search Food</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -473,7 +477,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
-              <Camera size={16} color={Colors.white} />
+              <CameraIcon width={20} height={20} color={Colors.white} />
               <Text style={styles.statPillActionText}>AI Scan</Text>
             </TouchableOpacity>
           </View>
@@ -725,7 +729,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Previous month"
             >
-              <CaretLeft size={18} color={Colors.text} />
+              <LeftArrowIcon width={18} height={18} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.calendarMonthLabel}>
               {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
@@ -740,7 +744,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Next month"
             >
-              <CaretRight size={18} color={Colors.text} />
+              <RightArrowIcon width={18} height={18} color={Colors.text} />
             </TouchableOpacity>
           </View>
 

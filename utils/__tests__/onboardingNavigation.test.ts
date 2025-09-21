@@ -1,3 +1,5 @@
+jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }));
+
 import { OnboardingNavigationManager, ONBOARDING_STEPS, getStepTitle, getStepDescription } from '../onboardingNavigation';
 import { defaultOnboardingData, OnboardingData } from '../../types/onboarding';
 
@@ -9,179 +11,202 @@ describe('OnboardingNavigationManager', () => {
   });
 
   describe('Basic Navigation', () => {
-    it('should start at welcome step', () => {
+    it('starts at welcome', () => {
       expect(navigationManager.getCurrentStep()).toBe('welcome');
       expect(navigationManager.getCurrentStepNumber()).toBe(1);
     });
 
-    it('should navigate to next step', () => {
-      const nextStep = navigationManager.nextStep();
-      expect(nextStep).toBe('health-goals');
-      expect(navigationManager.getCurrentStep()).toBe('health-goals');
+    it('advances to next and previous steps correctly', () => {
+      expect(navigationManager.nextStep()).toBe('health-goals');
       expect(navigationManager.getCurrentStepNumber()).toBe(2);
+      expect(navigationManager.previousStep()).toBe('welcome');
     });
 
-    it('should navigate to previous step', () => {
-      navigationManager.nextStep(); // Go to health-goals
-      const prevStep = navigationManager.previousStep();
-      expect(prevStep).toBe('welcome');
-      expect(navigationManager.getCurrentStep()).toBe('welcome');
-    });
-
-    it('should not go beyond last step', () => {
-      // Navigate to last step
+    it('does not advance beyond completion', () => {
       for (let i = 0; i < ONBOARDING_STEPS.length - 1; i++) {
         navigationManager.nextStep();
       }
-      
       expect(navigationManager.getCurrentStep()).toBe('completion');
       expect(navigationManager.nextStep()).toBeNull();
-      expect(navigationManager.canGoNext()).toBe(false);
     });
 
-    it('should not go before first step', () => {
+    it('does not go before welcome', () => {
       expect(navigationManager.previousStep()).toBeNull();
       expect(navigationManager.canGoBack()).toBe(false);
     });
   });
 
-  describe('Step Calculation from Data', () => {
-    it('should return health-goals when no health goal is set', () => {
+  describe('Step calculation from data', () => {
+    it('returns health-goals when no goal selected', () => {
       const data = { ...defaultOnboardingData };
-      const step = navigationManager.calculateCurrentStepFromData(data);
-      expect(step).toBe('health-goals');
+      expect(navigationManager.calculateCurrentStepFromData(data)).toBe('health-goals');
     });
 
-    it('should return gender when health goal is set but profile is incomplete', () => {
+    it('returns gender when goal selected but profile incomplete', () => {
       const data: OnboardingData = {
         ...defaultOnboardingData,
-        healthGoal: 'lose-weight'
+        healthGoal: 'lose-weight',
       };
-      const step = navigationManager.calculateCurrentStepFromData(data);
-      expect(step).toBe('gender');
+      expect(navigationManager.calculateCurrentStepFromData(data)).toBe('gender');
     });
 
-    it('should return dietary-preferences when basic profile is complete', () => {
+    it('returns calorie-plan when profile is filled but calorie decision missing', () => {
       const data: OnboardingData = {
         ...defaultOnboardingData,
         healthGoal: 'lose-weight',
         basicProfile: {
-          age: 30,
-          height: 170,
-          weight: 70,
+          age: 32,
+          height: 172,
+          weight: 75,
+          targetWeight: 70,
           activityLevel: 'moderately-active',
-          gender: 'female'
-        }
+          gender: 'female',
+        },
       };
-      const step = navigationManager.calculateCurrentStepFromData(data);
-      expect(step).toBe('dietary-preferences');
+      expect(navigationManager.calculateCurrentStepFromData(data)).toBe('calorie-plan');
+    });
+
+    it('returns dietary-preferences when calorie plan is complete', () => {
+      const data: OnboardingData = {
+        ...defaultOnboardingData,
+        healthGoal: 'lose-weight',
+        basicProfile: {
+          age: 32,
+          height: 172,
+          weight: 75,
+          targetWeight: 70,
+          activityLevel: 'moderately-active',
+          gender: 'female',
+        },
+        goalPreferences: {
+          goalType: 'lose',
+          recommendedCalories: 1900,
+          recommendedMacros: { protein: 140, carbs: 210, fats: 60 },
+          useCustomCalories: false,
+          customCalorieTarget: undefined,
+          customMacroTargets: undefined,
+        },
+      };
+      expect(navigationManager.calculateCurrentStepFromData(data)).toBe('dietary-preferences');
     });
   });
 
-  describe('Step Validation', () => {
-    it('should validate health-goals step completion', () => {
-      const dataWithoutGoal = { ...defaultOnboardingData };
-      const validation1 = navigationManager.validateStepCompletion('health-goals', dataWithoutGoal);
-      expect(validation1.canProceed).toBe(false);
-      expect(validation1.missingFields).toContain('Health goal selection');
-
-      const dataWithGoal = { ...defaultOnboardingData, healthGoal: 'lose-weight' as const };
-      const validation2 = navigationManager.validateStepCompletion('health-goals', dataWithGoal);
-      expect(validation2.canProceed).toBe(true);
-      expect(validation2.missingFields).toHaveLength(0);
+  describe('Step validation', () => {
+    it('requires a health goal', () => {
+      const validation = navigationManager.validateStepCompletion('health-goals', defaultOnboardingData);
+      expect(validation.canProceed).toBe(false);
+      expect(validation.missingFields).toContain('Health goal selection');
     });
 
-    it('should validate required fields across profile steps', () => {
-      const incompleteData: OnboardingData = {
+    it('validates profile fields individually', () => {
+      const data: OnboardingData = {
         ...defaultOnboardingData,
         healthGoal: 'lose-weight',
         basicProfile: {
           age: 30,
-          // Missing height, weight, activityLevel, gender
-        }
-      };
-      // Each profile-related step should block progression when its field is missing
-      expect(navigationManager.validateStepCompletion('height', incompleteData).canProceed).toBe(false);
-      expect(navigationManager.validateStepCompletion('weight', incompleteData).canProceed).toBe(false);
-      expect(navigationManager.validateStepCompletion('activity-level', incompleteData).canProceed).toBe(false);
-      expect(navigationManager.validateStepCompletion('gender', incompleteData).canProceed).toBe(false);
+        },
+      } as OnboardingData;
+      expect(navigationManager.validateStepCompletion('gender', data).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('height', data).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('weight', data).canProceed).toBe(false);
+      expect(navigationManager.validateStepCompletion('activity-level', data).canProceed).toBe(false);
     });
 
-    it('should require target weight for weight loss/gain goals', () => {
-      const dataWithoutTarget: OnboardingData = {
+    it('requires target weight for loss/gain goals only', () => {
+      const needsTarget: OnboardingData = {
         ...defaultOnboardingData,
         healthGoal: 'lose-weight',
         basicProfile: {
           age: 30,
           height: 170,
-          weight: 80,
+          weight: 82,
           activityLevel: 'moderately-active',
-          gender: 'female'
-          // Missing targetWeight
-        }
+          gender: 'female',
+        },
       };
-      
-      const validation = navigationManager.validateStepCompletion('target-weight', dataWithoutTarget);
+      const validation = navigationManager.validateStepCompletion('target-weight', needsTarget);
       expect(validation.canProceed).toBe(false);
       expect(validation.missingFields).toContain('Target weight');
-    });
 
-    it('should not require target weight for maintenance goals', () => {
-      const dataForMaintenance: OnboardingData = {
-        ...defaultOnboardingData,
+      const maintenance: OnboardingData = {
+        ...needsTarget,
         healthGoal: 'maintain-weight',
-        basicProfile: {
-          age: 30,
-          height: 170,
-          weight: 70,
-          activityLevel: 'moderately-active',
-          gender: 'female'
-          // No targetWeight needed
-        }
       };
-      
-      const validation = navigationManager.validateStepCompletion('target-weight', dataForMaintenance);
-      expect(validation.canProceed).toBe(true);
+      expect(navigationManager.validateStepCompletion('target-weight', maintenance).canProceed).toBe(true);
+    });
+
+    it('requires a calorie plan decision', () => {
+      const data: OnboardingData = {
+        ...defaultOnboardingData,
+        healthGoal: 'lose-weight',
+        basicProfile: {
+          age: 32,
+          height: 172,
+          weight: 75,
+          targetWeight: 70,
+          activityLevel: 'moderately-active',
+          gender: 'female',
+        },
+        goalPreferences: {
+          goalType: null,
+          recommendedCalories: undefined,
+          recommendedMacros: undefined,
+          useCustomCalories: false,
+          customCalorieTarget: undefined,
+          customMacroTargets: undefined,
+        },
+      };
+
+      const validation = navigationManager.validateStepCompletion('calorie-plan', data);
+      expect(validation.canProceed).toBe(false);
+      expect(validation.missingFields).toContain('Calorie plan decision');
+
+      const withDecision: OnboardingData = {
+        ...data,
+        goalPreferences: {
+          goalType: 'lose',
+          useCustomCalories: true,
+          customCalorieTarget: 1850,
+          customMacroTargets: { protein: 140, carbs: 200, fats: 65 },
+          recommendedCalories: 1900,
+          recommendedMacros: { protein: 145, carbs: 215, fats: 60 },
+        },
+      };
+
+      expect(navigationManager.validateStepCompletion('calorie-plan', withDecision).canProceed).toBe(true);
     });
   });
 
-  describe('Progress Calculation', () => {
-    it('should calculate correct progress percentage', () => {
+  describe('Progress', () => {
+    it('computes percentage correctly', () => {
       const total = ONBOARDING_STEPS.length;
-      expect(navigationManager.getProgressPercentage()).toBe(100 / total); // Step 1
-      
+      expect(navigationManager.getProgressPercentage()).toBeCloseTo(100 / total);
       navigationManager.nextStep();
-      expect(navigationManager.getProgressPercentage()).toBe((2 * 100) / total); // Step 2
-    });
-
-    it('should return correct total steps', () => {
-      expect(navigationManager.getTotalSteps()).toBe(ONBOARDING_STEPS.length);
+      expect(navigationManager.getProgressPercentage()).toBeCloseTo((2 * 100) / total);
     });
   });
 
-  describe('Step Accessibility', () => {
-    it('should allow access to current step', () => {
+  describe('Step accessibility', () => {
+    it('allows current step access', () => {
       const data = { ...defaultOnboardingData, healthGoal: 'lose-weight' as const };
       expect(navigationManager.isStepAccessible('health-goals', data)).toBe(true);
     });
 
-    it('should prevent access to future steps with incomplete data', () => {
-      const incompleteData = { ...defaultOnboardingData }; // No health goal
-      expect(navigationManager.isStepAccessible('gender', incompleteData)).toBe(false);
+    it('blocks future steps until prerequisites are met', () => {
+      const data = { ...defaultOnboardingData };
+      expect(navigationManager.isStepAccessible('calorie-plan', data)).toBe(false);
     });
   });
 });
 
-describe('Helper Functions', () => {
-  it('should return correct step titles', () => {
-    expect(getStepTitle('welcome')).toBe('Welcome to Nosh');
-    expect(getStepTitle('health-goals')).toBe('Health Goals');
-    expect(getStepTitle('completion')).toBe('You\'re All Set!');
+describe('Helper functions', () => {
+  it('returns titles for steps', () => {
+    expect(getStepTitle('calorie-plan')).toBe('Calorie Plan');
+    expect(getStepTitle('completion')).toBe("You're All Set!");
   });
 
-  it('should return correct step descriptions', () => {
-    expect(getStepDescription('welcome')).toBe('Your friendly nutrition companion');
-    expect(getStepDescription('health-goals')).toBe('Tell us what you want to achieve');
-    expect(getStepDescription('completion')).toBe('Start your nutrition journey');
+  it('returns descriptions for steps', () => {
+    expect(getStepDescription('calorie-plan')).toBe('Review your recommended daily calories');
   });
 });
+

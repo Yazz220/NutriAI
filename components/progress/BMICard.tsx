@@ -3,32 +3,41 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { HelpCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
-import { useWeightTracking } from '@/hooks/useWeightTracking';
 
 interface BMICardProps {
   onPress: () => void;
   onHelpPress?: () => void;
+  heightCm?: number | null;
+  weightKg?: number | null;
 }
 
-export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress }) => {
-  const { getCurrentWeight } = useWeightTracking();
-  const currentWeight = getCurrentWeight();
-  
-  // Mock height - in a real app, this would come from user profile
-  const height = 1.75; // 175cm in meters
-  const bmi = currentWeight ? (currentWeight.weight / (height * height)) : 274.1; // Using mock value from screenshot
-  
-  const getBMICategory = (bmi: number) => {
-    if (bmi < 18.5) return { category: 'Underweight', color: '#3B82F6', position: 0.1 };
-    if (bmi < 25) return { category: 'Normal', color: '#22C55E', position: 0.4 };
-    if (bmi < 30) return { category: 'Overweight', color: '#F59E0B', position: 0.7 };
-    return { category: 'Obese', color: '#EF4444', position: 0.95 };
-  };
+const BMI_CATEGORIES = [
+  { max: 18.5, label: 'Underweight', color: '#3B82F6' },
+  { max: 25, label: 'Healthy', color: '#22C55E' },
+  { max: 30, label: 'Overweight', color: '#F59E0B' },
+  { max: Infinity, label: 'Obese', color: '#EF4444' },
+] as const;
 
-  const bmiData = getBMICategory(bmi);
+const SEGMENT_COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444'];
+
+function computeMarkerPosition(bmi?: number) {
+  if (!bmi || Number.isNaN(bmi)) return 0;
+  if (bmi <= 18.5) return 0.12;
+  if (bmi <= 25) return 0.38;
+  if (bmi <= 30) return 0.68;
+  return 0.95;
+}
+
+export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress, heightCm, weightKg }) => {
+  const hasMetrics = Boolean(heightCm && weightKg && heightCm > 0);
+  const bmi = hasMetrics ? weightKg! / Math.pow((heightCm! / 100), 2) : undefined;
+  const category = bmi
+    ? BMI_CATEGORIES.find((entry) => bmi < entry.max) ?? BMI_CATEGORIES[BMI_CATEGORIES.length - 1]
+    : undefined;
+  const position = computeMarkerPosition(bmi);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Your BMI</Text>
@@ -41,44 +50,43 @@ export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress }) => {
             <HelpCircle size={16} color={Colors.lightText} />
           </TouchableOpacity>
         </View>
-        
-        <View style={styles.bmiDisplay}>
-          <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
-          <Text style={styles.bmiDescription}>
-            Your weight is <Text style={[styles.categoryText, { color: bmiData.color }]}>{bmiData.category}</Text>
-          </Text>
-        </View>
 
-        {/* Color-coded progress bar */}
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressBarBlue, { flex: 1 }]} />
-            <View style={[styles.progressBarGreen, { flex: 1 }]} />
-            <View style={[styles.progressBarYellow, { flex: 1 }]} />
-            <View style={[styles.progressBarRed, { flex: 1 }]} />
-          </View>
-          <View style={[styles.marker, { left: `${bmiData.position * 100}%` }]} />
-        </View>
+        {bmi ? (
+          <>
+            <View style={styles.bmiDisplay}>
+              <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
+              <Text style={styles.bmiDescription}>
+                You&apos;re currently{' '}
+                <Text style={[styles.categoryText, { color: category?.color ?? Colors.text }]}>
+                  {category?.label ?? 'in range'}
+                </Text>
+              </Text>
+            </View>
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
-            <Text style={styles.legendText}>Underweight</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBar}>
+                {SEGMENT_COLORS.map((segment) => (
+                  <View key={segment} style={[styles.progressSegment, { backgroundColor: segment }]} />
+                ))}
+              </View>
+              <View style={[styles.marker, { left: `${position * 100}%` }]} />
+            </View>
+
+            <View style={styles.legend}>
+              {BMI_CATEGORIES.map((entry) => (
+                <View key={entry.label} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: entry.color }]} />
+                  <Text style={styles.legendText}>{entry.label}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.bmiValue}>--</Text>
+            <Text style={styles.emptyText}>Add your latest height and weight to see your BMI zone.</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
-            <Text style={styles.legendText}>Healthy</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-            <Text style={styles.legendText}>Overweight</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-            <Text style={styles.legendText}>Obese</Text>
-          </View>
-        </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -97,9 +105,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  cardContent: {
-    // No specific styling needed
-  },
+  cardContent: {},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -145,17 +151,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
   },
-  progressBarBlue: {
-    backgroundColor: '#3B82F6',
-  },
-  progressBarGreen: {
-    backgroundColor: '#22C55E',
-  },
-  progressBarYellow: {
-    backgroundColor: '#F59E0B',
-  },
-  progressBarRed: {
-    backgroundColor: '#EF4444',
+  progressSegment: {
+    flex: 1,
   },
   marker: {
     position: 'absolute',
@@ -184,5 +181,14 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: Colors.lightText,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.lightText,
+    textAlign: 'center',
   },
 });

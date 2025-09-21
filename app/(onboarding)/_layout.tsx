@@ -29,6 +29,7 @@ export default function OnboardingLayout() {
         <Stack.Screen name="weight" />
         <Stack.Screen name="target-weight" />
         <Stack.Screen name="activity-level" />
+        <Stack.Screen name="calorie-plan" />
         <Stack.Screen name="dietary-preferences" />
         <Stack.Screen name="allergies" />
         <Stack.Screen name="other-restrictions" />

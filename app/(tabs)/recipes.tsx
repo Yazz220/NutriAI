@@ -14,7 +14,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CookingPot, MagnifyingGlass, Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
+import { Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
+import RecipePageIcon from '@/assets/icons/Recipe page.svg';
+import SearchIcon from '@/assets/icons/search.svg';
 import { X } from 'lucide-react-native';
 
 // Constants
@@ -127,7 +129,7 @@ export default function RecipesScreen() {
   }, [persistFavorites]);
 
   // Hooks
-  const { meals: localRecipes, addMeal, removeMeal } = useMeals();
+  const { meals: localRecipes, addMeal, removeMeal, resetMeals } = useMeals();
   const { 
     folders, 
     createFolder, 
@@ -356,7 +358,8 @@ export default function RecipesScreen() {
 
       <ScreenHeader
         title="Recipes"
-        icon={<CookingPot size={28} color={Colors.text} />}
+        icon={<RecipePageIcon width={72} height={72} color={Colors.text} />}
+        iconFloat
       />
 
       {/* Segmented control for Recipes tabs (single track + sliding indicator) */}
@@ -399,7 +402,7 @@ export default function RecipesScreen() {
         <>
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
-              <MagnifyingGlass size={18} color={Colors.lightText} />
+              <SearchIcon width={24} height={24} color={Colors.lightText} />
               <TextInput
                 placeholder="Search saved recipes"
                 placeholderTextColor={Colors.lightText}
@@ -414,6 +417,9 @@ export default function RecipesScreen() {
                   <X size={14} color={Colors.lightText} />
                 </TouchableOpacity>
               )}
+              <TouchableOpacity onPress={resetMeals} style={{ paddingVertical: 6, paddingHorizontal: 10, marginLeft: 6, borderWidth: 1, borderColor: Colors.border, borderRadius: 8 }}>
+                <Text style={{ ...Type.caption, color: Colors.primary }}>Reset</Text>
+              </TouchableOpacity>
             </View>
           </View>
 

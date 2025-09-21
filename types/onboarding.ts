@@ -1,12 +1,36 @@
 import { ActivityLevel, DietaryRestriction, InventoryItem } from './index';
 
+export type GoalDirection = 'lose' | 'gain' | 'maintain';
+
 export type HealthGoal = 
   | 'lose-weight' 
   | 'gain-weight' 
   | 'maintain-weight' 
   | 'build-muscle' 
   | 'improve-health' 
-  | 'manage-restrictions';
+  | 'manage-restrictions'
+  | 'custom';
+
+export interface OnboardingCustomGoal {
+  title: string;
+  goalType: GoalDirection;
+  motivation?: string;
+}
+
+export interface MacroBreakdown {
+  protein: number;
+  carbs: number;
+  fats: number;
+}
+
+export interface OnboardingGoalPreferences {
+  goalType: GoalDirection | null;
+  recommendedCalories?: number;
+  recommendedMacros?: MacroBreakdown;
+  useCustomCalories: boolean;
+  customCalorieTarget?: number;
+  customMacroTargets?: MacroBreakdown;
+}
 
 export interface OnboardingBasicProfile {
   age?: number;
@@ -36,12 +60,14 @@ export interface OnboardingNotifications {
 
 export interface OnboardingData {
   healthGoal: HealthGoal | null;
+  customGoal: OnboardingCustomGoal | null;
   basicProfile: OnboardingBasicProfile;
   dietaryPreferences: OnboardingDietaryPreferences;
   healthConcerns: string[]; // new: user-selected health concerns
   pantrySetup: OnboardingPantrySetup;
   notifications: OnboardingNotifications;
   authChoice: 'signup' | 'signin' | 'guest' | null;
+  goalPreferences: OnboardingGoalPreferences;
   completedAt?: string;
 }
 
@@ -74,6 +100,7 @@ export interface OnboardingError {
 
 export const defaultOnboardingData: OnboardingData = {
   healthGoal: null,
+  customGoal: null,
   basicProfile: {},
   dietaryPreferences: {
     restrictions: [],
@@ -90,7 +117,11 @@ export const defaultOnboardingData: OnboardingData = {
     shoppingAlerts: true,
     progressUpdates: false
   },
-  authChoice: null
+  authChoice: null,
+  goalPreferences: {
+    goalType: null,
+    useCustomCalories: false
+  }
 };
 
 // Health goal to profile mapping
@@ -100,5 +131,6 @@ export const healthGoalToProfileMapping = {
   'maintain-weight': { goalType: 'maintain' as const },
   'build-muscle': { goalType: 'gain' as const }, // with higher protein targets
   'improve-health': { goalType: 'maintain' as const },
-  'manage-restrictions': { goalType: 'maintain' as const }
+  'manage-restrictions': { goalType: 'maintain' as const },
+  'custom': { goalType: 'maintain' as const }
 };

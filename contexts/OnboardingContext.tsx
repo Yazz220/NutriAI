@@ -15,7 +15,7 @@ import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegrati
 
 const ONBOARDING_STORAGE_KEY = 'onboarding_data';
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
-const TOTAL_STEPS = 14;
+const TOTAL_STEPS = 15;
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 

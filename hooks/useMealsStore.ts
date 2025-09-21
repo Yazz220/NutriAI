@@ -97,6 +97,124 @@ let initialMeals: Meal[] = [
       carbs: 28,
       fats: 16
     }
+  },
+  {
+    id: '4',
+    name: 'Turkey Chili',
+    description: 'Lean ground turkey simmered with beans, tomatoes, and spices',
+    ingredients: [
+      { name: 'Ground Turkey', quantity: 0.5, unit: 'kg', optional: false },
+      { name: 'Kidney Beans', quantity: 1, unit: 'can', optional: false },
+      { name: 'Tomatoes (diced)', quantity: 1, unit: 'can', optional: false },
+      { name: 'Onion', quantity: 1, unit: 'pcs', optional: false },
+      { name: 'Chili Powder', quantity: 2, unit: 'tbsp', optional: false },
+    ],
+    steps: [
+      'Sauté onion until translucent',
+      'Brown turkey in pot',
+      'Add tomatoes, beans, and spices',
+      'Simmer for 20–30 minutes',
+      'Adjust seasoning and serve'
+    ],
+    image: 'https://images.unsplash.com/photo-1604908554007-29f7f1b2b5bf?q=80&w=1600&auto=format&fit=crop',
+    tags: ['dinner', 'high-protein'],
+    prepTime: 10,
+    cookTime: 30,
+    servings: 4,
+    nutritionPerServing: {
+      calories: 420,
+      protein: 35,
+      carbs: 38,
+      fats: 14
+    }
+  },
+  {
+    id: '5',
+    name: 'Quinoa Veggie Bowl',
+    description: 'Colorful bowl with quinoa, roasted veggies, and tahini dressing',
+    ingredients: [
+      { name: 'Quinoa', quantity: 1, unit: 'cup', optional: false },
+      { name: 'Sweet Potato', quantity: 1, unit: 'pcs', optional: false },
+      { name: 'Chickpeas', quantity: 1, unit: 'can', optional: false },
+      { name: 'Spinach', quantity: 2, unit: 'cups', optional: false },
+      { name: 'Tahini', quantity: 2, unit: 'tbsp', optional: false },
+    ],
+    steps: [
+      'Cook quinoa according to package',
+      'Roast diced sweet potato and chickpeas',
+      'Whisk tahini with lemon and water',
+      'Assemble bowl with spinach, quinoa, roasted veg',
+      'Drizzle dressing and serve'
+    ],
+    image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?q=80&w=1600&auto=format&fit=crop',
+    tags: ['vegetarian', 'lunch', 'healthy'],
+    prepTime: 15,
+    cookTime: 25,
+    servings: 2,
+    nutritionPerServing: {
+      calories: 520,
+      protein: 18,
+      carbs: 78,
+      fats: 16
+    }
+  },
+  {
+    id: '6',
+    name: 'Pasta Marinara',
+    description: 'Classic spaghetti with simple marinara sauce and basil',
+    ingredients: [
+      { name: 'Spaghetti', quantity: 200, unit: 'g', optional: false },
+      { name: 'Tomato Sauce', quantity: 2, unit: 'cups', optional: false },
+      { name: 'Garlic', quantity: 2, unit: 'cloves', optional: false },
+      { name: 'Olive Oil', quantity: 1, unit: 'tbsp', optional: false },
+      { name: 'Basil', quantity: 5, unit: 'leaves', optional: true },
+    ],
+    steps: [
+      'Boil pasta until al dente',
+      'Sauté garlic in olive oil',
+      'Add tomato sauce and simmer',
+      'Toss pasta with sauce and garnish with basil'
+    ],
+    image: 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?q=80&w=1600&auto=format&fit=crop',
+    tags: ['dinner', 'vegetarian'],
+    prepTime: 10,
+    cookTime: 15,
+    servings: 2,
+    nutritionPerServing: {
+      calories: 460,
+      protein: 14,
+      carbs: 75,
+      fats: 10
+    }
+  },
+  {
+    id: '7',
+    name: 'Shrimp Tacos',
+    description: 'Zesty shrimp tacos with cabbage slaw and lime crema',
+    ingredients: [
+      { name: 'Shrimp', quantity: 300, unit: 'g', optional: false },
+      { name: 'Tortillas', quantity: 6, unit: 'pcs', optional: false },
+      { name: 'Cabbage', quantity: 2, unit: 'cups', optional: false },
+      { name: 'Lime', quantity: 1, unit: 'pcs', optional: false },
+      { name: 'Yogurt', quantity: 0.5, unit: 'cup', optional: true },
+    ],
+    steps: [
+      'Season and sauté shrimp until pink',
+      'Mix cabbage with lime and yogurt for slaw',
+      'Warm tortillas',
+      'Assemble tacos with shrimp and slaw'
+    ],
+    image: 'https://images.unsplash.com/photo-1601050690597-9d34a5a6bfb9?q=80&w=1600&auto=format&fit=crop',
+    tags: ['dinner', 'seafood'],
+    prepTime: 10,
+    cookTime: 10,
+    servings: 3,
+    nutritionPerServing: {
+      calories: 380,
+      protein: 28,
+      carbs: 38,
+      fats: 12
+    }
   }
 ];
 

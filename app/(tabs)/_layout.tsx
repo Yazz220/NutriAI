@@ -2,7 +2,12 @@
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { Refrigerator, BookOpen, ShoppingCart, LayoutDashboard, User } from "lucide-react-native";
+// Use the provided SVG filenames as currently placed under assets/icons/
+import DashboardIcon from '@/assets/icons/Dashboard.svg';
+import InventoryIcon from '@/assets/icons/Inventory.svg';
+import RecipesIcon from '@/assets/icons/Recipes .svg';
+import ShoppingListIcon from '@/assets/icons/Shopping list .svg';
+import PersonalInfoIcon from '@/assets/icons/Personal information.svg';
 import { Colors } from "@/constants/colors";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,44 +24,50 @@ export default function TabLayout() {
         headerTitleStyle: styles.headerTitle,
         headerTintColor: Colors.text,
         headerShadowVisible: false,
-        tabBarStyle: [styles.clearBar],
+        // Absolute, floating, transparent bar with safe bottom padding only
+        tabBarStyle: [
+          styles.clearBar,
+          {
+            height: (insets?.bottom ?? 0) + 96,
+            paddingBottom: (insets?.bottom ?? 0) + 4,
+            paddingTop: 0,
+            backgroundColor: 'transparent',
+            borderTopWidth: 0,
+            borderTopColor: 'transparent',
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+        ],
         tabBarItemStyle: styles.tabItem,
-        tabBarBackground: () => (
-          <View style={styles.tabBg} />
-        ),
+        // Remove background so icons appear to float
         tabBarIcon: ({ focused }) => {
           const iconColor = focused ? Colors.secondary : Colors.lightText;
-          const stroke = focused ? 2.75 : 2;
-          const size = focused ? 22 : 20;
+          // Unified icon size for consistent layout
+          const size = 72;
           const wrapStyle = styles.iconWrap; // no circle background on focus
           if (route.name === 'coach') return (
             <View style={wrapStyle}>
-              <LayoutDashboard size={size} color={iconColor} strokeWidth={stroke} />
-              {focused ? <View style={styles.activeDot} /> : null}
+              <DashboardIcon width={size} height={size} color={iconColor} />
             </View>
           );
           if (route.name === 'index') return (
             <View style={wrapStyle}>
-              <Refrigerator size={size} color={iconColor} strokeWidth={stroke} />
-              {focused ? <View style={styles.activeDot} /> : null}
+              <InventoryIcon width={size} height={size} color={iconColor} />
             </View>
           );
           if (route.name === 'recipes') return (
             <View style={wrapStyle}>
-              <BookOpen size={size} color={iconColor} strokeWidth={stroke} />
-              {focused ? <View style={styles.activeDot} /> : null}
+              <RecipesIcon width={size} height={size} color={iconColor} />
             </View>
           );
           if (route.name === 'list') return (
             <View style={wrapStyle}>
-              <ShoppingCart size={size} color={iconColor} strokeWidth={stroke} />
-              {focused ? <View style={styles.activeDot} /> : null}
+              <ShoppingListIcon width={size} height={size} color={iconColor} />
             </View>
           );
           if (route.name === 'profile') return (
             <View style={wrapStyle}>
-              <User size={size} color={iconColor} strokeWidth={stroke} />
-              {focused ? <View style={styles.activeDot} /> : null}
+              <PersonalInfoIcon width={size} height={size} color={iconColor} />
             </View>
           );
           return null;
@@ -81,8 +92,11 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   // Non-absolute bar with reserved height; gradient background renders via tabBarBackground
   clearBar: {
-    position: 'relative',
-    height: 64,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 96,
     backgroundColor: 'transparent',
     borderTopWidth: 0,
     elevation: 0,
@@ -97,20 +111,23 @@ const styles = StyleSheet.create({
     flex: 0,
     width: '20%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end', // align icons on a consistent baseline
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    // Hit target tailored to unified icon size
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 0, // raise icons ~8px compared to previous
+    marginBottom: 6, // nudge upward overall by ~10%
     backgroundColor: 'transparent',
   },
   activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: Colors.secondary,
     marginTop: 4,
   },

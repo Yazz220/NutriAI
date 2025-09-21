@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { OnboardingData } from '@/types/onboarding';
+import { OnboardingData, OnboardingGoalPreferences } from '@/types/onboarding';
 import { NOSH_HEADER_SUBTITLE } from '@/constants/brand';
 
 export type OnboardingStep = 
@@ -11,6 +11,7 @@ export type OnboardingStep =
   | 'weight'
   | 'target-weight'
   | 'activity-level'
+  | 'calorie-plan'
   | 'dietary-preferences'
   | 'allergies'
   | 'other-restrictions'
@@ -27,6 +28,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   'weight',
   'target-weight',
   'activity-level',
+  'calorie-plan',
   'dietary-preferences',
   'allergies',
   'other-restrictions',
@@ -44,6 +46,7 @@ export const STEP_ROUTES: Record<OnboardingStep, string> = {
   'weight': '/(onboarding)/weight',
   'target-weight': '/(onboarding)/target-weight',
   'activity-level': '/(onboarding)/activity-level',
+  'calorie-plan': '/(onboarding)/calorie-plan',
   'dietary-preferences': '/(onboarding)/dietary-preferences',
   'allergies': '/(onboarding)/allergies',
   'other-restrictions': '/(onboarding)/other-restrictions',
@@ -162,6 +165,10 @@ export class OnboardingNavigationManager {
     }
 
     // Check dietary preferences (only require making a selection here).
+    if (!OnboardingNavigationManager.isCaloriePlanComplete(data.goalPreferences)) {
+      return 'calorie-plan';
+    }
+
     // Allergies and other-restrictions are optional and will be offered in the sequence,
     // but we don't gate resume logic on them.
     const hasRestrictions = data.dietaryPreferences.restrictions.length > 0;
@@ -233,6 +240,11 @@ export class OnboardingNavigationManager {
           missingFields.push('Activity level');
         }
         break;
+      case 'calorie-plan':
+        if (!OnboardingNavigationManager.isCaloriePlanComplete(data.goalPreferences)) {
+          missingFields.push('Calorie plan decision');
+        }
+        break;
 
       case 'dietary-preferences':
         // Encourage a choice but don't block progression
@@ -268,6 +280,18 @@ export class OnboardingNavigationManager {
       canProceed: missingFields.length === 0,
       missingFields
     };
+  }
+
+  private static isCaloriePlanComplete(goalPreferences?: OnboardingGoalPreferences): boolean {
+    if (!goalPreferences) {
+      return false;
+    }
+
+    if (goalPreferences.useCustomCalories) {
+      return typeof goalPreferences.customCalorieTarget === 'number' && goalPreferences.customCalorieTarget > 0;
+    }
+
+    return typeof goalPreferences.recommendedCalories === 'number' && goalPreferences.recommendedCalories > 0;
   }
 
   // Get progress percentage
@@ -330,6 +354,7 @@ export function getStepTitle(step: OnboardingStep): string {
     'weight': 'Current Weight',
     'target-weight': 'Target Weight',
     'activity-level': 'Activity Level',
+    'calorie-plan': 'Calorie Plan',
     'dietary-preferences': 'Dietary Preferences',
     'allergies': 'Food Allergies',
     'other-restrictions': 'Other Restrictions',
@@ -352,6 +377,7 @@ export function getStepDescription(step: OnboardingStep): string {
     'weight': 'Your current weight',
     'target-weight': 'What weight are you aiming for?',
     'activity-level': 'How active are you?',
+    'calorie-plan': 'Review your recommended daily calories',
     'dietary-preferences': 'Select any dietary styles you follow',
     'allergies': 'Let us know about any food allergies',
     'other-restrictions': 'Any other foods you avoid',
@@ -362,3 +388,4 @@ export function getStepDescription(step: OnboardingStep): string {
   
   return descriptions[step];
 }
+

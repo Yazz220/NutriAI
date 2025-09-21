@@ -13,7 +13,10 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Plus, AlertCircle, Package, TrendingUp, Search, Barcode, Camera as IconCamera } from 'lucide-react-native';
+import { AlertCircle, TrendingUp, Barcode, Camera as IconCamera } from 'lucide-react-native';
+import InventoryHeaderIcon from '@/assets/icons/Inventory.svg';
+import SearchIcon from '@/assets/icons/search.svg';
+import PlusIcon from '@/assets/icons/Plus.svg';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import IngredientIcon from '@/components/common/IngredientIcon';
 import { slugifyIngredient } from '@/utils/ingredientSlug';
@@ -771,7 +774,7 @@ export default function InventoryScreen() {
       <Button
         title="Add First Item"
         onPress={() => setModalVisible(true)}
-        icon={<Plus size={14} color={Colors.white} />}
+        icon={<PlusIcon width={14} height={14} color={Colors.white} />}
         size="xs"
       />
     </View>
@@ -810,7 +813,8 @@ export default function InventoryScreen() {
       >
         <ScreenHeader
           title="Inventory"
-          icon={<Package size={28} color={Colors.primary} />}
+          icon={<InventoryHeaderIcon width={72} height={72} color={Colors.text} />}
+          iconFloat
           includeStatusBarSpacer
           containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
         />
@@ -822,7 +826,7 @@ export default function InventoryScreen() {
         {/* Search Bar (matches Discover style) */}
         <View style={styles.searchContainer}>
           <View style={styles.inventorySearchBar}>
-            <Search size={14} color={Colors.lightText} />
+            <SearchIcon width={24} height={24} color={Colors.lightText} />
             <TextInput
               placeholder="Search your inventory..."
               placeholderTextColor={Colors.lightText}
@@ -902,7 +906,7 @@ export default function InventoryScreen() {
             }}
           >
             <TouchableOpacity style={styles.quickAddOption} onPress={() => { setModalVisible(true); collapseQuickAdd(); }}>
-              <Plus size={20} color={Colors.primary} />
+              <PlusIcon width={20} height={20} color={Colors.primary} />
               <Text style={styles.quickAddText}>Add Manually</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
@@ -916,7 +920,7 @@ export default function InventoryScreen() {
           </Animated.View>
         )}
         <TouchableOpacity style={styles.quickAddButton} onPress={toggleQuickAdd}>
-          <Plus size={24} color={Colors.white} />
+          <PlusIcon width={24} height={24} color={Colors.white} />
         </TouchableOpacity>
       </View>
     </View>

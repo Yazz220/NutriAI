@@ -11,7 +11,9 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { Search, Filter, X, Clock, Users, Star, Heart } from 'lucide-react-native';
+import { Filter, X, Clock, Users, Star } from 'lucide-react-native';
+import SearchIcon from '@/assets/icons/search.svg';
+import HeartIcon from '@/assets/icons/Heart.svg';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -171,7 +173,7 @@ export const RecipeSearch: React.FC<RecipeSearchProps> = ({
             
             {recipe.aggregateLikes && (
               <View style={styles.metaItem}>
-                <Heart size={14} color={Colors.lightText} />
+                <HeartIcon width={14} height={14} color={Colors.lightText} />
                 <Text style={styles.metaText}>{recipe.aggregateLikes}</Text>
               </View>
             )}
@@ -195,7 +197,7 @@ export const RecipeSearch: React.FC<RecipeSearchProps> = ({
           style={styles.saveButton}
           onPress={() => onSaveRecipe(recipe)}
         >
-          <Heart size={16} color={Colors.primary} />
+          <HeartIcon width={16} height={16} color={Colors.primary} />
         </TouchableOpacity>
       </Card>
     </TouchableOpacity>
@@ -207,7 +209,7 @@ export const RecipeSearch: React.FC<RecipeSearchProps> = ({
       <Card style={styles.searchHeader}>
         <View style={styles.searchRow}>
           <View style={styles.searchInputContainer}>
-            <Search size={20} color={Colors.lightText} style={styles.searchIcon} />
+            <SearchIcon width={20} height={20} color={Colors.lightText} style={styles.searchIcon as any} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search recipes..."

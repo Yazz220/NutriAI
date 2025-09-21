@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Edit3, Target, Heart, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut, Camera } from 'lucide-react-native';
+import { User, Edit3, Target, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut } from 'lucide-react-native';
+import HeartIcon from '@/assets/icons/Heart.svg';
+import CameraIcon from '@/assets/icons/Camera.svg';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../supabase/functions/_shared/supabaseClient';
@@ -56,15 +58,7 @@ export default function EnhancedProfileScreen() {
 
   const renderOverview = () => (
     <ScrollView style={styles.overview} showsVerticalScrollIndicator={false}>
-      {/* Header with Settings Icon */}
-      <View style={styles.headerRow}>
-        <View style={styles.profileIcon}>
-          <User size={24} color={Colors.white} />
-        </View>
-        <TouchableOpacity style={styles.settingsIcon}>
-          <Settings size={24} color={Colors.text} />
-        </TouchableOpacity>
-      </View>
+      {/* Header icons removed (non-functional) */}
 
       {/* Hero Profile Card */}
       <View style={styles.heroCard}>
@@ -75,7 +69,7 @@ export default function EnhancedProfileScreen() {
               <User size={32} color={Colors.lightText} />
             </View>
             <TouchableOpacity style={styles.cameraButton}>
-              <Camera size={16} color={Colors.white} />
+              <CameraIcon width={16} height={16} color={Colors.white} />
             </TouchableOpacity>
           </View>
           
@@ -144,7 +138,7 @@ export default function EnhancedProfileScreen() {
           onPress={() => { setSheetSection('dietary'); setSheetVisible(true); }}
         >
           <View style={styles.menuIconContainer}>
-            <Heart size={20} color={Colors.text} />
+            <HeartIcon width={20} height={20} color={Colors.text} />
           </View>
           <Text style={styles.menuText}>Dietary Preferences</Text>
           <ChevronRight size={20} color={Colors.lightText} />
@@ -273,8 +267,8 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: Colors.card,
     marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginTop: 0,
+    marginBottom: Spacing.md,
     borderRadius: 20,
     overflow: 'hidden',
     ...Shadows.md,
@@ -289,7 +283,7 @@ const styles = StyleSheet.create({
   },
   heroContent: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 48,
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
   },
@@ -429,7 +423,7 @@ const styles = StyleSheet.create({
   },
   
   bottomSpacer: {
-    height: 40,
+    height: 16,
   },
   sheetOverlay: {
     flex: 1,

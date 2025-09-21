@@ -16,6 +16,7 @@ export type ScreenHeaderProps = {
   showDivider?: boolean;
   includeStatusBarSpacer?: boolean;
   glassy?: boolean;
+  iconFloat?: boolean; // render icon as floating overlay (no layout height impact)
 };
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
@@ -29,18 +30,26 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   showDivider = false,
   includeStatusBarSpacer = true,
   glassy = false,
+  iconFloat = false,
 }) => {
   return (
     <View style={[styles.container, glassy ? styles.containerGlassy : null, containerStyle]}>      
       {glassy && (
         <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
       )}
-      {glassy && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.04)' }]} />}
+      {glassy && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.04)'}]} />}
       {includeStatusBarSpacer && <View style={styles.statusBarSpacer} />}
 
+      {/* Floating overlay icon (does not affect layout height) */}
+      {icon && iconFloat ? (
+        <View pointerEvents="none" style={styles.iconFloatOverlay}>
+          {icon}
+        </View>
+      ) : null}
+
       <View style={[styles.row, contentStyle]}>
-        <View style={styles.leftRow}>
-          {icon ? <View style={styles.icon}>{icon}</View> : null}
+        <View style={[styles.leftRow, iconFloat ? styles.leftRowWithIconFloat : null]}>
+          {!iconFloat && icon ? <View style={styles.icon}>{icon}</View> : null}
           <View>
             <Text style={[styles.title, titleStyle]} numberOfLines={1}>{title}</Text>
             {!!subtitle && (
@@ -81,8 +90,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 1,
   },
+  leftRowWithIconFloat: {
+    paddingLeft: 84, // reserve space so floating icon does not overlap text
+  },
   icon: {
     marginRight: Spacing.md,
+  },
+  iconFloatOverlay: {
+    position: 'absolute',
+    left: Spacing.xxxl, // align with horizontal padding
+    top: Spacing.lg + (Platform.OS === 'ios' ? 44 : 24) - 6, // align near title baseline
   },
   title: {
     ...Typography.displayMd,

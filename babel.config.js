@@ -8,8 +8,8 @@ module.exports = function(api) {
         alias: { '@': '.' },
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.json']
       }],
-      // Reanimated plugin must be listed last
-      'react-native-reanimated/plugin',
+      // Worklets/Reanimated plugin must be listed last
+      'react-native-worklets/plugin',
     ],
   };
 };

@@ -1,4 +1,4 @@
-import { OnboardingData, HealthGoal, healthGoalToProfileMapping } from '@/types/onboarding';
+import { OnboardingData, HealthGoal, GoalDirection, healthGoalToProfileMapping, OnboardingGoalPreferences, OnboardingCustomGoal, MacroBreakdown } from '@/types/onboarding';
 import { UserProfileState, UserBasics, UserGoals, UserPreferencesProfile } from '@/hooks/useUserProfile';
 
 export interface CalorieCalculationParams {
@@ -7,15 +7,11 @@ export interface CalorieCalculationParams {
   weight: number; // kg
   gender: 'male' | 'female' | 'other' | 'prefer-not-to-say';
   activityLevel: string;
-  goalType: 'lose' | 'gain' | 'maintain';
+  goalType: GoalDirection;
   targetWeight?: number;
 }
 
-export interface MacroTargets {
-  protein: number; // grams
-  carbs: number; // grams
-  fats: number; // grams
-}
+export type MacroTargets = MacroBreakdown;
 
 export class OnboardingProfileIntegration {
   
@@ -23,31 +19,55 @@ export class OnboardingProfileIntegration {
    * Convert onboarding data to UserProfile format
    */
   static mapOnboardingToProfile(data: OnboardingData): Partial<UserProfileState> {
-    const { healthGoal, basicProfile, dietaryPreferences } = data;
-    
-    // Calculate nutrition targets if we have enough data
+    const { healthGoal, basicProfile, dietaryPreferences, customGoal, goalPreferences } = data;
+
+    const preferences = goalPreferences ?? { goalType: null, useCustomCalories: false };
+    const goalDirection = this.resolveGoalDirection(healthGoal, preferences);
+
+    let recommendedCalories: number | undefined;
+    let recommendedMacros: MacroTargets | undefined;
     let dailyCalories: number | undefined;
     let macroTargets: MacroTargets | undefined;
-    
+
     if (this.hasCompleteProfileData(basicProfile)) {
-      const goalType = healthGoal ? healthGoalToProfileMapping[healthGoal]?.goalType : 'maintain';
-      
-      dailyCalories = this.calculateDailyCalories({
+      recommendedCalories = this.calculateDailyCalories({
         age: basicProfile.age!,
         height: basicProfile.height!,
         weight: basicProfile.weight!,
         gender: basicProfile.gender || 'other',
         activityLevel: basicProfile.activityLevel!,
-        goalType,
+        goalType: goalDirection,
         targetWeight: basicProfile.targetWeight
       });
-      
-      macroTargets = this.calculateMacroTargets(dailyCalories, healthGoal);
+
+      const macroReferenceGoal = this.getMacroReferenceGoal(healthGoal, goalDirection);
+      recommendedMacros = this.calculateMacroTargets(recommendedCalories, macroReferenceGoal);
+
+      const useCustomCalories = preferences.useCustomCalories && typeof preferences.customCalorieTarget === 'number';
+      if (useCustomCalories) {
+        dailyCalories = Math.round(preferences.customCalorieTarget!);
+        macroTargets = preferences.customMacroTargets
+          ? preferences.customMacroTargets
+          : this.calculateMacroTargets(dailyCalories, macroReferenceGoal);
+      } else {
+        dailyCalories = recommendedCalories;
+        macroTargets = recommendedMacros;
+      }
     }
-    
+
     return {
       basics: this.mapBasicProfile(basicProfile),
-      goals: this.mapGoalsProfile(healthGoal, basicProfile, dailyCalories, macroTargets),
+      goals: this.mapGoalsProfile({
+        healthGoal,
+        basicProfile,
+        customGoal,
+        goalPreferences: preferences,
+        goalDirection,
+        dailyCalories,
+        macroTargets,
+        recommendedCalories,
+        recommendedMacros
+      }),
       preferences: this.mapPreferencesProfile(dietaryPreferences)
     };
   }
@@ -68,22 +88,73 @@ export class OnboardingProfileIntegration {
   /**
    * Map goals profile information
    */
-  private static mapGoalsProfile(
-    healthGoal: HealthGoal | null,
-    basicProfile: OnboardingData['basicProfile'],
-    dailyCalories?: number,
-    macroTargets?: MacroTargets
-  ): Partial<UserGoals> {
-    const goalType = healthGoal ? healthGoalToProfileMapping[healthGoal]?.goalType : 'maintain';
-    
+  private static mapGoalsProfile({
+    healthGoal,
+    basicProfile,
+    customGoal,
+    goalPreferences,
+    goalDirection,
+    dailyCalories,
+    macroTargets,
+    recommendedCalories,
+    recommendedMacros
+  }: {
+    healthGoal: HealthGoal | null;
+    basicProfile: OnboardingData['basicProfile'];
+    customGoal: OnboardingCustomGoal | null;
+    goalPreferences: OnboardingGoalPreferences;
+    goalDirection: GoalDirection;
+    dailyCalories?: number;
+    macroTargets?: MacroTargets;
+    recommendedCalories?: number;
+    recommendedMacros?: MacroTargets;
+  }): Partial<UserGoals> {
     return {
       dailyCalories,
       proteinTargetG: macroTargets?.protein,
       carbsTargetG: macroTargets?.carbs,
       fatsTargetG: macroTargets?.fats,
-      goalType,
-      activityLevel: basicProfile.activityLevel
+      goalType: goalDirection,
+      activityLevel: basicProfile.activityLevel,
+      customGoalLabel: customGoal?.title,
+      customGoalMotivation: customGoal?.motivation,
+      usesCustomCalorieTarget: goalPreferences.useCustomCalories ?? false,
+      recommendedCalories,
+      recommendedProteinG: recommendedMacros?.protein,
+      recommendedCarbsG: recommendedMacros?.carbs,
+      recommendedFatsG: recommendedMacros?.fats,
+      healthGoalKey: healthGoal ?? undefined
     };
+  }
+
+  private static resolveGoalDirection(
+    healthGoal: HealthGoal | null,
+    preferences: OnboardingGoalPreferences
+  ): GoalDirection {
+    if (preferences.goalType) {
+      return preferences.goalType;
+    }
+    if (healthGoal && healthGoalToProfileMapping[healthGoal]) {
+      return healthGoalToProfileMapping[healthGoal]?.goalType ?? 'maintain';
+    }
+    return 'maintain';
+  }
+
+  private static getMacroReferenceGoal(
+    healthGoal: HealthGoal | null,
+    goalDirection: GoalDirection
+  ): HealthGoal {
+    if (healthGoal && healthGoal !== 'custom') {
+      return healthGoal;
+    }
+    switch (goalDirection) {
+      case 'lose':
+        return 'lose-weight';
+      case 'gain':
+        return 'gain-weight';
+      default:
+        return 'maintain-weight';
+    }
   }
 
   /**
