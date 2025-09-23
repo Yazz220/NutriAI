@@ -3,7 +3,6 @@ import { View, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Brain } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { APP_NAME } from '@/constants/brand';
-import { LinearGradient } from 'expo-linear-gradient';
 import CoachIcon from '@/assets/icons/coach.svg';
 
 interface EnhancedFloatingChatButtonProps {
@@ -150,11 +149,8 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
           },
         ]}
       >
-        <LinearGradient
-          colors={[Colors.primary + '40', Colors.secondary + '40', Colors.primary + '40']}
-          style={styles.glow}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <View
+          style={[styles.glow, { backgroundColor: Colors.primary + '40' }]}
         />
       </Animated.View>
 
@@ -178,20 +174,15 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
           accessibilityLabel={`Open ${APP_NAME} Chat`}
           accessibilityHint="Tap to chat with your nutrition coach"
         >
-          <LinearGradient
-            colors={[Colors.primary, Colors.primaryLight]}
-            style={styles.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.transparentBackground}>
             <View style={{ width: 72, height: 72, justifyContent: 'center', alignItems: 'center' }}>
               {isTyping ? (
-                <Brain size={136} color={Colors.white} weight="fill" style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
+                <Brain size={136} color={Colors.primary} weight="fill" style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
               ) : (
-                <CoachIcon width={136} height={136} color={Colors.white} style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
+                <CoachIcon width={136} height={136} color={Colors.primary} style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
               )}
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Unread indicator */}
           {hasUnreadMessages && !isTyping && (
@@ -254,6 +245,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 36,
+  },
+  transparentBackground: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   shadow: {
     position: 'absolute',

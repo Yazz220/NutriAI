@@ -160,15 +160,16 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 16,
-    minHeight: 56, // Ensures minimum touch target size
+    borderRadius: 28, // More organic rounded shape
+    minHeight: 56,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2.5, // Consistent border for organic look
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -187,46 +188,49 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   
-  // Primary button styles
+  // Primary button - Solid green (like filled rectangles in your design)
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#8FBC8F', // Soft sage green
+    borderColor: '#6B8E6B', // Darker green border
   },
   primaryText: {
-    color: Colors.white,
+    color: '#2F4F2F', // Dark green text for contrast
   },
   disabledPrimary: {
-    backgroundColor: Colors.lightGray,
+    backgroundColor: '#D3D3D3',
+    borderColor: '#B0B0B0',
   },
   
-  // Secondary button styles
+  // Secondary button - Light green with border (like outlined shapes)
   secondaryButton: {
-    backgroundColor: Colors.card,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    backgroundColor: '#F0F8F0', // Very light green
+    borderColor: '#8FBC8F', // Sage green border
   },
   secondaryText: {
-    color: Colors.text,
+    color: '#2F4F2F', // Dark green text
   },
   disabledSecondary: {
-    backgroundColor: Colors.lightGray,
-    borderColor: Colors.lightGray,
+    backgroundColor: '#F5F5F5',
+    borderColor: '#D3D3D3',
   },
   
-  // Ghost button styles
+  // Ghost button - Orange accent (like the orange elements in your design)
   ghostButton: {
     backgroundColor: 'transparent',
+    borderColor: '#CD853F', // Sandy brown/orange
     shadowOpacity: 0,
     elevation: 0,
   },
   ghostText: {
-    color: Colors.primary,
+    color: '#CD853F', // Orange text
   },
   disabledGhost: {
     backgroundColor: 'transparent',
+    borderColor: '#D3D3D3',
   },
   
   // Disabled text
   disabledText: {
-    color: Colors.lightText,
+    color: '#999999',
   },
 });

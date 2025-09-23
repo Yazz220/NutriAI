@@ -143,6 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lightGray,
     borderRadius: 25,
     padding: 4,
+    alignSelf: 'flex-start', // Prevent extending to full width
   },
   unitButton: {
     paddingHorizontal: 24,

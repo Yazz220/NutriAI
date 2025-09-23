@@ -17,6 +17,10 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={({ route }) => ({
+        sceneContainerStyle: {
+          paddingBottom: (insets?.bottom ?? 0) + 84,
+          backgroundColor: Colors.background,
+        },
         tabBarShowLabel: false,
         tabBarActiveTintColor: Colors.secondary,
         tabBarInactiveTintColor: Colors.gray[400],
@@ -28,8 +32,8 @@ export default function TabLayout() {
         tabBarStyle: [
           styles.clearBar,
           {
-            height: (insets?.bottom ?? 0) + 96,
-            paddingBottom: (insets?.bottom ?? 0) + 4,
+            height: (insets?.bottom ?? 0) + 84,
+            paddingBottom: (insets?.bottom ?? 0) + 8,
             paddingTop: 0,
             backgroundColor: 'transparent',
             borderTopWidth: 0,
@@ -39,11 +43,32 @@ export default function TabLayout() {
           },
         ],
         tabBarItemStyle: styles.tabItem,
+        // Branded rounded pill background and a subtle top fade
+        tabBarBackground: () => (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {/* Top fade to prevent visual overlap with content */}
+            <ExpoLinearGradient
+              colors={[Colors.background + '00', Colors.background + 'D0']}
+              style={[styles.topFade, { top: -28 }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+            {/* Pill container */}
+            <View
+              style={[
+                styles.pill,
+                {
+                  marginBottom: (insets?.bottom ?? 0) + 12,
+                },
+              ]}
+            />
+          </View>
+        ),
         // Remove background so icons appear to float
         tabBarIcon: ({ focused }) => {
           const iconColor = focused ? Colors.secondary : Colors.lightText;
           // Unified icon size for consistent layout
-          const size = 72;
+          const size = 32;
           const wrapStyle = styles.iconWrap; // no circle background on focus
           if (route.name === 'coach') return (
             <View style={wrapStyle}>
@@ -96,7 +121,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 96,
+    height: 84,
     backgroundColor: 'transparent',
     borderTopWidth: 0,
     elevation: 0,
@@ -111,17 +136,16 @@ const styles = StyleSheet.create({
     flex: 0,
     width: '20%',
     alignItems: 'center',
-    justifyContent: 'flex-end', // align icons on a consistent baseline
+    justifyContent: 'center', // align icons vertically centered within pill
   },
   iconWrap: {
     // Hit target tailored to unified icon size
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 0, // raise icons ~8px compared to previous
-    marginBottom: 6, // nudge upward overall by ~10%
+    justifyContent: 'center',
+    marginBottom: 0,
     backgroundColor: 'transparent',
   },
   activeDot: {
@@ -136,6 +160,30 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     borderColor: 'transparent',
+  },
+  // fade overlay at the top of the bar to avoid visual overlap with content
+  topFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 48,
+  },
+  // branded pill behind the icons
+  pill: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 8,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.background,
+    borderWidth: 2.5,
+    borderColor: '#2F4F2F',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 6,
   },
   header: {
     backgroundColor: 'rgba(255, 255, 255, 0.90)',

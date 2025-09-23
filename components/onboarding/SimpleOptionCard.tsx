@@ -69,12 +69,12 @@ export function SimpleOptionCard({
 
   const animatedBorderColor = borderColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [Colors.border, Colors.primary],
+    outputRange: ['#D3D3D3', '#8FBC8F'], // Light gray to sage green
   });
 
   const animatedBackgroundColor = backgroundColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [Colors.white, Colors.primary + '08'], // Very subtle background tint
+    outputRange: ['#FEFEFE', '#F0F8F0'], // White to very light green
   });
 
   const accessibilityRole: AccessibilityRole = 'radio';
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    backgroundColor: Colors.white,
+    borderRadius: 24, // More organic rounded shape
+    borderWidth: 2.5, // Thicker border for organic look
+    backgroundColor: '#FEFEFE',
     minHeight: 64,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
     elevation: 1,
   },
   disabledCard: {
@@ -148,10 +148,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: Typography.weights.semibold,
-    color: Colors.text,
+    color: '#2F4F2F', // Dark green text to match branding
     textAlign: 'center',
   },
   disabledText: {
-    color: Colors.lightText,
+    color: '#999999',
   },
 });
