@@ -1,6 +1,6 @@
 import { InventoryItem } from '@/types';
 import { AiContext, InventoryItemCtx, ChatMessage } from '@/utils/aiClient';
-import { calculateRecipeAvailability } from './inventoryRecipeMatching';
+import { calculateRecipeAvailability, getExpiringIngredientRecipes } from './inventoryRecipeMatching';
 
 export interface InventoryAwareAiContext {
   inventory: {
@@ -55,8 +55,15 @@ function mapInventoryToContext(inventory: InventoryItem[]): InventoryItemCtx[] {
 }
 
 function getFreshnessStatus(expiryDateStr?: string): 'fresh' | 'aging' | 'expiring' | 'untracked' {
-  // Expiration tracking removed; always untracked
-  return 'untracked';
+  if (!expiryDateStr) return 'untracked';
+
+  const now = new Date();
+  const expiryDate = new Date(expiryDateStr);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysUntilExpiry <= 1) return 'expiring';
+  if (daysUntilExpiry <= 3) return 'aging';
+  return 'fresh';
 }
 
 function categorizeInventory(inventory: InventoryItem[]): Record<string, InventoryItemCtx[]> {
@@ -81,12 +88,44 @@ function categorizeInventory(inventory: InventoryItem[]): Record<string, Invento
 }
 
 function getExpiringItems(inventory: InventoryItem[]): InventoryItemCtx[] {
-  // Expiration tracking removed; return empty list
-  return [];
+  const threeDaysFromNow = new Date();
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  
+  return inventory
+    .filter(item => {
+      if (!item.expiryDate) return false;
+      const expiryDate = new Date(item.expiryDate);
+      return expiryDate <= threeDaysFromNow;
+    })
+    .map(item => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category,
+      expiryDate: item.expiryDate
+    }))
+    .sort((a, b) => {
+      // Sort by expiry date (soonest first)
+      if (!a.expiryDate || !b.expiryDate) return 0;
+      return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+    });
 }
 
 function getFreshnessSummary(inventory: InventoryItem[]) {
-  return { fresh: 0, aging: 0, expiring: 0, untracked: inventory.length };
+  const summary = {
+    fresh: 0,
+    aging: 0,
+    expiring: 0,
+    untracked: 0
+  };
+  
+  inventory.forEach(item => {
+    const status = getFreshnessStatus(item.expiryDate);
+    summary[status]++;
+  });
+  
+  return summary;
 }
 
 function generateContextSummary(inventory: InventoryItem[], preferences: UserPreferences): string {
@@ -96,7 +135,22 @@ function generateContextSummary(inventory: InventoryItem[], preferences: UserPre
   
   let summary = `You have ${totalItems} ingredients in your inventory. `;
   
-  // Expiration-specific summaries removed
+  if (expiringItems.length > 0) {
+    const urgentItems = expiringItems.filter(item => {
+      if (!item.expiryDate) return false;
+      const daysUntilExpiry = Math.ceil((new Date(item.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntilExpiry <= 1;
+    });
+    
+    if (urgentItems.length > 0) {
+      summary += `URGENT: ${urgentItems.length} ingredient${urgentItems.length !== 1 ? 's' : ''} expiring today/tomorrow (${urgentItems.map(i => i.name).join(', ')}). `;
+    }
+    
+    if (expiringItems.length > urgentItems.length) {
+      const soonExpiring = expiringItems.length - urgentItems.length;
+      summary += `${soonExpiring} more ingredient${soonExpiring !== 1 ? 's' : ''} expiring within 3 days. `;
+    }
+  }
   
   // Add dietary preferences
   if (preferences.dietaryRestrictions.length > 0) {
@@ -166,7 +220,7 @@ export function buildInventoryAwareAiContext(
 export function buildInventoryAwareSystemPrompt(context: InventoryAwareAiContext): string {
   const { inventory, preferences, contextSummary } = context;
   
-  let prompt = `You are Chef AI, an intelligent cooking assistant with access to the user's current ingredient inventory. Your goal is to suggest recipes that make the best use of available ingredients.
+  let prompt = `You are Chef AI, an intelligent cooking assistant with access to the user's current ingredient inventory. Your goal is to suggest recipes that make the best use of available ingredients, especially those that are expiring soon.
 
 CURRENT INVENTORY CONTEXT:
 ${contextSummary}
@@ -174,8 +228,18 @@ ${contextSummary}
 INVENTORY DETAILS:
 `;
 
-  // Expiring ingredient section removed
-  
+  // Add expiring ingredients with urgency
+  if (inventory.expiringItems.length > 0) {
+    prompt += `\nEXPIRING INGREDIENTS (USE FIRST):
+`;
+    inventory.expiringItems.forEach(item => {
+      const daysUntilExpiry = item.expiryDate 
+        ? Math.ceil((new Date(item.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      prompt += `- ${item.name} (${item.quantity} ${item.unit}) - expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}\n`;
+    });
+  }
+
   // Add available ingredients by category
   prompt += `\nAVAILABLE INGREDIENTS BY CATEGORY:
 `;
@@ -207,11 +271,12 @@ INVENTORY DETAILS:
   }
 
   prompt += `\nINSTRUCTIONS:
-1. Suggest recipes that maximize the use of available ingredients
-2. Clearly indicate which ingredients the user has vs. needs to buy
-3. Respect dietary restrictions and time constraints
-4. Adjust recipe complexity based on cooking skill level
-5. When suggesting recipes, format your response as JSON with this structure:
+1. PRIORITIZE recipes that use expiring ingredients first
+2. Suggest recipes that maximize the use of available ingredients
+3. Clearly indicate which ingredients the user has vs. needs to buy
+4. Respect dietary restrictions and time constraints
+5. Adjust recipe complexity based on cooking skill level
+6. When suggesting recipes, format your response as JSON with this structure:
 {
   "type": "recipe_suggestions",
   "suggestions": [
@@ -230,8 +295,8 @@ INVENTORY DETAILS:
   "shoppingList": ["item1", "item2"]
 }
 
-6. If no specific recipe request is made, proactively suggest 2-3 recipes based on the user's inventory
-7. Always be encouraging and helpful, focusing on making cooking enjoyable
+7. If no specific recipe request is made, proactively suggest 2-3 recipes based on expiring ingredients
+8. Always be encouraging and helpful, focusing on reducing food waste and making cooking enjoyable
 `;
 
   return prompt;

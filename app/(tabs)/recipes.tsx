@@ -358,8 +358,7 @@ export default function RecipesScreen() {
 
       <ScreenHeader
         title="Recipes"
-        icon={<RecipePageIcon width={72} height={72} color={Colors.text} />}
-        iconFloat
+        icon={<RecipePageIcon width={28} height={28} color={Colors.text} />}
       />
 
       {/* Segmented control for Recipes tabs (single track + sliding indicator) */}

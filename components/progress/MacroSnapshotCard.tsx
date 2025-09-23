@@ -15,12 +15,12 @@ interface MacroSnapshotCardProps {
 
 function format(value: number) {
   if (!Number.isFinite(value)) return '--';
-  return ${Math.round(value).toLocaleString()} g;
+  return `${Math.round(value).toLocaleString()} g`;
 }
 
 function percent(consumed: number, goal?: number) {
   if (!goal || goal <= 0) return '--';
-  return ${Math.round((consumed / goal) * 100)}%;
+  return `${Math.round((consumed / goal) * 100)}%`;
 }
 
 export const MacroSnapshotCard: React.FC<MacroSnapshotCardProps> = ({ macros }) => {

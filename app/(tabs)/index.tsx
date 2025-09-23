@@ -255,17 +255,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   quickAddButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
     marginBottom: 12,
   },
   quickAddOption: {
@@ -813,8 +808,7 @@ export default function InventoryScreen() {
       >
         <ScreenHeader
           title="Inventory"
-          icon={<InventoryHeaderIcon width={72} height={72} color={Colors.text} />}
-          iconFloat
+          icon={<InventoryHeaderIcon width={28} height={28} color={Colors.text} />}
           includeStatusBarSpacer
           containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
         />
@@ -920,7 +914,9 @@ export default function InventoryScreen() {
           </Animated.View>
         )}
         <TouchableOpacity style={styles.quickAddButton} onPress={toggleQuickAdd}>
-          <PlusIcon width={24} height={24} color={Colors.white} />
+          <View style={{ width: 64, height: 64, justifyContent: 'center', alignItems: 'center' }}>
+            <PlusIcon width={136} height={136} color={Colors.white} style={{ position: 'absolute', left: -(136 - 64) / 2, top: -(136 - 64) / 2 }} />
+          </View>
         </TouchableOpacity>
       </View>
     </View>

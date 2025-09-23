@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
 
 import { ActivityLevelSelector, ActivityLevel } from '@/components/onboarding/ActivityLevelSelector';
@@ -57,6 +57,14 @@ export default function ActivityLevelScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/How often do you work out.png')}
+            defaultSource={require('@/assets/images/nosh/How often do you work out.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>What's your activity level?</Text>
         </View>
 
@@ -114,6 +122,12 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
     color: Colors.text,
     lineHeight: 36,
+  },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
   content: {
     flex: 1,

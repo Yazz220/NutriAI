@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
 
 import { DietaryRestriction } from '@/types/index';
@@ -139,6 +139,12 @@ export default function DietaryPreferencesScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/What do you like to eat.png')}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>What do you like?</Text>
         </View>
 
@@ -205,6 +211,12 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 8,
     lineHeight: 36,
+  },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: 16,

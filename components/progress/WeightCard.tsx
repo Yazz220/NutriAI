@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { TrendingUp, TrendingDown, Calendar } from 'lucide-react-native';
+import CalenderIcon from '@/assets/icons/Calender.svg';
 
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
@@ -127,7 +128,7 @@ export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
     <View style={styles.footer}>
       <Text style={styles.nextWeighIn}>Last weigh-in: {formatLastWeighIn()}</Text>
       <View style={styles.footerRight}>
-        <Calendar size={12} color={Colors.lightText} />
+            <CalenderIcon width={12} height={12} color={Colors.lightText} />
         <Text style={styles.entriesCount}>{entries.length} entries</Text>
       </View>
     </View>

@@ -39,7 +39,7 @@ export const WeeklySnapshotCard: React.FC<WeeklySnapshotCardProps> = ({
 
   const trendLabel = !Number.isFinite(caloriesTendency ?? NaN)
     ? 'Stable energy intake'
-    : ${Math.abs(Math.round(caloriesTendency ?? 0))}%  vs last week;
+    : `${Math.abs(Math.round(caloriesTendency ?? 0))}% vs last week`;
 
   return (
     <ProgressCardContainer style={styles.card} padding={20} onPress={onPressDetails}>
@@ -48,7 +48,7 @@ export const WeeklySnapshotCard: React.FC<WeeklySnapshotCardProps> = ({
 
       <View style={styles.row}>
         <View style={styles.highlight}>
-          <trendIcon size={18} color={trendColor} />
+          {React.createElement(trendIcon, { size: 18, color: trendColor })}
           <Text style={styles.highlightLabel}>Energy trend</Text>
           <Text style={[styles.highlightValue, { color: trendColor }]}>{trendLabel}</Text>
         </View>
@@ -64,7 +64,7 @@ export const WeeklySnapshotCard: React.FC<WeeklySnapshotCardProps> = ({
           <Text style={styles.highlightLabel}>Avg sleep</Text>
           <Text style={styles.highlightValue}>
             {Number.isFinite(averageSleepHours ?? NaN)
-              ? ${Math.round((averageSleepHours ?? 0) * 10) / 10} hrs
+              ? `${Math.round((averageSleepHours ?? 0) * 10) / 10} hrs`
               : '--'}
           </Text>
           <Text style={styles.highlightHelper}>Reported via tracking</Text>
@@ -72,7 +72,7 @@ export const WeeklySnapshotCard: React.FC<WeeklySnapshotCardProps> = ({
         <View style={styles.highlight}>
           <Text style={styles.highlightLabel}>Healthy choices</Text>
           <Text style={styles.highlightValue}>
-            {typeof healthyPercent === 'number' ? ${healthyPercent}% : '--'}
+            {typeof healthyPercent === 'number' ? `${healthyPercent}%` : '--'}
           </Text>
           <Text style={styles.highlightHelper}>Meals meeting macro targets</Text>
         </View>

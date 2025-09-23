@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, VerticalRulerPicker, useOnboarding } from '@/components/onboarding';
+import NoshHeightSvg from '@/assets/images/nosh/whats-your-height.svg';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -61,9 +62,17 @@ export default function HeightScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Your height</Text>
-          
-          <View style={styles.unitToggle}>
+            <Image
+              source={require('@/assets/images/nosh/What\'s your height.png')}
+              defaultSource={require('@/assets/images/nosh/What\'s your height.png')}
+              fadeDuration={0}
+              style={styles.noshImage}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+            <View style={styles.headerRight}>
+              <Text style={styles.title}>Your height</Text>
+              <View style={styles.unitToggle}>
             <TouchableOpacity
               style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
               onPress={() => setUnitSystem('metric')}
@@ -80,6 +89,7 @@ export default function HeightScreen() {
                 Ft
               </Text>
             </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -116,14 +126,17 @@ export default function HeightScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.xl, alignItems: 'center' },
+  header: { marginBottom: Spacing.xl, alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
+  noshImage: { width: 96, height: 96, marginRight: Spacing.md },
+  headerRight: { flex: 1 },
   title: { 
-    fontSize: 28, 
+    fontSize: 22, 
     fontWeight: Typography.weights.bold, 
     color: Colors.text, 
-    textAlign: 'center',
-    lineHeight: 36,
-    marginBottom: Spacing.lg
+    textAlign: 'left',
+    lineHeight: 28,
+    marginBottom: Spacing.sm,
+    flexShrink: 1,
   },
   unitToggle: {
     flexDirection: 'row',

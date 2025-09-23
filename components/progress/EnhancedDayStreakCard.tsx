@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Flame, Calendar } from 'lucide-react-native';
+import { Flame } from 'lucide-react-native';
+import CalenderIcon from '@/assets/icons/Calender.svg';
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
@@ -55,10 +56,10 @@ export function EnhancedDayStreakCard({
 
   const getStreakMessage = () => {
     if (streak <= 0) return 'Start your streak today';
-    if (streak === 1) return 'Day 1 – great start!';
-    if (streak < 7) return Keep it up –  days!;
+    if (streak === 1) return 'Day 1 â€” great start!';
+    if (streak < 7) return `Keep it up â€” ${streak} days!`;
     if (streak === 7) return 'One week strong!';
-    return ${streak}-day streak!;
+    return `${streak}-day streak!`;
   };
 
   return (
@@ -66,7 +67,7 @@ export function EnhancedDayStreakCard({
       <ProgressCardContainer onPress={handlePress} style={styles.card} padding={20} noMargins>
         <View style={styles.header}>
           <Text style={styles.title}>Day Streak</Text>
-          <Calendar size={18} color={Colors.lightText} />
+          <CalenderIcon width={18} height={18} color={Colors.lightText} />
         </View>
 
         <View style={styles.center}>
@@ -80,7 +81,7 @@ export function EnhancedDayStreakCard({
 
         <Text style={styles.message}>{getStreakMessage()}</Text>
         <Text style={styles.subMessage}>
-          {streak > 0 && lastTrackedLabel ? Last log  : 'Log a meal to begin your streak'}
+          {streak > 0 && lastTrackedLabel ? `Last log ${lastTrackedLabel}` : 'Log a meal to begin your streak'}
         </Text>
 
         <View style={styles.miniCalendar}>

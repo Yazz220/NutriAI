@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -112,6 +112,14 @@ export default function TargetWeightScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/What\'s your target weight.png')}
+            defaultSource={require('@/assets/images/nosh/What\'s your target weight.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>What's your target weight?</Text>
           
           <View style={styles.unitToggle}>
@@ -187,6 +195,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 36,
     marginBottom: Spacing.lg
+  },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
   unitToggle: {
     flexDirection: 'row',

@@ -28,7 +28,7 @@ function clampPercentage(value: number) {
 function formatNumber(value: number, unit: 'kcal' | 'g') {
   if (!Number.isFinite(value)) return '--';
   const rounded = Math.round(value);
-  return unit === 'kcal' ? ${rounded.toLocaleString()} kcal : ${rounded.toLocaleString()} g;
+  return unit === 'kcal' ? `${rounded.toLocaleString()} kcal` : `${rounded.toLocaleString()} g`;
 }
 
 export const ProgressOverviewCard: React.FC<ProgressOverviewCardProps> = ({
@@ -48,8 +48,8 @@ export const ProgressOverviewCard: React.FC<ProgressOverviewCardProps> = ({
         {typeof remainingCalories === 'number' && Number.isFinite(remainingCalories) ? (
           <Text style={styles.caption}>
             {remainingCalories >= 0
-              ? ${remainingCalories.toLocaleString()} kcal remaining
-              : ${Math.abs(remainingCalories).toLocaleString()} kcal over target}
+              ? `${remainingCalories.toLocaleString()} kcal remaining`
+              : `${Math.abs(remainingCalories).toLocaleString()} kcal over target`}
           </Text>
         ) : null}
       </View>
@@ -68,9 +68,9 @@ export const ProgressOverviewCard: React.FC<ProgressOverviewCardProps> = ({
       <View
         style={styles.progressTrack}
         accessible
-        accessibilityLabel={Calorie progress  percent}
+        accessibilityLabel={`Calorie progress ${calorieProgress} percent`}
       >
-        <View style={[styles.progressFill, { width: ${calorieProgress}% }]} />
+        <View style={[styles.progressFill, { width: `${calorieProgress}%` }]} />
       </View>
 
       <View style={styles.divider} />
@@ -84,15 +84,15 @@ export const ProgressOverviewCard: React.FC<ProgressOverviewCardProps> = ({
             <View style={styles.macroHeader}>
               <Text style={styles.macroLabel}>{macro.label}</Text>
               <Text style={styles.macroValue}>
-                {formatNumber(macro.consumed, 'g')} {goal ? of  : ''}
+                {formatNumber(macro.consumed, 'g')} {goal ? `of ${goal} g` : ''}
               </Text>
             </View>
             <View
               style={styles.macroTrack}
               accessible
-              accessibilityLabel={${macro.label}  percent of target}
+              accessibilityLabel={`${macro.label} ${percent} percent of target`}
             >
-              <View style={[styles.macroFill, { width: ${percent}%, backgroundColor: macro.color }]} />
+              <View style={[styles.macroFill, { width: `${percent}%`, backgroundColor: macro.color }]} />
             </View>
           </View>
         );

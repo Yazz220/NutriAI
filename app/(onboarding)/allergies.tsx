@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -32,6 +32,12 @@ export default function AllergiesScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/Do you have any allergies.png')}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>Any food allergies?</Text>
         </View>
 
@@ -70,7 +76,7 @@ export default function AllergiesScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
+            <OnboardingButton title="Continue" variant="ghost" onPress={nextStep} />
           </View>
         </View>
       </View>
@@ -82,6 +88,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { marginBottom: Spacing.lg },
   title: { fontSize: 28, fontWeight: Typography.weights.bold, color: Colors.text, lineHeight: 36 },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
+  },
   content: { flex: 1 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   textInput: {

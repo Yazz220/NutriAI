@@ -27,7 +27,7 @@ export const MacroTrendsCard: React.FC<MacroTrendsCardProps> = ({ macros, loggin
   const adherenceText = (() => {
     if (loggingDays === 0) return 'Log meals to unlock macro insights.';
     if (loggingDays < 3) return 'Great start! A few more days will reveal clearer trends.';
-    return Based on  logged day.;
+    return `Based on ${loggingDays} logged day${loggingDays === 1 ? '' : 's'}.`;
   })();
 
   return (
@@ -45,14 +45,14 @@ export const MacroTrendsCard: React.FC<MacroTrendsCardProps> = ({ macros, loggin
               <Text style={styles.macroLabel}>{macro.label}</Text>
               <Text style={styles.macroValue}>
                 {Math.round(macro.consumed).toLocaleString()} g
-                {goal ?  /  g : ''}
+                {goal ? ` / ${goal} g` : ''}
               </Text>
             </View>
             <View style={styles.track}>
               <View
-                style={[styles.fill, { width: ${percent}%, backgroundColor: macro.color }]}
+                style={[styles.fill, { width: `${percent}%`, backgroundColor: macro.color }]}
                 accessible
-                accessibilityLabel={${macro.label}  percent of target}
+                accessibilityLabel={`${macro.label} ${percent} percent of target`}
               />
             </View>
             {goal > 0 ? (
@@ -60,8 +60,8 @@ export const MacroTrendsCard: React.FC<MacroTrendsCardProps> = ({ macros, loggin
                 {delta === 0
                   ? 'On target'
                   : delta > 0
-                    ? ${Math.abs(delta).toLocaleString()} g above goal
-                    : ${Math.abs(delta).toLocaleString()} g below goal}
+                    ? `${Math.abs(delta).toLocaleString()} g above goal`
+                    : `${Math.abs(delta).toLocaleString()} g below goal`}
               </Text>
             ) : (
               <Text style={styles.delta}>No target set</Text>

@@ -25,7 +25,7 @@ interface OnboardingButtonProps {
 export function OnboardingButton({
   title,
   onPress,
-  variant = 'primary',
+  variant = 'ghost',
   disabled = false,
   loading = false,
   icon,
@@ -70,20 +70,20 @@ export function OnboardingButton({
   };
 
   const getButtonStyle = () => {
-    const baseStyle = [styles.button];
+    const baseStyle = { ...styles.button };
     
     switch (variant) {
       case 'primary':
-        baseStyle.push(styles.primaryButton);
-        if (disabled) baseStyle.push(styles.disabledPrimary);
+        Object.assign(baseStyle, styles.primaryButton);
+        if (disabled) Object.assign(baseStyle, styles.disabledPrimary);
         break;
       case 'secondary':
-        baseStyle.push(styles.secondaryButton);
-        if (disabled) baseStyle.push(styles.disabledSecondary);
+        Object.assign(baseStyle, styles.secondaryButton);
+        if (disabled) Object.assign(baseStyle, styles.disabledSecondary);
         break;
       case 'ghost':
-        baseStyle.push(styles.ghostButton);
-        if (disabled) baseStyle.push(styles.disabledGhost);
+        Object.assign(baseStyle, styles.ghostButton);
+        if (disabled) Object.assign(baseStyle, styles.disabledGhost);
         break;
     }
     
@@ -91,22 +91,22 @@ export function OnboardingButton({
   };
 
   const getTextStyle = () => {
-    const baseStyle = [styles.buttonText];
+    const baseStyle = { ...styles.buttonText };
     
     switch (variant) {
       case 'primary':
-        baseStyle.push(styles.primaryText);
+        Object.assign(baseStyle, styles.primaryText);
         break;
       case 'secondary':
-        baseStyle.push(styles.secondaryText);
+        Object.assign(baseStyle, styles.secondaryText);
         break;
       case 'ghost':
-        baseStyle.push(styles.ghostText);
+        Object.assign(baseStyle, styles.ghostText);
         break;
     }
     
     if (disabled) {
-      baseStyle.push(styles.disabledText);
+      Object.assign(baseStyle, styles.disabledText);
     }
     
     return baseStyle;

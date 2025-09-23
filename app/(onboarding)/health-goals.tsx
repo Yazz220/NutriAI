@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import {
   OnboardingScreenWrapper,
@@ -210,7 +211,15 @@ export default function HealthGoalsScreen() {
             },
           ]}
         >
-          <Text style={styles.title}>What goal do you have in mind?</Text>
+          <Image
+            source={require('@/assets/images/nosh/What\'s your goal.png')}
+            defaultSource={require('@/assets/images/nosh/What\'s your goal.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <Text numberOfLines={2} style={styles.title}>What goal do you have in mind?</Text>
         </Animated.View>
 
         <BehindTheQuestion
@@ -235,7 +244,7 @@ export default function HealthGoalsScreen() {
                 ],
               }}
             >
-              {option.isCustom ? (
+              {('isCustom' in option && option.isCustom) ? (
                 <SimpleOptionCard
                   title={option.title}
                   selected={selectedGoal === 'custom'}
@@ -374,13 +383,18 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
-    marginBottom: 8,
-    lineHeight: 36,
+    marginBottom: 0,
+    lineHeight: 28,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   subtitle: {
     fontSize: 16,
@@ -451,6 +465,12 @@ const styles = StyleSheet.create({
   customSummaryPlaceholder: {
     fontSize: 14,
     color: Colors.lightText,
+  },
+  noshImage: {
+    alignSelf: 'center',
+    marginBottom: 0,
+    width: 112,
+    height: 112,
   },
   modalBackdrop: {
     flex: 1,

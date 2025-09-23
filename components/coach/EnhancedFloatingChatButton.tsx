@@ -184,11 +184,13 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {isTyping ? (
-              <Brain size={40} color={Colors.white} weight="fill" />
-            ) : (
-              <CoachIcon width={64} height={64} color={Colors.white} />
-            )}
+            <View style={{ width: 72, height: 72, justifyContent: 'center', alignItems: 'center' }}>
+              {isTyping ? (
+                <Brain size={136} color={Colors.white} weight="fill" style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
+              ) : (
+                <CoachIcon width={136} height={136} color={Colors.white} style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
+              )}
+            </View>
           </LinearGradient>
 
           {/* Unread indicator */}

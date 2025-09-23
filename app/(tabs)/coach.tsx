@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, 
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, Plus, Target, TrendUp, Medal, Fire, Pencil, Calendar } from 'phosphor-react-native';
+import { Brain, Plus, Target, TrendUp, Medal, Fire, Pencil } from 'phosphor-react-native';
 import SearchIcon from '@/assets/icons/search.svg';
+import CalenderIcon from '@/assets/icons/Calender.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
 import LeftArrowIcon from '@/assets/icons/left arrow.svg';
 import RightArrowIcon from '@/assets/icons/right arrow.svg';
@@ -90,6 +91,13 @@ export default function CoachScreen() {
     d.setDate(1);
     return d;
   });
+
+  // Compute pixel offsets to shift calendar visuals without changing hit areas.
+  // Move the entire calendar header (month + arrows) down by ~10% of window height,
+  // then add extra spacing before the days by ~5% to reduce clutter.
+  const WINDOW_HEIGHT = Dimensions.get('window').height;
+  const calendarHeaderOffset = Math.round(WINDOW_HEIGHT * 0.10);
+  const calendarBelowOffset = Math.round(WINDOW_HEIGHT * 0.05);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [showBmiModal, setShowBmiModal] = useState(false);
@@ -346,7 +354,11 @@ export default function CoachScreen() {
       {/* Unified Screen Header */}
       <ScreenHeader
         title={activeTab === 'progress' ? 'Progress' : 'Tracking'}
-        icon={activeTab === 'progress' ? <TrendUp size={28} color={Colors.text} /> : <Target size={28} color={Colors.text} />}
+        icon={
+          activeTab === 'progress'
+            ? (<View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}><TrendUp size={28} color={Colors.text} /></View>)
+            : (<View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}><Target size={28} color={Colors.text} /></View>)
+        }
       />
       {/* Segmented control: Tracking | Progress */}
       <View
@@ -399,7 +411,9 @@ export default function CoachScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={{ marginTop: 4 }}
           >
-            <Calendar size={22} color={Colors.text} />
+            <View style={{ width: 22, height: 22, justifyContent: 'center', alignItems: 'center' }}>
+              <CalenderIcon width={44} height={44} color={Colors.text} style={{ position: 'absolute', left: -(44 - 22) / 2, top: -(44 - 22) / 2 }} />
+            </View>
           </TouchableOpacity>
         </View>
         {/* Only WeekRings swipes */}
@@ -676,7 +690,7 @@ export default function CoachScreen() {
       {/* Enhanced Floating Chat Button */}
       <EnhancedFloatingChatButton
         onPress={() => setChatOpen(true)}
-        bottom={Math.max(20, (insets?.bottom ?? 0) + 56 + 24)}
+        bottom={Math.max(20, (insets?.bottom ?? 0) + 120)}
         hasUnreadMessages={false}
         isTyping={isTyping}
       />
@@ -718,9 +732,9 @@ export default function CoachScreen() {
           </View>
 
           {/* Month header */}
-          <View style={styles.calendarHeader}>
+          <View style={[styles.calendarHeader, { marginTop: calendarHeaderOffset }]}>
             <TouchableOpacity
-              style={styles.modernIconBtn}
+              style={[styles.modernIconBtn, { position: 'absolute', left: 8 }]}
               onPress={() => {
                 const d = new Date(calendarMonth);
                 d.setMonth(d.getMonth() - 1);
@@ -729,13 +743,15 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Previous month"
             >
-              <LeftArrowIcon width={18} height={18} color={Colors.text} />
+              <View style={{ width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }}>
+                <LeftArrowIcon width={128} height={128} color={Colors.text} style={{ position: 'absolute', left: -(128 - 36) / 2, top: -(128 - 36) / 2 }} />
+              </View>
             </TouchableOpacity>
             <Text style={styles.calendarMonthLabel}>
               {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </Text>
             <TouchableOpacity
-              style={styles.modernIconBtn}
+              style={[styles.modernIconBtn, { position: 'absolute', right: 8 }]}
               onPress={() => {
                 const d = new Date(calendarMonth);
                 d.setMonth(d.getMonth() + 1);
@@ -744,19 +760,21 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Next month"
             >
-              <RightArrowIcon width={18} height={18} color={Colors.text} />
+              <View style={{ width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }}>
+                <RightArrowIcon width={128} height={128} color={Colors.text} style={{ position: 'absolute', left: -(128 - 36) / 2, top: -(128 - 36) / 2 }} />
+              </View>
             </TouchableOpacity>
           </View>
 
           {/* Weekday Row (Sun–Sat three-letter abbreviations) */}
-          <View style={styles.calendarWeekdaysRow}>
+          <View style={[styles.calendarWeekdaysRow, { marginTop: calendarBelowOffset }] }>
             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
               <Text key={d} style={styles.calendarWeekdayText} numberOfLines={1} adjustsFontSizeToFit>{d}</Text>
             ))}
           </View>
 
           {/* Grid */}
-          <View style={styles.calendarGrid}>
+      <View style={[styles.calendarGrid]}>
               {(() => {
                 const items: React.ReactNode[] = [];
                 const first = new Date(calendarMonth);
@@ -822,7 +840,7 @@ export default function CoachScreen() {
           </View>
 
           {/* Stats row below calendar */}
-          <View style={styles.calendarStatsRow}>
+          <View style={[styles.calendarStatsRow, { marginTop: calendarBelowOffset }] }>
             <View style={styles.calendarStatItem}>
               <Text style={styles.calendarStatLabel}>Active</Text>
               <Text style={styles.calendarStatValue}>{(() => {
@@ -1015,11 +1033,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-  backgroundColor: Colors.card,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-  borderColor: Colors.border,
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   heroInner: {
     alignItems: 'center',
@@ -1667,6 +1685,11 @@ const styles = StyleSheet.create({
     ...Type.body,
     color: Colors.text,
     fontSize: 16,
+    textAlign: 'center',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 3,
   },
   calendarWeekdaysRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, VerticalNumberPicker, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -38,6 +38,14 @@ export default function AgeScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/How old are you.png')}
+            defaultSource={require('@/assets/images/nosh/How old are you.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>When is your birthyear?</Text>
           <BehindTheQuestion
             title="Behind the question"
@@ -68,7 +76,7 @@ export default function AgeScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
+            <OnboardingButton title="Continue" variant="ghost" onPress={nextStep} />
           </View>
         </View>
       </View>
@@ -85,6 +93,12 @@ const styles = StyleSheet.create({
     color: Colors.text, 
     textAlign: 'center',
     lineHeight: 36 
+  },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   yearList: { gap: Spacing.md },

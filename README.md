@@ -1,11 +1,11 @@
-# Nosh
+# NutriAI
 
-Nosh is a comprehensive mobile application designed to revolutionize your kitchen management experience. From intelligent inventory tracking to smart meal planning and automated shopping lists, Nosh helps you reduce food waste, save money, and streamline your cooking routine.
+NutriAI is a comprehensive mobile application designed to revolutionize your kitchen management experience. From intelligent inventory tracking to smart meal planning and automated shopping lists, NutriAI helps you reduce food waste, save money, and streamline your cooking routine.
 
 ## ✨ Features
 
 ### 📦 Inventory (Core)
-- Smart categorization and fast item entry
+- Smart categorization and expiration tracking with "Expiring Soon" surfacing
 - Fast add: manual entry, barcode scan, and camera capture
 - Powerful search and filters
 - **Enhanced Folder System**: Create folders to organize recipes with multi-select functionality
@@ -22,7 +22,7 @@ Nosh is a comprehensive mobile application designed to revolutionize your kitche
 
 ### 🛒 Shopping List
 - Auto-generate from planned recipes and missing ingredients
-- "Mark as Purchased" flow moves items to Inventory
+- "Mark as Purchased" flow prompts for expiry, then moves items to Inventory
 - Toast notifications with Undo for safe, reversible actions
 - One-tap "Add Missing Ingredients" from the recipe page action bar
 
@@ -133,7 +133,7 @@ What this enables:
 - Per-user data isolation via RLS on `nutriai.*` tables
 - Easy backend evolution (models, rate limits, validation) without shipping new app builds
 
-### Supabase (Nosh) configuration
+### Supabase (Nourish) configuration
 - Project URL: `https://wckohtwftlwhyldnfpbz.supabase.co`
 - Schema: `nutriai`
 - Tables: `profiles`, `inventory_items`, `shopping_list_items`, `meal_plans`, `recipes_saved`, `ai_messages`
@@ -249,40 +249,11 @@ Invoke-RestMethod -Method POST -Uri "https://wckohtwftlwhyldnfpbz.supabase.co/fu
 
 2. Scan the QR code with the Expo Go app on your mobile device.
 
-3. **Getting Started with Nosh**:
+3. **Getting Started with NutriAI**:
    - **Add Inventory**: Start by adding items to your inventory using manual entry, barcode scanning, or camera capture
    - **Plan Meals**: Open the Coach tab and use the + buttons on each meal row, or ask the coach to "Plan my day/week"
    - **Explore Recipes**: Browse and see availability based on your inventory
    - **Generate Shopping Lists**: Create smart lists from your plan and missing ingredients
-
-### ✅ Testing the Onboarding Flow
-
-The onboarding experience is integrated with routing and persistence. If onboarding is not completed, the app automatically routes to `app/(onboarding)/`.
-
-1. Start the app
-   ```powershell
-   npx expo start --tunnel
-   ```
-   Scan the QR with Expo Go on your device.
-
-2. Walk through the steps
-   - Welcome → Health Goals → Basic Profile → Dietary Preferences → Pantry Setup → AI Coach Intro → Completion
-   - Progress is persisted locally. You can close/reopen the app and resume.
-
-3. Complete onboarding
-   - On the final screen, pick an auth option (Sign up/Sign in/Guest) and tap "Start Tracking!".
-   - Your profile is mapped and saved, and onboarding is marked completed.
-
-4. Reset onboarding for testing (developer-only)
-   - In `.env`, set:
-     ```env
-     EXPO_PUBLIC_DEV_RESET_ONBOARDING=true
-     ```
-     Then restart the dev server.
-   - A small "Reset onboarding (dev)" link appears on the completion screen. Tap it to clear onboarding storage and restart the flow (reload the app afterward).
-
-Troubleshooting:
-- If you completed onboarding but want to see it again without the dev link, you can also clear app storage from your device settings (Expo Go) or reinstall Expo Go.
 
 ## 🎯 Key Workflows
 
@@ -303,13 +274,13 @@ Troubleshooting:
 1. Plan your meals for the week
 2. From any recipe page, tap "Add missing (N)" in the action bar to send missing ingredients to the Shopping List
 3. Review or auto-generate your Shopping List from planned meals and missing ingredients
-4. Check off items as you shop; marking as purchased transfers to Inventory
+4. Check off items as you shop; marking as purchased prompts expiry and transfers to Inventory
 
 ## 📱 App Structure
 
-Nosh uses a 4-tab layout focused on core nutrition workflows:
+NutriAI uses a 4-tab layout focused on core nutrition workflows:
 
-1. **Inventory** — Item management and categorization
+1. **Inventory** — Item management and expiry tracking
 2. **Recipes** — Library and discovery
 3. **Shopping List** — Grocery management and checkout to Inventory
 4. **Nutrition Dashboard** — Macros, goals, and proactive insights
@@ -318,7 +289,7 @@ Nosh uses a 4-tab layout focused on core nutrition workflows:
 
 Add images or GIFs to showcase core flows:
 - Coach dashboard planning
-- Mark as Purchased flow
+- Mark as Purchased flow with expiry prompt
 - Nutrition Dashboard with macros and trends
 
 Place files under `docs/images/` and reference here, for example:

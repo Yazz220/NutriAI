@@ -9,7 +9,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { X, Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import CalenderIcon from '@/assets/icons/Calender.svg';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
@@ -132,7 +133,7 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
               style={styles.calendarButton}
               onPress={() => setShowFullCalendar(true)}
             >
-              <Calendar size={20} color={Colors.primary} />
+              <CalenderIcon width={20} height={20} color={Colors.primary} />
               <Text style={styles.calendarButtonText}>Calendar</Text>
             </TouchableOpacity>
           </View>

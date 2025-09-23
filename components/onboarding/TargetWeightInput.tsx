@@ -132,15 +132,13 @@ export function TargetWeightInput({
       kg = numValue / 2.20462;
     }
     
-    // Basic range validation
     if (kg < 30 || kg > 300) {
       setValidationMessage('Please enter a realistic weight');
       return;
     }
     
-    // Advanced validation
     const validationMsg = validateTargetWeight(kg);
-    setValidationMessage(validationMsg);
+    setValidationMessage(validationMsg || null);
     
     if (!validationMsg) {
       onValueChange(kg);

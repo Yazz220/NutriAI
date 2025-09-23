@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
 
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
+import MaleIcon from '@/assets/icons/male.svg';
+import FemaleIcon from '@/assets/icons/Female.svg';
 
 const genderEducationalContent = [
   {
@@ -32,8 +34,8 @@ export default function GenderScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const genderOptions = [
-    { id: 'male', label: 'Male', icon: '♂️' },
-    { id: 'female', label: 'Female', icon: '♀️' },
+    { id: 'male', label: 'Male', icon: <MaleIcon width={28} height={28} /> },
+    { id: 'female', label: 'Female', icon: <FemaleIcon width={28} height={28} /> },
     { id: 'other', label: 'Other', icon: '⚧️' },
     { id: 'prefer-not-to-say', label: 'Prefer not to say', icon: '❓' }
   ];
@@ -63,6 +65,14 @@ export default function GenderScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image
+            source={require('@/assets/images/nosh/What\'s your gender.png')}
+            defaultSource={require('@/assets/images/nosh/What\'s your gender.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.title}>What's your gender?</Text>
         </View>
 
@@ -86,7 +96,7 @@ export default function GenderScreen() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: selectedGender === option.id }}
               >
-                <Text style={styles.genderIcon}>{option.icon}</Text>
+                <View style={styles.genderIcon}>{option.icon}</View>
                 <Text style={[
                   styles.genderLabel,
                   selectedGender === option.id && styles.selectedGenderLabel
@@ -137,6 +147,12 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
     color: Colors.text,
     lineHeight: 36,
+  },
+  noshImage: {
+    width: 112,
+    height: 112,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
   content: {
     flex: 1,
