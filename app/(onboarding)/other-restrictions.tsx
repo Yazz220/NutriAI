@@ -72,7 +72,7 @@ export default function HealthConcernsScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="ghost" onPress={nextStep} />
+            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
           </View>
         </View>
       </View>

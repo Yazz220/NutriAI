@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { CheckCircle, ShoppingCart, Package, ChefHat } from 'lucide-react-native';
 
@@ -17,7 +17,7 @@ interface RecipeAvailabilityCardProps {
 
 function getUrgencyColor(urgencyScore: number): string {
   if (urgencyScore >= 10) return Colors.error;
-  if (urgencyScore >= 5) return Colors.warning || '#F59E0B';
+  if (urgencyScore >= 5) return Colors.warning;
   return Colors.success;
 }
 
@@ -131,7 +131,7 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
           <View style={styles.missingList}>
             {availability.missingIngredients.slice(0, 3).map((ingredient, index) => (
               <Text key={index} style={styles.missingItem}>
-                • {ingredient.name} ({ingredient.requiredQuantity} {ingredient.requiredUnit})
+                â€¢ {ingredient.name} ({ingredient.requiredQuantity} {ingredient.requiredUnit})
               </Text>
             ))}
             {availability.missingIngredients.length > 3 && (
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   expiringItem: {
-    backgroundColor: Colors.errorLight || '#FEF2F2',
+    backgroundColor: Colors.errorLight,
     borderRadius: 8,
     padding: Spacing.sm,
     borderWidth: 1,

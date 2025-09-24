@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Sketchy Theme Configuration and Extended Design Tokens
  * 
  * Extends the existing design system with hand-drawn specific styling
@@ -42,19 +42,19 @@ export const SketchyColors = {
     borderDisabled: Colors.borderLight,
     
     // Organic shadows with warmer tones
-    shadowWarm: 'rgba(45, 90, 61, 0.12)',
-    shadowSoft: 'rgba(0, 0, 0, 0.06)',
-    shadowMedium: 'rgba(45, 90, 61, 0.08)',
+    shadowWarm: 'rgba(63, 109, 42, 0.18)',
+    shadowSoft: 'rgba(47, 58, 31, 0.08)',
+    shadowMedium: 'rgba(63, 109, 42, 0.12)',
     
     // Paper-like backgrounds that complement hand-drawn elements
-    paperWhite: '#FEFEFE',
-    paperCream: '#FDFCF8',
-    paperGreen: '#F8FBF8',
+    paperWhite: Colors.card,
+    paperCream: Colors.background,
+    paperGreen: Colors.tints.brandTintSoft,
     
     // Nosh character inspired colors
-    noshGreen: '#8FBC8F',      // Matches character's shirt
-    noshCream: '#F5F5DC',      // Matches character's face
-    noshBrown: '#8B7355',      // Matches character's outline
+    noshGreen: Colors.primaryLight,      // Matches character's shirt
+    noshCream: Colors.backgroundSecondary,      // Matches character's face
+    noshBrown: Colors.text,      // Matches character's outline
   },
 } as const;
 

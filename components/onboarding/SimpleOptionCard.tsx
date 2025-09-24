@@ -5,7 +5,8 @@ import {
   View,
   StyleSheet,
   Animated,
-  AccessibilityRole
+  AccessibilityRole,
+  ViewStyle,
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
@@ -17,6 +18,7 @@ interface SimpleOptionCardProps {
   disabled?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  animationStyle?: Animated.WithAnimatedObject<ViewStyle>;
 }
 
 export function SimpleOptionCard({
@@ -25,7 +27,8 @@ export function SimpleOptionCard({
   onPress,
   disabled = false,
   accessibilityLabel,
-  accessibilityHint
+  accessibilityHint,
+  animationStyle
 }: SimpleOptionCardProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const borderColorAnim = useRef(new Animated.Value(0)).current;
@@ -69,12 +72,12 @@ export function SimpleOptionCard({
 
   const animatedBorderColor = borderColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#D3D3D3', '#8FBC8F'], // Light gray to sage green
+    outputRange: [Colors.border, Colors.primary], // Light gray to sage green
   });
 
   const animatedBackgroundColor = backgroundColorAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#FEFEFE', '#F0F8F0'], // White to very light green
+    outputRange: [Colors.card, Colors.alpha.primary[10]], // White to very light green
   });
 
   const accessibilityRole: AccessibilityRole = 'radio';
@@ -86,9 +89,12 @@ export function SimpleOptionCard({
 
   return (
     <Animated.View
-      style={{
-        transform: [{ scale: scaleAnim }],
-      }}
+      style={[
+        {
+          transform: [{ scale: scaleAnim }],
+        },
+        animationStyle,
+      ]}
     >
       <TouchableOpacity
         style={[
@@ -134,9 +140,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderRadius: 24, // More organic rounded shape
     borderWidth: 2.5, // Thicker border for organic look
-    backgroundColor: '#FEFEFE',
+    backgroundColor: Colors.card,
     minHeight: 64,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.02,
     shadowRadius: 2,
@@ -148,10 +154,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: Typography.weights.semibold,
-    color: '#2F4F2F', // Dark green text to match branding
+    color: Colors.text, // Dark green text to match branding
     textAlign: 'center',
   },
   disabledText: {
-    color: '#999999',
+    color: Colors.lightText,
   },
 });

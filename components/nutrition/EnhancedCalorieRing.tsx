@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -118,14 +118,14 @@ const CalorieBreakdownModal: React.FC<CalorieBreakdownModalProps> = ({
               
               {calories.fromLogged > 0 && (
                 <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>• From logged food</Text>
+                  <Text style={styles.breakdownSubLabel}>â€¢ From logged food</Text>
                   <Text style={styles.breakdownSubValue}>{calories.fromLogged} cal</Text>
                 </View>
               )}
               
               {calories.fromPlanned > 0 && (
                 <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>• From meal plan</Text>
+                  <Text style={styles.breakdownSubLabel}>â€¢ From meal plan</Text>
                   <Text style={styles.breakdownSubValue}>{calories.fromPlanned} cal</Text>
                 </View>
               )}
@@ -159,9 +159,9 @@ const CalorieBreakdownModal: React.FC<CalorieBreakdownModalProps> = ({
             <Text style={styles.sectionTitle}>Macronutrients</Text>
             
             {[
-              { name: 'Protein', data: macros.protein, color: '#4ECDC4', unit: 'g' },
-              { name: 'Carbs', data: macros.carbs, color: '#FF6B6B', unit: 'g' },
-              { name: 'Fats', data: macros.fats, color: '#45B7D1', unit: 'g' },
+              { name: 'Protein', data: macros.protein, color: Colors.nutrition.protein, unit: 'g' },
+              { name: 'Carbs', data: macros.carbs, color: Colors.nutrition.carbs, unit: 'g' },
+              { name: 'Fats', data: macros.fats, color: Colors.nutrition.fats, unit: 'g' },
             ].map((macro) => (
               <View key={macro.name} style={styles.macroCard}>
                 <View style={styles.macroHeader}>

@@ -17,7 +17,6 @@ import HeartIcon from '@/assets/icons/Heart.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { PersonalInfoSection } from './PersonalInfoSection';
 import { DietaryPreferencesSection } from './DietaryPreferencesSection';
 import { HealthGoalsSection } from './HealthGoalsSection';
@@ -29,7 +28,7 @@ type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
 
 export default function EnhancedProfileScreen() {
   const { profile, isLoading } = useUserProfileStore();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState<ProfileSection>('overview');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
@@ -45,7 +44,13 @@ export default function EnhancedProfileScreen() {
         { 
           text: 'Sign Out', 
           style: 'destructive',
-          onPress: () => supabase.auth.signOut()
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Sign out failed', error instanceof Error ? error.message : 'Please try again.');
+            }
+          }
         }
       ]
     );
@@ -279,7 +284,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 120,
-    backgroundColor: '#B8860B', // Golden color from reference
+    backgroundColor: Colors.secondary, // Golden color from reference
   },
   heroContent: {
     alignItems: 'center',

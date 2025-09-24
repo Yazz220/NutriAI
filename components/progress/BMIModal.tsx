@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
@@ -29,10 +29,10 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
 
   const bmiInfo = useMemo(() => {
     const val = bmi;
-    if (val < 18.5) return { label: 'Underweight', color: '#3B82F6', position: 0.1 };
-    if (val < 25) return { label: 'Healthy', color: '#22C55E', position: 0.4 };
-    if (val < 30) return { label: 'Overweight', color: '#F59E0B', position: 0.7 };
-    return { label: 'Obese', color: '#EF4444', position: 0.95 };
+    if (val < 18.5) return { label: 'Underweight', color: Colors.info, position: 0.1 };
+    if (val < 25) return { label: 'Healthy', color: Colors.success, position: 0.4 };
+    if (val < 30) return { label: 'Overweight', color: Colors.warning, position: 0.7 };
+    return { label: 'Obese', color: Colors.error, position: 0.95 };
   }, [bmi]);
 
   return (
@@ -68,10 +68,10 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
             </View>
             <View style={[styles.marker, { left: `${bmiInfo.position * 100}%` }]} />
             <View style={styles.legendRow}>
-              <Text style={[styles.legendItem, { color: '#3B82F6' }]}>Underweight</Text>
-              <Text style={[styles.legendItem, { color: '#22C55E' }]}>Healthy</Text>
-              <Text style={[styles.legendItem, { color: '#F59E0B' }]}>Overweight</Text>
-              <Text style={[styles.legendItem, { color: '#EF4444' }]}>Obese</Text>
+              <Text style={[styles.legendItem, { color: Colors.info }]}>Underweight</Text>
+              <Text style={[styles.legendItem, { color: Colors.success }]}>Healthy</Text>
+              <Text style={[styles.legendItem, { color: Colors.warning }]}>Overweight</Text>
+              <Text style={[styles.legendItem, { color: Colors.error }]}>Obese</Text>
             </View>
           </View>
 
@@ -92,7 +92,7 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
             </Text>
             <View style={styles.bullets}>
               {['diabetes','arthritis','liver disease','several types of cancer (such as those of the breast, colon, and prostate)','high blood pressure (hypertension)','high cholesterol','sleep apnea'].map((t) => (
-                <Text key={t} style={styles.bulletItem}>{`• ${t}`}</Text>
+                <Text key={t} style={styles.bulletItem}>{`â€¢ ${t}`}</Text>
               ))}
             </View>
           </View>
@@ -116,7 +116,7 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
             accessibilityLabel="Open CDC BMI information"
             style={styles.sourceLink}
           >
-            <Text style={styles.sourceText}>Source: CDC — About Adult BMI</Text>
+            <Text style={styles.sourceText}>Source: CDC â€” About Adult BMI</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -182,10 +182,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
   },
-  barBlue: { backgroundColor: '#3B82F6' },
-  barGreen: { backgroundColor: '#22C55E' },
-  barYellow: { backgroundColor: '#F59E0B' },
-  barRed: { backgroundColor: '#EF4444' },
+  barBlue: { backgroundColor: Colors.info },
+  barGreen: { backgroundColor: Colors.success },
+  barYellow: { backgroundColor: Colors.warning },
+  barRed: { backgroundColor: Colors.error },
   marker: {
     position: 'absolute',
     top: -2,

@@ -32,9 +32,9 @@ export default function TabLayout() {
         tabBarStyle: [
           styles.clearBar,
           {
-            height: (insets?.bottom ?? 0) + 84,
-            paddingBottom: (insets?.bottom ?? 0) + 8,
-            paddingTop: 0,
+            height: (insets?.bottom ?? 0) + 86,
+            paddingBottom: (insets?.bottom ?? 0) + 12,
+            paddingTop: 10,
             backgroundColor: 'transparent',
             borderTopWidth: 0,
             borderTopColor: 'transparent',
@@ -68,7 +68,7 @@ export default function TabLayout() {
         tabBarIcon: ({ focused }) => {
           const iconColor = focused ? Colors.secondary : Colors.lightText;
           // Unified icon size for consistent layout
-          const size = 32;
+          const size = focused ? 52 : 48;
           const wrapStyle = styles.iconWrap; // no circle background on focus
           if (route.name === 'coach') return (
             <View style={wrapStyle}>
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 84,
+    height: 86,
     backgroundColor: 'transparent',
     borderTopWidth: 0,
     elevation: 0,
@@ -140,9 +140,9 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     // Hit target tailored to unified icon size
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 0,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    height: 48,
+    height: 44,
   },
   // branded pill behind the icons
   pill: {
@@ -178,15 +178,15 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: Colors.background,
     borderWidth: 2.5,
-    borderColor: '#2F4F2F',
-    shadowColor: '#000',
+    borderColor: Colors.primaryDark,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 6,
   },
   header: {
-    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },

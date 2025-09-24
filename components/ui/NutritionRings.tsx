@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -97,7 +97,7 @@ export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protei
           {/* Big calorie ring */}
           <View style={styles.calorieCard}>
             <View style={{ position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
-              <Ring size={120} stroke={12} progress={calPct} color="#FDB813" />
+              <Ring size={120} stroke={12} progress={calPct} color={Colors.nutrition.calories} />
               <View style={styles.centerLabel}>
                 <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
                 <Text style={styles.caloriesUnit}>/{goals.dailyCalories}kcal</Text>
@@ -107,9 +107,9 @@ export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protei
 
           {/* Macro rings */}
           <View style={styles.macrosRow}>
-            <MacroRing label="Protein" grams={protein} goal={goals.protein} color="#FF6B6B" />
-            <MacroRing label="Fat" grams={fats} goal={goals.fats} color="#4ECDC4" />
-            <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color="#45B7D1" />
+            <MacroRing label="Protein" grams={protein} goal={goals.protein} color={Colors.nutrition.protein} />
+            <MacroRing label="Fat" grams={fats} goal={goals.fats} color={Colors.nutrition.fats} />
+            <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color={Colors.nutrition.carbs} />
           </View>
         </View>
       </LinearGradient>
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,

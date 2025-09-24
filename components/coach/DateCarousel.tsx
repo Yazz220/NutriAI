@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { FlatList, Dimensions } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { useNutrition } from '@/hooks/useNutrition';
@@ -85,9 +85,9 @@ const DateCarousel: React.FC<DateCarouselProps> = ({
     const proteinGoal = goals?.protein || 0;
     const fatGoal = goals?.fats || 0;
     const rings: RingSpec[] = [
-      { pct: carbGoal ? Math.min(1, dayMacros.carbs / carbGoal) : 0, color: '#FF6B6B' },
-      { pct: proteinGoal ? Math.min(1, dayMacros.protein / proteinGoal) : 0, color: '#4ECDC4' },
-      { pct: fatGoal ? Math.min(1, dayMacros.fats / fatGoal) : 0, color: '#45B7D1' },
+      { pct: carbGoal ? Math.min(1, dayMacros.carbs / carbGoal) : 0, color: Colors.nutrition.carbs },
+      { pct: proteinGoal ? Math.min(1, dayMacros.protein / proteinGoal) : 0, color: Colors.nutrition.protein },
+      { pct: fatGoal ? Math.min(1, dayMacros.fats / fatGoal) : 0, color: Colors.nutrition.fats },
     ];
 
     return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -361,7 +361,7 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
                     decimalPlaces: 1,
                     color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
                     labelColor: (opacity = 1) => Colors.lightText,
-                    fillShadowGradient: '#7C3AED',
+                    fillShadowGradient: Colors.primary,
                     fillShadowGradientOpacity: 0.15,
                     propsForDots: { r: '3' },
                     propsForBackgroundLines: { strokeDasharray: '', stroke: Colors.border },
@@ -380,7 +380,7 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
             {rangeStats && (
               <View style={styles.deltaRow}>
                 <Text style={styles.deltaText}>
-                  Change: {rangeStats.delta >= 0 ? '+' : ''}{rangeStats.delta.toFixed(1)} kg · Avg {rangeStats.avg.toFixed(1)} kg
+                  Change: {rangeStats.delta >= 0 ? '+' : ''}{rangeStats.delta.toFixed(1)} kg Â· Avg {rangeStats.avg.toFixed(1)} kg
                 </Text>
               </View>
             )}

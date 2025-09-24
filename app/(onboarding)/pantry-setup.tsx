@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { Box, Hourglass, ClipboardList, ChefHat, Play, PlusCircle, Clock, Scan } from 'lucide-react-native';
 import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
 
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
+
+type IconComponent = React.ComponentType<{ size?: number; color?: string }>;
 
 export default function PantrySetupScreen() {
   const { updateOnboardingData, nextStep, previousStep } = useOnboarding();
@@ -56,49 +59,55 @@ export default function PantrySetupScreen() {
     previousStep();
   };
 
-  const pantryFeatures = [
+  const pantryFeatures: Array<{ icon: IconComponent; title: string; description: string }> = [
     {
-      icon: '📦',
+      icon: Box,
       title: 'Smart Inventory Tracking',
       description: 'Keep track of what you have at home'
     },
     {
-      icon: '📅',
+      icon: Hourglass,
       title: 'Expiration Alerts',
       description: 'Never let food go to waste again'
     },
     {
-      icon: '🛒',
+      icon: ClipboardList,
       title: 'Smart Shopping Lists',
       description: 'Auto-generate lists based on your needs'
     },
     {
-      icon: '🍽️',
+      icon: ChefHat,
       title: 'Recipe Matching',
       description: 'Find recipes you can make right now'
     }
   ];
 
-  const setupOptions = [
+  const setupOptions: Array<{
+    id: 'start' | 'demo' | 'skip';
+    title: string;
+    description: string;
+    icon: IconComponent;
+    color: string;
+  }> = [
     {
       id: 'start' as const,
       title: 'Start Adding Items',
       description: 'Add some pantry items to get started',
-      icon: '➕',
+      icon: PlusCircle,
       color: Colors.primary
     },
     {
       id: 'demo' as const,
       title: 'Watch Quick Demo',
       description: 'See how pantry management works',
-      icon: '▶️',
-      color: Colors.secondary || '#6366f1'
+      icon: Play,
+      color: Colors.secondary
     },
     {
       id: 'skip' as const,
       title: 'Skip for Later',
       description: 'Set up your pantry after onboarding',
-      icon: '⏭️',
+      icon: Clock,
       color: Colors.lightText
     }
   ];
@@ -116,7 +125,7 @@ export default function PantrySetupScreen() {
           ]}
         >
           <View style={styles.iconContainer}>
-            <Text style={styles.mainIcon}>📦</Text>
+            <Box size={36} color={Colors.primary} />
           </View>
           <Text style={styles.title}>Let's set up your digital pantry</Text>
         </Animated.View>
@@ -131,13 +140,16 @@ export default function PantrySetupScreen() {
           >
             <Text style={styles.sectionTitle}>What you'll get:</Text>
             <View style={styles.featuresGrid}>
-              {pantryFeatures.map((feature, index) => (
-                <View key={index} style={styles.featureCard}>
-                  <Text style={styles.featureIcon}>{feature.icon}</Text>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
-                </View>
-              ))}
+              {pantryFeatures.map((feature, index) => {
+                const FeatureIcon = feature.icon;
+                return (
+                  <View key={index} style={styles.featureCard}>
+                    <FeatureIcon size={32} color={Colors.primary} />
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
+                );
+              })}
             </View>
           </Animated.View>
 
@@ -150,39 +162,42 @@ export default function PantrySetupScreen() {
           >
             <Text style={styles.sectionTitle}>How would you like to proceed?</Text>
             <View style={styles.optionsContainer}>
-              {setupOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.optionCard,
-                    selectedOption === option.id && styles.selectedOptionCard
-                  ]}
-                  onPress={() => handleOptionSelect(option.id)}
-                  accessibilityLabel={`Select ${option.title}`}
-                  accessibilityHint={option.description}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: selectedOption === option.id }}
-                >
-                  <View style={[styles.optionIconContainer, { backgroundColor: option.color + '15' }]}>
-                    <Text style={styles.optionIcon}>{option.icon}</Text>
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[
-                      styles.optionTitle,
-                      selectedOption === option.id && styles.selectedOptionTitle
+              {setupOptions.map((option) => {
+                const OptionIcon = option.icon;
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.optionCard,
+                      selectedOption === option.id && styles.selectedOptionCard
+                    ]}
+                    onPress={() => handleOptionSelect(option.id)}
+                    accessibilityLabel={`Select ${option.title}`}
+                    accessibilityHint={option.description}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selectedOption === option.id }}
+                  >
+                    <View style={[styles.optionIconContainer, { backgroundColor: option.color + '15' }]}>
+                      <OptionIcon size={24} color={option.color} />
+                    </View>
+                    <View style={styles.optionContent}>
+                      <Text style={[
+                        styles.optionTitle,
+                        selectedOption === option.id && styles.selectedOptionTitle
+                      ]}>
+                        {option.title}
+                      </Text>
+                      <Text style={styles.optionDescription}>{option.description}</Text>
+                    </View>
+                    <View style={[
+                      styles.radioButton,
+                      selectedOption === option.id && styles.selectedRadioButton
                     ]}>
-                      {option.title}
-                    </Text>
-                    <Text style={styles.optionDescription}>{option.description}</Text>
-                  </View>
-                  <View style={[
-                    styles.radioButton,
-                    selectedOption === option.id && styles.selectedRadioButton
-                  ]}>
-                    {selectedOption === option.id && <View style={styles.radioButtonInner} />}
-                  </View>
-                </TouchableOpacity>
-              ))}
+                      {selectedOption === option.id && <View style={styles.radioButtonInner} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </Animated.View>
 
@@ -192,15 +207,15 @@ export default function PantrySetupScreen() {
               <Text style={styles.demoTitle}>Demo Preview</Text>
               <View style={styles.demoContainer}>
                 <View style={styles.demoItem}>
-                  <Text style={styles.demoIcon}>📱</Text>
+                  <Scan size={18} color={Colors.primary} />
                   <Text style={styles.demoText}>Scan barcodes or add manually</Text>
                 </View>
                 <View style={styles.demoItem}>
-                  <Text style={styles.demoIcon}>📅</Text>
+                  <Hourglass size={18} color={Colors.primary} />
                   <Text style={styles.demoText}>Set expiration dates</Text>
                 </View>
                 <View style={styles.demoItem}>
-                  <Text style={styles.demoIcon}>🔍</Text>
+                  <ChefHat size={18} color={Colors.primary} />
                   <Text style={styles.demoText}>Find matching recipes</Text>
                 </View>
               </View>

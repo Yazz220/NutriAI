@@ -120,25 +120,27 @@ export default function TargetWeightScreen() {
             resizeMode="contain"
             accessibilityIgnoresInvertColors
           />
-          <Text style={styles.title}>What's your target weight?</Text>
-          
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
-              onPress={() => setUnitSystem('metric')}
-            >
-              <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
-                Kg
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
-              onPress={() => setUnitSystem('imperial')}
-            >
-              <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
-                Lbs
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>What's your target weight?</Text>
+            
+            <View style={styles.unitToggle}>
+              <TouchableOpacity
+                style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
+                onPress={() => setUnitSystem('metric')}
+              >
+                <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
+                  Kg
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
+                onPress={() => setUnitSystem('imperial')}
+              >
+                <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
+                  Lbs
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -187,20 +189,19 @@ export default function TargetWeightScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg, alignItems: 'center' },
+  header: { marginBottom: Spacing.lg, alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
+  headerText: { flex: 1, alignItems: 'flex-start' },
   title: { 
     fontSize: 28, 
     fontWeight: Typography.weights.bold, 
     color: Colors.text, 
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 36,
-    marginBottom: Spacing.lg
+    marginBottom: Spacing.md
   },
   noshImage: {
     width: 112,
     height: 112,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
   },
   unitToggle: {
     flexDirection: 'row',

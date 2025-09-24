@@ -38,7 +38,9 @@ export default function AllergiesScreen() {
             resizeMode="contain"
             accessibilityIgnoresInvertColors
           />
-          <Text style={styles.title}>Any food allergies?</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Any food allergies?</Text>
+          </View>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -76,7 +78,7 @@ export default function AllergiesScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="ghost" onPress={nextStep} />
+            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
           </View>
         </View>
       </View>
@@ -86,13 +88,12 @@ export default function AllergiesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg },
-  title: { fontSize: 28, fontWeight: Typography.weights.bold, color: Colors.text, lineHeight: 36 },
+  header: { marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  headerText: { flex: 1 },
+  title: { fontSize: 28, fontWeight: Typography.weights.bold, color: Colors.text, lineHeight: 36, textAlign: 'left' },
   noshImage: {
-    width: 112,
-    height: 112,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
+    width: 108,
+    height: 108,
   },
   content: { flex: 1 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

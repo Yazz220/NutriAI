@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Package, Plus } from 'lucide-react-native';
 
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   urgentStat: {
-    backgroundColor: Colors.errorLight || '#FEF2F2',
+    backgroundColor: Colors.errorLight,
     borderRadius: 8,
     paddingVertical: Spacing.xs,
     marginHorizontal: 2,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.errorLight || '#FEF2F2',
+    backgroundColor: Colors.errorLight,
     padding: Spacing.sm,
     borderRadius: 8,
     marginBottom: Spacing.sm,

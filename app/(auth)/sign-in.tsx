@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { resetOnboarding } from '@/components/onboarding';
@@ -64,7 +64,7 @@ export default function SignInScreen() {
   const onDevResetOnboarding = async () => {
     try {
       await resetOnboarding();
-      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboarding…');
+      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboardingâ€¦');
       router.replace('/(onboarding)');
     } catch (e) {
       Alert.alert('Reset Failed', 'Could not reset onboarding. Check logs.');
@@ -143,7 +143,7 @@ export default function SignInScreen() {
     <View style={styles.container}>
       {/* Enhanced Header with Gradient */}
       <ExpoLinearGradient
-        colors={['#4facfe', '#00f2fe']}
+        colors={Colors.chart.gradients.primary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -185,7 +185,7 @@ export default function SignInScreen() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              placeholder="••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               placeholderTextColor={Colors.lightText}
             />
           </View>
@@ -210,7 +210,7 @@ export default function SignInScreen() {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don’t have an account?</Text>
+          <Text style={styles.footerText}>Donâ€™t have an account?</Text>
           <Link href="/(auth)/sign-up" asChild>
             <TouchableOpacity>
               <Text style={styles.link}>Sign Up</Text>
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     backgroundColor: Colors.white,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,

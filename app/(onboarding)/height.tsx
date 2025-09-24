@@ -62,33 +62,33 @@ export default function HeightScreen() {
     <OnboardingScreenWrapper>
       <View style={styles.container}>
         <View style={styles.header}>
-            <Image
-              source={require('@/assets/images/nosh/What\'s your height.png')}
-              defaultSource={require('@/assets/images/nosh/What\'s your height.png')}
-              fadeDuration={0}
-              style={styles.noshImage}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-            />
-            <View style={styles.headerRight}>
-              <Text style={styles.title}>Your height</Text>
-              <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
-              onPress={() => setUnitSystem('metric')}
-            >
-              <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
-                Cm
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
-              onPress={() => setUnitSystem('imperial')}
-            >
-              <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
-                Ft
-              </Text>
-            </TouchableOpacity>
+          <Image
+            source={require('@/assets/images/nosh/What\'s your height.png')}
+            defaultSource={require('@/assets/images/nosh/What\'s your height.png')}
+            fadeDuration={0}
+            style={styles.noshImage}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Your height</Text>
+            <View style={styles.unitToggle}>
+              <TouchableOpacity
+                style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
+                onPress={() => setUnitSystem('metric')}
+              >
+                <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
+                  Cm
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
+                onPress={() => setUnitSystem('imperial')}
+              >
+                <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
+                  Ft
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -127,8 +127,8 @@ export default function HeightScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { marginBottom: Spacing.xl, alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
-  noshImage: { width: 96, height: 96, marginRight: Spacing.md },
-  headerRight: { flex: 1 },
+  headerText: { flex: 1 },
+  noshImage: { width: 108, height: 108 },
   title: { 
     fontSize: 22, 
     fontWeight: Typography.weights.bold, 

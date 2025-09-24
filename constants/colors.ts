@@ -1,223 +1,223 @@
-/**
- * NutriAI Design System - Color Palette
- * 
- * A comprehensive color system designed for nutrition and wellness apps.
- * Features natural, harmonious colors that promote health and well-being.
- * 
+﻿/**
+ * Nosh Design System - Color Palette
+ *
+ * Warm, organic palette inspired by the Nosh mascot.
+ * Emphasises cream backgrounds, herbaceous greens, and sunlit accents.
+ *
  * Color Philosophy:
- * - Fresh greens for growth, health, and nutrition
- * - Warm earth tones for comfort and natural feel
- * - Clean whites and soft grays for clarity
- * - Vibrant accents for energy and motivation
+ * - Leafy greens echo Nosh’s outline and calm guidance
+ * - Sun-baked oranges provide friendly energy and emphasis
+ * - Creamy neutrals create breathable, paper-like surfaces
+ * - Muted sages and herbs add depth while staying gentle on the eyes
  */
 
 export const Colors = {
   // === BRAND COLORS ===
-  // Primary brand colors inspired by fresh, healthy living
-  primary: "#2D5A3D", // Deep Forest Green - trust, growth, health
-  primaryLight: "#4A7C59", // Medium Forest Green
-  primaryDark: "#1E3D2A", // Dark Forest Green
-  onPrimary: "#FFFFFF", // White text on primary
+  // Primary brand colors inspired by Nosh’s leafy outline
+  primary: "#3F6D2A", // Herb green
+  primaryLight: "#5D8C3C", // Fresh sprout green
+  primaryDark: "#27471D", // Deep leaf shadow
+  onPrimary: "#FFF9EC", // Cream for legible text on greens
 
-  // Secondary brand colors for warmth and energy
-  secondary: "#F4A261", // Warm Amber - energy, vitality, warmth
-  secondaryLight: "#F7B885", // Light Amber
-  secondaryDark: "#E8944A", // Dark Amber
-  onSecondary: "#1A1A1A", // Dark text on secondary
+  // Secondary brand colors echoing Nosh’s sunlit accents
+  secondary: "#F0A44B", // Warm squash orange
+  secondaryLight: "#F5BC6D", // Honeyed apricot
+  secondaryDark: "#D6812C", // Toasted amber
+  onSecondary: "#2F3A1F", // Earthy olive text on warm accents
 
   // === SURFACE COLORS ===
-  // Background and surface colors for a clean, fresh feel
-  background: "#FAFBFA", // Soft White Green - clean, fresh
-  backgroundSecondary: "#F5F8F5", // Very Light Green - subtle depth
-  
-  card: "#FFFFFF", // Pure White - clean cards and elevated surfaces
-  cardSecondary: "#F8FBF8", // Soft Green White - alternative cards
-  
-  surface: "#FFFFFF", // Primary surface
-  surfaceElevated: "#FCFEFC", // Slightly elevated surface
-  surfaceMuted: "#F0F4F0", // Muted surface for less emphasis
+  // Creamy papers and soft neutrals for relaxed layouts
+  background: "#F8F3E3", // Soft oat milk
+  backgroundSecondary: "#F1E6CE", // Toasted almond
+
+  card: "#FFFAEE", // Lifted card surface
+  cardSecondary: "#F5ECD8", // Alt card warmth
+
+  surface: "#FFFDF6", // Primary surface layer
+  surfaceElevated: "#F6EBD6", // Slight elevation tint
+  surfaceMuted: "#E6DAC5", // Muted backdrop for subdued sections
 
   // === TEXT COLORS ===
-  // Hierarchical text colors for excellent readability
-  text: "#1A1A1A", // Primary text - near black for maximum readability
-  textSecondary: "#4A5A4A", // Secondary text - dark green gray
-  textTertiary: "#6B7B6B", // Tertiary text - medium green gray
-  textMuted: "#8A9A8A", // Muted text - light green gray
-  textInverse: "#FFFFFF", // White text for dark backgrounds
-  textOnPrimary: "#FFFFFF", // White text on primary green
-  textOnSecondary: "#1A1A1A", // Dark text on amber
+  // Friendly olives for calm readability
+  text: "#2F3A1F", // Primary text – dark olive
+  textSecondary: "#4B5C33", // Secondary text – mossy green
+  textTertiary: "#687646", // Supporting text – muted sage
+  textMuted: "#89936A", // Muted captions – herb dust
+  textInverse: "#FFFDF6", // Cream text for dark fills
+  textOnPrimary: "#FFF9EC", // Alias for on-primary clarity
+  textOnSecondary: "#2F3A1F", // Earth tone on warm accents
 
   // === SEMANTIC COLORS ===
-  // Status and feedback colors aligned with nutrition themes
-  success: "#27AE60", // Vibrant Green - achievements, goals met
-  successLight: "#E8F5E8", // Light green background
-  successDark: "#1E8449", // Dark green for emphasis
-  onSuccess: "#FFFFFF",
+  // Organic feedback colors tuned to the palette
+  success: "#6AA245", // Garden success green
+  successLight: "#E4F2D9", // Sprout wash
+  successDark: "#417729", // Deep fern
+  onSuccess: "#FFFDF6",
 
-  warning: "#F39C12", // Orange - caution, attention needed
-  warningLight: "#FEF3E2", // Light orange background
-  warningDark: "#D68910", // Dark orange for emphasis
-  onWarning: "#1A1A1A",
+  warning: "#F0A44B", // Sunlit caution
+  warningLight: "#FFF1DA", // Golden mist
+  warningDark: "#C67F2B", // Toasted amber edge
+  onWarning: "#2F3A1F",
 
-  error: "#E74C3C", // Red - errors, over limits
-  errorLight: "#FDEAEA", // Light red background
-  errorDark: "#C0392B", // Dark red for emphasis
-  onError: "#FFFFFF",
+  error: "#D56B5A", // Heirloom tomato
+  errorLight: "#F8E2DC", // Blushed clay
+  errorDark: "#B74E3E", // Fired terracotta
+  onError: "#FFF9F6",
 
-  info: "#3498DB", // Blue - information, tips
-  infoLight: "#EBF3FD", // Light blue background
-  infoDark: "#2980B9", // Dark blue for emphasis
-  onInfo: "#FFFFFF",
+  info: "#6AA7A2", // Calm eucalyptus
+  infoLight: "#E3F1EF", // Misty teal
+  infoDark: "#4A7D78", // Deep eucalyptus
+  onInfo: "#0F2823",
 
   // === NUTRITION-SPECIFIC COLORS ===
-  // Colors specifically for nutrition tracking and food categories
+  // Meal tracking cues harmonised with brand palette
   nutrition: {
     // Macronutrients
-    protein: "#E74C3C", // Red - protein
-    carbs: "#F39C12", // Orange - carbohydrates
-    fats: "#9B59B6", // Purple - fats
-    fiber: "#27AE60", // Green - fiber
-    
+    protein: "#D56B5A", // Tomato red
+    carbs: "#F0A44B", // Squash orange
+    fats: "#6AA7A2", // Eucalyptus teal
+    fiber: "#4F7B2F", // Tender stem green
+
     // Calorie tracking
-    calories: "#3498DB", // Blue - calories
-    caloriesOver: "#E74C3C", // Red - over calorie goal
-    caloriesUnder: "#F39C12", // Orange - under calorie goal
-    caloriesGood: "#27AE60", // Green - on target
-    
+    calories: "#3F6D2A", // Brand green
+    caloriesOver: "#D56B5A", // Tomato alert
+    caloriesUnder: "#F0A44B", // Sunny caution
+    caloriesGood: "#6AA245", // Balanced leaf
+
     // Food freshness (for inventory features)
-    fresh: "#27AE60", // Green - fresh foods
-    aging: "#F39C12", // Orange - aging foods
-    expiring: "#E74C3C", // Red - expiring foods
-    
+    fresh: "#6AA245", // Fresh produce
+    aging: "#F0A44B", // Ripening produce
+    expiring: "#D56B5A", // Needs attention
+
     // Meal types
-    breakfast: "#F1C40F", // Yellow - morning energy
-    lunch: "#E67E22", // Orange - midday fuel
-    dinner: "#8E44AD", // Purple - evening nourishment
-    snack: "#1ABC9C", // Teal - light refreshment
+    breakfast: "#F2BB4C", // Morning sunlight
+    lunch: "#E58E2E", // Midday glow
+    dinner: "#6B8C4F", // Dusky herb
+    snack: "#76B19C", // Crisp cucumber
   },
 
   // === CHART & DATA VISUALIZATION ===
-  // Harmonious colors for charts and data visualization
+  // Harmonised palette for analytics & insights
   chart: {
-    primary: "#2D5A3D", // Forest Green
-    secondary: "#F4A261", // Warm Amber
-    tertiary: "#3498DB", // Blue
-    quaternary: "#E74C3C", // Red
-    quinary: "#9B59B6", // Purple
-    senary: "#1ABC9C", // Teal
-    
+    primary: "#3F6D2A", // Brand green
+    secondary: "#F0A44B", // Warm accent
+    tertiary: "#6AA7A2", // Calm teal
+    quaternary: "#D56B5A", // Tomato
+    quinary: "#A7C96A", // Soft lime
+    senary: "#F7D07A", // Golden oat
+
     // Gradient combinations
     gradients: {
-      primary: ["#2D5A3D", "#4A7C59"], // Green gradient
-      secondary: ["#F4A261", "#F7B885"], // Amber gradient
-      success: ["#27AE60", "#58D68D"], // Success gradient
-      info: ["#3498DB", "#85C1E9"], // Info gradient
+      primary: ["#3F6D2A", "#5D8C3C"], // Leaf gradient
+      secondary: ["#F0A44B", "#F5BC6D"], // Honey gradient
+      success: ["#6AA245", "#8ECF67"], // Garden success
+      info: ["#6AA7A2", "#8FC7C2"], // Misty teal
     },
   },
 
   // === INTERACTIVE STATES ===
-  // Colors for buttons, links, and interactive elements
+  // Buttons, links, focus rings, and highlights
   interactive: {
     // Primary button states
-    buttonPrimary: "#2D5A3D",
-    buttonPrimaryHover: "#4A7C59",
-    buttonPrimaryPressed: "#1E3D2A",
-    buttonPrimaryDisabled: "#A8C8A8",
-    
+    buttonPrimary: "#3F6D2A",
+    buttonPrimaryHover: "#4F7F36",
+    buttonPrimaryPressed: "#2C491E",
+    buttonPrimaryDisabled: "#C9D9BB",
+
     // Secondary button states
-    buttonSecondary: "#F4A261",
-    buttonSecondaryHover: "#F7B885",
-    buttonSecondaryPressed: "#E8944A",
-    buttonSecondaryDisabled: "#F4D1A7",
-    
+    buttonSecondary: "#F0A44B",
+    buttonSecondaryHover: "#F5BC6D",
+    buttonSecondaryPressed: "#D6812C",
+    buttonSecondaryDisabled: "#F4D8B4",
+
     // Link states
-    link: "#2D5A3D",
-    linkHover: "#4A7C59",
-    linkPressed: "#1E3D2A",
-    linkVisited: "#6B4C93",
-    
+    link: "#3F6D2A",
+    linkHover: "#4F7F36",
+    linkPressed: "#2C491E",
+    linkVisited: "#6B8C4F",
+
     // Focus and selection
-    focus: "#3498DB", // Blue focus ring
-    selection: "#E8F5E8", // Light green selection
-    highlight: "#FFF3CD", // Light yellow highlight
+    focus: "#6AA7A2", // Soft eucalyptus focus ring
+    selection: "#F5E8C8", // Warm parchment selection
+    highlight: "#FDE9C6", // Gentle highlight wash
   },
 
   // === BORDERS & DIVIDERS ===
   // Subtle borders and dividers for clean separation
-  border: "#E0E8E0", // Light green gray
-  borderLight: "#F0F4F0", // Very light green gray
-  borderMuted: "#D0D8D0", // Muted green gray
-  borderStrong: "#C0C8C0", // Strong green gray
-  
-  divider: "#E8F0E8", // Subtle divider
-  separator: "#D8E0D8", // Stronger separator
+  border: "#E3D7C1", // Light parchment
+  borderLight: "#F2E7D3", // Whisper border
+  borderMuted: "#D7CBB3", // Muted paper fibre
+  borderStrong: "#C3B89C", // Defined edge
+
+  divider: "#EADFC9", // Soft divider
+  separator: "#D9CEB4", // Stronger separator
 
   // === SHADOWS & ELEVATION ===
   // Legacy flat shadow color (used widely as shadowColor: Colors.shadow)
-  shadow: "rgba(0,0,0,0.08)",
+  shadow: "rgba(63, 109, 42, 0.08)",
   // Detailed shadow variants for themes (new)
   shadows: {
-    light: "rgba(45, 90, 61, 0.08)",
-    medium: "rgba(45, 90, 61, 0.12)",
-    strong: "rgba(45, 90, 61, 0.16)",
-    colored: "rgba(45, 90, 61, 0.20)",
+    light: "rgba(63, 109, 42, 0.08)",
+    medium: "rgba(63, 109, 42, 0.12)",
+    strong: "rgba(63, 109, 42, 0.16)",
+    colored: "rgba(240, 164, 75, 0.22)",
   },
 
   // === OVERLAY & BACKDROP ===
   // Overlay colors for modals and backdrops
   overlay: {
-    light: "rgba(0, 0, 0, 0.4)", // Light overlay
-    medium: "rgba(0, 0, 0, 0.6)", // Medium overlay
-    strong: "rgba(0, 0, 0, 0.8)", // Strong overlay
-    colored: "rgba(45, 90, 61, 0.6)", // Colored overlay
+    light: "rgba(47, 58, 31, 0.35)", // Light olive overlay
+    medium: "rgba(47, 58, 31, 0.55)", // Medium overlay
+    strong: "rgba(47, 58, 31, 0.72)", // Strong overlay
+    colored: "rgba(240, 164, 75, 0.35)", // Warm accent overlay
   },
 
   // === LEGACY SUPPORT ===
   // Maintaining backward compatibility with existing code
   white: "#FFFFFF",
   black: "#000000",
-  lightText: "#6B7B6B", // Maps to textTertiary
-  lightGray: "#D0D8D0", // Maps to borderMuted
+  lightText: "#687646", // Maps to textTertiary
+  lightGray: "#D7CBB3", // Maps to borderMuted
   // Legacy aliases/props referenced across the app
-  brandPrimary: "#2D5A3D", // alias to primary
-  tabBackground: "#FFFFFF", // used for subtle surfaces in inputs/slots
+  brandPrimary: "#3F6D2A", // alias to primary
+  tabBackground: "#FFFAEE", // Subtle surface for tabs and inputs
   // onSurface grouping used by tokens and badges
   onSurface: {
-    high: "#1A1A1A",      // equals text
-    medium: "#4A5A4A",    // equals textSecondary
-    inverse: "#FFFFFF",    // equals textInverse
+    high: "#2F3A1F",      // equals text
+    medium: "#4B5C33",    // equals textSecondary
+    inverse: "#FFFDF6",    // equals textInverse
   },
   // Danger text color on danger backgrounds (alias to onError)
-  onDanger: "#FFFFFF",
+  onDanger: "#FFF9F6",
   // Accent aliases used by tokens
-  accentPrimary: "#1ABC9C", // teal accent
-  onAccent: "#1A1A1A",
+  accentPrimary: "#6AA7A2", // Eucalyptus accent
+  onAccent: "#10342E",
   // Surface tile (older components expect this)
-  surfaceTile: "#F0F4F0",
+  surfaceTile: "#EFE3CC",
   // Freshness/status legacy flat keys
-  fresh: "#27AE60",
-  aging: "#F39C12",
-  expiring: "#E74C3C",
-  danger: "#E74C3C",
-  
+  fresh: "#6AA245",
+  aging: "#F0A44B",
+  expiring: "#D56B5A",
+  danger: "#D56B5A",
+
   // Legacy tints (for components still referencing Colors.tints.brandTintSoft/brandTintStrong)
   tints: {
-    brandTintSoft: "#E8F5E8",   // soft green tint (was soft navy tint)
-    brandTintStrong: "#F7B885", // strong warm accent (maps to secondaryLight)
+    brandTintSoft: "#EEF4DE",   // Soft herb tint
+    brandTintStrong: "#F7CE92", // Toasted honey tint
   },
-  
+
   // Gray scale for compatibility
   gray: {
-    50: "#FAFBFA",
-    100: "#F5F8F5",
-    200: "#F0F4F0",
-    300: "#E0E8E0",
-    400: "#D0D8D0",
-    500: "#A0A8A0",
-    600: "#8A9A8A",
-    700: "#6B7B6B",
-    800: "#4A5A4A",
-    900: "#2A3A2A",
+    50: "#F8F3E3",
+    100: "#F3E8D1",
+    200: "#E9DDC2",
+    300: "#DCCFB1",
+    400: "#CFC19F",
+    500: "#B3A883",
+    600: "#998F6C",
+    700: "#7A7255",
+    800: "#5C5640",
+    900: "#3E3A2B",
   },
 
   // === ACCESSIBILITY ===
@@ -226,11 +226,11 @@ export const Colors = {
     highContrast: {
       text: "#000000",
       background: "#FFFFFF",
-      primary: "#1E3D2A",
-      secondary: "#E8944A",
+      primary: "#27471D",
+      secondary: "#8C5410",
     },
     focus: {
-      ring: "#3498DB",
+      ring: "#6AA7A2",
       width: 2,
       offset: 2,
     },
@@ -243,42 +243,42 @@ export const Colors = {
     pressedOpacity: 0.12,
     dragOpacity: 0.08,
     focusOpacity: 0.16,
-    disabledOpacity: 0.38,
-    selectedOpacity: 0.12,
+    disabledOpacity: 0.4,
+    selectedOpacity: 0.14,
     // Legacy focus ring token expected by Tokens (constants/tokens.ts)
-    focusRing: { color: "#3498DB", width: 2, offset: 2, radius: 8 },
+    focusRing: { color: "#6AA7A2", width: 2, offset: 2, radius: 8 },
   },
 
   // === ALPHA VARIANTS ===
   // Transparent versions of key colors
   alpha: {
     primary: {
-      5: "rgba(45, 90, 61, 0.05)",
-      10: "rgba(45, 90, 61, 0.10)",
-      20: "rgba(45, 90, 61, 0.20)",
-      30: "rgba(45, 90, 61, 0.30)",
-      50: "rgba(45, 90, 61, 0.50)",
+      5: "rgba(63, 109, 42, 0.05)",
+      10: "rgba(63, 109, 42, 0.10)",
+      20: "rgba(63, 109, 42, 0.20)",
+      30: "rgba(63, 109, 42, 0.30)",
+      50: "rgba(63, 109, 42, 0.50)",
     },
     secondary: {
-      5: "rgba(244, 162, 97, 0.05)",
-      10: "rgba(244, 162, 97, 0.10)",
-      20: "rgba(244, 162, 97, 0.20)",
-      30: "rgba(244, 162, 97, 0.30)",
-      50: "rgba(244, 162, 97, 0.50)",
+      5: "rgba(240, 164, 75, 0.05)",
+      10: "rgba(240, 164, 75, 0.10)",
+      20: "rgba(240, 164, 75, 0.20)",
+      30: "rgba(240, 164, 75, 0.30)",
+      50: "rgba(240, 164, 75, 0.50)",
     },
     black: {
-      5: "rgba(0, 0, 0, 0.05)",
-      10: "rgba(0, 0, 0, 0.10)",
-      20: "rgba(0, 0, 0, 0.20)",
-      30: "rgba(0, 0, 0, 0.30)",
-      50: "rgba(0, 0, 0, 0.50)",
+      5: "rgba(47, 58, 31, 0.05)",
+      10: "rgba(47, 58, 31, 0.10)",
+      20: "rgba(47, 58, 31, 0.20)",
+      30: "rgba(47, 58, 31, 0.30)",
+      50: "rgba(47, 58, 31, 0.50)",
     },
     white: {
-      5: "rgba(255, 255, 255, 0.05)",
-      10: "rgba(255, 255, 255, 0.10)",
-      20: "rgba(255, 255, 255, 0.20)",
-      30: "rgba(255, 255, 255, 0.30)",
-      50: "rgba(255, 255, 255, 0.50)",
+      5: "rgba(255, 253, 246, 0.05)",
+      10: "rgba(255, 253, 246, 0.10)",
+      20: "rgba(255, 253, 246, 0.20)",
+      30: "rgba(255, 253, 246, 0.30)",
+      50: "rgba(255, 253, 246, 0.50)",
     },
   },
 };

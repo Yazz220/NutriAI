@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +71,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     }));
   }, [externalRecipes, trendingRecipes, inventory, mergeUniqueRecipes]);
 
-  // No client-side filters — placeholder for future filters
+  // No client-side filters â€” placeholder for future filters
   const filteredRecipes = useMemo(() => enhancedRecipes, [enhancedRecipes]);
 
   // Expiring section removed
@@ -253,7 +253,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
         </View>
 
         <TouchableOpacity style={styles.bookmark} onPress={() => toggleSave(item)}>
-          <Heart size={16} color={savedIds.has(String(item.id)) ? '#e5484d' : Colors.lightText} fill={savedIds.has(String(item.id)) ? '#e5484d' : 'transparent'} />
+          <Heart size={16} color={savedIds.has(String(item.id)) ? Colors.error : Colors.lightText} fill={savedIds.has(String(item.id)) ? Colors.error : 'transparent'} />
         </TouchableOpacity>
       </TouchableOpacity>
     );

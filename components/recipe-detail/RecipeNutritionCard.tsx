@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
@@ -69,7 +69,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               cx={55}
               cy={55}
               r={radius}
-              stroke="#4ECDC4"
+              stroke={Colors.nutrition.protein}
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={proteinDashArray}
@@ -82,7 +82,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               cx={55}
               cy={55}
               r={radius}
-              stroke="#F0884D"
+              stroke={Colors.nutrition.carbs}
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={carbsDashArray}
@@ -95,7 +95,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               cx={55}
               cy={55}
               r={radius}
-              stroke="#FF6B6B"
+              stroke={Colors.nutrition.fats}
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={fatsDashArray}
@@ -117,17 +117,17 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
           <MacroCircle 
             label="PROTEIN" 
             calories={Math.round(proteinCalories)} 
-            color="#4ECDC4" 
+            color={Colors.nutrition.protein} 
           />
           <MacroCircle 
             label="CARBS" 
             calories={Math.round(carbsCalories)} 
-            color="#F0884D" 
+            color={Colors.nutrition.carbs} 
           />
           <MacroCircle 
             label="FAT" 
             calories={Math.round(fatsCalories)} 
-            color="#FF6B6B" 
+            color={Colors.nutrition.fats} 
           />
         </View>
       </View>

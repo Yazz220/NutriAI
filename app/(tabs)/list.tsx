@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     ...Type.body,
-    color: '#FF6B6B',
+    color: Colors.error,
     fontWeight: '600',
   },
   listContent: {

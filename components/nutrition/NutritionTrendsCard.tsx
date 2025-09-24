@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { ChevronRight, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -6,6 +6,16 @@ import { Typography, Spacing } from '@/constants/spacing';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const sanitized = hex.replace('#', '');
+  const value = parseInt(sanitized, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 
 interface NutritionTrendsCardProps { onPress?: () => void }
 
@@ -51,9 +61,9 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
     
     // Macro breakdown for donut chart
     const macroBreakdown = [
-      { name: 'Protein', population: avgProtein * 4, color: '#4A90E2', legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Carbs', population: avgCarbs * 4, color: '#7ED321', legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Fats', population: avgFats * 9, color: '#F5A623', legendFontColor: Colors.text, legendFontSize: 12 },
+      { name: 'Protein', population: avgProtein * 4, color: Colors.nutrition.protein, legendFontColor: Colors.text, legendFontSize: 12 },
+      { name: 'Carbs', population: avgCarbs * 4, color: Colors.nutrition.carbs, legendFontColor: Colors.text, legendFontSize: 12 },
+      { name: 'Fats', population: avgFats * 9, color: Colors.nutrition.fats, legendFontColor: Colors.text, legendFontSize: 12 },
     ];
     
     return { avgCalories, trend, macroBreakdown, avgProtein, avgCarbs, avgFats };
@@ -71,7 +81,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
       datasets: [
         {
           data: dailyData.map(d => d.calories),
-          color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+          color: (opacity = 1) => hexToRgba(Colors.nutrition.calories, opacity),
           strokeWidth: 3,
         },
       ],
@@ -140,7 +150,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
               backgroundGradientFrom: Colors.card,
               backgroundGradientTo: Colors.card,
               decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.nutrition.calories, opacity),
               labelColor: (opacity = 1) => Colors.lightText,
               propsForBackgroundLines: { stroke: Colors.border, strokeWidth: 0.5 },
             }}
@@ -175,15 +185,15 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
             {/* Legend */}
             <View style={styles.legend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#4A90E2' }]} />
+                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.protein }]} />
                 <Text style={styles.legendText}>Protein {stats.avgProtein}g</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#7ED321' }]} />
+                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.carbs }]} />
                 <Text style={styles.legendText}>Carbs {stats.avgCarbs}g</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#F5A623' }]} />
+                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.fats }]} />
                 <Text style={styles.legendText}>Fats {stats.avgFats}g</Text>
               </View>
             </View>
@@ -363,3 +373,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

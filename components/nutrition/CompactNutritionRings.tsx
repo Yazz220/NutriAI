@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -83,7 +83,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
       consumed: macros.protein.consumed, 
       goal: macros.protein.goal,
       calories: proteinCalories, 
-      color: '#4ECDC4', 
+      color: Colors.nutrition.protein, 
       position: 'left' 
     },
     { 
@@ -91,7 +91,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
       consumed: macros.carbs.consumed, 
       goal: macros.carbs.goal,
       calories: carbsCalories, 
-      color: '#F0884D', 
+      color: Colors.nutrition.carbs, 
       position: 'center' 
     },
     { 
@@ -99,7 +99,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
       consumed: macros.fats.consumed, 
       goal: macros.fats.goal,
       calories: fatsCalories, 
-      color: '#FF6B6B', 
+      color: Colors.nutrition.fats, 
       position: 'right' 
     },
   ];
@@ -229,7 +229,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke="#4ECDC4"
+                  stroke={Colors.nutrition.protein}
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={proteinDashArray}
@@ -243,7 +243,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke="#F0884D"
+                  stroke={Colors.nutrition.carbs}
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={carbsDashArray}
@@ -257,7 +257,7 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke="#FF6B6B"
+                  stroke={Colors.nutrition.fats}
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={fatsDashArray}

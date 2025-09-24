@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,14 @@ interface NutritionTrendsProps {
 type ChartType = 'calories' | 'adherence' | 'macros';
 
 const screenWidth = Dimensions.get('window').width;
+const hexToRgba = (hex: string, opacity: number) => {
+  const sanitized = hex.replace('#', '');
+  const value = parseInt(sanitized, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
   weeklyTrends,
@@ -68,8 +76,8 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
     backgroundGradientFrom: Colors.card,
     backgroundGradientTo: Colors.card,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
+    color: (opacity = 1) => hexToRgba(Colors.chart.tertiary, opacity),
+    labelColor: (opacity = 1) => hexToRgba(Colors.gray[600], opacity),
     style: {
       borderRadius: 16,
     },
@@ -103,7 +111,7 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
           datasets: [
             {
               data: dailyData.map(day => day.calories.consumed),
-              color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.nutrition.calories, opacity),
               strokeWidth: 2,
             },
           ],
@@ -115,7 +123,7 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
           datasets: [
             {
               data: dailyData.map(day => Math.round(day.calories.percentage * 100)),
-              color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.success, opacity),
               strokeWidth: 2,
             },
           ],
@@ -127,17 +135,17 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
           datasets: [
             {
               data: dailyData.map(day => day.macros.protein.consumed),
-              color: (opacity = 1) => `rgba(76, 205, 196, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.nutrition.protein, opacity),
               strokeWidth: 2,
             },
             {
               data: dailyData.map(day => day.macros.carbs.consumed),
-              color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.nutrition.carbs, opacity),
               strokeWidth: 2,
             },
             {
               data: dailyData.map(day => day.macros.fats.consumed),
-              color: (opacity = 1) => `rgba(69, 183, 209, ${opacity})`,
+              color: (opacity = 1) => hexToRgba(Colors.nutrition.fats, opacity),
               strokeWidth: 2,
             },
           ],
@@ -366,15 +374,15 @@ export const NutritionTrends: React.FC<NutritionTrendsProps> = ({
         {selectedChart === 'macros' && (
           <View style={styles.macroLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#4ECDC4' }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.protein }]} />
               <Text style={styles.legendText}>Protein</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#FF6B6B' }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.carbs }]} />
               <Text style={styles.legendText}>Carbs</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#45B7D1' }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.fats }]} />
               <Text style={styles.legendText}>Fats</Text>
             </View>
           </View>
@@ -697,3 +705,10 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
   },
 });
+
+
+
+
+
+
+

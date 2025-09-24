@@ -1,4 +1,4 @@
-// Unified spacing system
+﻿// Unified spacing system tuned for the Nosh aesthetic
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -83,14 +83,14 @@ export const Typography = {
   },
 } as const;
 
-// Corner radius system
+// Corner radius system softened for the Nosh brand
 export const Radii = {
-  sm: 10,
-  md: 12,
-  lg: 12,
+  sm: 12,
+  md: 16,
+  lg: 20,
 } as const;
 
-// Shadow system
+// Shadow system with herbaceous tints
 export const Shadows = {
   level0: {
     shadowColor: 'transparent',
@@ -100,24 +100,24 @@ export const Shadows = {
     elevation: 0,
   },
   sm: {
-    shadowColor: 'rgba(0,0,0,0.08)',
+    shadowColor: 'rgba(63, 109, 42, 0.10)',
     shadowOffset: { width: 0, height: 2 }, // elevation.card offsetY 2
     shadowOpacity: 1,
     shadowRadius: 8, // blur 8
     elevation: 3,
   },
   md: {
-    shadowColor: 'rgba(0,0,0,0.12)',
+    shadowColor: 'rgba(63, 109, 42, 0.14)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 12,
+    shadowRadius: 14,
     elevation: 6,
   },
   lg: {
-    shadowColor: 'rgba(0,0,0,0.16)', // elevation.sheet
-    shadowOffset: { width: 0, height: 8 }, // offsetY 8
+    shadowColor: 'rgba(47, 58, 31, 0.18)', // elevated sheet tint
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 24, // blur 24
+    shadowRadius: 26,
     elevation: 12,
   },
 } as const;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -290,13 +290,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   availableDot: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: Colors.success,
   },
   missingDot: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: Colors.error,
   },
   expiringDot: {
-    backgroundColor: '#FFD93D',
+    backgroundColor: Colors.warning,
   },
   modernIngredientText: {
     fontSize: 16,
@@ -318,25 +318,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusBadge: {
-    backgroundColor: '#FF6B6B15',
+    backgroundColor: Colors.errorLight,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FF6B6B30',
+    borderColor: Colors.error,
   },
   expiringBadge: {
-    backgroundColor: '#FFD93D15',
-    borderColor: '#FFD93D30',
+    backgroundColor: Colors.warningLight,
+    borderColor: Colors.warning,
   },
   missingBadgeText: {
     fontSize: 10,
-    color: '#FF6B6B',
+    color: Colors.error,
     fontWeight: Typography.weights.semibold,
   },
   expiringBadgeText: {
     fontSize: 10,
-    color: '#FFD93D',
+    color: Colors.warning,
     fontWeight: Typography.weights.semibold,
   },
   stepsContainer: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   },
   availabilityProgress: {
     height: '100%',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: Colors.success,
     borderRadius: 3,
   },
   availabilityPercentageText: {

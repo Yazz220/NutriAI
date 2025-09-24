@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef } from 'react';
 import { 
   TouchableOpacity, 
   Text, 
@@ -9,7 +9,7 @@ import {
   AccessibilityRole 
 } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Spacing, Typography, Radii } from '@/constants/spacing';
 
 interface OnboardingButtonProps {
   title: string;
@@ -141,7 +141,7 @@ export function OnboardingButton({
           {loading ? (
             <ActivityIndicator 
               size="small" 
-              color={variant === 'primary' ? Colors.white : Colors.primary}
+              color={variant === 'primary' ? Colors.onPrimary : Colors.primary}
               style={styles.loadingIndicator}
             />
           ) : (
@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 28, // More organic rounded shape
+    borderRadius: Radii.lg, // More organic rounded shape
     minHeight: 56,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5, // Consistent border for organic look
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -188,49 +188,51 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   
-  // Primary button - Solid green (like filled rectangles in your design)
+    // Primary button keeps the rich herb fill
   primaryButton: {
-    backgroundColor: '#8FBC8F', // Soft sage green
-    borderColor: '#6B8E6B', // Darker green border
+    backgroundColor: Colors.primary, // brand fill
+    borderColor: Colors.primaryDark,
   },
   primaryText: {
-    color: '#2F4F2F', // Dark green text for contrast
+    color: Colors.onPrimary,
   },
   disabledPrimary: {
-    backgroundColor: '#D3D3D3',
-    borderColor: '#B0B0B0',
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderMuted,
   },
-  
-  // Secondary button - Light green with border (like outlined shapes)
+
+  // Secondary button leans on soft surfaces
   secondaryButton: {
-    backgroundColor: '#F0F8F0', // Very light green
-    borderColor: '#8FBC8F', // Sage green border
+    backgroundColor: Colors.surface,
+    borderColor: Colors.primaryLight,
   },
   secondaryText: {
-    color: '#2F4F2F', // Dark green text
+    color: Colors.primary,
   },
   disabledSecondary: {
-    backgroundColor: '#F5F5F5',
-    borderColor: '#D3D3D3',
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.border,
   },
-  
-  // Ghost button - Orange accent (like the orange elements in your design)
+
+  // Ghost button uses the warm squash outline
   ghostButton: {
     backgroundColor: 'transparent',
-    borderColor: '#CD853F', // Sandy brown/orange
+    borderColor: Colors.secondary,
     shadowOpacity: 0,
     elevation: 0,
   },
   ghostText: {
-    color: '#CD853F', // Orange text
+    color: Colors.secondary,
   },
   disabledGhost: {
     backgroundColor: 'transparent',
-    borderColor: '#D3D3D3',
+    borderColor: Colors.borderMuted,
   },
-  
-  // Disabled text
+
+    // Disabled text
   disabledText: {
-    color: '#999999',
+    color: Colors.lightText,
   },
 });
+
+

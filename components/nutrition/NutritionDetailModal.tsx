@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -167,28 +167,28 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
                 current={selectedTotals.calories}
                 goal={goals.dailyCalories}
                 unit="kcal"
-                color="#FDB813"
+                color={Colors.nutrition.calories}
               />
               <ProgressBar
                 label="Carbs"
                 current={selectedTotals.carbs}
                 goal={goals.carbs}
                 unit="g"
-                color="#45B7D1"
+                color={Colors.nutrition.carbs}
               />
               <ProgressBar
                 label="Protein"
                 current={selectedTotals.protein}
                 goal={goals.protein}
                 unit="g"
-                color="#FF6B6B"
+                color={Colors.nutrition.protein}
               />
               <ProgressBar
                 label="Fat"
                 current={selectedTotals.fats}
                 goal={goals.fats}
                 unit="g"
-                color="#4ECDC4"
+                color={Colors.nutrition.fats}
               />
             </View>
           </View>
@@ -199,10 +199,10 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             <View style={styles.mealsContainer}>
               {([
                 { key: 'all', label: 'All' },
-                { key: 'breakfast', label: '🍳 Breakfast' },
-                { key: 'lunch', label: '🥗 Lunch' },
-                { key: 'dinner', label: '🍽️ Dinner' },
-                { key: 'snack', label: '🍎 Snacks' },
+                { key: 'breakfast', label: 'ðŸ³ Breakfast' },
+                { key: 'lunch', label: 'ðŸ¥— Lunch' },
+                { key: 'dinner', label: 'ðŸ½ï¸ Dinner' },
+                { key: 'snack', label: 'ðŸŽ Snacks' },
               ] as { key: MealType; label: string }[]).map(({ key, label }) => (
                 <TouchableOpacity
                   key={key}
@@ -223,16 +223,16 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             <Text style={styles.sectionTitle}>Meals (Example)</Text>
             <View style={styles.mealsContainer}>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>🍳 Breakfast</Text>
+                <Text style={styles.mealChipText}>ðŸ³ Breakfast</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>🥗 Lunch</Text>
+                <Text style={styles.mealChipText}>ðŸ¥— Lunch</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>🍽️ Dinner</Text>
+                <Text style={styles.mealChipText}>ðŸ½ï¸ Dinner</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>🍎 Snacks</Text>
+                <Text style={styles.mealChipText}>ðŸŽ Snacks</Text>
               </View>
             </View>
           </View>
@@ -252,10 +252,10 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
               {/* Carbs sub-rows */}
               <View style={styles.subNutrientContainer}>
                 <NutritionRow label="Dietary Fiber" primary={
-                  nutritionFacts.carbs.fiber != null ? `${Math.round(nutritionFacts.carbs.fiber)} g` : '—'
+                  nutritionFacts.carbs.fiber != null ? `${Math.round(nutritionFacts.carbs.fiber)} g` : 'â€”'
                 } />
                 <NutritionRow label="Total Sugars" primary={
-                  nutritionFacts.carbs.sugar != null ? `${Math.round(nutritionFacts.carbs.sugar)} g` : '—'
+                  nutritionFacts.carbs.sugar != null ? `${Math.round(nutritionFacts.carbs.sugar)} g` : 'â€”'
                 } />
               </View>
 
@@ -265,34 +265,34 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
               </View>
               {/* Fat sub-rows (not yet tracked) */}
               <View style={styles.subNutrientContainer}>
-                <NutritionRow label="Saturated Fat" primary={'—'} />
-                <NutritionRow label="Monounsaturated Fat" primary={'—'} />
-                <NutritionRow label="Polyunsaturated Fat" primary={'—'} />
-                <NutritionRow label="Trans Fat" primary={'—'} />
+                <NutritionRow label="Saturated Fat" primary={'â€”'} />
+                <NutritionRow label="Monounsaturated Fat" primary={'â€”'} />
+                <NutritionRow label="Polyunsaturated Fat" primary={'â€”'} />
+                <NutritionRow label="Trans Fat" primary={'â€”'} />
               </View>
             </View>
 
             {/* Other nutrients */}
             <View style={styles.nutritionCard}>
               <NutritionRow label="Sodium" primary={
-                nutritionFacts.other.sodium != null ? `${Math.round(nutritionFacts.other.sodium)} mg` : '—'
+                nutritionFacts.other.sodium != null ? `${Math.round(nutritionFacts.other.sodium)} mg` : 'â€”'
               } />
-              <NutritionRow label="Cholesterol" primary={'—'} />
-              <NutritionRow label="Water" primary={'—'} />
-              <NutritionRow label="Alcohol" primary={'—'} />
+              <NutritionRow label="Cholesterol" primary={'â€”'} />
+              <NutritionRow label="Water" primary={'â€”'} />
+              <NutritionRow label="Alcohol" primary={'â€”'} />
             </View>
 
             {/* Vitamins */}
             <View style={styles.nutritionCard}>
               {['Vitamin A','Vitamin B1 (Thiamin)','Folate (B9)','Vitamin B12','Vitamin C','Vitamin D','Vitamin E','Vitamin K'].map((v) => (
-                <NutritionRow key={v} label={v} primary={'—'} />
+                <NutritionRow key={v} label={v} primary={'â€”'} />
               ))}
             </View>
 
             {/* Minerals */}
             <View style={styles.nutritionCard}>
               {['Calcium','Iron','Magnesium','Potassium','Zinc'].map((m) => (
-                <NutritionRow key={m} label={m} primary={'—'} />
+                <NutritionRow key={m} label={m} primary={'â€”'} />
               ))}
             </View>
           </View>

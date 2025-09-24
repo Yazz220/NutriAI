@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flame, Trophy, Target, Calendar } from 'lucide-react-native';
@@ -85,11 +85,11 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
   };
 
   const getStreakEmoji = () => {
-    if (streakData.currentStreak === 0) return '🌱';
-    if (streakData.currentStreak < 7) return '🔥';
-    if (streakData.currentStreak < 30) return '💪';
-    if (streakData.currentStreak < 100) return '🏆';
-    return '👑';
+    if (streakData.currentStreak === 0) return 'ðŸŒ±';
+    if (streakData.currentStreak < 7) return 'ðŸ”¥';
+    if (streakData.currentStreak < 30) return 'ðŸ’ª';
+    if (streakData.currentStreak < 100) return 'ðŸ†';
+    return 'ðŸ‘‘';
   };
 
   if (isLoading) {
@@ -108,9 +108,9 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
         <LinearGradient
           colors={
             todayStatus === 'success' 
-              ? ['#4CAF50', '#45A049'] 
+              ? Colors.chart.gradients.success 
               : streakData.currentStreak > 0
-              ? ['#FF6B35', '#F7931E']
+              ? Colors.chart.gradients.secondary
               : [Colors.card, Colors.card]
           }
           style={styles.gradient}

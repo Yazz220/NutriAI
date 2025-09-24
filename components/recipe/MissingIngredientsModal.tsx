@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { X, ShoppingCart, AlertTriangle, Package } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -152,20 +152,20 @@ export const MissingIngredientsModal: React.FC<MissingIngredientsModalProps> = (
 
           {/* Shopping Tips */}
           <View style={styles.tipsSection}>
-            <Text style={styles.tipsTitle}>💡 Shopping Tips</Text>
+            <Text style={styles.tipsTitle}>ðŸ’¡ Shopping Tips</Text>
             <View style={styles.tipsList}>
               <Text style={styles.tipText}>
-                • Check your pantry again before shopping - you might have missed something
+                â€¢ Check your pantry again before shopping - you might have missed something
               </Text>
               <Text style={styles.tipText}>
-                • Look for substitutes if certain ingredients are expensive or unavailable
+                â€¢ Look for substitutes if certain ingredients are expensive or unavailable
               </Text>
               <Text style={styles.tipText}>
-                • Buy in bulk for pantry staples to save money on future recipes
+                â€¢ Buy in bulk for pantry staples to save money on future recipes
               </Text>
               {partiallyAvailable.length > 0 && (
                 <Text style={styles.tipText}>
-                  • You already have some ingredients - just need to top up quantities
+                  â€¢ You already have some ingredients - just need to top up quantities
                 </Text>
               )}
             </View>
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.warningLight || '#FFFBEB',
+    backgroundColor: Colors.warningLight,
     padding: Spacing.md,
     borderRadius: 12,
     borderWidth: 1,

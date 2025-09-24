@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { HelpCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -12,13 +12,13 @@ interface BMICardProps {
 }
 
 const BMI_CATEGORIES = [
-  { max: 18.5, label: 'Underweight', color: '#3B82F6' },
-  { max: 25, label: 'Healthy', color: '#22C55E' },
-  { max: 30, label: 'Overweight', color: '#F59E0B' },
-  { max: Infinity, label: 'Obese', color: '#EF4444' },
+  { max: 18.5, label: 'Underweight', color: Colors.info },
+  { max: 25, label: 'Healthy', color: Colors.success },
+  { max: 30, label: 'Overweight', color: Colors.warning },
+  { max: Infinity, label: 'Obese', color: Colors.error },
 ] as const;
 
-const SEGMENT_COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444'];
+const SEGMENT_COLORS = [Colors.info, Colors.success, Colors.warning, Colors.error] as const;
 
 function computeMarkerPosition(bmi?: number) {
   if (!bmi || Number.isNaN(bmi)) return 0;
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginHorizontal: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -192,3 +192,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

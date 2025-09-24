@@ -46,22 +46,25 @@ export default function AgeScreen() {
             resizeMode="contain"
             accessibilityIgnoresInvertColors
           />
-          <Text style={styles.title}>When is your birthyear?</Text>
-          <BehindTheQuestion
-            title="Behind the question"
-            subtitle="Why do we ask this?"
-            content={[
-              {
-                title: 'Why birth year?',
-                description: 'Your age helps us estimate basal metabolic rate and personalize your calorie and macro targets.',
-              },
-              {
-                title: 'Privacy',
-                description: 'We store only what we need to compute accurate recommendations and never sell your data.',
-              },
-            ]}
-          />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>When is your birthyear?</Text>
+          </View>
         </View>
+
+        <BehindTheQuestion
+          title="Behind the question"
+          subtitle="Why do we ask this?"
+          content={[
+            {
+              title: 'Why birth year?',
+              description: 'Your age helps us estimate basal metabolic rate and personalize your calorie and macro targets.',
+            },
+            {
+              title: 'Privacy',
+              description: 'We store only what we need to compute accurate recommendations and never sell your data.',
+            },
+          ]}
+        />
 
         <View style={styles.content}>
           <VerticalNumberPicker
@@ -76,7 +79,7 @@ export default function AgeScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="ghost" onPress={nextStep} />
+            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
           </View>
         </View>
       </View>
@@ -86,19 +89,18 @@ export default function AgeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg },
+  header: { marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  headerText: { flex: 1 },
   title: { 
     fontSize: 28, 
     fontWeight: Typography.weights.bold, 
     color: Colors.text, 
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 36 
   },
   noshImage: {
-    width: 112,
-    height: 112,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
+    width: 108,
+    height: 108,
   },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   yearList: { gap: Spacing.md },

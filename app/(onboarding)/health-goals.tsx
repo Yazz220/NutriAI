@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ViewStyle,
 } from 'react-native';
 import {
   OnboardingScreenWrapper,
@@ -229,40 +230,41 @@ export default function HealthGoalsScreen() {
         />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {goalCards.map((option, index) => (
-            <Animated.View
-              key={option.id}
-              style={{
-                opacity: cardAnimations[index],
-                transform: [
-                  {
-                    translateY: cardAnimations[index].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    }),
-                  },
-                ],
-              }}
-            >
-              {('isCustom' in option && option.isCustom) ? (
-                <SimpleOptionCard
-                  title={option.title}
-                  selected={selectedGoal === 'custom'}
-                  onPress={handleCustomGoalPress}
-                  accessibilityLabel="Create a custom goal"
-                  accessibilityHint="Open a modal to describe your own goal"
-                />
-              ) : (
-                <SimpleOptionCard
-                  title={option.title}
-                  selected={selectedGoal === option.id}
-                  onPress={() => handleGoalSelect(option.id)}
-                  accessibilityLabel={`Select ${option.title} as your health goal`}
-                  accessibilityHint={`Choose ${option.title} as your primary health goal`}
-                />
-              )}
-            </Animated.View>
-          ))}
+          {goalCards.map((option, index) => {
+            const animationStyle = {
+              opacity: cardAnimations[index],
+              transform: [
+                {
+                  translateY: cardAnimations[index].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            } as Animated.WithAnimatedObject<ViewStyle>;
+
+            const isCustom = 'isCustom' in option && option.isCustom;
+            const isSelected = isCustom ? selectedGoal === 'custom' : selectedGoal === option.id;
+            const handlePress = isCustom ? handleCustomGoalPress : () => handleGoalSelect(option.id);
+            const accessibilityLabel = isCustom
+              ? 'Create a custom goal'
+              : `Select ${option.title} as your health goal`;
+            const accessibilityHint = isCustom
+              ? 'Open a modal to describe your own goal'
+              : `Choose ${option.title} as your primary health goal`;
+
+            return (
+              <SimpleOptionCard
+                key={option.id}
+                title={option.title}
+                selected={isSelected}
+                onPress={handlePress}
+                accessibilityLabel={accessibilityLabel}
+                accessibilityHint={accessibilityHint}
+                animationStyle={animationStyle}
+              />
+            );
+          })}
 
           {selectedGoal === 'custom' && currentCustomGoal && (
             <View style={styles.customSummary}>

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+﻿import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -94,7 +94,7 @@ export default function ProgressPhotosScreen() {
       <Images size={80} color={Colors.border} />
       <Text style={styles.emptyTitle}>You don't have any progress photos yet</Text>
       <Text style={styles.emptySubtitle}>
-        The Photo Gallery helps you visualize your progress toward your goal — sometimes victory is seen in a better look and
+        The Photo Gallery helps you visualize your progress toward your goal â€” sometimes victory is seen in a better look and
         improved body composition, not just on the scale.
       </Text>
     </View>
@@ -367,13 +367,13 @@ export default function ProgressPhotosScreen() {
           </TouchableOpacity>
           <View style={styles.viewerNavLeft}>
             <TouchableOpacity disabled={viewerIndex <= 0} onPress={() => setViewerIndex((i) => Math.max(0, i - 1))}>
-              <ChevronLeft size={28} color={viewerIndex <= 0 ? '#ffffff55' : Colors.white} />
+              <ChevronLeft size={28} color={viewerIndex <= 0 ? Colors.alpha.white[30] : Colors.white} />
             </TouchableOpacity>
           </View>
           <Image source={{ uri: photos[viewerIndex]?.uri }} style={styles.viewerImage} resizeMode="contain" />
           <View style={styles.viewerNavRight}>
             <TouchableOpacity disabled={viewerIndex >= photos.length - 1} onPress={() => setViewerIndex((i) => Math.min(photos.length - 1, i + 1))}>
-              <ChevronRight size={28} color={viewerIndex >= photos.length - 1 ? '#ffffff55' : Colors.white} />
+              <ChevronRight size={28} color={viewerIndex >= photos.length - 1 ? Colors.alpha.white[30] : Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   selectionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   selectionText: { ...Type.body, color: Colors.text },
 
-  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  viewerBackdrop: { flex: 1, backgroundColor: Colors.overlay.strong, justifyContent: 'center', alignItems: 'center' },
   viewerImage: { width: screenWidth, height: screenWidth * 1.2 },
   viewerClose: { position: 'absolute', top: 40, right: 20, padding: 8 },
   viewerNavLeft: { position: 'absolute', left: 20, top: '50%' },

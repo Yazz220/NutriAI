@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -128,7 +128,7 @@ export const AddItemModal: React.FC<AddItemModalProps> = ({
         <View style={styles.modalContainer}>
           {/* Enhanced Header with Gradient */}
           <ExpoLinearGradient
-            colors={['#667eea', '#764ba2']}
+            colors={Colors.chart.gradients.secondary}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.modalHeader}
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     maxHeight: '90%',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
