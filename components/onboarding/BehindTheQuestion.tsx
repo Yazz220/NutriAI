@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import LampIcon from '@/assets/icons/Lamp .svg';
 
 interface BehindTheQuestionProps {
   title: string;
@@ -20,9 +21,10 @@ interface BehindTheQuestionProps {
     description: string;
     reference?: string;
   }>;
+  variant?: 'card' | 'icon';
 }
 
-export function BehindTheQuestion({ title, subtitle, content }: BehindTheQuestionProps) {
+export function BehindTheQuestion({ title, subtitle, content, variant = 'icon' }: BehindTheQuestionProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,31 +54,47 @@ export function BehindTheQuestion({ title, subtitle, content }: BehindTheQuestio
 
   return (
     <>
-      <Animated.View
-        style={{
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <TouchableOpacity
-          style={styles.container}
-          onPress={openModal}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          accessibilityLabel={`Learn more about: ${title}`}
-          accessibilityHint="Opens detailed explanation"
-          accessibilityRole="button"
+      {variant === 'card' ? (
+        <Animated.View
+          style={{
+            transform: [{ scale: scaleAnim }],
+          }}
         >
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>💡</Text>
-          </View>
-          
-          <Text style={styles.compactTitle}>Why do we ask this?</Text>
-          
-          <TouchableOpacity style={styles.moreButton} onPress={openModal}>
-            <Text style={styles.moreText}>Learn more</Text>
+          <TouchableOpacity
+            style={styles.container}
+            onPress={openModal}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            accessibilityLabel={`Learn more about: ${title}`}
+            accessibilityHint="Opens detailed explanation"
+            accessibilityRole="button"
+          >
+            <View style={styles.iconContainer}>
+              <LampIcon width={42} height={42} color={Colors.primary} />
+            </View>
+            <Text style={styles.compactTitle}>Why do we ask this?</Text>
+            <TouchableOpacity style={styles.moreButton} onPress={openModal}>
+              <Text style={styles.moreText}>Learn more</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
-      </Animated.View>
+        </Animated.View>
+      ) : (
+        <Animated.View
+          style={{ transform: [{ scale: scaleAnim }] }}
+        >
+          <TouchableOpacity
+            style={styles.iconOnlyButton}
+            onPress={openModal}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            accessibilityLabel={`Why do we ask this question?`}
+            accessibilityHint={`Opens an explanation about: ${title}`}
+            accessibilityRole="button"
+          >
+            <LampIcon width={36} height={36} color={Colors.primary} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       <Modal
         visible={isModalVisible}
@@ -138,6 +156,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: 2,
     elevation: 1,
+  },
+  iconOnlyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '10',
+    borderWidth: 1,
+    borderColor: Colors.border + '40',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  iconOnlyEmoji: {
+    fontSize: 18,
   },
   iconContainer: {
     width: 28,

@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { User, Edit3, Target, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut } from 'lucide-react-native';
 import HeartIcon from '@/assets/icons/Heart.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
@@ -32,6 +32,7 @@ export default function EnhancedProfileScreen() {
   const [activeSection, setActiveSection] = useState<ProfileSection>('overview');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
+  const insets = useSafeAreaInsets();
 
   const closeSheet = () => { setSheetVisible(false); setSheetSection(null); };
 
@@ -62,7 +63,11 @@ export default function EnhancedProfileScreen() {
   };
 
   const renderOverview = () => (
-    <ScrollView style={styles.overview} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.overview}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
+    >
       {/* Header icons removed (non-functional) */}
 
       {/* Hero Profile Card */}

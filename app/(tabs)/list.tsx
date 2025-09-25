@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -29,6 +29,7 @@ import { ExportShoppingModal } from '@/components/ExportShoppingModal';
 import { useToast } from '@/contexts/ToastContext';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Rule } from '@/components/ui/Rule';
+import ShoppingListIcon from '@/assets/icons/Shopping list .svg';
 
 export default function ShoppingListScreen() {
   const { 
@@ -131,7 +132,11 @@ export default function ShoppingListScreen() {
         {/* Unified Screen Header */}
         <ScreenHeader
           title="Shopping List"
-          icon={<ShoppingCart size={28} color={Colors.text} />}
+          icon={
+            <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <ShoppingListIcon width={58.8} height={58.8} color={Colors.text} />
+            </View>
+          }
         />
 
         {/* Quick Stats */}

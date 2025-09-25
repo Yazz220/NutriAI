@@ -3,18 +3,24 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, 
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, Plus, Target, TrendUp, Medal, Fire, Pencil } from 'phosphor-react-native';
+import { Brain, Plus, Medal, Fire, Pencil } from 'phosphor-react-native';
 import SearchIcon from '@/assets/icons/search.svg';
 import CalenderIcon from '@/assets/icons/Calender.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
 import LeftArrowIcon from '@/assets/icons/left arrow.svg';
 import RightArrowIcon from '@/assets/icons/right arrow.svg';
+import ProgressPageIcon from '@/assets/icons/Progress page.svg';
+import TrackingPageIcon from '@/assets/icons/Tracking page.svg';
+import BreakfastIcon from '@/assets/icons/Breakfast.svg';
+import LunchIcon from '@/assets/icons/Lunch.svg';
+import DinnerIcon from '@/assets/icons/Dinner.svg';
+import SnackIcon from '@/assets/icons/Snack.svg';
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
 import { WEEK_RINGS_SCALE } from '@/constants/theme';
 import { Spacing, Typography } from '@/constants/spacing';
-import { Button } from '@/components/ui/Button';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
+import { Button } from '@/components/ui/Button';
 import { EnhancedCalorieRing } from '@/components/nutrition/EnhancedCalorieRing';
 import { CompactNutritionRings } from '@/components/nutrition/CompactNutritionRings';
 import { ExternalFoodLoggingModal } from '@/components/nutrition/ExternalFoodLoggingModal';
@@ -23,7 +29,6 @@ import { NutritionTrends } from '@/components/nutrition/NutritionTrends';
 import { NutritionTrendsCard } from '@/components/nutrition/NutritionTrendsCard';
 import { NutritionTrendsModal } from '@/components/nutrition/NutritionTrendsModal';
 import { StreakCard } from '@/components/nutrition/StreakCard';
-import { EnhancedAnalyticsCard } from '@/components/progress/EnhancedAnalyticsCard';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
@@ -356,9 +361,18 @@ export default function CoachScreen() {
         title={activeTab === 'progress' ? 'Progress' : 'Tracking'}
         icon={
           activeTab === 'progress'
-            ? (<View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}><TrendUp size={28} color={Colors.text} /></View>)
-            : (<View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}><Target size={28} color={Colors.text} /></View>)
+            ? (
+              <View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
+                <ProgressPageIcon width={84} height={84} color={Colors.text} />
+              </View>
+            )
+            : (
+              <View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
+                <TrackingPageIcon width={67.2} height={67.2} color={Colors.text} />
+              </View>
+            )
         }
+        iconScale={activeTab === 'tracking' ? 0.81 : 0.9}
       />
       {/* Segmented control: Tracking | Progress */}
       <View
@@ -482,8 +496,10 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Search and log food"
             >
-              <SearchIcon width={20} height={20} color={Colors.white} />
-              <Text style={styles.statPillActionText}>Search Food</Text>
+              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                <SearchIcon width={56} height={56} color={Colors.primary} />
+              </View>
+              <Text style={[styles.statPillActionText, { color: Colors.primary }]}>Search Food</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.statPill, styles.statPillAccent]}
@@ -491,8 +507,10 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
-              <CameraIcon width={20} height={20} color={Colors.white} />
-              <Text style={styles.statPillActionText}>AI Scan</Text>
+              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                <CameraIcon width={56} height={56} color={Colors.accentPrimary} />
+              </View>
+              <Text style={[styles.statPillActionText, { color: Colors.accentPrimary }]}>AI Scan</Text>
             </TouchableOpacity>
           </View>
         </ExpoLinearGradient>
@@ -529,12 +547,17 @@ export default function CoachScreen() {
             {(['breakfast','lunch','dinner','snack'] as MealType[]).map((type) => {
               const planned = getMealForDateAndType(dayISO, type);
               const recipe = planned ? meals.find((m:any) => m.id === planned.recipeId) : undefined;
-              const icon = type === 'breakfast' ? '🌅' : type === 'lunch' ? '☀️' : type === 'dinner' ? '🌙' : '🍎';
+              const iconEl = (
+                type === 'breakfast' ? <BreakfastIcon width={72} height={72} color={Colors.text} /> :
+                type === 'lunch' ? <LunchIcon width={72} height={72} color={Colors.text} /> :
+                type === 'dinner' ? <DinnerIcon width={72} height={72} color={Colors.text} /> :
+                <SnackIcon width={72} height={72} color={Colors.text} />
+              );
               const label = type.charAt(0).toUpperCase() + type.slice(1);
               return (
                 <React.Fragment key={type}>
                   <TouchableOpacity style={styles.mealRow} onPress={() => (planned ? openEditMeal(type) : openAddMeal(type))}>
-                    <Text style={styles.mealRowIcon}>{icon}</Text>
+                    <View style={styles.mealRowIconWrap}>{iconEl}</View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.mealRowTitle}>{label}</Text>
                       {planned ? (
@@ -634,9 +657,6 @@ export default function CoachScreen() {
         >
           {/* Weight Card - full width */}
           <WeightCard onPress={() => setShowWeightModal(true)} />
-
-          {/* Enhanced Analytics Dashboard */}
-          <EnhancedAnalyticsCard onPress={() => setShowTrendsModal(true)} />
 
           {/* Enhanced Total Calories Card */}
           <EnhancedTotalCaloriesCard onOpenPeriod={(p) => {
@@ -766,7 +786,7 @@ export default function CoachScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Weekday Row (Sun–Sat three-letter abbreviations) */}
+          {/* Weekday Row (Sunâ€“Sat three-letter abbreviations) */}
           <View style={[styles.calendarWeekdaysRow, { marginTop: calendarBelowOffset }] }>
             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
               <Text key={d} style={styles.calendarWeekdayText} numberOfLines={1} adjustsFontSizeToFit>{d}</Text>
@@ -1154,12 +1174,14 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   statPillPrimary: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: 'transparent',
+    borderColor: Colors.primaryDark,
+    borderWidth: 1.5,
   },
   statPillAccent: {
-    backgroundColor: Colors.accentPrimary,
+    backgroundColor: 'transparent',
     borderColor: Colors.accentPrimary,
+    borderWidth: 1.5,
   },
   
   // Food Logging Section Styles
@@ -1398,7 +1420,7 @@ const styles = StyleSheet.create({
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 60,
+    minHeight: 88,
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
@@ -1406,6 +1428,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     width: 28,
     textAlign: 'center',
+    marginRight: 12,
+  },
+  mealRowIconWrap: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   mealRowTitle: {
@@ -1940,3 +1969,5 @@ const EnhancedMealCard = ({
     </TouchableOpacity>
   );
 };
+
+

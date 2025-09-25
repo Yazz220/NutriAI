@@ -1,163 +1,44 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { TrendingUp, TrendingDown, Calendar } from 'lucide-react-native';
-import CalenderIcon from '@/assets/icons/Calender.svg';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+import ScaleIcon from '@/assets/icons/Scale.svg';
 
 import { Colors } from '@/constants/colors';
-import { Typography } from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { useWeightTracking } from '@/hooks/useWeightTracking';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface WeightCardProps {
   onPress: () => void;
 }
 
 export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
-  const { getCurrentWeight, goal, getProgressStats, entries, getWeightTrend } = useWeightTracking();
-  
-  // Extract weight data
-  const currentWeight = getCurrentWeight();
-  const currentWeightValue = currentWeight?.weight;
+  const { goal } = useWeightTracking();
   const goalWeight = goal?.targetWeight;
-  const stats = getProgressStats();
-  const progressPercentage = Math.round(stats.progress);
-  const trend = getWeightTrend();
 
-  /**
-   * Formats the last weigh-in date as a human-readable string
-   */
-  const formatLastWeighIn = () => {
-    if (!currentWeight) return '7d';
-    
-    const entryDate = new Date(currentWeight.date);
-    const today = new Date();
-    const daysDiff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysDiff === 0) return 'Today';
-    if (daysDiff === 1) return '1d';
-    return `${daysDiff}d`;
-  };
-
-  /**
-   * Prepares chart data from recent weight entries
-   */
-  const chartData = useMemo(() => {
-    const recentEntries = entries.slice(-10); // Last 10 entries for readability
-    if (recentEntries.length < 2) return null;
-
-    return {
-      labels: recentEntries.map((entry, index) => {
-        // Show labels only every 3rd entry to avoid crowding
-        return index % 3 === 0 
-          ? new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          : '';
-      }),
-      datasets: [{
-        data: recentEntries.map(entry => entry.weight),
-        color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-        strokeWidth: 2,
-      }]
-    };
-  }, [entries]);
-
-  /**
-   * Renders the weight trend indicator with icon and change amount
-   */
-  const renderWeightTrend = () => {
-    if (!trend || trend.weightChange === 0) return null;
-
-    const isPositive = trend.weightChange > 0;
-    const trendColor = isPositive ? Colors.success : Colors.error;
-    const TrendIcon = isPositive ? TrendingUp : TrendingDown;
-
-    return (
-      <View style={styles.trendContainer}>
-        <TrendIcon size={14} color={trendColor} />
-        <Text style={[styles.trendText, { color: trendColor }]}>
-          {Math.abs(trend.weightChange).toFixed(1)}kg
-        </Text>
-      </View>
-    );
-  };
-
-  /**
-   * Renders the mini weight chart if data is available
-   */
-  const renderMiniChart = () => {
-    if (!chartData) return null;
-
-    return (
-      <View style={styles.chartContainer}>
-        <LineChart
-          data={chartData}
-          width={screenWidth * 0.4}
-          height={80}
-          chartConfig={{
-            backgroundGradientFrom: Colors.card,
-            backgroundGradientTo: Colors.card,
-            decimalPlaces: 1,
-            color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-            labelColor: (opacity = 1) => Colors.lightText,
-            propsForBackgroundLines: { stroke: 'transparent' },
-          }}
-          style={styles.chart}
-        />
-      </View>
-    );
-  };
-
-  /**
-   * Renders the progress bar showing goal completion percentage
-   */
-  const renderProgressBar = () => (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
-      </View>
-      <Text style={styles.progressText}>{progressPercentage}%</Text>
-    </View>
-  );
-
-  /**
-   * Renders the footer with last weigh-in date and entry count
-   */
-  const renderFooter = () => (
-    <View style={styles.footer}>
-      <Text style={styles.nextWeighIn}>Last weigh-in: {formatLastWeighIn()}</Text>
-      <View style={styles.footerRight}>
-            <CalenderIcon width={12} height={12} color={Colors.lightText} />
-        <Text style={styles.entriesCount}>{entries.length} entries</Text>
-      </View>
-    </View>
-  );
+  const goalLabel = typeof goalWeight === 'number'
+    ? `Goal weight: ${goalWeight.toFixed(1)} kg`
+    : 'Set a goal weight to stay motivated';
 
   return (
-    <ProgressCardContainer onPress={onPress} style={styles.card} padding={20}>
+    <ProgressCardContainer onPress={onPress} style={styles.card} padding={Spacing.xl}>
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <Text style={styles.title}>My Weight</Text>
         </View>
-        
-        <View style={styles.weightDisplay}>
-          <Text style={styles.currentWeight}>
-            {typeof currentWeightValue === 'number' ? `${currentWeightValue.toFixed(1)} kg` : '-- kg'}
-          </Text>
-          <View style={styles.goalRow}>
-            <Text style={styles.goalWeight}>
-              Goal {typeof goalWeight === 'number' ? `${goalWeight.toFixed(1)} kg` : '-- kg'}
-            </Text>
-            {renderWeightTrend()}
-          </View>
+
+        <View style={styles.illustration}>
+          <ScaleIcon width={152} height={152} />
         </View>
 
-        {renderMiniChart()}
+        <Text style={styles.goalText}>{goalLabel}</Text>
+        <Text style={styles.helperText}>
+          Keep us posted on your latest weigh-ins to unlock deeper insights.
+        </Text>
 
-        {renderProgressBar()}
-
-        {renderFooter()}
+        <View style={styles.cta}>
+          <Text style={styles.ctaLabel}>Update weight</Text>
+        </View>
       </View>
     </ProgressCardContainer>
   );
@@ -166,91 +47,48 @@ export const WeightCard: React.FC<WeightCardProps> = ({ onPress }) => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    padding: 0, // padding handled by GlassSurface
+    padding: 0,
     marginVertical: 8,
   },
   cardContent: {
-    // No specific styling needed
+    alignItems: 'center',
   },
   header: {
-    marginBottom: 12,
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.sm,
   },
   title: {
     fontSize: 14,
     color: Colors.lightText,
     fontWeight: Typography.weights.medium,
   },
-  weightDisplay: {
-    marginBottom: 12,
+  illustration: {
+    marginBottom: Spacing.md,
   },
-  currentWeight: {
-    fontSize: 28,
+  goalText: {
+    fontSize: 20,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
-    marginBottom: 4,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
   },
-  goalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goalWeight: {
+  helperText: {
     fontSize: 14,
+    lineHeight: 20,
     color: Colors.lightText,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
   },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  trendText: {
-    fontSize: 12,
-    fontWeight: Typography.weights.medium,
-  },
-  chartContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
-    overflow: 'hidden',
-    borderRadius: 8,
-  },
-  chart: {
-    borderRadius: 8,
-  },
-  progressContainer: {
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
+  cta: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
     backgroundColor: Colors.primary,
-    borderRadius: 2,
+    borderRadius: 999,
   },
-  progressText: {
-    marginTop: 6,
-    fontSize: 12,
-    color: Colors.lightText,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nextWeighIn: {
+  ctaLabel: {
     fontSize: 14,
-    color: Colors.lightText,
-  },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  entriesCount: {
-    fontSize: 12,
-    color: Colors.lightText,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.white,
+    letterSpacing: 0.3,
   },
 });

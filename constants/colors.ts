@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Nosh Design System - Color Palette
  *
  * Warm, organic palette inspired by the Nosh mascot.
@@ -27,7 +27,7 @@ export const Colors = {
 
   // === SURFACE COLORS ===
   // Creamy papers and soft neutrals for relaxed layouts
-  background: "#F8F3E3", // Soft oat milk
+  background: "#FBFCF4", // Soft oat milk (updated)
   backgroundSecondary: "#F1E6CE", // Toasted almond
 
   card: "#FFFAEE", // Lifted card surface

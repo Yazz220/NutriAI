@@ -1,0 +1,2 @@
+export const NOSH_IMAGE_SCALE_MULTIPLIER = 1.7;
+export const NOSH_WELCOME_SCALE = 0.3;

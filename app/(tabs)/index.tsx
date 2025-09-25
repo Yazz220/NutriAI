@@ -808,7 +808,12 @@ export default function InventoryScreen() {
       >
         <ScreenHeader
           title="Inventory"
-          icon={<InventoryHeaderIcon width={28} height={28} color={Colors.text} />}
+          icon={
+            <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <InventoryHeaderIcon width={38} height={38} color={Colors.text} />
+            </View>
+          }
+          iconScale={1}
           includeStatusBarSpacer
           containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
         />

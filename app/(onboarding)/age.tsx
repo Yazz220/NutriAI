@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, VerticalNumberPicker, useOnboarding } from '@/components/onboarding';
+import { View, StyleSheet } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, VerticalNumberPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -29,41 +29,30 @@ export default function AgeScreen() {
   const maxYear = currentYear - 13;  // Minimum age 13
 
   const clampYear = (y: number) => Math.min(maxYear, Math.max(minYear, y));
-  const yearsWindow = useMemo(() => {
-    const center = clampYear(birthYear);
-    return [center - 2, center - 1, center, center + 1, center + 2].filter(y => y >= minYear && y <= maxYear);
-  }, [birthYear]);
-
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/How old are you.png')}
-            defaultSource={require('@/assets/images/nosh/How old are you.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
+        <View style={styles.infoRow}>
+          <BehindTheQuestion
+            title="Behind the question"
+            subtitle="Why do we ask this?"
+            content={[
+              {
+                title: 'Why birth year?',
+                description: 'Your age helps us estimate basal metabolic rate and personalize your calorie and macro targets.',
+              },
+              {
+                title: 'Privacy',
+                description: 'We store only what we need to compute accurate recommendations and never sell your data.',
+              },
+            ]}
+            variant="icon"
           />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>When is your birthyear?</Text>
-          </View>
         </View>
 
-        <BehindTheQuestion
-          title="Behind the question"
-          subtitle="Why do we ask this?"
-          content={[
-            {
-              title: 'Why birth year?',
-              description: 'Your age helps us estimate basal metabolic rate and personalize your calorie and macro targets.',
-            },
-            {
-              title: 'Privacy',
-              description: 'We store only what we need to compute accurate recommendations and never sell your data.',
-            },
-          ]}
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/How old are you.png')}
+          title="When is your birthyear?"
         />
 
         <View style={styles.content}>
@@ -89,19 +78,7 @@ export default function AgeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  headerText: { flex: 1 },
-  title: { 
-    fontSize: 28, 
-    fontWeight: Typography.weights.bold, 
-    color: Colors.text, 
-    textAlign: 'left',
-    lineHeight: 36 
-  },
-  noshImage: {
-    width: 108,
-    height: 108,
-  },
+  infoRow: { alignSelf: 'flex-end', marginBottom: Spacing.sm },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   yearList: { gap: Spacing.md },
   yearDisplay: { alignItems: 'center', marginBottom: Spacing.lg },

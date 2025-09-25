@@ -19,6 +19,7 @@ export type ScreenHeaderProps = {
   iconFloat?: boolean; // render icon as floating overlay (no layout height impact)
   iconFloatReserve?: boolean; // when true (default) reserve space so icon doesn't overlap text
   iconAlign?: 'left' | 'right';
+  iconScale?: number; // scale factor applied to icon (default 0.9)
 };
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
@@ -35,6 +36,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   iconFloat = false,
   iconFloatReserve = true,
   iconAlign = 'left',
+  iconScale = 0.9,
 }) => {
   return (
     <View style={[styles.container, glassy ? styles.containerGlassy : null, containerStyle]}>      
@@ -47,13 +49,21 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
       {/* Floating overlay icon (does not affect layout height) */}
       {icon && iconFloat ? (
         <View pointerEvents="none" style={[styles.iconFloatOverlay, iconAlign === 'right' ? styles.iconFloatOverlayRight : null, { zIndex: 2 }]}>
-          {icon}
+          <View style={{ transform: [{ scale: iconScale }] }}>
+            {icon}
+          </View>
         </View>
       ) : null}
 
       <View style={[styles.row, contentStyle]}>
         <View style={[styles.leftRow, iconFloat && iconFloatReserve ? styles.leftRowWithIconFloat : null]}>
-          {!iconFloat && icon ? <View style={styles.icon}>{icon}</View> : null}
+          {!iconFloat && icon ? (
+            <View style={styles.icon}>
+              <View style={{ transform: [{ scale: iconScale }] }}>
+                {icon}
+              </View>
+            </View>
+          ) : null}
           <View>
             <Text style={[styles.title, titleStyle]} numberOfLines={1}>{title}</Text>
             {!!subtitle && (

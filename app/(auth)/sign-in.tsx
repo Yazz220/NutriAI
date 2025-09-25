@@ -64,7 +64,7 @@ export default function SignInScreen() {
   const onDevResetOnboarding = async () => {
     try {
       await resetOnboarding();
-      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboardingâ€¦');
+      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboarding…');
       router.replace('/(onboarding)');
     } catch (e) {
       Alert.alert('Reset Failed', 'Could not reset onboarding. Check logs.');
@@ -185,7 +185,7 @@ export default function SignInScreen() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               placeholderTextColor={Colors.lightText}
             />
           </View>
@@ -210,7 +210,7 @@ export default function SignInScreen() {
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Donâ€™t have an account?</Text>
+          <Text style={styles.footerText}>Don’t have an account?</Text>
           <Link href="/(auth)/sign-up" asChild>
             <TouchableOpacity>
               <Text style={styles.link}>Sign Up</Text>

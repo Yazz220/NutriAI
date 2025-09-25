@@ -29,12 +29,21 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
+    try {
+      // Prefer global sign-out (revokes refresh token); supported in supabase-js v2
+      await supabase.auth.signOut({ scope: 'global' } as any);
+    } catch (err1) {
+      // Fallback to local sign-out to clear device session even if global fails
+      try {
+        await supabase.auth.signOut({ scope: 'local' } as any);
+      } catch (err2) {
+        // As a last resort, proceed with client-side state reset
+        console.warn('[Auth] signOut fallback failed, clearing local state anyway', err1, err2);
+      }
+    } finally {
+      setSession(null);
+      setUser(null);
     }
-    setSession(null);
-    setUser(null);
   }, [setSession, setUser]);
 
   return { initializing, session, user, signOut } as const;

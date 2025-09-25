@@ -85,11 +85,11 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
   };
 
   const getStreakEmoji = () => {
-    if (streakData.currentStreak === 0) return 'ðŸŒ±';
-    if (streakData.currentStreak < 7) return 'ðŸ”¥';
-    if (streakData.currentStreak < 30) return 'ðŸ’ª';
-    if (streakData.currentStreak < 100) return 'ðŸ†';
-    return 'ðŸ‘‘';
+    if (streakData.currentStreak === 0) return '🌱';
+    if (streakData.currentStreak < 7) return '🔥';
+    if (streakData.currentStreak < 30) return '💪';
+    if (streakData.currentStreak < 100) return '🏆';
+    return '👑';
   };
 
   if (isLoading) {

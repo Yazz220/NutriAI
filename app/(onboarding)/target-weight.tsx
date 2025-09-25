@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -111,40 +111,31 @@ export default function TargetWeightScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/What\'s your target weight.png')}
-            defaultSource={require('@/assets/images/nosh/What\'s your target weight.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>What's your target weight?</Text>
-            
-            <View style={styles.unitToggle}>
-              <TouchableOpacity
-                style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
-                onPress={() => setUnitSystem('metric')}
-              >
-                <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
-                  Kg
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
-                onPress={() => setUnitSystem('imperial')}
-              >
-                <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
-                  Lbs
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/What\'s your target weight.png')}
+          title="What's your target weight?"
+        >
+          <View style={styles.unitToggle}>
+            <TouchableOpacity
+              style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
+              onPress={() => setUnitSystem('metric')}
+            >
+              <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
+                Kg
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
+              onPress={() => setUnitSystem('imperial')}
+            >
+              <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
+                Lbs
+              </Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </OnboardingHeader>
 
-        <View style={styles.content}>
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.weightDisplay}>
             <Text style={styles.weightNumber}>{getDisplayWeight(targetWeight)}</Text>
             <Text style={styles.weightUnit}>{getDisplayUnit()}</Text>
@@ -174,7 +165,7 @@ export default function TargetWeightScreen() {
             <Text style={styles.recommendationDescription}>{recommendation.description}</Text>
           </View>
           {/* +/- controls removed: swipe on ruler */}
-        </View>
+        </ScrollView>
 
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
@@ -189,25 +180,13 @@ export default function TargetWeightScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg, alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
-  headerText: { flex: 1, alignItems: 'flex-start' },
-  title: { 
-    fontSize: 28, 
-    fontWeight: Typography.weights.bold, 
-    color: Colors.text, 
-    textAlign: 'left',
-    lineHeight: 36,
-    marginBottom: Spacing.md
-  },
-  noshImage: {
-    width: 112,
-    height: 112,
-  },
   unitToggle: {
     flexDirection: 'row',
     backgroundColor: Colors.lightGray,
     borderRadius: 25,
     padding: 4,
+    alignSelf: 'center',
+    marginBottom: Spacing.lg,
   },
   unitButton: {
     paddingHorizontal: 24,
@@ -225,7 +204,8 @@ const styles = StyleSheet.create({
   unitTextActive: {
     color: Colors.white,
   },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { flex: 1 },
+  contentContainer: { alignItems: 'center', paddingBottom: Spacing.xl },
   weightDisplay: { alignItems: 'center', marginBottom: Spacing.lg },
   weightNumber: { 
     fontSize: 72, 

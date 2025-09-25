@@ -36,8 +36,7 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
     entries, 
     goal, 
     getCurrentWeight, 
-    getProgressStats, 
-    getWeightTrend,
+    getProgressStats,
     addWeightEntry,
     removeWeightEntry,
   } = useWeightTracking();
@@ -50,7 +49,7 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
 
   const currentWeight = getCurrentWeight();
   const progressStats = getProgressStats();
-  const weightTrend = getWeightTrend();
+
 
   const handleLogWeight = async () => {
     const weight = parseFloat(newWeight);
@@ -380,47 +379,12 @@ export const WeightModal: React.FC<WeightModalProps> = ({ visible, onClose }) =>
             {rangeStats && (
               <View style={styles.deltaRow}>
                 <Text style={styles.deltaText}>
-                  Change: {rangeStats.delta >= 0 ? '+' : ''}{rangeStats.delta.toFixed(1)} kg Â· Avg {rangeStats.avg.toFixed(1)} kg
+                  Change: {rangeStats.delta >= 0 ? '+' : ''}{rangeStats.delta.toFixed(1)} kg · Avg {rangeStats.avg.toFixed(1)} kg
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Weight Trend Forecast */}
-          <View style={styles.section}>
-            <View style={styles.statsHeader}>
-              <TrendingDown size={20} color={Colors.primary} />
-              <Text style={styles.sectionTitle}>Weight Trend Forecast</Text>
-            </View>
-            
-            <Text style={styles.forecastSubtitle}>
-              {entries.length < 3 ? 'Log more weigh-ins to get forecast' : 'Based on 14-day weight trends'}
-            </Text>
-
-            <View style={styles.forecastStats}>
-              <View style={styles.forecastRow}>
-                <Text style={styles.forecastLabel}>Current Rate:</Text>
-                <Text style={styles.forecastValue}>
-                  {weightTrend ? `${weightTrend.ratePerWeek > 0 ? '+' : ''}${weightTrend.ratePerWeek.toFixed(1)} kg/week` : 'N/A'}
-                </Text>
-              </View>
-              
-              <View style={styles.forecastRow}>
-                <Text style={styles.forecastLabel}>Weight in 7 days</Text>
-                <Text style={styles.forecastValue}>N/A</Text>
-              </View>
-              
-              <View style={styles.forecastRow}>
-                <Text style={styles.forecastLabel}>Weight in 30 days</Text>
-                <Text style={styles.forecastValue}>N/A</Text>
-              </View>
-              
-              <View style={styles.forecastRow}>
-                <Text style={styles.forecastLabel}>Weight Target Estimate</Text>
-                <Text style={styles.forecastValue}>N/A</Text>
-              </View>
-            </View>
-          </View>
 
         </ScrollView>
       </SafeAreaView>
@@ -604,6 +568,8 @@ const styles = StyleSheet.create({
   timeframeContainer: {
     flexDirection: 'row',
     gap: 8,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     marginBottom: 16,
   },
   timeframeButton: {
@@ -677,27 +643,5 @@ const styles = StyleSheet.create({
   noDataSubtext: {
     fontSize: 14,
     color: Colors.lightText,
-  },
-  forecastSubtitle: {
-    fontSize: 12,
-    color: Colors.lightText,
-    marginBottom: 16,
-  },
-  forecastStats: {
-    gap: 12,
-  },
-  forecastRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  forecastLabel: {
-    fontSize: 14,
-    color: Colors.text,
-  },
-  forecastValue: {
-    fontSize: 14,
-    color: Colors.lightText,
-    fontWeight: Typography.weights.medium,
   },
 });

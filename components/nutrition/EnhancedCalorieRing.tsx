@@ -118,14 +118,14 @@ const CalorieBreakdownModal: React.FC<CalorieBreakdownModalProps> = ({
               
               {calories.fromLogged > 0 && (
                 <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>â€¢ From logged food</Text>
+                  <Text style={styles.breakdownSubLabel}>• From logged food</Text>
                   <Text style={styles.breakdownSubValue}>{calories.fromLogged} cal</Text>
                 </View>
               )}
               
               {calories.fromPlanned > 0 && (
                 <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownSubLabel}>â€¢ From meal plan</Text>
+                  <Text style={styles.breakdownSubLabel}>• From meal plan</Text>
                   <Text style={styles.breakdownSubValue}>{calories.fromPlanned} cal</Text>
                 </View>
               )}

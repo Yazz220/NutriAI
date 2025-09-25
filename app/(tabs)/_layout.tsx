@@ -1,7 +1,6 @@
  import React from "react";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 // Use the provided SVG filenames as currently placed under assets/icons/
 import DashboardIcon from '@/assets/icons/Dashboard.svg';
 import InventoryIcon from '@/assets/icons/Inventory.svg';
@@ -18,7 +17,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={({ route }) => ({
         sceneContainerStyle: {
-          paddingBottom: (insets?.bottom ?? 0) + 84,
+          paddingBottom: (insets?.bottom ?? 0) + 38,
           backgroundColor: Colors.background,
         },
         tabBarShowLabel: false,
@@ -32,44 +31,26 @@ export default function TabLayout() {
         tabBarStyle: [
           styles.clearBar,
           {
-            height: (insets?.bottom ?? 0) + 86,
-            paddingBottom: (insets?.bottom ?? 0) + 12,
-            paddingTop: 10,
-            backgroundColor: 'transparent',
-            borderTopWidth: 0,
-            borderTopColor: 'transparent',
+            height: (insets?.bottom ?? 0) + 37,
+            paddingBottom: insets?.bottom ?? 0,
+            paddingTop: 1,
+            backgroundColor: Colors.tabBackground,
+            borderTopWidth: 1,
+            borderTopColor: Colors.separator,
             elevation: 0,
             shadowOpacity: 0,
           },
         ],
         tabBarItemStyle: styles.tabItem,
-        // Branded rounded pill background and a subtle top fade
-        tabBarBackground: () => (
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            {/* Top fade to prevent visual overlap with content */}
-            <ExpoLinearGradient
-              colors={[Colors.background + '00', Colors.background + 'D0']}
-              style={[styles.topFade, { top: -28 }]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-            {/* Pill container */}
-            <View
-              style={[
-                styles.pill,
-                {
-                  marginBottom: (insets?.bottom ?? 0) + 12,
-                },
-              ]}
-            />
-          </View>
-        ),
+        // No custom background; use solid bar with top divider
         // Remove background so icons appear to float
         tabBarIcon: ({ focused }) => {
           const iconColor = focused ? Colors.secondary : Colors.lightText;
-          // Unified icon size for consistent layout
-          const size = focused ? 52 : 48;
-          const wrapStyle = styles.iconWrap; // no circle background on focus
+          const baseSize = Math.round(((focused ? 52 : 48) * 1.65) * 0.7 * 0.8);
+          const size = route.name === 'profile' ? Math.round(baseSize * 0.855) : baseSize;
+          // Move profile icon up slightly more for alignment
+          const translateY = route.name === 'profile' ? 6 : 9;
+          const wrapStyle = [styles.iconWrap, { transform: [{ translateY }] }];
           if (route.name === 'coach') return (
             <View style={wrapStyle}>
               <DashboardIcon width={size} height={size} color={iconColor} />
@@ -121,7 +102,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 86,
+    height: 37,
     backgroundColor: 'transparent',
     borderTopWidth: 0,
     elevation: 0,
@@ -140,12 +121,11 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     // Hit target tailored to unified icon size
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 0,
     backgroundColor: 'transparent',
   },
   activeDot: {
@@ -161,21 +141,14 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     borderColor: 'transparent',
   },
-  // fade overlay at the top of the bar to avoid visual overlap with content
-  topFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 44,
-  },
   // branded pill behind the icons
   pill: {
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 8,
-    height: 60,
-    borderRadius: 30,
+    bottom: -8,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: Colors.background,
     borderWidth: 2.5,
     borderColor: Colors.primaryDark,

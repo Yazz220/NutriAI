@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '../../supabase/functions/_shared/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { User, Target, Heart, Settings, LogOut, Scale, Ruler } from 'lucide-react-native';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const [useEnhancedProfile, setUseEnhancedProfile] = useState(true);
+  const { signOut } = useAuth();
 
   // If enhanced profile is enabled, render it instead
   if (useEnhancedProfile) {
@@ -98,7 +100,7 @@ export default function ProfileScreen() {
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: Math.max(24, (insets?.bottom ?? 0) + 24) }}
+        contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
       >
         {/* Enhanced Hero Header */}
         <ExpoLinearGradient
@@ -225,7 +227,7 @@ export default function ProfileScreen() {
           >
             <Button
               title="Sign Out"
-              onPress={() => supabase.auth.signOut()}
+              onPress={() => { signOut(); }}
               variant="outline"
               icon={<LogOut size={18} color={Colors.primary} />}
               fullWidth

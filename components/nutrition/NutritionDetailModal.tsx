@@ -199,10 +199,10 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             <View style={styles.mealsContainer}>
               {([
                 { key: 'all', label: 'All' },
-                { key: 'breakfast', label: 'ðŸ³ Breakfast' },
-                { key: 'lunch', label: 'ðŸ¥— Lunch' },
-                { key: 'dinner', label: 'ðŸ½ï¸ Dinner' },
-                { key: 'snack', label: 'ðŸŽ Snacks' },
+                { key: 'breakfast', label: '🍳 Breakfast' },
+                { key: 'lunch', label: '🥗 Lunch' },
+                { key: 'dinner', label: '🍽️ Dinner' },
+                { key: 'snack', label: '🍎 Snacks' },
               ] as { key: MealType; label: string }[]).map(({ key, label }) => (
                 <TouchableOpacity
                   key={key}
@@ -223,16 +223,16 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
             <Text style={styles.sectionTitle}>Meals (Example)</Text>
             <View style={styles.mealsContainer}>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>ðŸ³ Breakfast</Text>
+                <Text style={styles.mealChipText}>🍳 Breakfast</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>ðŸ¥— Lunch</Text>
+                <Text style={styles.mealChipText}>🥗 Lunch</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>ðŸ½ï¸ Dinner</Text>
+                <Text style={styles.mealChipText}>🍽️ Dinner</Text>
               </View>
               <View style={styles.mealChip}>
-                <Text style={styles.mealChipText}>ðŸŽ Snacks</Text>
+                <Text style={styles.mealChipText}>🍎 Snacks</Text>
               </View>
             </View>
           </View>
@@ -252,10 +252,10 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
               {/* Carbs sub-rows */}
               <View style={styles.subNutrientContainer}>
                 <NutritionRow label="Dietary Fiber" primary={
-                  nutritionFacts.carbs.fiber != null ? `${Math.round(nutritionFacts.carbs.fiber)} g` : 'â€”'
+                  nutritionFacts.carbs.fiber != null ? `${Math.round(nutritionFacts.carbs.fiber)} g` : '�'
                 } />
                 <NutritionRow label="Total Sugars" primary={
-                  nutritionFacts.carbs.sugar != null ? `${Math.round(nutritionFacts.carbs.sugar)} g` : 'â€”'
+                  nutritionFacts.carbs.sugar != null ? `${Math.round(nutritionFacts.carbs.sugar)} g` : '�'
                 } />
               </View>
 
@@ -265,34 +265,34 @@ export const NutritionDetailModal: React.FC<NutritionDetailModalProps> = ({
               </View>
               {/* Fat sub-rows (not yet tracked) */}
               <View style={styles.subNutrientContainer}>
-                <NutritionRow label="Saturated Fat" primary={'â€”'} />
-                <NutritionRow label="Monounsaturated Fat" primary={'â€”'} />
-                <NutritionRow label="Polyunsaturated Fat" primary={'â€”'} />
-                <NutritionRow label="Trans Fat" primary={'â€”'} />
+                <NutritionRow label="Saturated Fat" primary={'�'} />
+                <NutritionRow label="Monounsaturated Fat" primary={'�'} />
+                <NutritionRow label="Polyunsaturated Fat" primary={'�'} />
+                <NutritionRow label="Trans Fat" primary={'�'} />
               </View>
             </View>
 
             {/* Other nutrients */}
             <View style={styles.nutritionCard}>
               <NutritionRow label="Sodium" primary={
-                nutritionFacts.other.sodium != null ? `${Math.round(nutritionFacts.other.sodium)} mg` : 'â€”'
+                nutritionFacts.other.sodium != null ? `${Math.round(nutritionFacts.other.sodium)} mg` : '�'
               } />
-              <NutritionRow label="Cholesterol" primary={'â€”'} />
-              <NutritionRow label="Water" primary={'â€”'} />
-              <NutritionRow label="Alcohol" primary={'â€”'} />
+              <NutritionRow label="Cholesterol" primary={'�'} />
+              <NutritionRow label="Water" primary={'�'} />
+              <NutritionRow label="Alcohol" primary={'�'} />
             </View>
 
             {/* Vitamins */}
             <View style={styles.nutritionCard}>
               {['Vitamin A','Vitamin B1 (Thiamin)','Folate (B9)','Vitamin B12','Vitamin C','Vitamin D','Vitamin E','Vitamin K'].map((v) => (
-                <NutritionRow key={v} label={v} primary={'â€”'} />
+                <NutritionRow key={v} label={v} primary={'�'} />
               ))}
             </View>
 
             {/* Minerals */}
             <View style={styles.nutritionCard}>
               {['Calcium','Iron','Magnesium','Potassium','Zinc'].map((m) => (
-                <NutritionRow key={m} label={m} primary={'â€”'} />
+                <NutritionRow key={m} label={m} primary={'�'} />
               ))}
             </View>
           </View>

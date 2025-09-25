@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -64,25 +64,19 @@ export default function GenderScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/What\'s your gender.png')}
-            defaultSource={require('@/assets/images/nosh/What\'s your gender.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
+        <View style={styles.infoRow}>
+          <BehindTheQuestion
+            title="Behind the question"
+            subtitle="Gender-specific nutrition requirements..."
+            content={genderEducationalContent}
+            variant="icon"
           />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>What's your gender?</Text>
-          </View>
         </View>
-
-        <BehindTheQuestion
-          title="Behind the question"
-          subtitle="Gender-specific nutrition requirements..."
-          content={genderEducationalContent}
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/What\'s your gender.png')}
+          title="What's your gender?"
         />
+
 
         <View style={styles.content}>
           <View style={styles.genderContainer}>
@@ -98,7 +92,13 @@ export default function GenderScreen() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: selectedGender === option.id }}
               >
-                <View style={styles.genderIcon}>{option.icon}</View>
+                <View style={styles.genderIcon}>
+                  {typeof option.icon === 'string' ? (
+                    <Text style={styles.genderIconText}>{option.icon}</Text>
+                  ) : (
+                    option.icon
+                  )}
+                </View>
                 <Text style={[
                   styles.genderLabel,
                   selectedGender === option.id && styles.selectedGenderLabel
@@ -141,26 +141,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    marginBottom: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    lineHeight: 36,
-    textAlign: 'left',
-  },
-  noshImage: {
-    width: 108,
-    height: 108,
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -187,8 +167,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + '10',
   },
   genderIcon: {
-    fontSize: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '06',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: Spacing.md,
+  },
+  genderIconText: {
+    fontSize: 18,
   },
   genderLabel: {
     fontSize: 18,
@@ -217,5 +205,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
   },
+  infoRow: { alignSelf: 'flex-end', marginBottom: Spacing.sm },
   buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });

@@ -71,7 +71,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     }));
   }, [externalRecipes, trendingRecipes, inventory, mergeUniqueRecipes]);
 
-  // No client-side filters â€” placeholder for future filters
+  // No client-side filters — placeholder for future filters
   const filteredRecipes = useMemo(() => enhancedRecipes, [enhancedRecipes]);
 
   // Expiring section removed

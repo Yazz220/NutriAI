@@ -131,7 +131,7 @@ export const RecipeAvailabilityCard: React.FC<RecipeAvailabilityCardProps> = ({
           <View style={styles.missingList}>
             {availability.missingIngredients.slice(0, 3).map((ingredient, index) => (
               <Text key={index} style={styles.missingItem}>
-                â€¢ {ingredient.name} ({ingredient.requiredQuantity} {ingredient.requiredUnit})
+                • {ingredient.name} ({ingredient.requiredQuantity} {ingredient.requiredUnit})
               </Text>
             ))}
             {availability.missingIngredients.length > 3 && (

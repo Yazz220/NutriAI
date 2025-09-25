@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 
 import { DietaryRestriction } from '@/types/index';
 import { Colors } from '@/constants/colors';
@@ -138,16 +138,10 @@ export default function DietaryPreferencesScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/What do you like to eat.png')}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-          <Text style={styles.title}>What do you like?</Text>
-        </View>
-
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/What do you like to eat.png')}
+          title="What do you like?"
+        />
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.gridHeader}>
             <Text style={styles.gridSubtitle}>Select any that apply</Text>
@@ -201,22 +195,6 @@ export default function DietaryPreferencesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: 8,
-    lineHeight: 36,
-  },
-  noshImage: {
-    width: 112,
-    height: 112,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
   },
   subtitle: {
     fontSize: 16,
@@ -281,3 +259,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

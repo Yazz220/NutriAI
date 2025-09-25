@@ -92,7 +92,7 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
             </Text>
             <View style={styles.bullets}>
               {['diabetes','arthritis','liver disease','several types of cancer (such as those of the breast, colon, and prostate)','high blood pressure (hypertension)','high cholesterol','sleep apnea'].map((t) => (
-                <Text key={t} style={styles.bulletItem}>{`â€¢ ${t}`}</Text>
+                <Text key={t} style={styles.bulletItem}>{`• ${t}`}</Text>
               ))}
             </View>
           </View>
@@ -116,7 +116,7 @@ export const BMIModal: React.FC<BMIModalProps> = ({ visible, onClose }) => {
             accessibilityLabel="Open CDC BMI information"
             style={styles.sourceLink}
           >
-            <Text style={styles.sourceText}>Source: CDC â€” About Adult BMI</Text>
+            <Text style={styles.sourceText}>Source: CDC — About Adult BMI</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

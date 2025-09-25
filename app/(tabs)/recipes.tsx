@@ -358,7 +358,11 @@ export default function RecipesScreen() {
 
       <ScreenHeader
         title="Recipes"
-        icon={<RecipePageIcon width={28} height={28} color={Colors.text} />}
+        icon={
+          <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+            <RecipePageIcon width={84} height={84} color={Colors.text} />
+          </View>
+        }
       />
 
       {/* Segmented control for Recipes tabs (single track + sliding indicator) */}
@@ -498,7 +502,10 @@ export default function RecipesScreen() {
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
-            contentContainerStyle={styles.listContentContainer}
+            contentContainerStyle={[
+              styles.listContentContainer,
+              { paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) },
+            ]}
           />
         </>
       )}
@@ -554,7 +561,7 @@ export default function RecipesScreen() {
         <TouchableOpacity
           style={[
             styles.fab,
-            { bottom: Math.max(20, (insets?.bottom ?? 0) + 56 + 20) },
+            { bottom: Math.max(20, (insets?.bottom ?? 0) + 118 + 20) },
           ]}
           onPress={() => {
             setNewFolderId(activeFolderId);

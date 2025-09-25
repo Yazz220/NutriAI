@@ -4,6 +4,7 @@ export { OnboardingButton } from './OnboardingButton';
 export { OptionCard } from './OptionCard';
 export { SimpleOptionCard } from './SimpleOptionCard';
 export { BehindTheQuestion } from './BehindTheQuestion';
+export { default as OnboardingHeader } from './OnboardingHeader';
 export { AgeSlider } from './AgeSlider';
 export { HeightInput, WeightInput } from './HeightWeightInput';
 export { ActivityLevelSelector } from './ActivityLevelSelector';

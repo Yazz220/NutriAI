@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 
 import { ActivityLevelSelector, ActivityLevel } from '@/components/onboarding/ActivityLevelSelector';
 import { Colors } from '@/constants/colors';
@@ -56,24 +56,17 @@ export default function ActivityLevelScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/How often do you work out.png')}
-            defaultSource={require('@/assets/images/nosh/How often do you work out.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
+        <View style={styles.infoRow}>
+          <BehindTheQuestion
+            title="Behind the question"
+            subtitle="Activity-based calorie and nutrition adjustments..."
+            content={activityLevelEducationalContent}
+            variant="icon"
           />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>What's your activity level?</Text>
-          </View>
         </View>
-
-        <BehindTheQuestion
-          title="Behind the question"
-          subtitle="Activity-based calorie and nutrition adjustments..."
-          content={activityLevelEducationalContent}
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/How often do you work out.png')}
+          title="What's your activity level?"
         />
 
         <View style={styles.content}>
@@ -116,26 +109,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    marginBottom: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    lineHeight: 36,
-    textAlign: 'left',
-  },
-  noshImage: {
-    width: 108,
-    height: 108,
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
@@ -156,6 +129,10 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
+  },
+  infoRow: {
+    alignSelf: 'flex-end',
+    marginBottom: Spacing.sm,
   },
   buttonRow: {
     flexDirection: 'row',

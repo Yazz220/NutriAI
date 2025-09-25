@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -49,9 +49,10 @@ export default function WeightScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>What's your current weight?</Text>
-          
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/What is your current weight.png')}
+          title="What's your current weight?"
+        >
           <View style={styles.unitToggle}>
             <TouchableOpacity
               style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
@@ -70,9 +71,9 @@ export default function WeightScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </OnboardingHeader>
 
-        <View style={styles.content}>
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.weightDisplay}>
             <Text style={styles.weightNumber}>{getDisplayWeight()}</Text>
             <Text style={styles.weightUnit}>{getDisplayUnit()}</Text>
@@ -90,7 +91,7 @@ export default function WeightScreen() {
           </View>
 
           {/* +/- controls removed: swipe on ruler */}
-        </View>
+        </ScrollView>
 
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
@@ -105,20 +106,13 @@ export default function WeightScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.xl, alignItems: 'center' },
-  title: { 
-    fontSize: 28, 
-    fontWeight: Typography.weights.bold, 
-    color: Colors.text, 
-    textAlign: 'center',
-    lineHeight: 36,
-    marginBottom: Spacing.lg
-  },
   unitToggle: {
     flexDirection: 'row',
     backgroundColor: Colors.lightGray,
     borderRadius: 25,
     padding: 4,
+    alignSelf: 'center',
+    marginBottom: Spacing.lg,
   },
   unitButton: {
     paddingHorizontal: 24,
@@ -136,8 +130,9 @@ const styles = StyleSheet.create({
   unitTextActive: {
     color: Colors.white,
   },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  weightDisplay: { alignItems: 'center', marginBottom: Spacing.xl * 2 },
+  content: { flex: 1 },
+  contentContainer: { alignItems: 'center', paddingBottom: Spacing.xl },
+  weightDisplay: { alignItems: 'center', marginBottom: Spacing.lg },
   weightNumber: { 
     fontSize: 72, 
     fontWeight: Typography.weights.bold, 

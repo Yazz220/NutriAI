@@ -6,6 +6,7 @@ import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/comp
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import { APP_NAME, NOSH_HEADER_SUBTITLE } from '@/constants/brand';
+import { NOSH_WELCOME_SCALE } from '@/constants/onboarding';
 
 export default function WelcomeScreen() {
   const { updateOnboardingData, nextStep } = useOnboarding();
@@ -16,7 +17,10 @@ export default function WelcomeScreen() {
   
   // Responsive hero size for the GIF (very large)
   const windowW = Dimensions.get('window').width;
-  const heroSize = Math.min(windowW * 0.85, 360); // up to 360px, ~85% of width
+  const windowH = Dimensions.get('window').height;
+  const heroBase = Math.min(windowW * 0.95, 440);
+  const heroSize = heroBase * NOSH_WELCOME_SCALE * 2.7; // doubled from previous enlarged size
+  const heroOffset = heroSize * 0.3; // lower position by ~30%
 
   useEffect(() => {
     // Staggered entrance animations
@@ -46,7 +50,7 @@ export default function WelcomeScreen() {
               styles.logoContainer,
               { width: heroSize, height: heroSize },
               {
-                transform: [{ scale: logoScale }],
+                transform: [{ scale: logoScale }, { translateY: heroOffset }],
                 opacity: logoOpacity
               }
             ]}
@@ -81,7 +85,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, VerticalRulerPicker, useOnboarding } from '@/components/onboarding';
-import NoshHeightSvg from '@/assets/images/nosh/whats-your-height.svg';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, VerticalRulerPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -61,37 +60,29 @@ export default function HeightScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/What\'s your height.png')}
-            defaultSource={require('@/assets/images/nosh/What\'s your height.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Your height</Text>
-            <View style={styles.unitToggle}>
-              <TouchableOpacity
-                style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
-                onPress={() => setUnitSystem('metric')}
-              >
-                <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
-                  Cm
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
-                onPress={() => setUnitSystem('imperial')}
-              >
-                <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
-                  Ft
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/What\'s your height.png')}
+          title="Your height"
+        >
+          <View style={styles.unitToggle}>
+            <TouchableOpacity
+              style={[styles.unitButton, unitSystem === 'metric' && styles.unitButtonActive]}
+              onPress={() => setUnitSystem('metric')}
+            >
+              <Text style={[styles.unitText, unitSystem === 'metric' && styles.unitTextActive]}>
+                Cm
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.unitButton, unitSystem === 'imperial' && styles.unitButtonActive]}
+              onPress={() => setUnitSystem('imperial')}
+            >
+              <Text style={[styles.unitText, unitSystem === 'imperial' && styles.unitTextActive]}>
+                Ft
+              </Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </OnboardingHeader>
 
         <View style={styles.contentRow}>
           <View style={styles.rulerColumn}>
@@ -126,24 +117,12 @@ export default function HeightScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.xl, alignItems: 'center', flexDirection: 'row', gap: Spacing.md },
-  headerText: { flex: 1 },
-  noshImage: { width: 108, height: 108 },
-  title: { 
-    fontSize: 22, 
-    fontWeight: Typography.weights.bold, 
-    color: Colors.text, 
-    textAlign: 'left',
-    lineHeight: 28,
-    marginBottom: Spacing.sm,
-    flexShrink: 1,
-  },
   unitToggle: {
     flexDirection: 'row',
     backgroundColor: Colors.lightGray,
     borderRadius: 25,
     padding: 4,
-    alignSelf: 'flex-start', // Prevent extending to full width
+    alignSelf: 'center',
   },
   unitButton: {
     paddingHorizontal: 24,

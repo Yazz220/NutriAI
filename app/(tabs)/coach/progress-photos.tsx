@@ -94,7 +94,7 @@ export default function ProgressPhotosScreen() {
       <Images size={80} color={Colors.border} />
       <Text style={styles.emptyTitle}>You don't have any progress photos yet</Text>
       <Text style={styles.emptySubtitle}>
-        The Photo Gallery helps you visualize your progress toward your goal â€” sometimes victory is seen in a better look and
+        The Photo Gallery helps you visualize your progress toward your goal — sometimes victory is seen in a better look and
         improved body composition, not just on the scale.
       </Text>
     </View>

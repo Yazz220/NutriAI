@@ -152,20 +152,20 @@ export const MissingIngredientsModal: React.FC<MissingIngredientsModalProps> = (
 
           {/* Shopping Tips */}
           <View style={styles.tipsSection}>
-            <Text style={styles.tipsTitle}>ðŸ’¡ Shopping Tips</Text>
+            <Text style={styles.tipsTitle}>💡 Shopping Tips</Text>
             <View style={styles.tipsList}>
               <Text style={styles.tipText}>
-                â€¢ Check your pantry again before shopping - you might have missed something
+                • Check your pantry again before shopping - you might have missed something
               </Text>
               <Text style={styles.tipText}>
-                â€¢ Look for substitutes if certain ingredients are expensive or unavailable
+                • Look for substitutes if certain ingredients are expensive or unavailable
               </Text>
               <Text style={styles.tipText}>
-                â€¢ Buy in bulk for pantry staples to save money on future recipes
+                • Buy in bulk for pantry staples to save money on future recipes
               </Text>
               {partiallyAvailable.length > 0 && (
                 <Text style={styles.tipText}>
-                  â€¢ You already have some ingredients - just need to top up quantities
+                  • You already have some ingredients - just need to top up quantities
                 </Text>
               )}
             </View>

@@ -10,21 +10,20 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Image,
   ViewStyle,
 } from 'react-native';
 import {
   OnboardingScreenWrapper,
-  OnboardingButton,
   SimpleOptionCard,
   BehindTheQuestion,
+  OnboardingButton,
+  OnboardingHeader,
   useOnboarding,
 } from '@/components/onboarding';
 
 import { HealthGoal, GoalDirection, healthGoalToProfileMapping, OnboardingCustomGoal } from '@/types/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
-
 const healthGoalOptions: Array<{ id: HealthGoal; title: string }> = [
   { id: 'lose-weight', title: 'Lose weight' },
   { id: 'maintain-weight', title: 'Maintain weight' },
@@ -200,34 +199,31 @@ export default function HealthGoalsScreen() {
 
   const currentCustomGoal = onboardingData.customGoal;
 
+
+
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              opacity: headerOpacity,
-              transform: [{ translateY: headerTranslateY }],
-            },
-          ]}
-        >
-          <Image
-            source={require('@/assets/images/nosh/What\'s your goal.png')}
-            defaultSource={require('@/assets/images/nosh/What\'s your goal.png')}
-            fadeDuration={0}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
+        <View style={styles.infoRow}>
+          <BehindTheQuestion
+            title="Behind the question"
+            subtitle="Personalized nutrition plans based on your goals..."
+            content={educationalContent}
+            variant="icon"
           />
-          <Text numberOfLines={2} style={styles.title}>What goal do you have in mind?</Text>
+        </View>
+        <Animated.View
+          style={{
+            opacity: headerOpacity,
+            transform: [{ translateY: headerTranslateY }],
+          }}
+        >
+          <OnboardingHeader
+            imageSource={require('@/assets/images/nosh/What\'s your goal.png')}
+            title="What goal do you have in mind?"
+          />
         </Animated.View>
 
-        <BehindTheQuestion
-          title="Behind the question"
-          subtitle="Personalized nutrition plans based on your goals..."
-          content={educationalContent}
-        />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {goalCards.map((option, index) => {
@@ -383,21 +379,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    marginBottom: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: 0,
-    lineHeight: 28,
-    flexShrink: 1,
-    flexWrap: 'wrap',
-  },
   subtitle: {
     fontSize: 16,
     color: Colors.lightText,
@@ -407,6 +388,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+
   errorContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -468,11 +450,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.lightText,
   },
-  noshImage: {
-    alignSelf: 'center',
-    marginBottom: 0,
-    width: 112,
-    height: 112,
+  infoRow: {
+    alignSelf: 'flex-end',
+    marginBottom: Spacing.sm,
   },
   modalBackdrop: {
     flex: 1,
@@ -566,3 +546,4 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
 });
+

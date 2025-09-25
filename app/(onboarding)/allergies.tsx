@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
+ 
 
 export default function AllergiesScreen() {
   const { onboardingData, updateOnboardingData, nextStep, previousStep } = useOnboarding();
@@ -31,17 +32,10 @@ export default function AllergiesScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('@/assets/images/nosh/Do you have any allergies.png')}
-            style={styles.noshImage}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Any food allergies?</Text>
-          </View>
-        </View>
+        <OnboardingHeader
+          imageSource={require('@/assets/images/nosh/Do you have any allergies.png')}
+          title="Any food allergies?"
+        />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.inputRow}>
@@ -88,13 +82,6 @@ export default function AllergiesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { marginBottom: Spacing.lg, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  headerText: { flex: 1 },
-  title: { fontSize: 28, fontWeight: Typography.weights.bold, color: Colors.text, lineHeight: 36, textAlign: 'left' },
-  noshImage: {
-    width: 108,
-    height: 108,
-  },
   content: { flex: 1 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   textInput: {
@@ -128,3 +115,4 @@ const styles = StyleSheet.create({
   footer: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
   buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });
+
