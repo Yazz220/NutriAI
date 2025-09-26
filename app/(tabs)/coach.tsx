@@ -32,6 +32,7 @@ import { StreakCard } from '@/components/nutrition/StreakCard';
 import { useCoachChat } from '@/hooks/useCoachChat';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
+import { useWeightTracking } from '@/hooks/useWeightTracking';
 import { MealPlanModal } from '@/components/MealPlanModal';
 import { MealType } from '@/types';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
@@ -40,7 +41,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { WeightCard } from '@/components/progress/WeightCard';
-import { WeightModal } from '@/components/progress/WeightModal';
+import { WeightProgressChartCard } from '@/components/progress/WeightProgressChartCard';
+import { QuickWeightUpdateModal } from '@/components/progress/QuickWeightUpdateModal';
 import { MeasurementCard } from '@/components/progress/MeasurementCard';
 import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { BMICard } from '@/components/progress/BMICard';
@@ -72,6 +74,7 @@ export default function CoachScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { loggedMeals, goals, getDailyProgress, calculatedGoals, canCalculateFromProfile, logPlannedMeal, removeLoggedMeal, logCustomMeal, weeklyTrends } = useNutritionWithMealPlan();
+  const weightTracking = useWeightTracking();
   const [showTrendsModal, setShowTrendsModal] = useState(false);
   const [trendsInitialPeriod, setTrendsInitialPeriod] = useState<'7d'|'30d'|'90d'>('7d');
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
@@ -103,7 +106,7 @@ export default function CoachScreen() {
   const WINDOW_HEIGHT = Dimensions.get('window').height;
   const calendarHeaderOffset = Math.round(WINDOW_HEIGHT * 0.10);
   const calendarBelowOffset = Math.round(WINDOW_HEIGHT * 0.05);
-  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showQuickWeightModal, setShowQuickWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [showBmiModal, setShowBmiModal] = useState(false);
   const [imageToAnalyze, setImageToAnalyze] = useState<string | null>(null);
@@ -656,7 +659,8 @@ export default function CoachScreen() {
           contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + 56 + 24, paddingTop: 16 }}
         >
           {/* Weight Card - full width */}
-          <WeightCard onPress={() => setShowWeightModal(true)} />
+          <WeightCard tracking={weightTracking} onUpdateWeight={() => setShowQuickWeightModal(true)} />
+          <WeightProgressChartCard tracking={weightTracking} />
 
           {/* Enhanced Total Calories Card */}
           <EnhancedTotalCaloriesCard onOpenPeriod={(p) => {
@@ -688,8 +692,8 @@ export default function CoachScreen() {
         </ScrollView>
       )}
 
-      {/* Weight Modal */}
-      <WeightModal visible={showWeightModal} onClose={() => setShowWeightModal(false)} />
+      {/* Weight Quick Update Modal */}
+      <QuickWeightUpdateModal tracking={weightTracking} visible={showQuickWeightModal} onClose={() => setShowQuickWeightModal(false)} />
 
       {/* Measurement Modal */}
       <MeasurementModal visible={showMeasurementModal} onClose={() => setShowMeasurementModal(false)} />
@@ -786,7 +790,7 @@ export default function CoachScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Weekday Row (Sunâ€“Sat three-letter abbreviations) */}
+          {/* Weekday Row (Sun-Sat three-letter abbreviations) */}
           <View style={[styles.calendarWeekdaysRow, { marginTop: calendarBelowOffset }] }>
             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
               <Text key={d} style={styles.calendarWeekdayText} numberOfLines={1} adjustsFontSizeToFit>{d}</Text>

@@ -159,20 +159,6 @@ export const EnhancedTotalCaloriesCard: React.FC<EnhancedTotalCaloriesCardProps>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.title}>Calorie Analytics</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={[styles.chartTypeButton, chartType === 'bar' && styles.chartTypeButtonActive]}
-            onPress={() => setChartType('bar')}
-          >
-            <BarChart3 size={16} color={chartType === 'bar' ? Colors.white : Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.chartTypeButton, chartType === 'line' && styles.chartTypeButtonActive]}
-            onPress={() => setChartType('line')}
-          >
-            <LineChartIcon size={16} color={chartType === 'line' ? Colors.white : Colors.text} />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Period Selector */}
@@ -255,8 +241,9 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   headerRow: {
+    position: 'relative',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -264,6 +251,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
+    textAlign: 'center',
   },
   headerActions: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TextInput } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { RecipeNutritionCard } from '@/components/recipe-detail/RecipeNutritionCard';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
@@ -212,6 +213,24 @@ export default function CaloriePlanScreen() {
     nextStep();
   };
 
+  const renderNutritionCard = (title: string, calories?: number | null, macros?: RecommendationSummary['macros'] | null) => {
+    const hasData = typeof calories === 'number' && Number.isFinite(calories) && !!macros;
+    return (
+      <View style={styles.recommendationCard}>
+        <Text style={styles.cardHeading}>{title}</Text>
+        <RecipeNutritionCard
+          title=""
+          calories={hasData ? calories! : 0}
+          protein={hasData ? macros!.protein : 0}
+          carbs={hasData ? macros!.carbs : 0}
+          fats={hasData ? macros!.fats : 0}
+        />
+        {!hasData ? (
+          <Text style={styles.cardHint}>Complete your basic profile to calculate a personalized target.</Text>
+        ) : null}
+      </View>
+    );
+  };
   const handleBack = () => {
     previousStep();
   };
@@ -225,33 +244,7 @@ export default function CaloriePlanScreen() {
             We start with a science-backed recommendation based on your profile. Switch to a custom value if you already know what works for you.
           </Text>
 
-          <View style={styles.recommendationCard}>
-            <Text style={styles.cardHeading}>Recommended target</Text>
-            <Text style={styles.calorieValue}>
-              {recommendedCalories ? `${recommendedCalories.toLocaleString()} kcal` : '--'}
-            </Text>
-            <View style={styles.macrosRow}>
-              <View style={styles.macroColumn}>
-                <Text style={styles.macroLabel}>Protein</Text>
-                <Text style={styles.macroValue}>
-                  {recommendedMacros ? `${recommendedMacros.protein} g` : '--'}
-                </Text>
-              </View>
-              <View style={styles.macroColumn}>
-                <Text style={styles.macroLabel}>Carbs</Text>
-                <Text style={styles.macroValue}>
-                  {recommendedMacros ? `${recommendedMacros.carbs} g` : '--'}
-                </Text>
-              </View>
-              <View style={styles.macroColumn}>
-                <Text style={styles.macroLabel}>Fats</Text>
-                <Text style={styles.macroValue}>
-                  {recommendedMacros ? `${recommendedMacros.fats} g` : '--'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
+          {renderNutritionCard('Recommended target', recommendedCalories, recommendedMacros)}
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
               <Text style={styles.toggleTitle}>Use a custom calorie goal</Text>
@@ -276,25 +269,17 @@ export default function CaloriePlanScreen() {
               <Text style={styles.customHint}>
                 We will adjust macros automatically based on this target.
               </Text>
-              {storedCustomCalories && storedCustomMacros && (
-                <View style={styles.customMacros}>
-                  <Text style={styles.customMacrosHeading}>Macro breakdown</Text>
-                  <View style={styles.macrosRow}>
-                    <View style={styles.macroColumn}>
-                      <Text style={styles.macroLabel}>Protein</Text>
-                      <Text style={styles.macroValue}>{storedCustomMacros.protein} g</Text>
-                    </View>
-                    <View style={styles.macroColumn}>
-                      <Text style={styles.macroLabel}>Carbs</Text>
-                      <Text style={styles.macroValue}>{storedCustomMacros.carbs} g</Text>
-                    </View>
-                    <View style={styles.macroColumn}>
-                      <Text style={styles.macroLabel}>Fats</Text>
-                      <Text style={styles.macroValue}>{storedCustomMacros.fats} g</Text>
-                    </View>
-                  </View>
+              {storedCustomCalories && storedCustomMacros ? (
+                <View style={styles.customRingWrapper}>
+                  <RecipeNutritionCard
+                    title="Custom target"
+                    calories={storedCustomCalories}
+                    protein={storedCustomMacros.protein}
+                    carbs={storedCustomMacros.carbs}
+                    fats={storedCustomMacros.fats}
+                  />
                 </View>
-              )}
+              ) : null}
             </View>
           )}
 
@@ -351,43 +336,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     lineHeight: 20,
   },
-  recommendationCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Spacing.lg,
-  },
-  cardHeading: {
-    fontSize: 14,
-    color: Colors.lightText,
-    marginBottom: Spacing.xs,
-  },
-  calorieValue: {
-    fontSize: 32,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  macrosRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  macroColumn: {
-    flex: 1,
-  },
-  macroLabel: {
-    fontSize: 12,
-    color: Colors.lightText,
-  },
-  macroValue: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginTop: Spacing.xs,
-  },
+  recommendationCard: { marginBottom: Spacing.lg },
+  cardHeading: { fontSize: 16, fontWeight: Typography.weights.semibold, color: Colors.text, marginBottom: Spacing.sm },
+  cardHint: { fontSize: 13, color: Colors.lightText, marginTop: Spacing.sm },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,17 +392,7 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     marginTop: Spacing.sm,
   },
-  customMacros: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  customMacrosHeading: {
-    fontSize: 13,
-    color: Colors.lightText,
-    marginBottom: Spacing.sm,
-  },
+  customRingWrapper: { marginTop: Spacing.lg },
   activeSummary: {
     padding: Spacing.md,
     borderRadius: 12,

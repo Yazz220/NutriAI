@@ -49,7 +49,7 @@ export function VerticalNumberPicker({
   };
 
   return (
-    <View style={[styles.container, { height: itemHeight * 5 }]}> {/* 5 visible items */}
+    <View style={[styles.container, { height: itemHeight * 5 }]}> 
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -64,7 +64,7 @@ export function VerticalNumberPicker({
           const num = min + i;
           const isSelected = num === value;
           return (
-            <View key={num} style={[styles.item, { height: itemHeight }]}> 
+            <View key={String(num)} style={[styles.item, { height: itemHeight }]}> 
               <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
                 {num}
               </Text>

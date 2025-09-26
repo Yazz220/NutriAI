@@ -23,6 +23,7 @@ import { HealthGoalsSection } from './HealthGoalsSection';
 import { CookingPreferencesSection } from './CookingPreferencesSection';
 import { Colors } from '../../constants/colors';
 import { Spacing, Typography, Radii, Shadows } from '../../constants/spacing';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
 
@@ -105,7 +106,7 @@ export default function EnhancedProfileScreen() {
       </View>
 
       {/* Goals Card */}
-      <View style={styles.goalsCard}>
+      <ProgressCardContainer style={styles.goalsCard} padding={Spacing.lg}>
         <View style={styles.goalsHeader}>
           <Target size={20} color={Colors.text} />
           <Text style={styles.goalsTitle}>Goals</Text>
@@ -128,10 +129,10 @@ export default function EnhancedProfileScreen() {
         >
           <Text style={styles.manageGoalsText}>Manage goals</Text>
         </TouchableOpacity>
-      </View>
+      </ProgressCardContainer>
 
       {/* Menu Items */}
-      <View style={styles.menuSection}>
+      <ProgressCardContainer style={styles.menuSection} padding={0}>
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => { setSheetSection('personal'); setSheetVisible(true); }}
@@ -164,10 +165,10 @@ export default function EnhancedProfileScreen() {
           <Text style={styles.menuText}>Cooking Preferences</Text>
           <ChevronRight size={20} color={Colors.lightText} />
         </TouchableOpacity>
-      </View>
+      </ProgressCardContainer>
 
       {/* Account Section */}
-      <View style={styles.accountSection}>
+      <ProgressCardContainer style={styles.accountSection} padding={0}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <View style={styles.logoutIconContainer}>
             <LogOut size={20} color={Colors.error} />
@@ -175,7 +176,7 @@ export default function EnhancedProfileScreen() {
           <Text style={styles.logoutText}>Sign Out</Text>
           <ChevronRight size={20} color={Colors.lightText} />
         </TouchableOpacity>
-      </View>
+      </ProgressCardContainer>
 
       <View style={styles.bottomSpacer} />
     </ScrollView>
@@ -338,12 +339,9 @@ const styles = StyleSheet.create({
   
   // Goals card styles
   goalsCard: {
-    backgroundColor: Colors.card,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    ...Shadows.sm,
+    borderRadius: 20,
   },
   goalsHeader: {
     flexDirection: 'row',
@@ -404,11 +402,9 @@ const styles = StyleSheet.create({
   
   // Account section styles
   accountSection: {
-    backgroundColor: Colors.card,
     marginHorizontal: Spacing.lg,
-    borderRadius: Radii.lg,
+    borderRadius: 20,
     marginBottom: Spacing.lg,
-    ...Shadows.sm,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -575,11 +571,9 @@ const styles = StyleSheet.create({
   
   // Menu Section
   menuSection: {
-    backgroundColor: Colors.card,
     marginHorizontal: Spacing.lg,
-    borderRadius: Radii.lg,
+    borderRadius: 20,
     marginBottom: Spacing.lg,
-    ...Shadows.sm,
   },
   menuItem: {
     flexDirection: 'row',

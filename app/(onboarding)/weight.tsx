@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, InteractionManager } from 'react-native';
 import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -10,10 +10,29 @@ export default function WeightScreen() {
   const { onboardingData, updateOnboardingData, nextStep, previousStep } = useOnboarding();
   const [weight, setWeight] = useState(onboardingData.basicProfile.weight || 70);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+  // Defer mounting heavy components to avoid blocking initial paint of the character image
+  const [uiReady, setUiReady] = useState(false);
+  // Stage the rest of the page content one frame after mount so the header paints first
+  const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
-    updateOnboardingData('basicProfile', { weight });
+    const t = setTimeout(() => {
+      updateOnboardingData('basicProfile', { weight });
+    }, 120);
+    return () => clearTimeout(t);
   }, [weight]);
+
+  // Allow the header image to render instantly; mount ruler after initial interactions
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setUiReady(true));
+    return () => task.cancel?.();
+  }, []);
+
+  // Render heavy content (scroll + footer) after first frame to prioritize header image
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setContentReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const kgToLbs = (kg: number) => kg * 2.20462;
   const lbsToKg = (lbs: number) => lbs / 2.20462;
@@ -51,7 +70,11 @@ export default function WeightScreen() {
       <View style={styles.container}>
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/What is your current weight.png')}
+          // Using same asset as defaultSource helps avoid fade-on-decode on some platforms
+          defaultSource={require('@/assets/images/nosh/What is your current weight.png')}
           title="What's your current weight?"
+          imageTranslateExtraRatio={0.15}
+          imageVisualExtraScale={1.07}
         >
           <View style={styles.unitToggle}>
             <TouchableOpacity
@@ -73,32 +96,41 @@ export default function WeightScreen() {
           </View>
         </OnboardingHeader>
 
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-          <View style={styles.weightDisplay}>
-            <Text style={styles.weightNumber}>{getDisplayWeight()}</Text>
-            <Text style={styles.weightUnit}>{getDisplayUnit()}</Text>
-          </View>
+        {contentReady && (
+          <>
+            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.weightDisplay}>
+                <Text style={styles.weightNumber}>{getDisplayWeight()}</Text>
+                <Text style={styles.weightUnit}>{getDisplayUnit()}</Text>
+              </View>
 
-          <View style={styles.rulerWrapper}>
-            <HorizontalRulerPicker
-              min={displayMin}
-              max={displayMax}
-              step={step}
-              value={displayValue}
-              onChange={handleRulerChange}
-              majorTickInterval={unitSystem === 'metric' ? 5 : 10}
-            />
-          </View>
+              <View style={styles.rulerWrapper}>
+                {uiReady ? (
+                  <HorizontalRulerPicker
+                    min={displayMin}
+                    max={displayMax}
+                    step={step}
+                    value={displayValue}
+                    onChange={handleRulerChange}
+                    majorTickInterval={unitSystem === 'metric' ? 5 : 10}
+                  />
+                ) : (
+                  // lightweight placeholder to stabilize layout while ruler mounts
+                  <View style={{ height: 80 }} />
+                )}
+              </View>
 
-          {/* +/- controls removed: swipe on ruler */}
-        </ScrollView>
+              {/* +/- controls removed: swipe on ruler */}
+            </ScrollView>
 
-        <View style={styles.footer}>
-          <View style={styles.buttonRow}>
-            <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
-          </View>
-        </View>
+            <View style={styles.footer}>
+              <View style={styles.buttonRow}>
+                <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
+                <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
+              </View>
+            </View>
+          </>
+        )}
       </View>
     </OnboardingScreenWrapper>
   );

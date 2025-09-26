@@ -209,3 +209,5 @@ export const useWeightTracking = () => {
     getWeightTrend,
   };
 };
+
+export type WeightTrackingHandle = ReturnType<typeof useWeightTracking>;

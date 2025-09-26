@@ -221,6 +221,7 @@ export default function HealthGoalsScreen() {
           <OnboardingHeader
             imageSource={require('@/assets/images/nosh/What\'s your goal.png')}
             title="What goal do you have in mind?"
+            imageTranslateExtraRatio={0.10}
           />
         </Animated.View>
 

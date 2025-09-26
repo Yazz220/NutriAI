@@ -114,6 +114,8 @@ export default function TargetWeightScreen() {
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/What\'s your target weight.png')}
           title="What's your target weight?"
+          imageTranslateExtraRatio={0.15}
+          imageVisualExtraScale={1.07}
         >
           <View style={styles.unitToggle}>
             <TouchableOpacity

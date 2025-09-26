@@ -67,6 +67,7 @@ export default function ActivityLevelScreen() {
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/How often do you work out.png')}
           title="What's your activity level?"
+          imageTranslateExtraRatio={0.10}
         />
 
         <View style={styles.content}>

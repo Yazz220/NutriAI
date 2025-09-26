@@ -1,9 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { Brain } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { APP_NAME } from '@/constants/brand';
-import CoachIcon from '@/assets/icons/coach.svg';
+import NoshIconCircle from '@/assets/images/nosh/Nosh Icon circle.svg';
 
 interface EnhancedFloatingChatButtonProps {
   onPress: () => void;
@@ -175,13 +174,7 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
           accessibilityHint="Tap to chat with your nutrition coach"
         >
           <View style={styles.transparentBackground}>
-            <View style={{ width: 72, height: 72, justifyContent: 'center', alignItems: 'center' }}>
-              {isTyping ? (
-                <Brain size={136} color={Colors.primary} weight="fill" style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
-              ) : (
-                <CoachIcon width={136} height={136} color={Colors.primary} style={{ position: 'absolute', left: -(136 - 72) / 2, top: -(136 - 72) / 2 }} />
-              )}
-            </View>
+            <NoshIconCircle width={72} height={72} />
           </View>
 
           {/* Unread indicator */}

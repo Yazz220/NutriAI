@@ -141,6 +141,7 @@ export default function DietaryPreferencesScreen() {
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/What do you like to eat.png')}
           title="What do you like?"
+          imageTranslateExtraRatio={0.20}
         />
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.gridHeader}>

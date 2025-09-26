@@ -35,6 +35,8 @@ export default function AllergiesScreen() {
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/Do you have any allergies.png')}
           title="Any food allergies?"
+          imageTranslateExtraRatio={0.20}
+          imageVisualExtraScale={1.10}
         />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

@@ -1,6 +1,7 @@
+import HealthConcernsImage from '@/assets/images/nosh/Health Concerns.svg';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -36,9 +37,14 @@ export default function HealthConcernsScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Any health concerns?</Text>
-        </View>
+        <OnboardingHeader
+          title="Any health concerns?"
+          renderImage={(size) => (
+            <HealthConcernsImage width={size} height={size} />
+          )}
+          imageTranslateExtraRatio={0.20}
+          imageVisualExtraScale={1.10}
+        />
 
         <BehindTheQuestion
           title="Behind the question"

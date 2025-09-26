@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
@@ -10,7 +10,9 @@ interface RecipeNutritionCardProps {
   carbs?: number;
   fats?: number;
   servings?: number;
+  title?: string;
 }
+
 
 export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   calories = 0,
@@ -18,6 +20,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   carbs = 0,
   fats = 0,
   servings = 1,
+  title = "Nutrition Facts"
 }) => {
   // Calculate calories from macros for the ring segments
   const proteinCalories = protein * 4;
@@ -47,9 +50,11 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Nutrition Facts</Text>
-      </View>
+      {title ? (
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+      ) : null}
       
       <View style={styles.nutritionDisplay}>
         {/* Main Calorie Ring */}

@@ -1,8 +1,11 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { HelpCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
+import { useWeightTracking } from '@/hooks/useWeightTracking';
+import { useUserProfileStore } from '@/hooks/useEnhancedUserProfile';
+import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 interface BMICardProps {
   onPress: () => void;
@@ -20,24 +23,23 @@ const BMI_CATEGORIES = [
 
 const SEGMENT_COLORS = [Colors.info, Colors.success, Colors.warning, Colors.error] as const;
 
-function computeMarkerPosition(bmi?: number) {
-  if (!bmi || Number.isNaN(bmi)) return 0;
-  if (bmi <= 18.5) return 0.12;
-  if (bmi <= 25) return 0.38;
-  if (bmi <= 30) return 0.68;
-  return 0.95;
-}
-
 export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress, heightCm, weightKg }) => {
-  const hasMetrics = Boolean(heightCm && weightKg && heightCm > 0);
-  const bmi = hasMetrics ? weightKg! / Math.pow((heightCm! / 100), 2) : undefined;
+  // Pull current metrics if props are not provided
+  const { getCurrentWeight } = useWeightTracking();
+  const currentWeight = getCurrentWeight();
+  const { profile } = useUserProfileStore();
+
+  const effectiveWeightKg = typeof weightKg === 'number' ? weightKg : (currentWeight?.weight ?? undefined);
+  const effectiveHeightCm = typeof heightCm === 'number' ? heightCm : (profile?.height ? Number(profile.height) : undefined);
+
+  const hasMetrics = Boolean(effectiveHeightCm && effectiveWeightKg && (effectiveHeightCm as number) > 0);
+  const bmi = hasMetrics ? (effectiveWeightKg as number) / Math.pow(((effectiveHeightCm as number) / 100), 2) : undefined;
   const category = bmi
     ? BMI_CATEGORIES.find((entry) => bmi < entry.max) ?? BMI_CATEGORIES[BMI_CATEGORIES.length - 1]
     : undefined;
-  const position = computeMarkerPosition(bmi);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
+    <ProgressCardContainer onPress={onPress} style={styles.card} padding={18}>
       <View style={styles.cardContent}>
         <View style={styles.header}>
           <Text style={styles.title}>Your BMI</Text>
@@ -54,13 +56,13 @@ export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress, heightCm
         {bmi ? (
           <>
             <View style={styles.bmiDisplay}>
-              <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
-              <Text style={styles.bmiDescription}>
-                You&apos;re currently{' '}
-                <Text style={[styles.categoryText, { color: category?.color ?? Colors.text }]}>
-                  {category?.label ?? 'in range'}
-                </Text>
-              </Text>
+              <View style={styles.bmiRow}>
+                <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
+                <Text style={styles.bmiHelper}> Your weight is </Text>
+                <View style={[styles.badge, { backgroundColor: category?.color ?? Colors.text }]}>
+                  <Text style={styles.badgeText}>{category?.label ?? 'In range'}</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.progressBarContainer}>
@@ -69,7 +71,6 @@ export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress, heightCm
                   <View key={segment} style={[styles.progressSegment, { backgroundColor: segment }]} />
                 ))}
               </View>
-              <View style={[styles.marker, { left: `${position * 100}%` }]} />
             </View>
 
             <View style={styles.legend}>
@@ -88,27 +89,21 @@ export const BMICard: React.FC<BMICardProps> = ({ onPress, onHelpPress, heightCm
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </ProgressCardContainer>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 20,
     marginHorizontal: 16,
     marginVertical: 8,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 20,
   },
   cardContent: {},
   header: {
+    position: 'relative',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -116,8 +111,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
+    textAlign: 'center',
   },
   helpButton: {
+    position: 'absolute',
+    right: 0,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -128,18 +126,32 @@ const styles = StyleSheet.create({
   bmiDisplay: {
     marginBottom: 20,
   },
+  bmiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
   bmiValue: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: Typography.weights.bold,
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  bmiDescription: {
+  bmiHelper: {
     fontSize: 14,
     color: Colors.lightText,
+    marginLeft: 8,
+    marginRight: 6,
   },
-  categoryText: {
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  badgeText: {
+    fontSize: 12,
     fontWeight: Typography.weights.semibold,
+    color: Colors.white,
   },
   progressBarContainer: {
     position: 'relative',
@@ -147,20 +159,12 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flexDirection: 'row',
-    height: 12,
-    borderRadius: 6,
+    height: 10,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressSegment: {
     flex: 1,
-  },
-  marker: {
-    position: 'absolute',
-    top: -2,
-    width: 4,
-    height: 16,
-    backgroundColor: Colors.text,
-    borderRadius: 2,
   },
   legend: {
     flexDirection: 'row',

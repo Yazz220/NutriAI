@@ -19,7 +19,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   X,
   PaperPlaneTilt,
-  Brain,
   Sparkle,
   TrendUp,
   Target,
@@ -27,6 +26,7 @@ import {
   ChatCircle,
   DotsThree,
 } from 'phosphor-react-native';
+import NoshIconCircle from '@/assets/images/nosh/Nosh Icon circle.svg';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { APP_NAME, NOSH_HEADER_SUBTITLE, NOSH_WELCOME_TITLE, NOSH_WELCOME_MESSAGE, CHAT_STORAGE_KEY, LEGACY_CHAT_STORAGE_KEY } from '@/constants/brand';
@@ -64,7 +64,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
   const { messages: hookMessages, sendMessage, performInlineAction, isTyping } = useCoachChat();
   const [input, setInput] = useState('');
   const [persistedMessages, setPersistedMessages] = useState<ChatMessage[]>([]);
-  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [showQuickActions, setShowQuickActions] = useState(false);
   
   const scrollViewRef = useRef<ScrollView>(null);
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
@@ -278,7 +278,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
             {/* Header */}
             <View style={styles.header}>
               <LinearGradient
-                colors={[Colors.primary, Colors.primaryLight]}
+                colors={[Colors.card, Colors.surface]}
                 style={styles.headerGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -286,7 +286,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                 <View style={styles.headerContent}>
                   <View style={styles.headerLeft}>
                     <View style={styles.aiIndicator}>
-                      <Brain size={24} color={Colors.white} weight="fill" />
+                      <NoshIconCircle width={28} height={28} />
                     </View>
                     <View>
                       <Text style={styles.headerTitle}>{APP_NAME}</Text>
@@ -302,14 +302,14 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                       onPress={clearChatHistory}
                       accessibilityLabel="Clear chat history"
                     >
-                      <DotsThree size={20} color={Colors.white} />
+                      <DotsThree size={20} color={Colors.text} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.headerButton}
                       onPress={onClose}
                       accessibilityLabel="Close chat"
                     >
-                      <X size={24} color={Colors.white} />
+                      <X size={24} color={Colors.text} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -331,7 +331,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
               {allMessages.length === 0 && (
                 <View style={styles.welcomeContainer}>
                   <View style={styles.welcomeIcon}>
-                    <Brain size={48} color={Colors.primary} weight="fill" />
+                    <NoshIconCircle width={56} height={56} />
                   </View>
                   <Text style={styles.welcomeTitle}>{NOSH_WELCOME_TITLE}</Text>
                   <Text style={styles.welcomeMessage}>
@@ -451,7 +451,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       {/* Avatar */}
       {!isUser && (
         <View style={styles.avatar}>
-          <Brain size={16} color={Colors.white} weight="fill" />
+          <NoshIconCircle width={20} height={20} />
         </View>
       )}
       
@@ -560,11 +560,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.bold,
-    color: Colors.white,
+    color: Colors.text,
   },
   headerSubtitle: {
     fontSize: Typography.sizes.sm,
-    color: Colors.white + '80',
+    color: Colors.lightText,
     marginTop: 2,
   },
   headerRight: {
@@ -575,7 +575,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.white + '20',
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -638,7 +640,7 @@ const styles = StyleSheet.create({
   coachBubble: {
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.primary + '40',
     borderBottomLeftRadius: 4,
   },
   userBubble: {

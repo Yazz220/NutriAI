@@ -63,6 +63,7 @@ export default function HeightScreen() {
         <OnboardingHeader
           imageSource={require('@/assets/images/nosh/What\'s your height.png')}
           title="Your height"
+          imageTranslateExtraRatio={0.15}
         >
           <View style={styles.unitToggle}>
             <TouchableOpacity

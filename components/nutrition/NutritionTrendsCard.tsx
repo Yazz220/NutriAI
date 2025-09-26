@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { ChevronRight, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -177,26 +177,25 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
                 center={[10, 0]}
               />
               <View style={styles.donutCenter}>
-                <Text style={styles.donutCenterValue}>{stats.avgCalories}</Text>
                 <Text style={styles.donutCenterLabel}>kcal</Text>
               </View>
             </View>
             
             {/* Legend */}
-            <View style={styles.legend}>
+              <View style={styles.legend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.protein }]} />
+                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.protein }]} />
                 <Text style={styles.legendText}>Protein {stats.avgProtein}g</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.carbs }]} />
+                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.carbs }]} />
                 <Text style={styles.legendText}>Carbs {stats.avgCarbs}g</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundcolor: Colors.nutrition.fats }]} />
+                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.fats }]} />
                 <Text style={styles.legendText}>Fats {stats.avgFats}g</Text>
               </View>
-            </View>
+              </View>
           </View>
         )}
       </View>
@@ -213,17 +212,21 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   headerRow: { 
+    position: 'relative',
     flexDirection: 'row', 
     alignItems: 'center', 
-    justifyContent: 'space-between', 
+    justifyContent: 'center', 
     marginBottom: 16 
   },
   title: { 
     fontSize: Typography.sizes.lg, 
     fontWeight: Typography.weights.bold, 
-    color: Colors.text 
+    color: Colors.text,
+    textAlign: 'center',
   },
   viewRow: { 
+    position: 'absolute',
+    right: 0,
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: 6, 
@@ -271,19 +274,17 @@ const styles = StyleSheet.create({
   },
   
   switchRow: { 
-    flexDirection: 'row', 
-    gap: 4, 
-    marginBottom: 16,
+    flexDirection: 'row',
     backgroundColor: Colors.background,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 4,
-    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
   switchBtn: { 
+    flex: 1,
+    paddingVertical: 8, 
     paddingHorizontal: 12, 
-    paddingVertical: 6, 
-    borderRadius: 6,
-    minWidth: 32,
+    borderRadius: 8,
     alignItems: 'center',
   },
   switchBtnActive: { 

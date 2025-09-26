@@ -23,6 +23,7 @@ export default function OnboardingLayout() {
           require('@/assets/images/nosh/What\'s your height.png'),
           require('@/assets/images/nosh/What\'s your target weight.png'),
           require('@/assets/images/nosh/Do you have any allergies.png'),
+          require('@/assets/images/nosh/What is your current weight.png'),
         ]);
       } catch {}
       finally {
@@ -50,7 +51,8 @@ export default function OnboardingLayout() {
           gestureEnabled: true,
           gestureDirection: 'horizontal',
           animation: 'slide_from_right',
-          animationDuration: 300,
+          // Slightly slower for a more organic feel specific to onboarding
+          animationDuration: 260,
           contentStyle: { backgroundColor: Colors.background },
         }}
       >

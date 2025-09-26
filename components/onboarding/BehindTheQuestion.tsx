@@ -80,7 +80,7 @@ export function BehindTheQuestion({ title, subtitle, content, variant = 'icon' }
         </Animated.View>
       ) : (
         <Animated.View
-          style={{ transform: [{ scale: scaleAnim }] }}
+          style={[styles.iconOnlyWrapper, { transform: [{ scale: scaleAnim }] }]}
         >
           <TouchableOpacity
             style={styles.iconOnlyButton}
@@ -157,6 +157,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  iconOnlyWrapper: {
+    position: 'absolute',
+    top: Spacing.sm, // slightly lowered from the very top
+    right: Spacing.md, // consistent right margin across screens
+    zIndex: 10,
+  },
   iconOnlyButton: {
     width: 36,
     height: 36,
@@ -166,7 +172,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border + '40',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.xs,
   },
   iconOnlyEmoji: {
     fontSize: 18,
