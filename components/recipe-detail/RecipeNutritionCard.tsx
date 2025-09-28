@@ -33,7 +33,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   const carbsPercent = totalMacroCalories > 0 ? (carbsCalories / totalMacroCalories) * 100 : 0;
   const fatsPercent = totalMacroCalories > 0 ? (fatsCalories / totalMacroCalories) * 100 : 0;
   
-  // SVG circle properties
+  // SVG circle properties (reverted to original size)
   const radius = 45;
   const strokeWidth = 6;
   const circumference = 2 * Math.PI * radius;
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
@@ -172,6 +172,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
+    textAlign: 'center',
   },
   servingInfo: {
     fontSize: Typography.sizes.xs,

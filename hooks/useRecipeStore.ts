@@ -1,16 +1,15 @@
 // Enhanced Recipe Store Hook
-// Provider-agnostic (MealDB removed); wire in FatSecret next
+// Wired to TheMealDB (free API) for discovery and search
 
 import React, { useState, useEffect, useCallback, useContext, createContext, PropsWithChildren, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExternalRecipe } from '@/types/external';
-// MealDB removed; temporary no-op implementations will be used until FatSecret integration
 import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
+import { mealdbRandomSelection, mealdbSearch, mealdbFilterByIngredient } from '@/utils/providers/mealdb';
 import { Meal, RecipeWithAvailability } from '@/types';
-import { mockRecipesSearch, mockGetRecipe, mockGetTrendingRecipes, mockGetRandomRecipes } from '@/utils/providers/mockRecipes';
 
-// External source (to be set when provider integrated)
-const RECIPE_SOURCE = 'unknown';
+// External source
+const RECIPE_SOURCE = 'mealdb';
 
 // External dataset/backend disabled
 
@@ -173,7 +172,7 @@ export interface RecipeStoreActions {
   getRecipesWithAvailability: (inventory: any[]) => RecipeWithAvailability[];
 }
 
-// No external provider currently configured; using mock provider exclusively
+// TheMealDB-powered provider implementation
 
 function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
   const [state, setState] = useState<RecipeStoreState>({
@@ -233,16 +232,14 @@ function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
     return Array.from(map.values());
   };
 
-  // Search recipes (mock)
+  // Search recipes via TheMealDB
   const searchRecipes = useCallback(async (params: { query?: string; cuisine?: string; type?: string; number?: number }) => {
     setState(prev => ({ ...prev, isSearching: true, error: null }));
     try {
-      const results = await mockRecipesSearch({
-        query: params.query,
-        type: params.type,
-        number: params.number ?? 24,
-      });
-      setState(prev => ({ ...prev, searchResults: results, isSearching: false }));
+      const q = (params.query || '').trim();
+      const results = q ? await mealdbSearch(q) : await mealdbRandomSelection();
+      const limited = typeof params.number === 'number' ? results.slice(0, params.number) : results;
+      setState(prev => ({ ...prev, searchResults: limited, isSearching: false }));
     } catch (e) {
       console.error('[RecipeStore] searchRecipes failed', e);
       setState(prev => ({ ...prev, error: 'Search failed', searchResults: [], isSearching: false }));
@@ -252,7 +249,8 @@ function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
   const getTrendingRecipes = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      const list = await mockGetTrendingRecipes();
+      // TheMealDB doesn't provide trending; use random selection as a stand-in
+      const list = await mealdbRandomSelection();
       setState(prev => ({ ...prev, trendingRecipes: list, isLoading: false }));
     } catch (e) {
       console.error('[RecipeStore] getTrendingRecipes failed', e);
@@ -263,8 +261,9 @@ function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
   const getRecipeRecommendations = useCallback(async (ingredients: string[]) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      const query = ingredients.slice(0, 3).join(' ');
-      const list = await mockRecipesSearch({ query, number: 12 });
+      // Use first ingredient to filter; TheMealDB supports single-ingredient filter
+      const first = (ingredients || []).find(Boolean);
+      const list = first ? await mealdbFilterByIngredient(first) : await mealdbRandomSelection();
       setState(prev => ({ ...prev, externalRecipes: list, isLoading: false }));
     } catch (e) {
       console.error('[RecipeStore] getRecipeRecommendations failed', e);
@@ -272,13 +271,14 @@ function useProvideRecipeStore(): RecipeStoreState & RecipeStoreActions {
     }
   }, []);
 
-  const getRandomRecipes = useCallback(async (tags?: string[], count: number = 10, append: boolean = true) => {
+  const getRandomRecipes = useCallback(async (_tags?: string[], count: number = 10, append: boolean = true) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      const list = await mockGetRandomRecipes(tags, count);
+      const list = await mealdbRandomSelection();
+      const limited = list.slice(0, Math.max(1, count));
       setState(prev => ({
         ...prev,
-        externalRecipes: append ? mergeUnique(prev.externalRecipes, list) : list,
+        externalRecipes: append ? mergeUnique(prev.externalRecipes, limited) : limited,
         isLoading: false,
       }));
     } catch (e) {

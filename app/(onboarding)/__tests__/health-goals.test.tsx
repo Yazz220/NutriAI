@@ -16,12 +16,17 @@ jest.mock('@/components/onboarding', () => {
         <Text>{title}</Text>
       </TouchableOpacity>
     ),
+    OnboardingHeader: ({ title }: any) => (
+      <View>
+        <Text>{title}</Text>
+      </View>
+    ),
     SimpleOptionCard: ({ title, onPress, selected }: any) => (
       <TouchableOpacity onPress={onPress} accessibilityState={{ selected }}>
         <Text>{title}</Text>
       </TouchableOpacity>
     ),
-    BehindTheQuestion: () => <View testID="behind-question" />, 
+    BehindTheQuestion: () => <View testID="behind-question" />,
     useOnboarding: () => ({
       updateOnboardingData: mockUpdateOnboardingData,
       nextStep: mockNextStep,
@@ -54,9 +59,6 @@ describe('HealthGoalsScreen', () => {
     expect(getByText('Lose weight')).toBeTruthy();
     expect(getByText('Maintain weight')).toBeTruthy();
     expect(getByText('Gain weight')).toBeTruthy();
-    expect(getByText('Build muscle')).toBeTruthy();
-    expect(getByText('Improve health')).toBeTruthy();
-    expect(getByText('Manage dietary restrictions')).toBeTruthy();
     expect(getByText('Create a custom goal')).toBeTruthy();
   });
 
@@ -114,4 +116,3 @@ describe('HealthGoalsScreen', () => {
     expect(mockUpdateOnboardingData).toHaveBeenCalledWith('goalPreferences', { goalType: 'maintain' });
   });
 });
-

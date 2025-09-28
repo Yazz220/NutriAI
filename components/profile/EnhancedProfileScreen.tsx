@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Edit3, Target, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut } from 'lucide-react-native';
-import HeartIcon from '@/assets/icons/Heart.svg';
-import CameraIcon from '@/assets/icons/Camera.svg';
+import { User, Edit3, Target, ChefHat, Settings, ArrowLeft, ChevronRight, LogOut, Heart } from 'lucide-react-native';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
+import { HealthGoal, GoalDirection } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { PersonalInfoSection } from './PersonalInfoSection';
 import { DietaryPreferencesSection } from './DietaryPreferencesSection';
@@ -26,6 +25,19 @@ import { Spacing, Typography, Radii, Shadows } from '../../constants/spacing';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
+
+const GOAL_LABELS: Record<HealthGoal, string> = {
+  'lose-weight': 'Lose weight',
+  'maintain-weight': 'Maintain weight',
+  'gain-weight': 'Gain weight',
+  custom: 'Custom goal',
+};
+
+const GOAL_DIRECTION_COPY: Record<GoalDirection, string> = {
+  lose: 'Dialing in a smart deficit to lean out steadily.',
+  maintain: 'Keeping nutrition balanced to maintain your momentum.',
+  gain: 'Fueling a healthy surplus to build strength and size.',
+};
 
 export default function EnhancedProfileScreen() {
   const { profile, isLoading } = useUserProfileStore();
@@ -63,124 +75,151 @@ export default function EnhancedProfileScreen() {
     return renderOverview();
   };
 
-  const renderOverview = () => (
-    <ScrollView
-      style={styles.overview}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
-    >
-      {/* Header icons removed (non-functional) */}
+    const renderOverview = () => {
+    const typedGoal = (profile?.healthGoals ?? [])[0] as HealthGoal | undefined;
+    const goalDirection: GoalDirection = profile?.goalDirection ?? 'maintain';
+    const hasGoal = Boolean(typedGoal);
+    const goalLabel = hasGoal
+      ? typedGoal === 'custom'
+        ? profile?.customGoalTitle?.trim() || GOAL_LABELS[typedGoal]
+        : GOAL_LABELS[typedGoal]
+      : 'Choose a goal to personalize your plan';
+    const directionCopy = GOAL_DIRECTION_COPY[goalDirection];
+    const goalDescription = hasGoal
+      ? typedGoal === 'custom'
+        ? profile?.customGoalMotivation?.trim() || directionCopy
+        : directionCopy
+      : 'Tap "Manage goals" to set your focus.';
+    const calorieSummary = profile?.dailyCalorieTarget
+      ? `${profile.dailyCalorieTarget} kcal / day`
+      : 'No calorie target yet';
+    const macroSummaryParts = [
+      profile?.dailyProteinTarget ? `P${profile.dailyProteinTarget}` : null,
+      profile?.dailyCarbTarget ? `C${profile.dailyCarbTarget}` : null,
+      profile?.dailyFatTarget ? `F${profile.dailyFatTarget}` : null,
+    ].filter(Boolean) as string[];
+    const goalStats = hasGoal
+      ? macroSummaryParts.length > 0
+        ? `${calorieSummary} | ${macroSummaryParts.join(' / ')}`
+        : calorieSummary
+      : 'Set calories and macros to unlock deeper tracking.';
 
-      {/* Hero Profile Card */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroBackground} />
-        <View style={styles.heroContent}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarCircle}>
-              <User size={32} color={Colors.lightText} />
+    return (
+      <ScrollView
+        style={styles.overview}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
+      >
+        {/* Header icons removed (non-functional) */}
+
+        {/* Hero Profile Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroBackground} />
+          <View style={styles.heroContent}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarCircle}>
+                <User size={32} color={Colors.lightText} />
+              </View>
             </View>
-            <TouchableOpacity style={styles.cameraButton}>
-              <CameraIcon width={16} height={16} color={Colors.white} />
-            </TouchableOpacity>
+            
+            <Text style={styles.userName}>{profile?.name || 'Yasir A'}</Text>
+            <Text style={styles.joinDate}>Joined {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
+            
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.height || '170'} cm</Text>
+                <Text style={styles.statLabel}>Height</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.weight || '70'} kg</Text>
+                <Text style={styles.statLabel}>Weight</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.age || '19'}</Text>
+                <Text style={styles.statLabel}>Age</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Goals Card */}
+        <ProgressCardContainer style={styles.goalsCard} padding={Spacing.lg}>
+          <View style={styles.goalsHeader}>
+            <Target size={20} color={Colors.text} />
+            <Text style={styles.goalsTitle}>Goals</Text>
+          </View>
+          <Text style={styles.goalsSubtitle}>{goalDescription}</Text>
+          
+          <View style={styles.goalItem}>
+            <View style={styles.goalIcon}>
+              <Target size={16} color={Colors.text} />
+            </View>
+            <View style={styles.goalContent}>
+              <Text style={styles.goalName}>{goalLabel}</Text>
+              <Text style={styles.goalTarget}>{goalStats}</Text>
+            </View>
           </View>
           
-          <Text style={styles.userName}>{profile?.name || 'Yasir A'}</Text>
-          <Text style={styles.joinDate}>Joined {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
-          
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.height || '170'} cm</Text>
-              <Text style={styles.statLabel}>Height</Text>
+          <TouchableOpacity 
+            style={styles.manageGoalsButton}
+            onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
+          >
+            <Text style={styles.manageGoalsText}>Manage goals</Text>
+          </TouchableOpacity>
+        </ProgressCardContainer>
+
+        {/* Menu Items */}
+        <ProgressCardContainer style={styles.menuSection} padding={0}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => { setSheetSection('personal'); setSheetVisible(true); }}
+          >
+            <View style={styles.menuIconContainer}>
+              <User size={20} color={Colors.text} />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.weight || '70'} kg</Text>
-              <Text style={styles.statLabel}>Weight</Text>
+            <Text style={styles.menuText}>Personal Information</Text>
+            <ChevronRight size={20} color={Colors.lightText} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => { setSheetSection('dietary'); setSheetVisible(true); }}
+          >
+            <View style={styles.menuIconContainer}>
+              <Heart size={20} color={Colors.text} />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.age || '19'}</Text>
-              <Text style={styles.statLabel}>Age</Text>
+            <Text style={styles.menuText}>Dietary Preferences</Text>
+            <ChevronRight size={20} color={Colors.lightText} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => { setSheetSection('cooking'); setSheetVisible(true); }}
+          >
+            <View style={styles.menuIconContainer}>
+              <ChefHat size={20} color={Colors.text} />
             </View>
-          </View>
-        </View>
-      </View>
+            <Text style={styles.menuText}>Cooking Preferences</Text>
+            <ChevronRight size={20} color={Colors.lightText} />
+          </TouchableOpacity>
+        </ProgressCardContainer>
 
-      {/* Goals Card */}
-      <ProgressCardContainer style={styles.goalsCard} padding={Spacing.lg}>
-        <View style={styles.goalsHeader}>
-          <Target size={20} color={Colors.text} />
-          <Text style={styles.goalsTitle}>Goals</Text>
-        </View>
-        <Text style={styles.goalsSubtitle}>You're tackling 1 goal right now, keep at it or add more!</Text>
-        
-        <View style={styles.goalItem}>
-          <View style={styles.goalIcon}>
-            <Target size={16} color={Colors.text} />
-          </View>
-          <View style={styles.goalContent}>
-            <Text style={styles.goalName}>Lose Weight</Text>
-            <Text style={styles.goalTarget}>-20 kg by November 16</Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.manageGoalsButton}
-          onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
-        >
-          <Text style={styles.manageGoalsText}>Manage goals</Text>
-        </TouchableOpacity>
-      </ProgressCardContainer>
+        {/* Account Section */}
+        <ProgressCardContainer style={styles.accountSection} padding={0}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <View style={styles.logoutIconContainer}>
+              <LogOut size={20} color={Colors.error} />
+            </View>
+            <Text style={styles.logoutText}>Sign Out</Text>
+            <ChevronRight size={20} color={Colors.lightText} />
+          </TouchableOpacity>
+        </ProgressCardContainer>
 
-      {/* Menu Items */}
-      <ProgressCardContainer style={styles.menuSection} padding={0}>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => { setSheetSection('personal'); setSheetVisible(true); }}
-        >
-          <View style={styles.menuIconContainer}>
-            <User size={20} color={Colors.text} />
-          </View>
-          <Text style={styles.menuText}>Personal Information</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => { setSheetSection('dietary'); setSheetVisible(true); }}
-        >
-          <View style={styles.menuIconContainer}>
-            <HeartIcon width={20} height={20} color={Colors.text} />
-          </View>
-          <Text style={styles.menuText}>Dietary Preferences</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => { setSheetSection('cooking'); setSheetVisible(true); }}
-        >
-          <View style={styles.menuIconContainer}>
-            <ChefHat size={20} color={Colors.text} />
-          </View>
-          <Text style={styles.menuText}>Cooking Preferences</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-      </ProgressCardContainer>
-
-      {/* Account Section */}
-      <ProgressCardContainer style={styles.accountSection} padding={0}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <View style={styles.logoutIconContainer}>
-            <LogOut size={20} color={Colors.error} />
-          </View>
-          <Text style={styles.logoutText}>Sign Out</Text>
-          <ChevronRight size={20} color={Colors.lightText} />
-        </TouchableOpacity>
-      </ProgressCardContainer>
-
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
-  );
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    );
+  };
 
   const renderHeader = () => null;
 

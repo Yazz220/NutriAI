@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { ArrowLeft, Save } from 'lucide-react-native';
 import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
-import { HealthGoal } from '../../types';
+import { GoalDirection, HealthGoal } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 
@@ -18,74 +18,167 @@ interface HealthGoalsSectionProps {
   onBack: () => void;
 }
 
-const HEALTH_GOAL_OPTIONS: { value: HealthGoal; label: string; description: string }[] = [
-  { value: 'weight-loss', label: 'Weight Loss', description: 'Focus on creating a caloric deficit' },
-  { value: 'weight-gain', label: 'Weight Gain', description: 'Focus on healthy weight gain' },
-  { value: 'muscle-gain', label: 'Muscle Gain', description: 'Build muscle mass with adequate protein' },
-  { value: 'maintenance', label: 'Maintenance', description: 'Maintain current weight and health' },
-  { value: 'general-health', label: 'General Health', description: 'Improve overall health and nutrition' },
+const HEALTH_GOAL_OPTIONS: Array<{ value: HealthGoal; label: string; description: string }> = [
+  {
+    value: 'lose-weight',
+    label: 'Lose weight',
+    description: 'Create a gentle calorie deficit paired with higher-protein meals.',
+  },
+  {
+    value: 'maintain-weight',
+    label: 'Maintain weight',
+    description: 'Stay consistent with balanced nutrition and steady habits.',
+  },
+  {
+    value: 'gain-weight',
+    label: 'Gain weight',
+    description: 'Prioritize strength and healthy calorie surplus to build up gradually.',
+  },
+  {
+    value: 'custom',
+    label: 'Custom goal',
+    description: 'Define your own focus with a personalized title and motivation.',
+  },
 ];
+
+const GOAL_DIRECTION_OPTIONS: Array<{ id: GoalDirection; title: string; helper: string }> = [
+  { id: 'lose', title: 'Lose', helper: 'Calorie deficit + metabolic support' },
+  { id: 'maintain', title: 'Maintain', helper: 'Balanced intake + routine consistency' },
+  { id: 'gain', title: 'Gain', helper: 'Nutrient surplus + gradual build' },
+];
+
+const goalToDirection = (goal: HealthGoal, fallback: GoalDirection): GoalDirection => {
+  switch (goal) {
+    case 'lose-weight':
+      return 'lose';
+    case 'gain-weight':
+      return 'gain';
+    case 'custom':
+      return fallback;
+    default:
+      return 'maintain';
+  }
+};
 
 export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
   const { profile, setHealthGoals } = useUserProfileStore();
-  
-  const [formData, setFormData] = useState({
-    healthGoals: profile?.healthGoals || [],
-    targetWeight: profile?.targetWeight?.toString() || '',
-    dailyCalorieTarget: profile?.dailyCalorieTarget?.toString() || '',
-    dailyProteinTarget: profile?.dailyProteinTarget?.toString() || '',
-    dailyCarbTarget: profile?.dailyCarbTarget?.toString() || '',
-    dailyFatTarget: profile?.dailyFatTarget?.toString() || '',
-  });
 
-  // Update form data when profile changes
+  const [formData, setFormData] = useState(() => ({
+    selectedGoal: (profile?.healthGoals ?? [])[0] ?? null,
+    goalDirection: profile?.goalDirection ?? 'maintain',
+    customGoalTitle: profile?.customGoalTitle ?? '',
+    customGoalMotivation: profile?.customGoalMotivation ?? '',
+    targetWeight: profile?.targetWeight ? profile.targetWeight.toString() : '',
+    dailyCalorieTarget: profile?.dailyCalorieTarget ? profile.dailyCalorieTarget.toString() : '',
+    dailyProteinTarget: profile?.dailyProteinTarget ? profile.dailyProteinTarget.toString() : '',
+    dailyCarbTarget: profile?.dailyCarbTarget ? profile.dailyCarbTarget.toString() : '',
+    dailyFatTarget: profile?.dailyFatTarget ? profile.dailyFatTarget.toString() : '',
+  }));
+
   useEffect(() => {
-    if (profile) {
-      setFormData({
-        healthGoals: profile.healthGoals || [],
-        targetWeight: profile.targetWeight?.toString() || '',
-        dailyCalorieTarget: profile.dailyCalorieTarget?.toString() || '',
-        dailyProteinTarget: profile.dailyProteinTarget?.toString() || '',
-        dailyCarbTarget: profile.dailyCarbTarget?.toString() || '',
-        dailyFatTarget: profile.dailyFatTarget?.toString() || '',
-      });
-    }
+    if (!profile) return;
+    setFormData({
+      selectedGoal: (profile.healthGoals ?? [])[0] ?? null,
+      goalDirection: profile.goalDirection ?? 'maintain',
+      customGoalTitle: profile.customGoalTitle ?? '',
+      customGoalMotivation: profile.customGoalMotivation ?? '',
+      targetWeight: profile.targetWeight ? profile.targetWeight.toString() : '',
+      dailyCalorieTarget: profile.dailyCalorieTarget ? profile.dailyCalorieTarget.toString() : '',
+      dailyProteinTarget: profile.dailyProteinTarget ? profile.dailyProteinTarget.toString() : '',
+      dailyCarbTarget: profile.dailyCarbTarget ? profile.dailyCarbTarget.toString() : '',
+      dailyFatTarget: profile.dailyFatTarget ? profile.dailyFatTarget.toString() : '',
+    });
   }, [profile]);
 
-  const toggleHealthGoal = (goal: HealthGoal) => {
-    const current = formData.healthGoals;
-    const updated = current.includes(goal)
-      ? current.filter(g => g !== goal)
-      : [...current, goal];
-    
-    setFormData({ ...formData, healthGoals: updated });
+  const handleSelectGoal = (goal: HealthGoal) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedGoal: goal,
+      goalDirection: goalToDirection(goal, prev.goalDirection),
+    }));
+  };
+
+  const handleSelectDirection = (direction: GoalDirection) => {
+    setFormData((prev) => ({
+      ...prev,
+      goalDirection: direction,
+    }));
   };
 
   const handleSave = async () => {
+    const { selectedGoal, goalDirection, customGoalTitle, customGoalMotivation } = formData;
+    if (!selectedGoal) {
+      Alert.alert('Pick a goal', 'Choose one of the goal options before saving.');
+      return;
+    }
+
+    if (selectedGoal === 'custom' && !customGoalTitle.trim()) {
+      Alert.alert('Add a title', 'Give your custom goal a clear title so we can highlight it across the app.');
+      return;
+    }
+
+    const parsedTargetWeight = formData.targetWeight.trim().length
+      ? parseFloat(formData.targetWeight.trim())
+      : undefined;
+    const parsedCalories = formData.dailyCalorieTarget.trim().length
+      ? parseInt(formData.dailyCalorieTarget.trim(), 10)
+      : undefined;
+    const parsedProtein = formData.dailyProteinTarget.trim().length
+      ? parseInt(formData.dailyProteinTarget.trim(), 10)
+      : undefined;
+    const parsedCarbs = formData.dailyCarbTarget.trim().length
+      ? parseInt(formData.dailyCarbTarget.trim(), 10)
+      : undefined;
+    const parsedFats = formData.dailyFatTarget.trim().length
+      ? parseInt(formData.dailyFatTarget.trim(), 10)
+      : undefined;
+
     try {
       await setHealthGoals({
-        healthGoals: formData.healthGoals,
-        targetWeight: formData.targetWeight ? parseFloat(formData.targetWeight) : undefined,
-        dailyCalorieTarget: formData.dailyCalorieTarget ? parseInt(formData.dailyCalorieTarget) : undefined,
-        dailyProteinTarget: formData.dailyProteinTarget ? parseInt(formData.dailyProteinTarget) : undefined,
-        dailyCarbTarget: formData.dailyCarbTarget ? parseInt(formData.dailyCarbTarget) : undefined,
-        dailyFatTarget: formData.dailyFatTarget ? parseInt(formData.dailyFatTarget) : undefined,
+        healthGoals: selectedGoal ? [selectedGoal] : [],
+        goalDirection,
+        customGoalTitle: selectedGoal === 'custom' ? customGoalTitle.trim() : undefined,
+        customGoalMotivation: selectedGoal === 'custom' ? customGoalMotivation.trim() : undefined,
+        targetWeight: parsedTargetWeight,
+        dailyCalorieTarget: parsedCalories,
+        dailyProteinTarget: parsedProtein,
+        dailyCarbTarget: parsedCarbs,
+        dailyFatTarget: parsedFats,
       });
-      
+
       Alert.alert(
-        'Success', 
-        'Your health goals and nutrition targets have been updated and will be reflected in your calorie tracking and progress monitoring!',
+        'Goals updated',
+        'Your focus, nutrition targets, and custom goal (if any) are now synced across Coach and Progress.',
         [{ text: 'OK', onPress: onBack }]
       );
     } catch (error) {
       console.error('Error saving health goals:', error);
-      Alert.alert(
-        'Error', 
-        'Failed to save health goals. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'We could not save your goals right now. Please try again.');
     }
   };
+
+  const renderGoalOption = (option: (typeof HEALTH_GOAL_OPTIONS)[number]) => {
+    const isSelected = formData.selectedGoal === option.value;
+    const isCustom = option.value === 'custom';
+    const customSubtitle = isCustom && formData.customGoalTitle.trim().length
+      ? formData.customGoalTitle.trim()
+      : option.description;
+
+    return (
+      <TouchableOpacity
+        key={option.value}
+        style={[styles.goalOption, isSelected && styles.goalOptionSelected]}
+        onPress={() => handleSelectGoal(option.value)}
+      >
+        <Text style={[styles.goalTitle, isSelected && styles.goalTitleSelected]}>{option.label}</Text>
+        <Text style={[styles.goalDescription, isSelected && styles.goalDescriptionSelected]}>
+          {customSubtitle}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const shouldShowTargetWeight = formData.selectedGoal === 'lose-weight' || formData.selectedGoal === 'gain-weight';
 
   return (
     <View style={styles.container}>
@@ -101,115 +194,133 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Primary Goals</Text>
+          <Text style={styles.sectionTitle}>Primary focus</Text>
           <Text style={styles.sectionDescription}>
-            Select your main health and fitness goals:
+            Select the goal that best aligns with what you want to accomplish right now.
           </Text>
-          
-          <View style={styles.goalsList}>
-            {HEALTH_GOAL_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.goalOption,
-                  formData.healthGoals.includes(option.value) && styles.goalOptionSelected,
-                ]}
-                onPress={() => toggleHealthGoal(option.value)}
-              >
-                <View style={styles.goalContent}>
-                  <Text
-                    style={[
-                      styles.goalTitle,
-                      formData.healthGoals.includes(option.value) && styles.goalTitleSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.goalDescription,
-                      formData.healthGoals.includes(option.value) && styles.goalDescriptionSelected,
-                    ]}
-                  >
-                    {option.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+
+          <View style={styles.goalsList}>{HEALTH_GOAL_OPTIONS.map(renderGoalOption)}</View>
         </View>
 
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Target Weight</Text>
-          <Text style={styles.sectionDescription}>
-            Set your target weight (optional, for weight goals):
-          </Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Target Weight (kg)</Text>
+        {formData.selectedGoal === 'custom' && (
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Custom goal details</Text>
+            <Text style={styles.sectionDescription}>
+              Give this goal context so Coach can keep you motivated.
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Goal title</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.customGoalTitle}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, customGoalTitle: text }))}
+                placeholder="E.g., Finish a half-marathon"
+                placeholderTextColor={Colors.lightText}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Why this matters</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={formData.customGoalMotivation}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, customGoalMotivation: text }))}
+                placeholder="Share your motivation or the habit you want to build"
+                placeholderTextColor={Colors.lightText}
+                multiline
+              />
+            </View>
+
+            <Text style={styles.label}>What type of progress fits this goal?</Text>
+            <View style={styles.directionChips}>
+              {GOAL_DIRECTION_OPTIONS.map((direction) => {
+                const active = formData.goalDirection === direction.id;
+                return (
+                  <TouchableOpacity
+                    key={direction.id}
+                    style={[styles.directionChip, active && styles.directionChipActive]}
+                    onPress={() => handleSelectDirection(direction.id)}
+                  >
+                    <Text style={[styles.directionChipTitle, active && styles.directionChipTitleActive]}>
+                      {direction.title}
+                    </Text>
+                    <Text style={[styles.directionChipHelper, active && styles.directionChipHelperActive]}>
+                      {direction.helper}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {shouldShowTargetWeight && (
+          <View style={styles.formSection}>
+            <Text style={styles.label}>Target weight (kg)</Text>
             <TextInput
               style={styles.input}
               value={formData.targetWeight}
-              onChangeText={(text) => setFormData({ ...formData, targetWeight: text })}
-              placeholder="Enter target weight"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, targetWeight: text }))}
+              placeholder="e.g., 68"
               placeholderTextColor={Colors.lightText}
               keyboardType="numeric"
             />
           </View>
-        </View>
+        )}
 
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Daily Nutrition Targets</Text>
+          <Text style={styles.sectionTitle}>Daily targets</Text>
           <Text style={styles.sectionDescription}>
-            Set your daily nutrition goals (optional, helps with meal planning):
+            Override your calorie and macro goals if you already know what works for you.
           </Text>
-          
+
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Daily Calories</Text>
+            <Text style={styles.label}>Daily calories</Text>
             <TextInput
               style={styles.input}
               value={formData.dailyCalorieTarget}
-              onChangeText={(text) => setFormData({ ...formData, dailyCalorieTarget: text })}
-              placeholder="e.g., 2000"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, dailyCalorieTarget: text }))}
+              placeholder="e.g., 2100"
               placeholderTextColor={Colors.lightText}
               keyboardType="numeric"
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Daily Protein (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.dailyProteinTarget}
-              onChangeText={(text) => setFormData({ ...formData, dailyProteinTarget: text })}
-              placeholder="e.g., 120"
-              placeholderTextColor={Colors.lightText}
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Daily Carbs (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.dailyCarbTarget}
-              onChangeText={(text) => setFormData({ ...formData, dailyCarbTarget: text })}
-              placeholder="e.g., 200"
-              placeholderTextColor={Colors.lightText}
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Daily Fats (g)</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.dailyFatTarget}
-              onChangeText={(text) => setFormData({ ...formData, dailyFatTarget: text })}
-              placeholder="e.g., 70"
-              placeholderTextColor={Colors.lightText}
-              keyboardType="numeric"
-            />
+          <View style={styles.macroRow}>
+            <View style={styles.macroInput}>
+              <Text style={styles.label}>Protein (g)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.dailyProteinTarget}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, dailyProteinTarget: text }))}
+                placeholder="e.g., 150"
+                placeholderTextColor={Colors.lightText}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.macroInput}>
+              <Text style={styles.label}>Carbs (g)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.dailyCarbTarget}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, dailyCarbTarget: text }))}
+                placeholder="e.g., 225"
+                placeholderTextColor={Colors.lightText}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.macroInput}>
+              <Text style={styles.label}>Fats (g)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.dailyFatTarget}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, dailyFatTarget: text }))}
+                placeholder="e.g., 70"
+                placeholderTextColor={Colors.lightText}
+                keyboardType="numeric"
+              />
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -276,9 +387,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  goalContent: {
-    flex: 1,
-  },
   goalTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -293,7 +401,7 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
   },
   goalDescriptionSelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   inputGroup: {
     marginBottom: Spacing.lg,
@@ -312,5 +420,49 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  multilineInput: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+  },
+  directionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  directionChip: {
+    flexBasis: '48%',
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  directionChipActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '10',
+  },
+  directionChipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  directionChipTitleActive: {
+    color: Colors.primary,
+  },
+  directionChipHelper: {
+    fontSize: 12,
+    color: Colors.lightText,
+  },
+  directionChipHelperActive: {
+    color: Colors.primary,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  macroInput: {
+    flex: 1,
   },
 });

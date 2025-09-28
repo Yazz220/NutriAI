@@ -162,6 +162,7 @@ const styles = StyleSheet.create({
   sm: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+    minHeight: 40,
     gap: Spacing.xs,
   },
   md: {

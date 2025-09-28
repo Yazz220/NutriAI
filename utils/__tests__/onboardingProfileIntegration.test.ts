@@ -148,11 +148,11 @@ describe('OnboardingProfileIntegration', () => {
       expect(Math.abs(totalCalories - 2000)).toBeLessThan(50);
     });
 
-    it('increases protein for muscle building', () => {
+    it('supports higher energy for gaining weight', () => {
       const maintenanceMacros = OnboardingProfileIntegration.calculateMacroTargets(2000, 'maintain-weight');
-      const muscleMacros = OnboardingProfileIntegration.calculateMacroTargets(2000, 'build-muscle');
+      const gainMacros = OnboardingProfileIntegration.calculateMacroTargets(2000, 'gain-weight');
 
-      expect(muscleMacros.protein).toBeGreaterThan(maintenanceMacros.protein);
+      expect(gainMacros.fats).toBeGreaterThanOrEqual(maintenanceMacros.fats);
     });
   });
 

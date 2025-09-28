@@ -2,13 +2,10 @@ import { ActivityLevel, DietaryRestriction, InventoryItem } from './index';
 
 export type GoalDirection = 'lose' | 'gain' | 'maintain';
 
-export type HealthGoal = 
-  | 'lose-weight' 
-  | 'gain-weight' 
-  | 'maintain-weight' 
-  | 'build-muscle' 
-  | 'improve-health' 
-  | 'manage-restrictions'
+export type HealthGoal =
+  | 'lose-weight'
+  | 'gain-weight'
+  | 'maintain-weight'
   | 'custom';
 
 export interface OnboardingCustomGoal {
@@ -129,8 +126,5 @@ export const healthGoalToProfileMapping = {
   'lose-weight': { goalType: 'lose' as const },
   'gain-weight': { goalType: 'gain' as const },
   'maintain-weight': { goalType: 'maintain' as const },
-  'build-muscle': { goalType: 'gain' as const }, // with higher protein targets
-  'improve-health': { goalType: 'maintain' as const },
-  'manage-restrictions': { goalType: 'maintain' as const },
-  'custom': { goalType: 'maintain' as const }
+  'custom': { goalType: 'maintain' as const },
 };

@@ -129,7 +129,7 @@ export default function RecipesScreen() {
   }, [persistFavorites]);
 
   // Hooks
-  const { meals: localRecipes, addMeal, removeMeal, resetMeals } = useMeals();
+  const { meals: localRecipes, addMeal, removeMeal } = useMeals();
   const { 
     folders, 
     createFolder, 
@@ -140,18 +140,23 @@ export default function RecipesScreen() {
   } = useRecipeFolders();
   const { getTrendingRecipes, getRandomRecipes } = useRecipeStore();
 
-  // Filter local recipes (and folder view) by name or tags
+  // Filter local recipes (and folder view) by name or tags and exclude placeholders (no ingredients & no steps)
   const filteredLocalRecipes = React.useMemo(() => {
     const q = localSearchQuery.trim().toLowerCase();
-    const list: Meal[] = activeFolderId
+    const isMeaningful = (m: Meal) =>
+      !!m?.name?.trim() && ((m?.ingredients?.length || 0) > 0 || (m?.steps?.length || 0) > 0);
+
+    const baseList: Meal[] = activeFolderId
       ? (folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [])
           .map((id: string) => localRecipes.find((r: Meal) => r.id === id))
           .filter(Boolean) as Meal[]
       : localRecipes;
 
-    if (!q) return list;
+    const meaningfulList = baseList.filter(isMeaningful);
 
-    return list.filter((item: Meal) => {
+    if (!q) return meaningfulList;
+
+    return meaningfulList.filter((item: Meal) => {
       const nameMatch = item.name?.toLowerCase().includes(q);
       const tags = item.tags || [];
       const tagMatch = tags.join(' ').toLowerCase().includes(q);
@@ -420,9 +425,6 @@ export default function RecipesScreen() {
                   <X size={14} color={Colors.lightText} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={resetMeals} style={{ paddingVertical: 6, paddingHorizontal: 10, marginLeft: 6, borderWidth: 1, borderColor: Colors.border, borderRadius: 8 }}>
-                <Text style={{ ...Type.caption, color: Colors.primary }}>Reset</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -477,7 +479,7 @@ export default function RecipesScreen() {
           {/* Moved Add-to-Folder action to a floating button for cleaner layout */}
 
           <FlatList
-            data={activeFolderId ? folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds.map((id: string) => localRecipes.find((r: Meal) => r.id === id)).filter(Boolean) as Meal[] : filteredLocalRecipes}
+            data={filteredLocalRecipes}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.recipeCard} onPress={() => handleRecipePress(item)}>

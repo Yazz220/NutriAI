@@ -333,7 +333,7 @@ components/
     ...                 # Other folder components
   recipe-detail/        # Recipe detail view components
   ...                   # Other component categories
-hooks/                   # State and AI hooks (e.g., useNutrition, useCoach)
+hooks/                   # State and AI hooks (e.g., useNutrition, useCoachChat)
 utils/
   coach/                # Coach-specific utilities
     dateUtils.ts        # Date manipulation and formatting

@@ -499,7 +499,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Search and log food"
             >
-              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                 <SearchIcon width={56} height={56} color={Colors.primary} />
               </View>
               <Text style={[styles.statPillActionText, { color: Colors.primary }]}>Search Food</Text>
@@ -510,7 +510,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
-              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                 <CameraIcon width={56} height={56} color={Colors.accentPrimary} />
               </View>
               <Text style={[styles.statPillActionText, { color: Colors.accentPrimary }]}>AI Scan</Text>

@@ -17,23 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import {
-  X,
-  Clock,
-  Users,
-  Heart,
-  Star,
-  Bookmark,
-  BookmarkPlus,
-  Share2,
-  Utensils,
-  Shuffle,
-  MessageCircle,
-  CheckCircle,
-  ExternalLink,
-  Send,
-  Bot,
-} from 'lucide-react-native';
+import { Clock, Users, Heart, Star, Bookmark, BookmarkPlus, Share2, Utensils, Shuffle, MessageCircle, CheckCircle, ExternalLink } from 'lucide-react-native';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { LoadingSpinner } from './ui/LoadingSpinner';
@@ -48,8 +32,7 @@ import { Meal, Recipe, RecipeIngredient } from '../types';
 import { MealPlanModal } from './MealPlanModal';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { trackEvent } from '@/utils/analytics';
-import { useRecipeChat } from '@/hooks/useRecipeChat';
-import { StructuredMessage } from '@/components/StructuredMessage';
+import ChatModal from '@/components/coach/ChatModal';
 import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 import { cleanupRecipeText, stripHtml as stripHtmlBasic, isInstructionLikeText } from '@/utils/text/recipeCleanup';
 
@@ -111,7 +94,7 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
     } as Recipe;
   }, [recipe, recipeDetails, getDirectSteps]);
 
-  const { messages, isTyping, sendMessage, quickChips, performInlineAction } = useRecipeChat(recipeForChat);
+  // Use shared ChatModal for consistent Nosh chat UI
 
   // Load recipe details when modal opens
   useEffect(() => {
@@ -276,91 +259,27 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
   return (
     <Modal visible={visible} onClose={onClose} title="Recipe Details" size="full" hasHeader={false}>
       <View style={styles.modal}>
-        {activeTab === 'details' ? (
-          <RecipeDetail
-            onClose={onClose}
-            recipe={canonical}
-            mode="discover"
-            isSaved={isSaved}
-            onSave={async () => handleSaveRecipe()}
-            onRemove={async () => handleRemoveRecipe()}
-            onPlan={() => {
-              trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
-              setShowPlanModal(true);
-            }}
-            onShare={() => handleShareRecipe()}
-            onOpenSource={() => {
-              const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
-              if (url) Linking.openURL(url).catch(() => {});
-            }}
-            onAskAI={() => setActiveTab('chat')}
-          />
-        ) : (
-          <View style={{ flex: 1, padding: 16 }}>
-            <View style={[styles.header, { paddingHorizontal: 0 }]}> 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                <Bot size={18} color={Colors.primary} />
-                <Text style={styles.title}>Ask AI about {canonical.title}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setActiveTab('details')} style={styles.closeButton}>
-                <X size={22} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
-              {messages.map((m, idx: number) => (
-                <View key={idx} style={[styles.msg, m.role === 'user' ? styles.msgUser : styles.msgCoach]}>
-                  {m.structuredData ? (
-                    <StructuredMessage data={m.structuredData} />
-                  ) : (
-                    <Text style={styles.msgText}>{m.text}</Text>
-                  )}
-                  {m.actions?.length ? (
-                    <View style={styles.inlineActions}>
-                      {m.actions.map((a: any, i: number) => (
-                        <TouchableOpacity key={i} style={styles.inlineActionBtn} onPress={() => performInlineAction(a)}>
-                          <Text style={styles.inlineActionText}>{a.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-              {isTyping ? <Text style={styles.typingText}>AI is typing…</Text> : null}
-              {quickChips?.length ? (
-                <View style={styles.chatChipsRow}>
-                  {quickChips.map((chip: string, i: number) => (
-                    <TouchableOpacity key={i} style={styles.chatChip} onPress={() => sendMessage(chip)}>
-                      <Text style={styles.chatChipText}>{chip}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : null}
-            </ScrollView>
-            <View style={styles.composerRow}>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  placeholder="Ask about substitutions, steps, or variations…"
-                  placeholderTextColor={Colors.lightText}
-                  style={styles.input}
-                  value={chatInput}
-                  onChangeText={setChatInput}
-                  multiline
-                />
-              </View>
-              <TouchableOpacity
-                style={styles.sendBtn}
-                onPress={() => {
-                  const text = chatInput.trim();
-                  if (!text) return;
-                  sendMessage(text);
-                  setChatInput('');
-                }}
-              >
-                <Send size={18} color={Colors.white} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        <RecipeDetail
+          onClose={onClose}
+          recipe={canonical}
+          mode="discover"
+          isSaved={isSaved}
+          onSave={async () => handleSaveRecipe()}
+          onRemove={async () => handleRemoveRecipe()}
+          onPlan={() => {
+            trackEvent({ type: 'plan_button_tap', data: { source: 'detail', recipeId: recipe.id } });
+            setShowPlanModal(true);
+          }}
+          onShare={() => handleShareRecipe()}
+          onOpenSource={() => {
+            const url = (recipeDetails as any)?.sourceUrl || (recipe as any)?.sourceUrl;
+            if (url) Linking.openURL(url).catch(() => {});
+          }}
+          onAskAI={() => setActiveTab('chat')}
+        />
+
+        {/* Consistent Nosh chat UI, same as floating button page */}
+        <ChatModal visible={activeTab === 'chat'} onClose={() => setActiveTab('details')} initialRecipe={recipeForChat} />
 
         {/* Bottom fade overlay removed per request */}
 

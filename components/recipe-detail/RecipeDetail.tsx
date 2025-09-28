@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert, Share as RNShare, Animated, Dimensions } from 'react-native';
-import { ChevronLeft, Clock, Users, ExternalLink, Share2, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert, Animated, Dimensions } from 'react-native';
+import { ChevronLeft, Clock, Users, ExternalLink, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
 import { Button } from '../ui/Button';
 import { IngredientIcon } from '@/components/common/IngredientIcon';
 import * as Haptics from 'expo-haptics';
@@ -205,26 +205,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     }
   };
 
-  const handleShare = async () => {
-    try {
-      // Prefer parent-provided handler if available
-      if (onShare) {
-        await onShare(recipe);
-        return;
-      }
-
-      // Fallback: use native share
-      const ingredientsText = (recipe.ingredients || []).map((i: any) => `- ${i.name}${i.amount ? ` (${i.amount}${i.unit ? ` ${i.unit}` : ''})` : ''}`).join('\n');
-      const textParts = [recipe.title, stripHtml(recipe.description), '', 'Ingredients:', ingredientsText];
-      if (recipe.sourceUrl) textParts.push('', `Source: ${recipe.sourceUrl}`);
-      const message = textParts.filter(Boolean).join('\n');
-
-      await RNShare.share({ message, title: recipe.title, url: recipe.sourceUrl });
-    } catch (err) {
-      console.warn('Share failed', err);
-      Alert.alert('Share failed', 'Unable to share this recipe.');
-    }
-  };
+  // Share removed per request
 
   const handleClose = () => {
     try {
@@ -315,20 +296,20 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               <Button
                 title={isSaved ? 'Saved' : 'Save'}
                 onPress={() => (isSaved ? onRemove?.(recipe) : onSave?.(recipe))}
-                size="xs"
+                size="sm"
                 variant={isSaved ? 'primary' : 'primary'}
                 shape="capsule"
-                icon={isSaved ? <Bookmark size={14} color={Colors.white} /> : <BookmarkPlus size={14} color={Colors.white} />}
+                icon={isSaved ? <Bookmark size={16} color={Colors.white} /> : <BookmarkPlus size={16} color={Colors.white} />}
               />
               <Button
                 title="Log"
                 onPress={() => setShowMealTypeSelector(true)}
-                size="xs"
+                size="sm"
                 variant="secondary"
                 shape="capsule"
-                icon={<Plus size={14} color={Colors.primary} />}
+                icon={<Plus size={16} color={Colors.primary} />}
               />
-              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" shape="capsule" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="sm" variant="secondary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -353,7 +334,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
                     setMissingIngredientsAdded(true);
                   }}
-                  size="xs"
+                  size="sm"
                   variant={missingIngredientsAdded ? 'primary' : 'secondary'}
                   shape="capsule"
                   disabled={missingIngredientsAdded}
@@ -361,18 +342,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               )}
 
               <Button
-                title="Ask AI"
+                title="Ask Nosh"
                 onPress={async () => {
                   try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-                  // Open contextual AI chat modal (ChatModal will seed context)
-                  setShowAiChat(true);
+                  // Prefer parent-provided handler (EnhancedRecipeDetailModal switches to ChatModal)
+                  if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); }
                 }}
-                size="xs"
+                size="sm"
                 variant="secondary"
                 shape="capsule"
-                icon={<MessageCircle size={14} color={Colors.primary} />}
+                icon={<MessageCircle size={16} color={Colors.primary} />}
               />
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
+              
             </>
           )}
 
@@ -381,12 +362,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               <Button
                 title="Log"
                 onPress={() => setShowMealTypeSelector(true)}
-                size="xs"
+                size="sm"
                 variant="primary"
                 shape="capsule"
-                icon={<Plus size={14} color={Colors.white} />}
+                icon={<Plus size={16} color={Colors.white} />}
               />
-              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="xs" variant="secondary" shape="capsule" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="sm" variant="secondary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -411,29 +392,27 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
                     setMissingIngredientsAdded(true);
                   }}
-                  size="xs"
+                  size="sm"
                   variant={missingIngredientsAdded ? 'primary' : 'secondary'}
                   disabled={missingIngredientsAdded}
                 />
               )}
 
-              <Button title="Ask AI" onPress={() => setShowAiChat(true)} size="xs" variant="secondary" shape="capsule" icon={<MessageCircle size={14} color={Colors.primary} />} />
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
+              <Button title="Ask Nosh" onPress={() => { if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); } }} size="sm" variant="secondary" shape="capsule" icon={<MessageCircle size={16} color={Colors.primary} />} />
             </>
           )}
 
           {mode === 'ai' && (
             <>
-              <Button title="Save" onPress={() => onSave?.(recipe)} size="xs" variant="primary" shape="capsule" />
+              <Button title="Save" onPress={() => onSave?.(recipe)} size="sm" variant="primary" shape="capsule" />
               <Button
                 title="Log"
                 onPress={() => setShowMealTypeSelector(true)}
-                size="xs"
+                size="sm"
                 variant="secondary"
                 shape="capsule"
-                icon={<Plus size={14} color={Colors.primary} />}
+                icon={<Plus size={16} color={Colors.primary} />}
               />
-              <Button title="Share" onPress={() => handleShare()} size="xs" variant="secondary" shape="capsule" icon={<Share2 size={14} color={Colors.primary} />} />
             </>
           )}
         </View>
@@ -608,13 +587,13 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   backBtn: { padding: Spacing.xs, marginRight: Spacing.sm },
   headerSafeTop: { paddingTop: Platform.OS === 'ios' ? 44 : Spacing.lg },
-  title: { flex: 1, ...Type.h2, color: Colors.text, marginRight: Spacing.lg },
+  title: { flex: 1, ...Type.h2, color: Colors.text, marginRight: Spacing.lg, fontSize: 25, lineHeight: 32 },
   closeBtn: { padding: Spacing.xs },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   metaRight: { alignItems: 'flex-end' },
   metaItem: { alignItems: 'center' },
   metaText: { ...Type.caption, color: Colors.text, marginTop: 4 },
-  actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs },
+  actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   section: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
   sectionTitle: { ...Type.h3, color: Colors.text, marginBottom: Spacing.sm },
   bodyText: { ...Type.body, color: Colors.lightText },

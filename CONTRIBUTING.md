@@ -44,10 +44,10 @@ Thanks for your interest in contributing! This guide will help you get set up an
 - Pure logic in `utils/`
 
 ## Project structure (high-level)
-```
+np```
 app/              # Expo Router routes (tabs + screens)
 components/       # Reusable components
-hooks/            # State & AI hooks (useNutrition, useCoach, useCoachChat)
+hooks/            # State & AI hooks (useNutrition, useCoachChat)
 utils/            # Availability, parsing, validation, etc.
 constants/        # Theme tokens (colors, spacing)
 types/            # TS interfaces & types
@@ -67,7 +67,7 @@ types/            # TS interfaces & types
 - Tests for critical logic in `utils/` where feasible
 
 ## AI-related guidelines
-- Use `useCoach` for proactive suggestions
+- Heuristic suggestions run inside `useCoachChat`; use that hook for coach interactions
 - Use `useCoachChat` for conversational UI
 - Store global flags/config via `EXPO_PUBLIC_…` env vars
 - Do not hardcode API keys; use a secure proxy for production

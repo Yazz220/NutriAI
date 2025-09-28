@@ -221,40 +221,29 @@ export class OnboardingProfileIntegration {
    * Calculate macro targets based on calories and health goal
    */
   static calculateMacroTargets(calories: number, healthGoal: HealthGoal | null): MacroTargets {
-    // Default macro distribution
+    // Default macro distribution (maintenance bias)
     let proteinPercent = 0.25;
     let fatPercent = 0.30;
     let carbPercent = 0.45;
-    
-    // Adjust for specific goals
+
     switch (healthGoal) {
-      case 'build-muscle':
-        proteinPercent = 0.30;
-        fatPercent = 0.25;
-        carbPercent = 0.45;
-        break;
-        
       case 'lose-weight':
         proteinPercent = 0.30;
         fatPercent = 0.25;
         carbPercent = 0.45;
         break;
-        
       case 'gain-weight':
         proteinPercent = 0.25;
         fatPercent = 0.30;
         carbPercent = 0.45;
         break;
-        
-      case 'manage-restrictions':
-        // Keep default distribution
-        break;
-        
+      case 'maintain-weight':
+      case 'custom':
       default:
-        // maintain-weight, improve-health use defaults
+        // Keep default ratios
         break;
     }
-    
+
     return {
       protein: Math.round((calories * proteinPercent) / 4), // 4 calories per gram
       carbs: Math.round((calories * carbPercent) / 4),

@@ -19,7 +19,7 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
 - Reduced navigation clutter from 5 to 4 tabs
 
 ### 2) AI Integration Strategy
-- Recipes tab: "AI Picks" header with proactive suggestions from `useCoach`
+- Recipes tab: "AI Picks" header powered by `useCoachChat` heuristics
 - Coach dashboard: focused nutrition + planning with:
   - Calorie ring and macros
   - Per-meal rows with add (+) and thumbnails
@@ -44,7 +44,7 @@ Enhance the NutriAI mobile app to be more intuitive, useful, and user-friendly b
 
 ### State Management
 - Added `useNutrition` for meal logging and macro tracking
-- Enhanced `useCoach` with nutrition-aware suggestions
+- Enhanced `useCoachChat` heuristics with nutrition-aware suggestions
 - Added `useCoachChat` for conversational AI interface
 - Integrated `ToastProvider` for global notifications
 

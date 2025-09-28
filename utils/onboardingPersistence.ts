@@ -321,7 +321,7 @@ export class OnboardingPersistenceManager {
   }
 
   private static isValidHealthGoal(goal: any): boolean {
-    const validGoals = ['lose-weight', 'gain-weight', 'maintain-weight', 'build-muscle', 'improve-health', 'manage-restrictions', 'custom'];
+    const validGoals = ['lose-weight', 'gain-weight', 'maintain-weight', 'custom'];
     return validGoals.includes(goal);
   }
 
@@ -397,8 +397,8 @@ export class OnboardingPersistenceManager {
       'lose': 'lose-weight',
       'gain': 'gain-weight',
       'maintain': 'maintain-weight',
-      'muscle': 'build-muscle',
-      'health': 'improve-health'
+      'muscle': 'gain-weight',
+      'health': 'maintain-weight'
     };
     
     return mapping[oldGoal] || null;

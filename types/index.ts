@@ -101,7 +101,7 @@ export interface InventoryItem {
 
   export type ActivityLevel = 'sedentary' | 'lightly-active' | 'moderately-active' | 'very-active' | 'extremely-active';
 
-  export type HealthGoal = 'weight-loss' | 'weight-gain' | 'muscle-gain' | 'maintenance' | 'general-health';
+  export type HealthGoal = 'lose-weight' | 'maintain-weight' | 'gain-weight' | 'custom';
 
   export interface EnhancedUserProfile {
     id: string;
@@ -123,6 +123,9 @@ export interface InventoryItem {
     
     // Health Goals
     healthGoals: HealthGoal[];
+    goalDirection?: 'lose' | 'maintain' | 'gain';
+    customGoalTitle?: string;
+    customGoalMotivation?: string;
     targetWeight?: number;
     dailyCalorieTarget?: number;
     dailyProteinTarget?: number;

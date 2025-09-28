@@ -174,7 +174,15 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
           accessibilityHint="Tap to chat with your nutrition coach"
         >
           <View style={styles.transparentBackground}>
-            <NoshIconCircle width={72} height={72} />
+            {/* Now increase icon by an additional 10% (86.4 -> 95.04) and nudge it down by 5% of the
+               button height (72 * 0.05 = 3.6px) so it visually centers better inside the FAB. */}
+            {/* Increase by 7% from 95.04 -> 101.6928 and move up by 3% of 72px (2.16px).
+                Previously translateY was 3.6; subtracting 2.16 yields 1.44 to nudge up. */}
+            {/* Increase by 4% from 101.6928 -> 105.760512 and lower by 1% of 72px (0.72px).
+                Previously translateY was 1.44; adding 0.72 yields 2.16 to nudge down. */}
+            <View style={{ transform: [{ translateY: 2.16 }], overflow: 'visible' }}>
+              <NoshIconCircle width={106.81811712} height={106.81811712} />
+            </View>
           </View>
 
           {/* Unread indicator */}
@@ -222,6 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 40,
   },
+  // Keep the container at the original FAB size so only the icon grows.
   buttonContainer: {
     width: 72,
     height: 72,
@@ -230,7 +239,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 36,
-    overflow: 'hidden',
+    overflow: 'visible',
     position: 'relative',
   },
   gradient: {
@@ -238,12 +247,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 36,
-  },
-  transparentBackground: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
   },
   shadow: {
     position: 'absolute',
@@ -254,6 +257,15 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     backgroundColor: Colors.shadow,
     zIndex: -2,
+  },
+  // Allow the inner SVG to overflow the button bounds so it appears larger while
+  // the button tappable area remains the original size.
+  transparentBackground: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   unreadIndicator: {
     position: 'absolute',

@@ -28,9 +28,6 @@ const healthGoalOptions: Array<{ id: HealthGoal; title: string }> = [
   { id: 'lose-weight', title: 'Lose weight' },
   { id: 'maintain-weight', title: 'Maintain weight' },
   { id: 'gain-weight', title: 'Gain weight' },
-  { id: 'build-muscle', title: 'Build muscle' },
-  { id: 'improve-health', title: 'Improve health' },
-  { id: 'manage-restrictions', title: 'Manage dietary restrictions' },
 ];
 
 const goalDirectionOptions: Array<{ id: GoalDirection; label: string; description: string }> = [
@@ -81,6 +78,23 @@ export default function HealthGoalsScreen() {
   const [modalError, setModalError] = useState<string | null>(null);
 
   const goalCards = [...healthGoalOptions, { id: 'custom' as HealthGoal, title: 'Create a custom goal', isCustom: true }];
+
+  // Normalize any previously saved deprecated goals to supported ones
+  useEffect(() => {
+    const current = onboardingData.healthGoal;
+    if (!current) return;
+    const supported: HealthGoal[] = ['lose-weight', 'maintain-weight', 'gain-weight', 'custom'];
+    if (supported.includes(current)) return;
+
+    const mappedType = healthGoalToProfileMapping[current]?.goalType ?? 'maintain';
+    const mappedGoal: HealthGoal =
+      mappedType === 'lose' ? 'lose-weight' : mappedType === 'gain' ? 'gain-weight' : 'maintain-weight';
+
+    setSelectedGoal(mappedGoal);
+    updateOnboardingData('healthGoal', mappedGoal);
+    updateOnboardingData('customGoal', null);
+    updateOnboardingData('goalPreferences', { goalType: mappedType });
+  }, [onboardingData.healthGoal, updateOnboardingData]);
 
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const headerTranslateY = useRef(new Animated.Value(-20)).current;

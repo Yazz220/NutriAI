@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -191,6 +192,23 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
     }
   };
 
+  const promptClearChat = () => {
+    Alert.alert(
+      'Clear chat',
+      'This will clear your current conversation and start a new chat. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear & New',
+          style: 'destructive',
+          onPress: async () => {
+            await clearChatHistory();
+          },
+        },
+      ]
+    );
+  };
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || isTyping) return;
@@ -286,20 +304,24 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                 <View style={styles.headerContent}>
                   <View style={styles.headerLeft}>
                     <View style={styles.aiIndicator}>
-                      <NoshIconCircle width={28} height={28} />
+                      {/* Match FAB icon size exactly */}
+                      <View style={{ overflow: 'visible', alignItems: 'center', justifyContent: 'center' }}>
+                        <NoshIconCircle width={106.81811712} height={106.81811712} />
+                      </View>
                     </View>
-                    <View>
-                      <Text style={styles.headerTitle}>{APP_NAME}</Text>
-                      <Text style={styles.headerSubtitle}>
-                        {isTyping ? 'Thinking...' : NOSH_HEADER_SUBTITLE}
-                      </Text>
-                    </View>
+                  </View>
+
+                  <View style={styles.headerCenter} pointerEvents="none">
+                    <Text style={styles.headerTitle}>{APP_NAME}</Text>
+                    <Text style={styles.headerSubtitle}>
+                      {isTyping ? 'Thinking...' : NOSH_HEADER_SUBTITLE}
+                    </Text>
                   </View>
 
                   <View style={styles.headerRight}>
                     <TouchableOpacity
                       style={styles.headerButton}
-                      onPress={clearChatHistory}
+                      onPress={promptClearChat}
                       accessibilityLabel="Clear chat history"
                     >
                       <DotsThree size={20} color={Colors.text} />
@@ -409,20 +431,30 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                     maxLength={500}
                     editable={!isTyping}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.sendButton,
-                      (!input.trim() || isTyping) && styles.sendButtonDisabled,
-                    ]}
-                    onPress={handleSend}
-                    disabled={!input.trim() || isTyping}
-                  >
-                    <PaperPlaneTilt
-                      size={20}
-                      color={input.trim() && !isTyping ? Colors.white : Colors.lightText}
-                      weight="fill"
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.sendButtonWrapper}>
+                    <TouchableOpacity
+                      style={[
+                        styles.sendButton,
+                        (!input.trim() || isTyping) && styles.sendButtonDisabled,
+                      ]}
+                      onPress={handleSend}
+                      disabled={!input.trim() || isTyping}
+                      accessibilityLabel="Send message"
+                    >
+                      <LinearGradient
+                        colors={[Colors.primary, Colors.accentPrimary || Colors.primary]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.sendButtonGradient}
+                      >
+                        <PaperPlaneTilt
+                          size={22}
+                          color={input.trim() && !isTyping ? Colors.white : Colors.lightText}
+                          weight="fill"
+                        />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
                 </Animated.View>
               </View>
             </KeyboardAvoidingView>
@@ -549,6 +581,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
+  headerCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
   aiIndicator: {
     width: 40,
     height: 40,
@@ -556,6 +597,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white + '20',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   headerTitle: {
     fontSize: Typography.sizes.lg,
@@ -641,11 +683,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.primary + '40',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 8,
+    borderRadius: 18,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   userBubble: {
     backgroundColor: Colors.primary,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 8,
+    borderRadius: 18,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
   },
   messageText: {
     fontSize: Typography.sizes.md,
@@ -777,16 +835,32 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     paddingVertical: Spacing.xs,
   },
+  sendButtonWrapper: {
+    marginLeft: Spacing.sm,
+    borderRadius: 28,
+    overflow: 'visible',
+  },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: Spacing.sm,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   sendButtonDisabled: {
-    backgroundColor: Colors.lightText,
+    opacity: 0.6,
+  },
+  sendButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 28,
+    width: '100%',
+    height: '100%',
   },
 });
