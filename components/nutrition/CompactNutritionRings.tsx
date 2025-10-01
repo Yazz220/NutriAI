@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -204,6 +204,15 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
               </Text>
             </View>
           </View>
+
+          {/* Planned + Logged indicator (if both exist) */}
+          {calories.fromLogged > 0 && calories.fromPlanned > 0 && (
+            <View style={styles.breakdownTag}>
+              <Text style={styles.breakdownTagText}>
+                {Math.round(calories.fromLogged)} logged + {Math.round(calories.fromPlanned)} planned
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.container}
@@ -422,6 +431,25 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  breakdownTag: {
+    position: 'absolute',
+    top: 66,
+    right: 20,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  breakdownTagText: {
+    fontSize: 10,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
   },
   container: {
     alignItems: 'center',

@@ -207,30 +207,6 @@ export const EnhancedTotalCaloriesCard: React.FC<EnhancedTotalCaloriesCardProps>
       <View style={styles.chartContainer}>
         {renderChart()}
       </View>
-
-      {/* Summary Stats for All Periods */}
-      <View style={styles.summarySection}>
-        <Text style={styles.summaryTitle}>Quick Overview</Text>
-        {allStats.map(({ key, label, totalConsumed, totalGoal, avgAdherence, hasData }) => (
-          <TouchableOpacity key={key} style={styles.summaryRow} onPress={() => onOpenPeriod?.(key)} activeOpacity={0.8}>
-            <View style={styles.summaryLeft}>
-              <Text style={styles.summaryLabel}>{label}</Text>
-              <Text style={styles.summarySub}>{Math.round(totalConsumed / PERIODS.find(p => p.key === key)!.days)} avg/day</Text>
-            </View>
-            <View style={styles.summaryCenter}>
-              {hasData ? (
-                <Text style={styles.summaryValue}>{totalConsumed} / {totalGoal}</Text>
-              ) : (
-                <Text style={styles.summaryMuted}>No data</Text>
-              )}
-            </View>
-            <View style={styles.summaryRight}>
-              <Text style={styles.summaryAdherence}>{avgAdherence}%</Text>
-              <ChevronRight size={16} color={Colors.lightText} />
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
     </ProgressCardContainer>
   );
 };
@@ -340,61 +316,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.lightText,
     marginTop: 8,
-  },
-  summarySection: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 16,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border + '50',
-  },
-  summaryLeft: {
-    width: '30%',
-  },
-  summaryCenter: {
-    width: '50%',
-    alignItems: 'center',
-  },
-  summaryRight: {
-    width: '20%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: Typography.weights.medium,
-  },
-  summarySub: {
-    fontSize: 12,
-    color: Colors.lightText,
-    marginTop: 2,
-  },
-  summaryValue: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: Typography.weights.semibold,
-  },
-  summaryAdherence: {
-    fontSize: 12,
-    color: Colors.lightText,
-  },
-  summaryMuted: {
-    fontSize: 12,
-    color: Colors.lightText,
   },
 });

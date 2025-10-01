@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
 import { useRecipeChat } from '@/hooks/useRecipeChat';
+import ChatModal from '@/components/coach/ChatModal';
 import { StructuredMessage } from '@/components/StructuredMessage';
 import { Button } from './ui/Button';
 import { RecipeDetail } from './recipe-detail/RecipeDetail';
@@ -186,6 +187,13 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
               Alert.alert('Added to Plan', 'Recipe has been added to your meal plan!');
             }}
             onClose={() => setShowMealPlanModal(false)}
+          />
+
+          {/* Nosh Chat Modal (wired to 'Ask Nosh' button) */}
+          <ChatModal
+            visible={activeTab === 'chat'}
+            onClose={() => setActiveTab('details')}
+            initialRecipe={recipeForChat}
           />
         </View>
       </View>

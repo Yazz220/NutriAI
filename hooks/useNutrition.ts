@@ -18,6 +18,8 @@ import {
 
 /**
  * Converts a date to ISO date string (YYYY-MM-DD format)
+ * This is the canonical date formatting function used throughout nutrition tracking.
+ * Ensures consistent date handling across logged meals, planned meals, and progress calculations.
  */
 function isoDate(date = new Date()): string {
   return date.toISOString().split('T')[0];
@@ -181,12 +183,23 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
     );
   }, [todayMeals]);
 
-  // Calculate goals from profile when possible, with fallbacks
+  /**
+   * Calculate goals from profile with intelligent fallback strategy
+   * 
+   * Priority order (highest to lowest):
+   * 1. Auto-calculated from profile (BMR + TDEE) - most accurate, requires age/sex/height/weight
+   * 2. Manual goals from profile.goals - user-set custom values
+   * 3. Legacy goals from preferences - backward compatibility for existing users
+   * 4. Default goals (2000 cal) - safe fallback for new users
+   * 
+   * This layered approach ensures users always have working goals while preferring
+   * the most accurate/personalized values when available.
+   */
   const calculateGoalsFromProfile = useCallback(async (): Promise<NutritionGoals> => {
     try {
       setGoalCalculationError(null);
       
-      // Try to calculate from user profile
+      // Priority 1: Calculate from complete profile using BMR/TDEE formulas
       if (profile && canCalculateGoals(profile.basics)) {
         const calculated = calculateNutritionGoals(profile.basics, profile.goals);
         if (calculated) {
@@ -195,7 +208,7 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
         }
       }
       
-      // Fallback to manual goals from profile
+      // Priority 2: Use manual goals from profile if set
       const g = profile?.goals || {};
       if (g.dailyCalories || g.proteinTargetG || g.carbsTargetG || g.fatsTargetG) {
         const manual: NutritionGoals = {
@@ -208,13 +221,13 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
         return manual;
       }
       
-      // Fallback to preferences goals (backward compatibility)
+      // Priority 3: Legacy preferences goals (backward compatibility)
       if (preferences.goals) {
         setCalculatedGoals(preferences.goals);
         return preferences.goals;
       }
       
-      // Final fallback to defaults
+      // Priority 4: Safe defaults for new users
       const defaults = getDefaultNutritionGoals();
       setCalculatedGoals(defaults);
       return defaults;
@@ -370,6 +383,8 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
   }, []);
 
   // Enhanced daily progress calculation with meal plan integration
+  // NOTE: This combines logged meals (actually eaten) with planned meals not yet completed.
+  // This design choice helps users see their full day's nutrition at a glance.
   const getDailyProgress = useCallback((date: string): DailyProgress => {
     const dayMeals = loggedMeals.filter(m => m.date === date);
     const loggedTotals = dayMeals.reduce(
@@ -382,7 +397,7 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
       { calories: 0, protein: 0, carbs: 0, fats: 0 }
     );
 
-    // Calculate planned meal calories
+    // Calculate planned meal calories (includes uncompleted planned meals)
     const plannedCalories = calculatePlannedMealCalories(date);
     const plannedTotals = plannedCalories.reduce(
       (acc, pm) => ({

@@ -67,27 +67,24 @@ export class OnboardingPersistenceManager {
       if (needsMigration) {
         const migratedData = await this.migrateOnboardingData(parsedData);
         await this.saveOnboardingData(migratedData);
-        return migratedData;
       }
       
       // Validate and sanitize loaded data
       return this.validateOnboardingData(parsedData);
-      
     } catch (error) {
       console.warn('Failed to load onboarding data:', error);
       return null;
     }
   }
-
   /**
-   * Clear onboarding data from storage
+   * Clear temporary onboarding data from storage while preserving the
+   * completion flag. Use resetOnboarding() if you need to clear EVERYTHING.
    */
   static async clearOnboardingData(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([
         ONBOARDING_DATA_KEY,
-        ONBOARDING_COMPLETED_KEY,
-        ONBOARDING_VERSION_KEY
+        ONBOARDING_VERSION_KEY,
       ]);
     } catch (error) {
       throw this.createPersistenceError(
@@ -99,16 +96,16 @@ export class OnboardingPersistenceManager {
   }
 
   /**
-   * Mark onboarding as completed
+   * Mark onboarding as completed (persist flag)
    */
   static async markOnboardingCompleted(): Promise<void> {
     try {
       await AsyncStorage.setItem(
-        ONBOARDING_COMPLETED_KEY, 
+        ONBOARDING_COMPLETED_KEY,
         JSON.stringify({
           completed: true,
           completedAt: new Date().toISOString(),
-          version: CURRENT_ONBOARDING_VERSION
+          version: CURRENT_ONBOARDING_VERSION,
         })
       );
     } catch (error) {
@@ -121,15 +118,14 @@ export class OnboardingPersistenceManager {
   }
 
   /**
-   * Check if onboarding is completed
+   * Check persisted completion flag
    */
   static async isOnboardingCompleted(): Promise<boolean> {
     try {
-      const completed = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
-      if (!completed) return false;
-      
-      const parsedCompleted = JSON.parse(completed);
-      return parsedCompleted.completed === true;
+      const stored = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
+      if (!stored) return false;
+      const parsed = JSON.parse(stored);
+      return parsed?.completed === true;
     } catch (error) {
       console.warn('Failed to check onboarding completion status:', error);
       return false;
@@ -137,10 +133,22 @@ export class OnboardingPersistenceManager {
   }
 
   /**
-   * Reset onboarding (for testing or re-onboarding)
+   * Full reset: clear all onboarding-related storage (including completion)
    */
   static async resetOnboarding(): Promise<void> {
-    await this.clearOnboardingData();
+    try {
+      await AsyncStorage.multiRemove([
+        ONBOARDING_DATA_KEY,
+        ONBOARDING_COMPLETED_KEY,
+        ONBOARDING_VERSION_KEY,
+      ]);
+    } catch (error) {
+      throw this.createPersistenceError(
+        'storage',
+        'Failed to reset onboarding',
+        error as Error
+      );
+    }
   }
 
   /**

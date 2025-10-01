@@ -41,6 +41,33 @@ import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
 // Types
 import { ExternalRecipe } from '@/types/external';
 import { Meal, RecipeFolder } from '@/types';
+import { computeForExternalRecipe, estimateServingsForExternalRecipe, computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
+
+const formatNutritionInline = (meal: Meal): string => {
+  const n = computeNutritionForMeal(meal);
+  if (!n) return '';
+  const parts: string[] = [];
+  if (typeof n.calories === 'number') parts.push(`${Math.round(n.calories)} kcal`);
+  if (typeof n.protein === 'number') parts.push(`${Math.round(n.protein)}g P`);
+  if (typeof n.carbs === 'number') parts.push(`${Math.round(n.carbs)}g C`);
+  if (typeof n.fats === 'number') parts.push(`${Math.round(n.fats)}g F`);
+  return parts.join(' • ');
+};
+
+const computeNutritionForMeal = (meal: Meal): { calories: number; protein: number; carbs: number; fats: number } | undefined => {
+  if (meal?.nutritionPerServing) return meal.nutritionPerServing as any;
+  const ings = Array.isArray((meal as any).ingredients) ? (meal as any).ingredients : [];
+  if (!ings.length) return undefined;
+  const externalIngs = ings.map((ing: any) => ({
+    name: ing.name,
+    amount: ing.quantity || 0,
+    unit: ing.unit || '',
+    original: `${ing.quantity ?? ''} ${ing.unit ?? ''} ${ing.name}`.trim(),
+  }));
+  const servings = (meal.servings && meal.servings > 0) ? meal.servings : estimateServingsFromIngredients(externalIngs as any);
+  const computed = computeFromIngredients(externalIngs as any, servings || 1);
+  return computed as any;
+};
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
@@ -258,6 +285,20 @@ export default function RecipesScreen() {
 
   // Handle save external recipe
   const handleSaveExternalRecipe = (recipe: ExternalRecipe) => {
+    // Prefer computed nutrition based on ingredients to ensure saved recipes have macros
+    const estServings = estimateServingsForExternalRecipe(recipe);
+    const computed = computeForExternalRecipe({ ...recipe, servings: estServings });
+
+    // Fallback: map provider nutrients if available
+    const pickNutrient = (names: string[]): number | undefined => {
+      const list = (recipe as any)?.nutrition?.nutrients || [];
+      const found = list.find((n: any) => names.some(name => (n?.name || '').toLowerCase() === name.toLowerCase()));
+      return typeof found?.amount === 'number' ? found.amount : undefined;
+    };
+    const calories = pickNutrient(['Calories', 'Energy']);
+    const protein = pickNutrient(['Protein']);
+    const carbs = pickNutrient(['Carbohydrates', 'Carbs']);
+    const fats = pickNutrient(['Fat', 'Total Fat']);
     // Convert ExternalRecipe to Meal format and add to meals (provider-agnostic)
     const steps = recipe.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step)
       || (recipe.instructions ? recipe.instructions.split('\n').filter(Boolean) : ['Follow recipe instructions']);
@@ -286,10 +327,24 @@ export default function RecipesScreen() {
       tags,
       prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
       cookTime: recipe.cookingMinutes || 0,
-      servings: recipe.servings || 1,
+      servings: estServings || recipe.servings || 1,
       sourceUrl: recipe.sourceUrl,
-      // Nutrition data will be populated by AI parsing when available
-      nutritionPerServing: undefined,
+      // First choice: computed macros; fallback to provider nutrients if present
+      nutritionPerServing: computed
+        ? {
+            calories: computed.calories,
+            protein: computed.protein,
+            carbs: computed.carbs,
+            fats: computed.fats,
+          }
+        : (calories || protein || carbs || fats)
+        ? {
+            calories: calories ?? 0,
+            protein: protein ?? 0,
+            carbs: carbs ?? 0,
+            fats: fats ?? 0,
+          }
+        : undefined,
     };
 
     const newId = addMeal(newMeal);
@@ -491,13 +546,18 @@ export default function RecipesScreen() {
                       <Clock size={14} color={Colors.lightText} />
                       <Text style={styles.metaText}>{item.cookTime}m</Text>
                     </View>
-                    {item.nutritionPerServing?.calories && (
+                    {(() => { const m = computeNutritionForMeal(item); return m?.calories; })() ? (
                       <View style={styles.metaItem}>
                         <Fire size={14} color={Colors.primary} />
-                        <Text style={styles.caloriesText}>{Math.round(item.nutritionPerServing.calories)}</Text>
+                        <Text style={styles.caloriesText}>{Math.round(computeNutritionForMeal(item)!.calories)} kcal</Text>
                       </View>
-                    )}
+                    ) : null}
                   </View>
+                  {computeNutritionForMeal(item) && (
+                    <Text style={styles.nutritionInline} numberOfLines={1}>
+                      {formatNutritionInline(item)}
+                    </Text>
+                  )}
                 </View>
                 <TouchableOpacity style={styles.menuButton} onPress={() => handleRecipeMenuPress(item)}>
                   <DotsThreeVertical size={20} color={Colors.lightText} />
@@ -756,6 +816,11 @@ const styles = StyleSheet.create({
     ...Type.caption,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  nutritionInline: {
+    marginTop: 4,
+    ...Type.caption,
+    color: Colors.lightText,
   },
   // Floating Add button (consistent with app FAB usage)
   fab: {

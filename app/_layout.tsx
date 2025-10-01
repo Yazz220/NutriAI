@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
@@ -33,6 +33,8 @@ function RootLayoutNav() {
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const router = useRouter();
+  const segments = useSegments();
 
   // Load fonts and check onboarding status
   useEffect(() => {
@@ -65,6 +67,7 @@ function RootLayoutNav() {
     }
     prepare();
   }, []);
+  
   // Hide the splash screen once fonts are loaded. Declare this effect before
   // any early returns so hook order remains stable across renders.
   useEffect(() => {
@@ -72,6 +75,34 @@ function RootLayoutNav() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded]);
+
+  // Handle navigation based on auth state changes
+  useEffect(() => {
+    if (initializing || !fontsLoaded || onboardingCompleted === null) return;
+
+    const isAuthenticated = devBypass || !!session;
+    const inAuthGroup = segments[0] === '(auth)';
+    const inOnboardingGroup = segments[0] === '(onboarding)';
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    // Redirect to onboarding if not completed
+    if (!onboardingCompleted && !inOnboardingGroup) {
+      router.replace('/(onboarding)/welcome');
+      return;
+    }
+
+    // Redirect to auth if onboarding complete but not authenticated
+    if (onboardingCompleted && !isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/sign-in');
+      return;
+    }
+
+    // Redirect to tabs if authenticated but not in tabs
+    if (onboardingCompleted && isAuthenticated && !inTabsGroup) {
+      router.replace('/(tabs)');
+      return;
+    }
+  }, [initializing, session, segments, fontsLoaded, onboardingCompleted, devBypass, router]);
 
   if (!fontsLoaded || onboardingCompleted === null) {
     return null; // Or a loading screen
@@ -89,27 +120,13 @@ function RootLayoutNav() {
     );
   }
 
-  // Determine which screen to show based on onboarding and auth status
-  const getInitialScreen = () => {
-    // If onboarding not completed, show onboarding (value-first approach)
-    if (!onboardingCompleted) {
-      return <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />;
-    }
-    
-    // If onboarding completed but not authenticated, show auth
-    if (!devBypass && !session) {
-      return <Stack.Screen name="(auth)" options={{ headerShown: false }} />;
-    }
-    
-    // If authenticated (or dev bypass), show main app
-    return <Stack.Screen name="(tabs)" options={{ headerShown: false }} />;
-  };
-
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
-        {getInitialScreen()}
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>
   );

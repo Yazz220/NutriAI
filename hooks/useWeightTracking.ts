@@ -45,6 +45,26 @@ export const useWeightTracking = () => {
     }
   }, [loading, entries.length, profile.basics.weightKg]);
 
+  // Sync with profile weight changes (e.g., if user updates weight in profile settings)
+  useEffect(() => {
+    if (loading || !profile.basics.weightKg) return;
+    
+    const currentEntry = getCurrentWeight();
+    const profileWeight = profile.basics.weightKg;
+    
+    // If profile weight differs significantly from our latest entry, user may have updated elsewhere
+    // Only sync if the difference is meaningful (>0.1kg) and profile was updated recently
+    if (currentEntry && Math.abs(currentEntry.weight - profileWeight) > 0.1) {
+      // Check if this is a genuine external update vs our own update
+      const wasRecentlyUpdatedByUs = Date.now() - currentEntry.timestamp < 5000; // 5 seconds
+      if (!wasRecentlyUpdatedByUs) {
+        console.log('[WeightTracking] Detected profile weight change, syncing...');
+        // Don't auto-add entry, just log the discrepancy for now
+        // User should explicitly add weight entries via the UI
+      }
+    }
+  }, [profile.basics.weightKg, loading]);
+
   const loadData = async () => {
     try {
       const [entriesData, goalData] = await Promise.all([

@@ -105,9 +105,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     try {
       // Map onboarding data to user profile format
       const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-      
-      // Save to user profile system
-      await saveProfile(profileData);
+
+      // Only persist to Supabase if the user is authenticated. Guests should
+      // still be able to complete onboarding without triggering auth errors.
+      if (user) {
+        await saveProfile(profileData);
+      }
       
       // Mark onboarding as completed
       await OnboardingPersistenceManager.markOnboardingCompleted();

@@ -1,6 +1,8 @@
 import { Alert } from 'react-native';
 
 const API_URL = 'https://world.openfoodfacts.org/cgi/search.pl';
+const NUTRITION_PROXY_BASE = process.env.EXPO_PUBLIC_FOOD_NUTRITION_BASE;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export interface FoodSearchResult {
   id: string;
@@ -19,19 +21,54 @@ export const searchFoodDatabase = async (query: string): Promise<FoodSearchResul
     return [];
   }
 
+  // Prefer calling our Supabase Edge Function aggregator if configured
+  if (NUTRITION_PROXY_BASE) {
+    try {
+      const u = new URL(NUTRITION_PROXY_BASE);
+      u.searchParams.set('q', query.trim());
+      const headers: Record<string, string> = {};
+      if (SUPABASE_ANON_KEY) {
+        headers['apikey'] = SUPABASE_ANON_KEY;
+        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+      }
+      const res = await fetch(u.toString(), { headers });
+      if (res.ok) {
+        const data = await res.json();
+        const items: any[] = Array.isArray(data?.alternatives) ? data.alternatives : [];
+        const mapped: FoodSearchResult[] = items.map((it: any) => ({
+          id: String(it.id || it.code || ''),
+          name: String(it.name || 'Unknown Food'),
+          calories: Number(it?.per100g?.calories ?? 0),
+          protein: Number(it?.per100g?.protein ?? 0),
+          carbs: Number(it?.per100g?.carbs ?? 0),
+          fats: Number(it?.per100g?.fats ?? 0),
+          brand: it.brand || 'Generic',
+          servingSize: it.servingSize || '100g',
+          imageUrl: it.imageUrl,
+        })).filter((p) => p.id && p.name && p.calories > 0);
+        if (mapped.length) return mapped;
+      } else {
+        const text = await res.text();
+        console.warn('[nutrition-lookup] proxy error', res.status, text.slice(0, 200));
+      }
+    } catch (e) {
+      console.warn('[nutrition-lookup] proxy call failed, falling back to OFF', e);
+    }
+  }
+
+  // Fallback to direct OpenFoodFacts if proxy is unavailable
   const params = new URLSearchParams({
     search_terms: query,
     search_simple: '1',
     action: 'process',
     json: '1',
-    page_size: '50', // Increased for more results
+    page_size: '50',
     fields: 'code,product_name,brands,serving_size,nutriments,image_front_small_url',
   });
 
   try {
     const response = await fetch(`${API_URL}?${params.toString()}`);
     const data = await response.json();
-
     if (data.products && Array.isArray(data.products)) {
       return data.products
         .map((product: any) => {
@@ -46,7 +83,7 @@ export const searchFoodDatabase = async (query: string): Promise<FoodSearchResul
             brand: product.brands || 'Generic',
             servingSize: product.serving_size || '100g',
             imageUrl: product.image_front_small_url,
-          };
+          } as FoodSearchResult;
         })
         .filter((p: FoodSearchResult) => p.id && p.name && p.calories > 0);
     }

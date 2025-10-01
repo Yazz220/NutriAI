@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { Meal, MealIngredient } from '@/types';
+import { computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
 
 // Start with no initial meals; user-added or saved items will populate
 let initialMeals: Meal[] = [];
@@ -44,10 +45,35 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
             const parsed = JSON.parse(storedMeals);
             if (Array.isArray(parsed)) {
               const cleaned = sanitizeMeals(parsed as Meal[]);
-              console.log('[Meals] Loaded', { count: parsed.length, cleaned: cleaned.length });
-              setMeals(cleaned);
-              if (cleaned.length !== parsed.length) {
-                await AsyncStorage.setItem('meals', JSON.stringify(cleaned));
+              // Backfill nutrition for meals missing it (computed from ingredients)
+              const enriched = cleaned.map((m) => {
+                if ((m as any).nutritionPerServing) return m;
+                const ings = Array.isArray((m as any).ingredients) ? (m as any).ingredients : [];
+                if (!ings.length) return m;
+                // Map to external-like ingredients with original string to help parser
+                const extIngs = ings.map((ing: any) => ({
+                  name: ing.name,
+                  amount: ing.quantity || 0,
+                  unit: ing.unit || '',
+                  original: `${ing.quantity ?? ''} ${ing.unit ?? ''} ${ing.name}`.trim(),
+                }));
+                const servings = (m.servings && m.servings > 0) ? m.servings : estimateServingsFromIngredients(extIngs as any);
+                const computed = computeFromIngredients(extIngs as any, servings || 1);
+                if (!computed) return m;
+                return {
+                  ...m,
+                  nutritionPerServing: {
+                    calories: computed.calories,
+                    protein: computed.protein,
+                    carbs: computed.carbs,
+                    fats: computed.fats,
+                  },
+                } as Meal;
+              });
+              console.log('[Meals] Loaded', { count: parsed.length, cleaned: cleaned.length, enriched: enriched.length });
+              setMeals(enriched);
+              if (enriched.length !== parsed.length) {
+                await AsyncStorage.setItem('meals', JSON.stringify(enriched));
               }
             } else {
               console.warn('[Meals] Stored data not an array, resetting to empty');
@@ -219,6 +245,7 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     updateMeal,
     removeMeal,
     resetMeals,
+    setMeals,
     cookMeal,
     checkIngredientsAvailability,
     getRecommendedMeals

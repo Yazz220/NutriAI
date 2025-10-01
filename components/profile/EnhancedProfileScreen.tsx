@@ -22,6 +22,7 @@ import { HealthGoalsSection } from './HealthGoalsSection';
 import { CookingPreferencesSection } from './CookingPreferencesSection';
 import { Colors } from '../../constants/colors';
 import { Spacing, Typography, Radii, Shadows } from '../../constants/spacing';
+import { useToast } from '@/contexts/ToastContext';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
@@ -42,6 +43,7 @@ const GOAL_DIRECTION_COPY: Record<GoalDirection, string> = {
 export default function EnhancedProfileScreen() {
   const { profile, isLoading } = useUserProfileStore();
   const { user, signOut } = useAuth();
+  const { showToast } = useToast();
   const [activeSection, setActiveSection] = useState<ProfileSection>('overview');
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
@@ -61,7 +63,9 @@ export default function EnhancedProfileScreen() {
           onPress: async () => {
             try {
               await signOut();
+              showToast({ type: 'success', message: 'Signed out successfully' });
             } catch (error) {
+              showToast({ type: 'error', message: 'Sign out failed. Please try again.' });
               Alert.alert('Sign out failed', error instanceof Error ? error.message : 'Please try again.');
             }
           }

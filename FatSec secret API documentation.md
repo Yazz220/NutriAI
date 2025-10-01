@@ -33,25 +33,13 @@ For details: method=food.get.v4&food_id=...&format=json
 For vision: method=image.recognition.v1 with image payload per docs.
 Recommended integration plan (accurate, low-risk)
 Backend (Supabase Edge Functions)
-fatsecret-token: fetch and cache OAuth2 token (Client Credentials). Cache until expiry.
 fatsecret-foods-search: accepts { q, page_number, max_results }, injects Bearer token, calls foods.search.v3, returns normalized results.
 fatsecret-food-get: accepts { food_id }, calls food.get.v4, returns normalized nutrition (per 100g and per serving).
 fatsecret-image-recognition (optional): accepts image, calls image.recognition.v1 if scope enabled; otherwise returns 403 with helpful message.
 Security:
 Store Client ID/Secret as Supabase function secrets (do not embed in the app).
 Ensure your Supabase egress IPs are whitelisted in FatSecret (required for token endpoint).
-Client (Expo)
-.env
-:
-EXPO_PUBLIC_FATSECRET_PROXY_BASE=<your supabase functions base>
-utils/fatsecretClient.ts:
-searchFoods(query, opts) ? calls our fatsecret-foods-search.
-getFoodById(foodId) ? calls fatsecret-food-get.
-recognizeImage(imageUri) ? calls fatsecret-image-recognition (if available).
-Tracking page:
-“Take Picture”:
-If recognizeImage available, show results ? portion slider ? log.
-Else, on-device classify ? call searchFoods with top label ? getFoodById ? portion slider ? log.
+Deployment Checklist
 “Search Food”:
 Directly uses searchFoods + getFoodById, unified UI with portion slider and macros.
 Recipe detail:

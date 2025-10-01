@@ -24,16 +24,12 @@ const formatDate = (iso: string) => {
   if (Number.isNaN(date.getTime())) {
     return iso;
   }
-  const month = date.toLocaleString(undefined, { month: 'short' });
+  const month = date.getMonth() + 1;
   const day = date.getDate();
-  return `${month} ${day}`;
+  return `${month}/${day}`;
 };
 
-interface WeightProgressChartCardProps {
-  tracking: WeightTrackingHandle;
-}
-
-export const WeightProgressChartCard: React.FC<WeightProgressChartCardProps> = ({ tracking }) => {
+export const WeightProgressChartCard = ({ tracking }: { tracking: WeightTrackingHandle }) => {
   const { entries, goal } = tracking;
 
   const chartState = useMemo(() => {

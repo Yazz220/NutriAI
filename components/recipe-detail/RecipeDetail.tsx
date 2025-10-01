@@ -1,51 +1,72 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, Alert, Animated, Dimensions } from 'react-native';
-import { ChevronLeft, Clock, Users, ExternalLink, BookmarkPlus, Bookmark, Utensils, MessageCircle, Plus } from 'lucide-react-native';
-import { Button } from '../ui/Button';
-import { IngredientIcon } from '@/components/common/IngredientIcon';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft, Clock, Bookmark, BookmarkPlus, ExternalLink, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { Colors } from '../../constants/colors';
-import { Spacing, Typography as LegacyType, Radii } from '@/constants/spacing';
+import NoshChefIcon from '@/assets/icons/Nosh chef (1).svg';
+import FooterArt from '@/assets/icons/footer.svg';
+import { MealTypeSelector } from './MealTypeSelector';
+import { RecipeNutritionCard } from './RecipeNutritionCard';
+import { PlanMealModal } from './PlanMealModal';
+import { ServingSizeChanger } from './ServingSizeChanger';
+import IngredientIcon from '@/components/common/IngredientIcon';
+import { EnhancedFloatingChatButton } from '@/components/coach/EnhancedFloatingChatButton';
+import { RecipeChatModal } from './RecipeChatModal';
+import { Button } from '@/components/ui/Button';
+import { Colors } from '@/constants/colors';
+import { Spacing, Radii, Typography as LegacyType } from '@/constants/spacing';
 import { Typography as Type } from '@/constants/typography';
-import { slugifyIngredient } from '@/utils/ingredientSlug';
-import type { CanonicalRecipe, RecipeDetailMode, CanonicalIngredient, Meal, MealType, InventoryItem } from '../../types';
-// Local fallback conversion to Meal shape; if a shared utility exists, replace this with an import
-const convertToMeal = (r: CanonicalRecipe, servings: number): Omit<Meal, 'id'> & { id: string } => ({
-  id: r.id,
-  name: r.title,
-  description: r.description || '',
-  ingredients: (r.ingredients || []).map((ing: any) => ({
-    name: ing.name,
-    quantity: typeof ing.amount === 'number' ? ing.amount : 1,
-    unit: ing.unit || 'pcs',
-  })),
-  steps: r.steps || [],
-  image: r.image,
-  tags: r.tags || [],
-  prepTime: r.prepTimeMinutes || 0,
-  cookTime: r.cookTimeMinutes || 0,
-  servings: servings,
-  sourceUrl: r.sourceUrl,
-  nutritionPerServing: r.nutritionPerServing ? {
-    calories: r.nutritionPerServing.calories || 0,
-    protein: r.nutritionPerServing.protein || 0,
-    carbs: r.nutritionPerServing.carbs || 0,
-    fats: r.nutritionPerServing.fats || 0,
-  } : undefined,
-});
+import LeafIcon from '@/assets/icons/Leaf.svg';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
-import { calculateRecipeAvailability } from '@/utils/recipeAvailability';
-import { ServingSizeChanger } from './ServingSizeChanger';
-import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
-import { MealTypeSelector } from './MealTypeSelector';
-import { RecipeNutritionCard } from './RecipeNutritionCard';
-import { PlanMealModal } from './PlanMealModal';
+import { CanonicalRecipe, RecipeDetailMode, Meal, MealType } from '@/types';
 import { scaleIngredients, formatIngredientDisplay, scaleNutrition } from '@/utils/ingredientScaling';
+
+const stripHtml = (html?: string) => (html ? html.replace(/<[^>]*>/g, '') : '');
+const slugifyIngredient = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const FOOTER_ASPECT_RATIO = 1128 / 1596;
+const convertToMeal = (r: CanonicalRecipe, servings: number): Meal => {
+  return {
+    id: r.id,
+    name: r.title,
+    description: r.description || '',
+    ingredients: (r.ingredients || []).map((i) => ({
+      name: i.name,
+      quantity: typeof i.amount === 'number' ? i.amount : 1,
+      unit: i.unit || 'pcs',
+      optional: !!i.optional,
+    })),
+    steps: r.steps || [],
+    image: r.image,
+    tags: r.tags || [],
+    prepTime: r.prepTimeMinutes || 0,
+    cookTime: r.cookTimeMinutes || 0,
+    servings,
+    sourceUrl: r.sourceUrl,
+    nutritionPerServing: r.nutritionPerServing
+      ? {
+          calories: r.nutritionPerServing.calories || 0,
+          protein: r.nutritionPerServing.protein || 0,
+          carbs: r.nutritionPerServing.carbs || 0,
+          fats: r.nutritionPerServing.fats || 0,
+        }
+      : undefined,
+  };
+};
 
 export interface RecipeDetailProps {
   visible?: boolean; // parent (modal) controls visibility; present for parity
@@ -80,6 +101,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   selectedDate,
 }) => {
   const servings = recipe.servings;
+  const insets = useSafeAreaInsets();
+  const screenWidth = Dimensions.get('window').width;
+  const footerHeight = Math.round(screenWidth * FOOTER_ASPECT_RATIO);
   const [desiredServings, setDesiredServings] = useState<number>(Math.max(1, servings ?? 1));
   const time = recipe.totalTimeMinutes ?? ((recipe.prepTimeMinutes ?? 0) + (recipe.cookTimeMinutes ?? 0));
 
@@ -93,7 +117,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const { preferences } = useUserPreferences();
   const { logMealFromRecipe } = useNutritionWithMealPlan();
   const { addPlannedMeal } = useMealPlanner();
-  const { meals, addMeal } = useMeals();
+  const { meals, addMeal, setMeals } = useMeals();
   const [missingCount, setMissingCount] = useState(0);
   const [missingList, setMissingList] = useState<Array<{ name: string; quantity: number; unit: string }>>([]);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
@@ -221,7 +245,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
   return (
     <Animated.View style={[styles.container, { transform: [{ translateX: translateAnim.current }] }] as any}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: Spacing.xl }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: Math.max(Spacing.xl, insets.bottom + Spacing.lg) }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header Image */}
         {hasImage && (
           <View style={styles.imageContainer} pointerEvents="none">
@@ -341,18 +369,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 />
               )}
 
-              <Button
-                title="Ask Nosh"
-                onPress={async () => {
-                  try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-                  // Prefer parent-provided handler (EnhancedRecipeDetailModal switches to ChatModal)
-                  if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); }
-                }}
-                size="sm"
-                variant="secondary"
-                shape="capsule"
-                icon={<MessageCircle size={16} color={Colors.primary} />}
-              />
+              {/* Ask Nosh moved to floating button for consistency */}
               
             </>
           )}
@@ -398,7 +415,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 />
               )}
 
-              <Button title="Ask Nosh" onPress={() => { if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); } }} size="sm" variant="secondary" shape="capsule" icon={<MessageCircle size={16} color={Colors.primary} />} />
+              {/* Ask Nosh moved to floating button for consistency */}
             </>
           )}
 
@@ -478,7 +495,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 <React.Fragment key={`step-${i}`}>
                   <View style={styles.stepItem}>
                     <View style={styles.stepLeft}>
-                      <View style={styles.stepBullet} />
+                      <View style={styles.stepBulletIcon}>
+                        <LeafIcon width={64} height={64} style={styles.stepBulletSvg} />
+                      </View>
                       {i < recipe.steps.length - 1 && <View style={styles.stepConnector} />}
                     </View>
                     <View style={styles.stepRight}>
@@ -501,6 +520,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             />
           </View>
         )}
+
+        <View style={styles.footerArtContainer}>
+          <FooterArt width={screenWidth} height={footerHeight} preserveAspectRatio="xMidYMid slice" />
+        </View>
       </ScrollView>
 
       {/* Meal Type Selector Modal */}
@@ -519,17 +542,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         onClose={() => setShowPlanMealModal(false)}
         onConfirm={(mealType, date) => {
           // Ensure the recipe exists in the local meals store so tracker can resolve it
-          let localMealId = recipe.id;
+          // IMPORTANT: Preserve the original recipe.id so tracking page can find it
           const existing = meals.find((m: Meal) => m.id === recipe.id);
           if (!existing) {
             const asMeal = convertToMeal(recipe, desiredServings);
-            // Convert to Omit<Meal,'id'> for store add
-            const { id: _omit, ...rest } = asMeal as Meal;
-            localMealId = addMeal(rest);
+            // Add the meal WITH its original ID (don't generate a new one)
+            setMeals((prev: Meal[]) => [...prev, asMeal]);
           }
 
           addPlannedMeal({
-            recipeId: localMealId,
+            recipeId: recipe.id, // Use original recipe ID
             date,
             mealType,
             servings: desiredServings,
@@ -542,16 +564,24 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         servings={desiredServings}
         defaultDate={selectedDate}
       />
+
+      {/* Floating Ask Nosh button (consistent with Tracking page) */}
+      <EnhancedFloatingChatButton
+        onPress={async () => {
+          try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+          if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); }
+        }}
+        bottom={Math.max(20, (insets?.bottom ?? 0) + 120)}
+        hasUnreadMessages={false}
+        isTyping={false}
+        IconComponent={NoshChefIcon as any}
+      />
+
       {/* Recipe Chat Modal (contextual) */}
       <RecipeChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} recipe={mealLike as any} />
     </Animated.View>
   );
 };
-
-const stripHtml = (html?: string) => (html ? html.replace(/<[^>]*>/g, '') : '');
-
-
-
 const renderInlinePerServing = (per?: CanonicalRecipe['nutritionPerServing']) => {
   if (!per) return '—';
   const fmt = (n?: number, unit = '') => (typeof n === 'number' ? `${Math.round(n)}${unit}` : '—');
@@ -607,6 +637,9 @@ const styles = StyleSheet.create({
   stepRight: { flex: 1, paddingLeft: Spacing.sm },
   stepTitle: { ...Type.caption, color: Colors.lightText, marginBottom: Spacing.xs },
   stepBody: { ...Type.body, lineHeight: Type.body.lineHeight + 6, color: Colors.lightText },
+  // Fixed-size wrapper so scaled icon doesn't affect layout
+  stepBulletIcon: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center', overflow: 'visible', marginTop: 2 },
+  stepBulletSvg: { transform: [{ translateY: 4.5 }] },
   stepBullet: { width: 10, height: 10, backgroundColor: Colors.primary, transform: [{ rotate: '45deg' }], borderRadius: 2, marginTop: 4, borderWidth: 1, borderColor: Colors.border },
   nutritionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   nutritionItem: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, borderRadius: Radii.md, minWidth: 140, alignItems: 'center' },
@@ -697,6 +730,11 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 10,
     fontWeight: LegacyType.weights.bold,
+  },
+  footerArtContainer: {
+    width: '100%',
+    marginTop: Spacing.xl,
+    alignItems: 'center',
   },
 });
 

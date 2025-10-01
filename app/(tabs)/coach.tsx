@@ -78,7 +78,7 @@ export default function CoachScreen() {
   const [showTrendsModal, setShowTrendsModal] = useState(false);
   const [trendsInitialPeriod, setTrendsInitialPeriod] = useState<'7d'|'30d'|'90d'>('7d');
   const { messages, sendMessage, performInlineAction, isTyping } = useCoachChat();
-  const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal, completeMeal } = useMealPlanner();
+  const { getMealForDateAndType, addPlannedMeal, updatePlannedMeal, completeMeal, removePlannedMeal } = useMealPlanner();
   const { meals } = useMeals();
   const { showToast } = useToast();
   const [inputText, setInputText] = useState('');
@@ -499,7 +499,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Search and log food"
             >
-              <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                 <SearchIcon width={56} height={56} color={Colors.primary} />
               </View>
               <Text style={[styles.statPillActionText, { color: Colors.primary }]}>Search Food</Text>
@@ -510,7 +510,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="AI scan food from photo"
             >
-              <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                 <CameraIcon width={56} height={56} color={Colors.accentPrimary} />
               </View>
               <Text style={[styles.statPillActionText, { color: Colors.accentPrimary }]}>AI Scan</Text>
@@ -910,6 +910,10 @@ export default function CoachScreen() {
         lockMealType={lockMealType}
         autoCloseOnSave={planAllQueue ? false : true}
         plannedTypes={planAllCompleted}
+        onDelete={selectedExistingMeal ? () => {
+          removePlannedMeal(selectedExistingMeal.id);
+          showToast({ type: 'success', message: 'Meal removed from plan' });
+        } : undefined}
         onSave={(plannedMeal) => {
           if (selectedExistingMeal) {
             updatePlannedMeal({ ...selectedExistingMeal, ...plannedMeal });

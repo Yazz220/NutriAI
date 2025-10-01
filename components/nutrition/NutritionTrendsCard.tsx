@@ -59,12 +59,13 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
     const secondAvg = secondHalf.reduce((sum, d) => sum + d.calories, 0) / secondHalf.length;
     const trend = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
     
-    // Macro breakdown for donut chart
-    const macroBreakdown = [
-      { name: 'Protein', population: avgProtein * 4, color: Colors.nutrition.protein, legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Carbs', population: avgCarbs * 4, color: Colors.nutrition.carbs, legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Fats', population: avgFats * 9, color: Colors.nutrition.fats, legendFontColor: Colors.text, legendFontSize: 12 },
-    ];
+    // Macro breakdown for pie chart (using grams, not calories for cleaner display)
+    const totalMacros = avgProtein + avgCarbs + avgFats;
+    const macroBreakdown = totalMacros > 0 ? [
+      { name: 'Protein', population: avgProtein, color: Colors.nutrition.protein, legendFontColor: Colors.text, legendFontSize: 12 },
+      { name: 'Carbs', population: avgCarbs, color: Colors.nutrition.carbs, legendFontColor: Colors.text, legendFontSize: 12 },
+      { name: 'Fats', population: avgFats, color: Colors.nutrition.fats, legendFontColor: Colors.text, legendFontSize: 12 },
+    ] : [];
     
     return { avgCalories, trend, macroBreakdown, avgProtein, avgCarbs, avgFats };
   }, [dailyData]);
@@ -159,30 +160,26 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
           />
         </View>
 
-        {/* Macro Breakdown Donut */}
+        {/* Macro Breakdown Pie Chart */}
         {stats.macroBreakdown.length > 0 && (
-          <View style={styles.donutSection}>
-            <Text style={styles.donutTitle}>Macro Breakdown</Text>
-            <View style={styles.donutContainer}>
+          <View style={styles.pieSection}>
+            <Text style={styles.pieTitle}>Macro Breakdown</Text>
+            <View style={styles.pieChartContainer}>
               <PieChart
                 data={stats.macroBreakdown}
-                width={140}
-                height={140}
+                width={screenWidth - 64}
+                height={180}
                 chartConfig={{
                   color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                 }}
                 accessor="population"
                 backgroundColor="transparent"
                 hasLegend={false}
-                center={[10, 0]}
               />
-              <View style={styles.donutCenter}>
-                <Text style={styles.donutCenterLabel}>kcal</Text>
-              </View>
             </View>
             
-            {/* Legend */}
-              <View style={styles.legend}>
+            {/* Clean Legend */}
+            <View style={styles.legend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.protein }]} />
                 <Text style={styles.legendText}>Protein {stats.avgProtein}g</Text>
@@ -195,7 +192,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
                 <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.fats }]} />
                 <Text style={styles.legendText}>Fats {stats.avgFats}g</Text>
               </View>
-              </View>
+            </View>
           </View>
         )}
       </View>
@@ -313,44 +310,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   
-  donutSection: {
-    alignItems: 'center',
+  pieSection: {
     backgroundColor: Colors.background,
     borderRadius: 12,
     padding: 16,
   },
-  donutTitle: {
+  pieTitle: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  donutContainer: {
-    position: 'relative',
+  pieChartContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  donutCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutCenterValue: {
-    fontSize: 18,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text,
-  },
-  donutCenterLabel: {
-    fontSize: 10,
-    color: Colors.lightText,
+    marginBottom: 8,
   },
   
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
-    marginTop: 12,
+    gap: 16,
   },
   legendItem: {
     flexDirection: 'row',
@@ -358,13 +340,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   legendText: {
-    fontSize: 11,
-    color: Colors.lightText,
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: Typography.weights.medium,
   },
   
   hint: { 

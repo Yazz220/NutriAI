@@ -9,13 +9,16 @@ interface EnhancedFloatingChatButtonProps {
   bottom: number;
   hasUnreadMessages?: boolean;
   isTyping?: boolean;
+  // Optional override for the SVG icon used inside the button (must be an SVG React component)
+  IconComponent?: React.ComponentType<{ width?: number; height?: number }>;
 }
 
 export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProps> = ({
   onPress,
   bottom,
   hasUnreadMessages = false,
-  isTyping = false
+  isTyping = false,
+  IconComponent,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -181,7 +184,11 @@ export const EnhancedFloatingChatButton: React.FC<EnhancedFloatingChatButtonProp
             {/* Increase by 4% from 101.6928 -> 105.760512 and lower by 1% of 72px (0.72px).
                 Previously translateY was 1.44; adding 0.72 yields 2.16 to nudge down. */}
             <View style={{ transform: [{ translateY: 2.16 }], overflow: 'visible' }}>
-              <NoshIconCircle width={106.81811712} height={106.81811712} />
+              {IconComponent ? (
+                <IconComponent width={106.81811712} height={106.81811712} />
+              ) : (
+                <NoshIconCircle width={106.81811712} height={106.81811712} />
+              )}
             </View>
           </View>
 

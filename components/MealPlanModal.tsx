@@ -31,6 +31,7 @@ interface MealPlanModalProps {
   initialFolderId?: string;
   onSave: (plannedMeal: Omit<PlannedMeal, 'id'>) => void;
   onClose: () => void;
+  onDelete?: () => void; // Optional callback to delete the planned meal
   // When true, lock the meal type selection to selectedMealType and filter recipes for that type
   lockMealType?: boolean;
   // When true (default), the modal closes after saving. For Plan All flows, set false to keep it open.
@@ -352,6 +353,9 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: Colors.primary,
   },
+  deleteButton: {
+    backgroundColor: Colors.error || '#dc2626',
+  },
   buttonText: {
     fontSize: 16,
     fontWeight: Typography.weights.semibold,
@@ -360,6 +364,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   saveButtonText: {
+    color: Colors.white,
+  },
+  deleteButtonText: {
     color: Colors.white,
   },
   emptyState: {
@@ -382,6 +389,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   initialFolderId,
   onSave,
   onClose,
+  onDelete,
   lockMealType = false,
   autoCloseOnSave = true,
   plannedTypes = [],
@@ -667,17 +675,46 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
 
           {/* Action Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-              <Text style={[styles.buttonText, styles.cancelButtonText]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-              <Text style={[styles.buttonText, styles.saveButtonText]}>
-                {existingMeal ? 'Update' : 'Add to Plan'}
-              </Text>
-            </TouchableOpacity>
+            {existingMeal && onDelete ? (
+              <>
+                <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={() => {
+                  Alert.alert(
+                    'Remove Planned Meal',
+                    'Are you sure you want to remove this planned meal?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Remove',
+                        style: 'destructive',
+                        onPress: () => {
+                          onDelete();
+                          onClose();
+                        },
+                      },
+                    ]
+                  );
+                }}>
+                  <Text style={[styles.buttonText, styles.deleteButtonText]}>Remove</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+                  <Text style={[styles.buttonText, styles.saveButtonText]}>Update</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+                  <Text style={[styles.buttonText, styles.cancelButtonText]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+                  <Text style={[styles.buttonText, styles.saveButtonText]}>Add to Plan</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </View>
     </Modal>
   );
 };
+
+export default MealPlanModal;

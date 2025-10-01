@@ -28,6 +28,7 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
 import { searchFoodDatabase, FoodSearchResult } from '@/utils/openFoodFacts';
+import { analyzeFoodImageToLabel } from '@/utils/visionClient';
 interface ExternalFoodLoggingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -155,26 +156,41 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
   };
 
   const analyzeImage = async (imageUri: string) => {
-    setIsAnalyzing(true);
-    
-    // Mock AI analysis - in real app, this would call an AI service
-    setTimeout(() => {
-      const mockAnalysis: LoggedFoodItem = {
-        name: 'Grilled Chicken Salad',
-        calories: 320,
-        protein: 28,
-        carbs: 12,
-        fats: 18,
-        servings: 1,
-        mealType: selectedMealType,
-        date: selectedDate,
-        imageUri,
-        source: 'ai_scan',
-      };
-      
-      setAiAnalysisResult(mockAnalysis);
+    try {
+      setIsAnalyzing(true);
+      setAiAnalysisResult(null);
+      // 1) Ask our vision client to extract a label from the image (FatSecret Image API if configured)
+      const label = await analyzeFoodImageToLabel(imageUri);
+      // 2) If we got a label, search our nutrition source (Supabase Edge function backed)
+      let top: FoodSearchResult | undefined;
+      if (label) {
+        const results = await searchFoodDatabase(label);
+        top = results?.[0];
+      }
+      // 3) If we have a decent candidate, create an analysis result; otherwise, prompt user to use Search tab
+      if (top) {
+        const analysis: LoggedFoodItem = {
+          name: top.name,
+          calories: top.calories,
+          protein: top.protein,
+          carbs: top.carbs,
+          fats: top.fats,
+          servings: 1,
+          mealType: selectedMealType,
+          date: selectedDate,
+          imageUri,
+          source: 'ai_scan',
+        };
+        setAiAnalysisResult(analysis);
+      } else {
+        Alert.alert('Could not identify food', 'Try retaking the photo or use the Search tab.');
+      }
+    } catch (e) {
+      console.warn('[analyzeImage] failed', e);
+      Alert.alert('Analysis failed', 'Please try again or use the Search tab.');
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
 
   const handleLogFood = () => {
