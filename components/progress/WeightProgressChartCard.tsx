@@ -7,6 +7,15 @@ import { Spacing, Typography } from '@/constants/spacing';
 import type { WeightTrackingHandle } from '@/hooks/useWeightTracking';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
+const AnyLineChart = LineChart as unknown as React.ComponentType<any>;
+
+interface WeightChartState {
+  labels: string[];
+  data: number[];
+  lastWeight: number;
+  lastDate: string;
+}
+
 const screenWidth = Dimensions.get('window').width;
 const horizontalMargins = 16 * 2; // ProgressCardContainer default horizontal margins
 const horizontalPadding = Spacing.xl * 2;
@@ -32,14 +41,9 @@ const formatDate = (iso: string) => {
 export const WeightProgressChartCard = ({ tracking }: { tracking: WeightTrackingHandle }) => {
   const { entries, goal } = tracking;
 
-  const chartState = useMemo(() => {
+  const chartState = useMemo<WeightChartState | null>(() => {
     if (!entries || entries.length === 0) {
-      return null as null | {
-        labels: string[];
-        data: number[];
-        lastWeight: number;
-        lastDate: string;
-      };
+      return null;
     }
 
     const sorted = entries
@@ -67,43 +71,32 @@ export const WeightProgressChartCard = ({ tracking }: { tracking: WeightTracking
 
       {chartState ? (
         <View style={styles.chartWrapper}>
-          <LineChart
+          <AnyLineChart
             data={{
               labels: chartState.labels,
               datasets: [
                 {
                   data: chartState.data,
                   color: (opacity = 1) => `rgba(106, 162, 69, ${opacity})`,
-                  strokeWidth: 3,
                 },
               ],
             }}
             width={defaultChartWidth}
             height={220}
-            yAxisSuffix=" kg"
             chartConfig={{
               backgroundGradientFrom: Colors.card,
               backgroundGradientTo: Colors.card,
               decimalPlaces: 1,
               color: (opacity = 1) => `rgba(63, 109, 42, ${opacity})`,
               labelColor: (opacity = 1) => `rgba(104, 118, 70, ${opacity})`,
-              fillShadowGradient: Colors.success,
-              fillShadowGradientOpacity: 0.16,
-              propsForDots: {
-                r: '5',
-                strokeWidth: '2',
-                stroke: Colors.white,
-              },
               propsForBackgroundLines: {
                 strokeDasharray: '',
                 stroke: Colors.border,
               },
             }}
             bezier
-            withVerticalLines={false}
-            segments={4}
             style={styles.chart}
-            renderDotContent={({ x, y, index, value }) => {
+            renderDotContent={({ x, y, index, value }: { x: number; y: number; index: number; value: number | string }) => {
               if (index !== chartState.data.length - 1) {
                 return null;
               }

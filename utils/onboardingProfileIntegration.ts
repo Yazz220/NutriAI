@@ -115,7 +115,7 @@ export class OnboardingProfileIntegration {
       carbsTargetG: macroTargets?.carbs,
       fatsTargetG: macroTargets?.fats,
       goalType: goalDirection,
-      activityLevel: basicProfile.activityLevel,
+      activityLevel: this.mapActivityLevel(basicProfile.activityLevel),
       customGoalLabel: customGoal?.title,
       customGoalMotivation: customGoal?.motivation,
       usesCustomCalorieTarget: goalPreferences.useCustomCalories ?? false,
@@ -158,15 +158,30 @@ export class OnboardingProfileIntegration {
   }
 
   /**
+   * Map activity level from onboarding to profile format
+   */
+  private static mapActivityLevel(activityLevel?: string): 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete' | undefined {
+    if (!activityLevel) return undefined;
+    const mapping: Record<string, 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete'> = {
+      'sedentary': 'sedentary',
+      'lightly-active': 'light',
+      'moderately-active': 'moderate',
+      'very-active': 'active',
+      'extremely-active': 'athlete'
+    };
+    return mapping[activityLevel] || 'light';
+  }
+
+  /**
    * Map dietary preferences
    */
   private static mapPreferencesProfile(
     dietaryPreferences: OnboardingData['dietaryPreferences']
-  ): Partial<UserPreferencesProfile> {
+  ): UserPreferencesProfile {
     return {
-      allergies: dietaryPreferences.allergies,
+      allergies: dietaryPreferences.allergies ?? [],
       dietary: this.mapDietaryRestrictions(dietaryPreferences.restrictions),
-      dislikedIngredients: dietaryPreferences.customRestrictions,
+      dislikedIngredients: dietaryPreferences.customRestrictions ?? [],
       preferredCuisines: [] // Can be expanded later
     };
   }

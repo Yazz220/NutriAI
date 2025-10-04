@@ -349,7 +349,7 @@ function filterByDietaryRestrictions(
       
       // Common dietary restriction mappings
       if (restrictionLower.includes('vegetarian')) {
-        return ingredients.some(ing => 
+        return ingredients.some((ing: string) => 
           ing.includes('chicken') || ing.includes('beef') || 
           ing.includes('turkey') || ing.includes('salmon') || 
           ing.includes('tuna') || ing.includes('meat')
@@ -357,7 +357,7 @@ function filterByDietaryRestrictions(
       }
       
       if (restrictionLower.includes('vegan')) {
-        return ingredients.some(ing => 
+        return ingredients.some((ing: string) => 
           ing.includes('chicken') || ing.includes('beef') || 
           ing.includes('turkey') || ing.includes('salmon') || 
           ing.includes('tuna') || ing.includes('meat') ||
@@ -367,21 +367,21 @@ function filterByDietaryRestrictions(
       }
       
       if (restrictionLower.includes('dairy')) {
-        return ingredients.some(ing => 
+        return ingredients.some((ing: string) => 
           ing.includes('cheese') || ing.includes('yogurt') || 
           ing.includes('milk') || ing.includes('cottage cheese')
         );
       }
       
       if (restrictionLower.includes('gluten')) {
-        return ingredients.some(ing => 
+        return ingredients.some((ing: string) => 
           ing.includes('bread') || ing.includes('oats') || 
           ing.includes('tortilla') || ing.includes('wheat')
         );
       }
       
       // Direct ingredient matching
-      return ingredients.some(ing => ing.includes(restrictionLower));
+      return ingredients.some((ing: string) => ing.toLowerCase().includes(restrictionLower));
     });
   });
 }

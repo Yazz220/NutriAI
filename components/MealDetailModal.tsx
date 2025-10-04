@@ -21,7 +21,6 @@ import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
 import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
-import { StructuredMessage } from '@/components/StructuredMessage';
 import { Button } from './ui/Button';
 import { RecipeDetail } from './recipe-detail/RecipeDetail';
 import { toCanonicalFromMeal } from '@/utils/recipeCanonical';

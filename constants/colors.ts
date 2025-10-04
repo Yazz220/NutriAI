@@ -108,10 +108,10 @@ export const Colors = {
 
     // Gradient combinations
     gradients: {
-      primary: ["#3F6D2A", "#5D8C3C"], // Leaf gradient
-      secondary: ["#F0A44B", "#F5BC6D"], // Honey gradient
-      success: ["#6AA245", "#8ECF67"], // Garden success
-      info: ["#6AA7A2", "#8FC7C2"], // Misty teal
+      primary: ["#3F6D2A", "#5D8C3C"] as const, // Leaf gradient
+      secondary: ["#F0A44B", "#F5BC6D"] as const, // Honey gradient
+      success: ["#6AA245", "#8ECF67"] as const, // Garden success
+      info: ["#6AA7A2", "#8FC7C2"] as const, // Misty teal
     },
   },
 

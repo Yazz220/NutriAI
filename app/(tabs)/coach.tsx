@@ -52,11 +52,9 @@ import BMIModal from '@/components/progress/BMIModal';
 import { EnhancedTotalCaloriesCard } from '@/components/progress/EnhancedTotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
-import { StructuredMessage } from '@/components/StructuredMessage';
 import { DayCell, DateCarousel, WeekRings, CoachErrorBoundary } from '@/components/coach';
 import { ProgressPhotosCard } from '@/components/progress/ProgressPhotosCard';
 import { useRouter } from 'expo-router';
-import { NutritionCoachChatInterface } from '@/components/NutritionCoachChatInterface';
 import { EnhancedFloatingChatButton } from '@/components/coach/EnhancedFloatingChatButton';
 import { EnhancedChatInterface } from '@/components/coach/EnhancedChatInterface';
 import {

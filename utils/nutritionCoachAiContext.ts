@@ -1,5 +1,5 @@
 import { LoggedMeal, NutritionGoals, MealType } from '@/types';
-import { UserProfile, UserBasics, UserGoals } from '@/hooks/useUserProfile';
+import { UserBasics, UserGoals } from '@/hooks/useUserProfile';
 import { DailyProgress, WeeklyTrend } from '@/hooks/useNutrition';
 import { calculateBMR, calculateTDEE, calculateNutritionGoals, getGoalExplanation } from '@/utils/goalCalculations';
 import { ChatMessage } from '@/utils/aiClient';
@@ -358,7 +358,7 @@ function generateContextSummary(context: NutritionCoachAiContext): string {
 }
 
 export function buildNutritionCoachAiContext(
-  userProfile: UserProfile | null,
+  userProfile: { basics: UserBasics; goals: UserGoals } | null,
   todayProgress: DailyProgress,
   weeklyTrends: WeeklyTrend[],
   recentMeals: LoggedMeal[],
