@@ -284,5 +284,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, 
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { Brain, Plus, Medal, Fire, Pencil } from 'phosphor-react-native';
+import { Brain, Plus, Medal, Fire, Pencil, X } from 'phosphor-react-native';
 import SearchIcon from '@/assets/icons/search.svg';
 import CalenderIcon from '@/assets/icons/Calender.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
@@ -99,18 +99,11 @@ export default function CoachScreen() {
     d.setDate(1);
     return d;
   });
-
-  // Compute pixel offsets to shift calendar visuals without changing hit areas.
-  // Move the entire calendar header (month + arrows) down by ~10% of window height,
-  // then add extra spacing before the days by ~5% to reduce clutter.
-  const WINDOW_HEIGHT = Dimensions.get('window').height;
-  const calendarHeaderOffset = Math.round(WINDOW_HEIGHT * 0.10);
-  const calendarBelowOffset = Math.round(WINDOW_HEIGHT * 0.05);
+  // Calendar modal state - no excessive offsets needed
   const [showQuickWeightModal, setShowQuickWeightModal] = useState(false);
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [showBmiModal, setShowBmiModal] = useState(false);
   const [imageToAnalyze, setImageToAnalyze] = useState<string | null>(null);
-
   // Segmented control layout/animation
   const [segWidth, setSegWidth] = useState(0);
   const indicatorX = useRef(new Animated.Value(0)).current;
@@ -568,65 +561,70 @@ export default function CoachScreen() {
                           {recipe?.image ? (
                             <Image source={{ uri: recipe.image }} style={styles.mealRowThumb} />
                           ) : null}
-                          <Text style={styles.mealRowSub}>{recipe?.name ?? 'Planned'}</Text>
+                          <Text style={styles.mealRowSub} numberOfLines={2}>{recipe?.name ?? 'Planned'}</Text>
                         </View>
                       ) : (
                         <Text style={styles.mealRowSub}>Add {type}</Text>
                       )}
                     </View>
-                    {planned && !planned.isCompleted && (
-                      <TouchableOpacity
-                        style={styles.logBtn}
-                        onPress={async () => {
-                          try {
-                            const id = logPlannedMeal(planned, meals);
-                            if (id) {
-                              await completeMeal(planned.id);
-                              showToast({ type: 'success', message: `${label} logged` });
-                            } else {
-                              showToast({ type: 'error', message: 'Unable to log meal' });
+                    <View style={styles.mealActions}>
+                      {planned && !planned.isCompleted && (
+                        <Button
+                          title="Log"
+                          onPress={async () => {
+                            try {
+                              const id = logPlannedMeal(planned, meals);
+                              if (id) {
+                                await completeMeal(planned.id);
+                                showToast({ type: 'success', message: `${label} logged` });
+                              } else {
+                                showToast({ type: 'error', message: 'Unable to log meal' });
+                              }
+                            } catch (e) {
+                              showToast({ type: 'error', message: 'Failed to log meal' });
                             }
-                          } catch (e) {
-                            showToast({ type: 'error', message: 'Failed to log meal' });
+                          }}
+                          size="sm"
+                          variant="primary"
+                          shape="capsule"
+                          icon={<Plus size={16} color={Colors.onPrimary} />}
+                          fullWidth
+                          style={styles.logButton}
+                          accessibilityLabel={`Log ${label}`}
+                        />
+                      )}
+                      <IconButtonSquare
+                        accessibilityLabel={planned ? `Edit ${type}` : `Plan ${type}`}
+                        onPress={() => {
+                          if (planned && planned.isCompleted) {
+                            Alert.alert(
+                              'Remove Logged Meal',
+                              'Are you sure you want to remove this logged meal?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Remove',
+                                  style: 'destructive',
+                                  onPress: () => {
+                                    const loggedMeal = loggedMeals.find(
+                                      (lm) => lm.date === planned.date && lm.mealType === planned.mealType
+                                    );
+                                    if (loggedMeal) {
+                                      removeLoggedMeal(loggedMeal.id);
+                                      showToast({ type: 'success', message: 'Meal removed' });
+                                    }
+                                  },
+                                },
+                              ]
+                            );
+                          } else {
+                            planned ? openEditMeal(type) : openAddMeal(type);
                           }
                         }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Log ${label}`}
                       >
-                        <Text style={styles.logBtnText}>Log</Text>
-                      </TouchableOpacity>
-                    )}
-                    <IconButtonSquare
-                      accessibilityLabel={planned ? `Edit ${type}` : `Plan ${type}`}
-                      onPress={() => {
-                        if (planned && planned.isCompleted) {
-                          Alert.alert(
-                            'Remove Logged Meal',
-                            'Are you sure you want to remove this logged meal?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Remove',
-                                style: 'destructive',
-                                onPress: () => {
-                                  const loggedMeal = loggedMeals.find(
-                                    (lm) => lm.date === planned.date && lm.mealType === planned.mealType
-                                  );
-                                  if (loggedMeal) {
-                                    removeLoggedMeal(loggedMeal.id);
-                                    showToast({ type: 'success', message: 'Meal removed' });
-                                  }
-                                },
-                              },
-                            ]
-                          );
-                        } else {
-                          planned ? openEditMeal(type) : openAddMeal(type);
-                        }
-                      }}
-                    >
-                      {planned ? <Pencil size={16} color={Colors.text} /> : <Plus size={16} color={Colors.text} />}
-                    </IconButtonSquare>
+                        {planned ? <Pencil size={16} color={Colors.text} /> : <Plus size={16} color={Colors.text} />}
+                      </IconButtonSquare>
+                    </View>
                   </TouchableOpacity>
                   <Rule />
                 </React.Fragment>
@@ -736,7 +734,7 @@ export default function CoachScreen() {
           {/* Top header with Today / Close */}
           <View style={styles.calendarTopBar}>
             <TouchableOpacity
-              style={{ paddingHorizontal: 8 }}
+              style={styles.calendarTodayButton}
               onPress={() => {
                 const today = new Date().toISOString().split('T')[0];
                 setDayISO(today);
@@ -744,21 +742,22 @@ export default function CoachScreen() {
               }}
               accessibilityRole="button"
             >
-              <Text style={styles.calendarTopBarAction}>Today</Text>
+              <Text style={styles.calendarTodayButtonText}>Today</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{ paddingHorizontal: 8 }}
+              style={styles.calendarCloseButton}
               onPress={() => setCalendarOpen(false)}
               accessibilityRole="button"
+              accessibilityLabel="Close calendar"
             >
-              <Text style={styles.calendarTopBarAction}>Close</Text>
+              <X size={24} color={Colors.text} weight="bold" />
             </TouchableOpacity>
           </View>
 
           {/* Month header */}
-          <View style={[styles.calendarHeader, { marginTop: calendarHeaderOffset }]}>
+          <View style={styles.calendarHeader}>
             <TouchableOpacity
-              style={[styles.modernIconBtn, { position: 'absolute', left: 8 }]}
+              style={styles.calendarArrowButton}
               onPress={() => {
                 const d = new Date(calendarMonth);
                 d.setMonth(d.getMonth() - 1);
@@ -767,15 +766,13 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Previous month"
             >
-              <View style={{ width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }}>
-                <LeftArrowIcon width={128} height={128} color={Colors.text} style={{ position: 'absolute', left: -(128 - 36) / 2, top: -(128 - 36) / 2 }} />
-              </View>
+              <LeftArrowIcon width={24} height={24} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.calendarMonthLabel}>
               {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </Text>
             <TouchableOpacity
-              style={[styles.modernIconBtn, { position: 'absolute', right: 8 }]}
+              style={styles.calendarArrowButton}
               onPress={() => {
                 const d = new Date(calendarMonth);
                 d.setMonth(d.getMonth() + 1);
@@ -784,14 +781,12 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Next month"
             >
-              <View style={{ width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }}>
-                <RightArrowIcon width={128} height={128} color={Colors.text} style={{ position: 'absolute', left: -(128 - 36) / 2, top: -(128 - 36) / 2 }} />
-              </View>
+              <RightArrowIcon width={24} height={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Weekday Row (Sun-Sat three-letter abbreviations) */}
-          <View style={[styles.calendarWeekdaysRow, { marginTop: calendarBelowOffset }] }>
+          <View style={styles.calendarWeekdaysRow}>
             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
               <Text key={d} style={styles.calendarWeekdayText} numberOfLines={1} adjustsFontSizeToFit>{d}</Text>
             ))}
@@ -864,7 +859,7 @@ export default function CoachScreen() {
           </View>
 
           {/* Stats row below calendar */}
-          <View style={[styles.calendarStatsRow, { marginTop: calendarBelowOffset }] }>
+          <View style={styles.calendarStatsRow}>
             <View style={styles.calendarStatItem}>
               <Text style={styles.calendarStatLabel}>Active</Text>
               <Text style={styles.calendarStatValue}>{(() => {
@@ -1455,6 +1450,9 @@ const styles = StyleSheet.create({
     ...Type.body,
     color: Colors.lightText,
     marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20,
+    flexShrink: 1,
   },
   mealRowSubRow: {
     flexDirection: 'row',
@@ -1471,16 +1469,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.card,
   },
-  logBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    marginRight: 8,
+  mealActions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 8,
+    marginLeft: 12,
+    flexShrink: 0,
+    width: 104,
   },
-  logBtnText: { color: Colors.primary, fontWeight: '700' },
+  logButton: {
+    width: '100%',
+  },
   mealsGrid: {
     gap: 14,
   },
@@ -1715,23 +1715,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingHorizontal: 4,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   calendarMonthLabel: {
-    ...Type.body,
+    ...Type.h3,
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.text,
-    fontSize: 16,
     textAlign: 'center',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 3,
+    flex: 1,
   },
   calendarWeekdaysRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
     paddingHorizontal: 8,
   },
   calendarWeekdayText: {
@@ -1768,24 +1766,62 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: 20,
+    paddingTop: 8,
   },
   calendarTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 4, // base; combined with container padding to keep ample edge space
-    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 20,
+  },
+  calendarTodayButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  calendarTodayButtonText: {
+    ...Type.body,
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  calendarCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   calendarTopBarAction: {
     ...Type.caption,
     color: Colors.primary,
   },
+  calendarArrowButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   calendarStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 20,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   calendarStatItem: {
     alignItems: 'center',

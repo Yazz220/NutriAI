@@ -32,7 +32,7 @@ import { Meal, Recipe, RecipeIngredient } from '../types';
 import { MealPlanModal } from './MealPlanModal';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { trackEvent } from '@/utils/analytics';
-import ChatModal from '@/components/coach/ChatModal';
+import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
 import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 import { cleanupRecipeText, stripHtml as stripHtmlBasic, isInstructionLikeText } from '@/utils/text/recipeCleanup';
 
@@ -278,8 +278,12 @@ export const EnhancedRecipeDetailModal: React.FC<EnhancedRecipeDetailModalProps>
           onAskAI={() => setActiveTab('chat')}
         />
 
-        {/* Consistent Nosh chat UI, same as floating button page */}
-        <ChatModal visible={activeTab === 'chat'} onClose={() => setActiveTab('details')} initialRecipe={recipeForChat} />
+        {/* Consistent recipe-specific Nosh chat UI (matches floating button) */}
+        <RecipeChatModal
+          visible={activeTab === 'chat'}
+          onClose={() => setActiveTab('details')}
+          recipe={recipeForChat}
+        />
 
         {/* Bottom fade overlay removed per request */}
 

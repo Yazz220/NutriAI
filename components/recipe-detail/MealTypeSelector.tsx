@@ -5,15 +5,18 @@ import {
   Modal,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Button } from '@/components/ui/Button';
+import BreakfastIcon from '@/assets/icons/Breakfast.svg';
+import LunchIcon from '@/assets/icons/Lunch.svg';
+import DinnerIcon from '@/assets/icons/Dinner.svg';
+import SnackIcon from '@/assets/icons/Snack.svg';
 import CalenderIcon from '@/assets/icons/Calender.svg';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
-import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
 
 interface MealTypeSelectorProps {
@@ -26,30 +29,26 @@ interface MealTypeSelectorProps {
   defaultDate?: string; // Optional default date (defaults to today)
 }
 
-const MEAL_TYPE_OPTIONS: { type: MealType; label: string; icon: string; description: string }[] = [
+const MEAL_TYPE_OPTIONS: { type: MealType; label: string; icon: any }[] = [
   {
     type: 'breakfast',
     label: 'Breakfast',
-    icon: '🌅',
-    description: 'Start your day right',
+    icon: <BreakfastIcon width={48} height={48} />,
   },
   {
     type: 'lunch',
     label: 'Lunch',
-    icon: '☀️',
-    description: 'Midday fuel',
+    icon: <LunchIcon width={48} height={48} />,
   },
   {
     type: 'dinner',
     label: 'Dinner',
-    icon: '🌙',
-    description: 'Evening meal',
+    icon: <DinnerIcon width={48} height={48} />,
   },
   {
     type: 'snack',
     label: 'Snack',
-    icon: '🍎',
-    description: 'Quick bite',
+    icon: <SnackIcon width={48} height={48} />,
   },
 ];
 
@@ -63,7 +62,7 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
   defaultDate,
 }) => {
   const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
-  const [selectedDate, setSelectedDate] = useState<string>(() => 
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
     defaultDate || new Date().toISOString().split('T')[0]
   );
   const [showFullCalendar, setShowFullCalendar] = useState(false);
@@ -73,11 +72,6 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
     return d;
   });
 
-  const handleConfirm = () => {
-    onConfirm(selectedMealType, selectedDate);
-    onClose();
-  };
-
   const getCurrentMealSuggestion = (): MealType => {
     const hour = new Date().getHours();
     if (hour < 11) return 'breakfast';
@@ -86,12 +80,16 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
     return 'snack';
   };
 
-  // Set suggested meal type when modal opens
   React.useEffect(() => {
     if (visible) {
       setSelectedMealType(getCurrentMealSuggestion());
     }
   }, [visible]);
+
+  const handleConfirm = () => {
+    onConfirm(selectedMealType, selectedDate);
+    onClose();
+  };
 
   return (
     <Modal
@@ -117,10 +115,8 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
             <Text style={styles.recipeDetailText}>
               {servings} serving{servings !== 1 ? 's' : ''}
             </Text>
-            {calories && (
-              <Text style={styles.recipeDetailText}>
-                • {Math.round(calories)} calories
-              </Text>
+            {typeof calories === 'number' && (
+              <Text style={styles.recipeDetailText}> • {Math.round(calories)} calories</Text>
             )}
           </View>
         </View>
@@ -128,7 +124,7 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
         {/* Enhanced Date Selection */}
         <View style={styles.dateSection}>
           <View style={styles.dateSectionHeader}>
-            <Text style={styles.dateLabel}>Log for which date?</Text>
+            <Text style={styles.dateLabel}>Date</Text>
             <TouchableOpacity 
               style={styles.calendarButton}
               onPress={() => setShowFullCalendar(true)}
@@ -137,20 +133,25 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
               <Text style={styles.calendarButtonText}>Calendar</Text>
             </TouchableOpacity>
           </View>
-          
           {/* Quick Date Options */}
           <View style={styles.quickDateOptions}>
-            {[0, 1, 2, 3, 4, 5, 6].map((daysAgo) => {
+            {[0, 1].map((daysAgo) => {
               const date = new Date();
               date.setDate(date.getDate() - daysAgo);
               const dateISO = date.toISOString().split('T')[0];
               const isSelected = selectedDate === dateISO;
-              
-              let label: string;
-              if (daysAgo === 0) label = 'Today';
-              else if (daysAgo === 1) label = 'Yesterday';
-              else label = date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-              
+
+              const label =
+                daysAgo === 0
+                  ? 'Today'
+                  : daysAgo === 1
+                  ? 'Yesterday'
+                  : date.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    });
+
               return (
                 <TouchableOpacity
                   key={dateISO}
@@ -186,13 +187,7 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
         {/* Meal Type Selection */}
         <View style={styles.content}>
           <Text style={styles.sectionTitle}>What meal is this for?</Text>
-          <Text style={styles.sectionSubtitle}>
-            This will be added to your nutrition tracking for {
-              selectedDate === new Date().toISOString().split('T')[0] 
-                ? 'today' 
-                : new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-            }
-          </Text>
+          {/* Subtitle intentionally omitted */}
 
           <View style={styles.mealTypeGrid}>
             {MEAL_TYPE_OPTIONS.map((option) => (
@@ -202,13 +197,15 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
                   styles.mealTypeCard,
                   selectedMealType === option.type && styles.mealTypeCardSelected,
                 ]}
-                onPress={() => setSelectedMealType(option.type)}
+                onPress={() => {
+                  setSelectedMealType(option.type);
+                }}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selectedMealType === option.type }}
-                accessibilityLabel={`${option.label} - ${option.description}`}
+                accessibilityLabel={`${option.label}`}
               >
                 <View style={styles.mealTypeHeader}>
-                  <Text style={styles.mealTypeIcon}>{option.icon}</Text>
+                  <View style={styles.mealTypeIconWrap}>{option.icon}</View>
                   {selectedMealType === option.type && (
                     <View style={styles.checkIcon}>
                       <Check size={16} color={Colors.white} />
@@ -221,12 +218,7 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
                 ]}>
                   {option.label}
                 </Text>
-                <Text style={[
-                  styles.mealTypeDescription,
-                  selectedMealType === option.type && styles.mealTypeDescriptionSelected,
-                ]}>
-                  {option.description}
-                </Text>
+                {/* Description removed per request */}
               </TouchableOpacity>
             ))}
           </View>
@@ -237,11 +229,15 @@ export const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({
           <Button
             title="Cancel"
             variant="outline"
+            size="sm"
+            shape="rect"
             onPress={onClose}
             style={styles.cancelButton}
           />
           <Button
             title="Log Meal"
+            size="sm"
+            shape="rect"
             onPress={handleConfirm}
             style={styles.confirmButton}
           />
@@ -405,107 +401,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    alignItems: 'center',
   },
   recipeName: {
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.semibold,
     color: Colors.text,
     marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   recipeDetails: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
   },
   recipeDetailText: {
     fontSize: Typography.sizes.sm,
     color: Colors.lightText,
-  },
-  content: {
-    flex: 1,
-    padding: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  sectionSubtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.lightText,
-    marginBottom: Spacing.lg,
-  },
-  mealTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  mealTypeCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-    alignItems: 'center',
-    minHeight: 120,
-  },
-  mealTypeCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.tints.brandTintSoft,
-  },
-  mealTypeHeader: {
-    position: 'relative',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  mealTypeIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.xs,
-  },
-  checkIcon: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mealTypeLabel: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  mealTypeLabelSelected: {
-    color: Colors.primary,
-  },
-  mealTypeDescription: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.lightText,
-    textAlign: 'center',
-  },
-  mealTypeDescriptionSelected: {
-    color: Colors.primary,
-  },
-  footer: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  confirmButton: {
-    flex: 2,
   },
   dateSection: {
     paddingHorizontal: Spacing.md,
@@ -547,16 +460,6 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
-  quickDateOption: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    alignItems: 'center',
-    minWidth: 80,
-  },
   quickDateOptionSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.tints.brandTintSoft,
@@ -565,6 +468,101 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text,
     fontWeight: Typography.weights.medium,
+  },
+  content: {
+    flex: 1,
+    padding: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  sectionSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    marginBottom: Spacing.lg,
+  },
+  mealTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  mealTypeCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    alignItems: 'center',
+    minHeight: 120,
+  },
+  mealTypeCardSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.tints.brandTintSoft,
+  },
+  mealTypeHeader: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  mealTypeIconWrap: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealTypeIcon: {
+    fontSize: 32,
+    marginBottom: Spacing.xs,
+  },
+  checkIcon: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealTypeLabel: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  mealTypeLabelSelected: {
+    color: Colors.primary,
+  },
+  mealTypeDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    textAlign: 'center',
+  },
+  mealTypeDescriptionSelected: {
+    color: Colors.primary,
+  },
+  footer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 52,
+  },
+  confirmButton: {
+    flex: 1,
+    minHeight: 52,
   },
   quickDateOptionTextSelected: {
     color: Colors.primary,
@@ -699,6 +697,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.card,
     alignItems: 'center',
+  },
+  quickDateOption: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    minWidth: 72,
+    textAlign: 'center',
   },
   calendarCancelText: {
     fontSize: Typography.sizes.md,

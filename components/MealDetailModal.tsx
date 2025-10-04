@@ -20,8 +20,7 @@ import { ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X, MessageC
 import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
-import { useRecipeChat } from '@/hooks/useRecipeChat';
-import ChatModal from '@/components/coach/ChatModal';
+import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
 import { StructuredMessage } from '@/components/StructuredMessage';
 import { Button } from './ui/Button';
 import { RecipeDetail } from './recipe-detail/RecipeDetail';
@@ -96,10 +95,7 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
     } as RecipeAvailability;
   }, [meal, availability, checkIngredientsAvailability]);
 
-  const { messages, isTyping, sendMessage, quickChips, performInlineAction } = useRecipeChat(
-    recipeForChat,
-    recipeAvailability as any
-  );
+  // Chat UI is rendered via RecipeChatModal for consistency across Discover and Library
 
   if (!meal) return null;
 
@@ -190,10 +186,11 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
           />
 
           {/* Nosh Chat Modal (wired to 'Ask Nosh' button) */}
-          <ChatModal
+          <RecipeChatModal
             visible={activeTab === 'chat'}
             onClose={() => setActiveTab('details')}
-            initialRecipe={recipeForChat}
+            recipe={recipeForChat as any}
+            availability={recipeAvailability as any}
           />
         </View>
       </View>

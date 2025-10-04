@@ -73,9 +73,6 @@ export default function OnboardingLayout() {
         <Stack.Screen name="dietary-preferences" />
         <Stack.Screen name="allergies" />
         <Stack.Screen name="other-restrictions" />
-        <Stack.Screen name="pantry-setup" />
-        <Stack.Screen name="ai-coach-intro" />
-        <Stack.Screen name="completion" />
       </Stack>
     </OnboardingProvider>
   );

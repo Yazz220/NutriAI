@@ -34,7 +34,7 @@ const activityLevels: Array<{
   {
     id: 'lightly-active',
     title: 'Lightly Active',
-    description: 'Light exercise 1-3 days/week',
+    description: '1-3 days/week',
     examples: 'Walking, light yoga, occasional gym',
     icon: '🚶',
     multiplier: 1.375
@@ -42,7 +42,7 @@ const activityLevels: Array<{
   {
     id: 'moderately-active',
     title: 'Moderately Active',
-    description: 'Moderate exercise 3-5 days/week',
+    description: '3-5 days/week',
     examples: 'Regular gym, sports, active lifestyle',
     icon: '🏃',
     multiplier: 1.55
@@ -50,7 +50,7 @@ const activityLevels: Array<{
   {
     id: 'very-active',
     title: 'Very Active',
-    description: 'Hard exercise 6-7 days/week',
+    description: '6-7 days/week',
     examples: 'Daily workouts, competitive sports',
     icon: '💪',
     multiplier: 1.725

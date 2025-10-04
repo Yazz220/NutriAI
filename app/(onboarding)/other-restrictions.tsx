@@ -1,6 +1,7 @@
 import HealthConcernsImage from '@/assets/images/nosh/Health Concerns.svg';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -15,8 +16,9 @@ const HEALTH_CONCERNS = [
 ];
 
 export default function HealthConcernsScreen() {
-  const { onboardingData, updateOnboardingData, nextStep, previousStep } = useOnboarding();
+  const { onboardingData, updateOnboardingData, previousStep, completeOnboarding } = useOnboarding();
   const [selected, setSelected] = useState<string[]>(onboardingData.healthConcerns || []);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     updateOnboardingData('healthConcerns', selected);
@@ -33,6 +35,18 @@ export default function HealthConcernsScreen() {
   };
 
   const isSelected = (id: string) => selected.includes(id);
+
+  const handleFinish = async () => {
+    if (finishing) return;
+    try {
+      setFinishing(true);
+      await completeOnboarding();
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert('Unable to finish', 'Something went wrong while completing your setup. Please try again.');
+      setFinishing(false);
+    }
+  };
 
   return (
     <OnboardingScreenWrapper>
@@ -78,7 +92,13 @@ export default function HealthConcernsScreen() {
         <View style={styles.footer}>
           <View style={styles.buttonRow}>
             <OnboardingButton title="Back" variant="ghost" onPress={previousStep} />
-            <OnboardingButton title="Continue" variant="primary" onPress={nextStep} />
+            <OnboardingButton
+              title={finishing ? 'Finishing...' : 'Finish'}
+              variant="primary"
+              onPress={handleFinish}
+              loading={finishing}
+              disabled={finishing}
+            />
           </View>
         </View>
       </View>

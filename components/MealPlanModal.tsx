@@ -498,7 +498,7 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
         <View style={styles.modalContent}>
           {/* Dark Header Gradient matching global theme */}
           <ExpoLinearGradient
-            colors={[Colors.background, Colors.card, Colors.secondary]}
+            colors={[Colors.secondary, Colors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.header}

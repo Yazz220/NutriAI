@@ -15,7 +15,7 @@ import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegrati
 
 const ONBOARDING_STORAGE_KEY = 'onboarding_data';
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
-const TOTAL_STEPS = 15;
+const TOTAL_STEPS = 12;
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
@@ -39,9 +39,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       if (loadedData) {
         setOnboardingData(loadedData);
         
-        // Update navigation manager based on loaded data
-        const currentStep = navigationManager.calculateCurrentStepFromData(loadedData);
-        navigationManager.goToStep(currentStep);
+        // DO NOT automatically navigate based on loaded data
+        // Let the user's current route remain active to avoid loops
+        // The navigation manager's internal state will be updated when nextStep/previousStep is called
       }
     } catch (err) {
       console.warn('Failed to load onboarding data:', err);

@@ -54,8 +54,7 @@ function RootLayoutNav() {
             (RNText as any).defaultProps && (RNText as any).defaultProps.style,
           ],
         };
-        
-        // Check onboarding completion status
+
         const completed = await isOnboardingCompleted();
         setOnboardingCompleted(completed);
       } catch (e) {
@@ -67,6 +66,28 @@ function RootLayoutNav() {
     }
     prepare();
   }, []);
+
+  useEffect(() => {
+    if (!fontsLoaded) return;
+
+    let cancelled = false;
+
+    isOnboardingCompleted()
+      .then((completed) => {
+        if (!cancelled) {
+          setOnboardingCompleted(completed);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOnboardingCompleted(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fontsLoaded, segments]);
   
   // Hide the splash screen once fonts are loaded. Declare this effect before
   // any early returns so hook order remains stable across renders.

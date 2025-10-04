@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -48,8 +49,18 @@ export default function EnhancedProfileScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetSection, setSheetSection] = useState<Exclude<ProfileSection, 'overview'> | null>(null);
   const insets = useSafeAreaInsets();
+  const [kbHeight, setKbHeight] = useState(0);
 
   const closeSheet = () => { setSheetVisible(false); setSheetSection(null); };
+
+  // Track keyboard to avoid sheet collapsing behind it
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const subShow = Keyboard.addListener(showEvt, (e) => setKbHeight(e.endCoordinates?.height ?? 0));
+    const subHide = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -85,8 +96,8 @@ export default function EnhancedProfileScreen() {
     const hasGoal = Boolean(typedGoal);
     const goalLabel = hasGoal
       ? typedGoal === 'custom'
-        ? profile?.customGoalTitle?.trim() || GOAL_LABELS[typedGoal]
-        : GOAL_LABELS[typedGoal]
+        ? profile?.customGoalTitle?.trim() || GOAL_LABELS[typedGoal as HealthGoal]
+        : GOAL_LABELS[typedGoal as HealthGoal]
       : 'Choose a goal to personalize your plan';
     const directionCopy = GOAL_DIRECTION_COPY[goalDirection];
     const goalDescription = hasGoal
@@ -117,59 +128,56 @@ export default function EnhancedProfileScreen() {
         {/* Header icons removed (non-functional) */}
 
         {/* Hero Profile Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroBackground} />
-          <View style={styles.heroContent}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarCircle}>
-                <User size={32} color={Colors.lightText} />
+        <ProgressCardContainer style={styles.heroCard} padding={0}>
+          <View style={styles.heroInner}>
+            <View style={styles.heroBackground} />
+            <View style={styles.heroContent}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatarCircle}>
+                  <User size={32} color={Colors.lightText} />
+                </View>
               </View>
-            </View>
-            
-            <Text style={styles.userName}>{profile?.name || 'Yasir A'}</Text>
-            <Text style={styles.joinDate}>Joined {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
-            
-            {/* Stats Row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.height || '170'} cm</Text>
-                <Text style={styles.statLabel}>Height</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.weight || '70'} kg</Text>
-                <Text style={styles.statLabel}>Weight</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.age || '19'}</Text>
-                <Text style={styles.statLabel}>Age</Text>
+
+              <Text style={styles.userName}>{profile?.name || 'Yasir A'}</Text>
+              <Text style={styles.joinDate}>Joined {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</Text>
+
+              {/* Stats Row */}
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{profile?.height || '170'} cm</Text>
+                  <Text style={styles.statLabel}>Height</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{profile?.weight || '70'} kg</Text>
+                  <Text style={styles.statLabel}>Weight</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{profile?.age || '19'}</Text>
+                  <Text style={styles.statLabel}>Age</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
+        </ProgressCardContainer>
 
         {/* Goals Card */}
-        <ProgressCardContainer style={styles.goalsCard} padding={Spacing.lg}>
+        <ProgressCardContainer style={styles.goalsCard} padding={Spacing.xl}>
           <View style={styles.goalsHeader}>
-            <Target size={20} color={Colors.text} />
-            <Text style={styles.goalsTitle}>Goals</Text>
+            <View style={styles.goalsIconContainer}>
+              <Target size={20} color={Colors.secondary} />
+            </View>
+            <Text style={styles.goalsTitle}>Your Goal</Text>
           </View>
-          <Text style={styles.goalsSubtitle}>{goalDescription}</Text>
           
-          <View style={styles.goalItem}>
-            <View style={styles.goalIcon}>
-              <Target size={16} color={Colors.text} />
-            </View>
-            <View style={styles.goalContent}>
-              <Text style={styles.goalName}>{goalLabel}</Text>
-              <Text style={styles.goalTarget}>{goalStats}</Text>
-            </View>
-          </View>
+          <Text style={styles.goalLabel}>{goalLabel}</Text>
+          <Text style={styles.goalStats}>{goalStats}</Text>
           
           <TouchableOpacity 
             style={styles.manageGoalsButton}
             onPress={() => { setSheetSection('goals'); setSheetVisible(true); }}
           >
-            <Text style={styles.manageGoalsText}>Manage goals</Text>
+            <Text style={styles.manageGoalsText}>Edit Goal</Text>
+            <ChevronRight size={18} color={Colors.primary} />
           </TouchableOpacity>
         </ProgressCardContainer>
 
@@ -264,8 +272,12 @@ export default function EnhancedProfileScreen() {
       >
         <View style={styles.sheetOverlay}>
           <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0} style={{ flex: 1 }}>
-            <View style={styles.sheetContainer}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+          >
+            <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets?.bottom ?? 0, kbHeight) }]}>
               <View style={styles.sheetHandle} />
               {sheetSection === 'personal' && (
                 <PersonalInfoSection onBack={closeSheet} />
@@ -319,25 +331,25 @@ const styles = StyleSheet.create({
   
   // Hero card styles
   heroCard: {
-    backgroundColor: Colors.card,
-    marginHorizontal: Spacing.lg,
-    marginTop: 0,
-    marginBottom: Spacing.md,
-    borderRadius: 20,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  heroInner: {
+    borderRadius: Radii.lg,
     overflow: 'hidden',
-    ...Shadows.md,
+    backgroundColor: Colors.card,
   },
   heroBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
-    backgroundColor: Colors.secondary, // Golden color from reference
+    height: 132,
+    backgroundColor: Colors.secondary,
   },
   heroContent: {
     alignItems: 'center',
-    paddingTop: 48,
+    paddingTop: Spacing.xxl,
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
   },
@@ -389,58 +401,50 @@ const styles = StyleSheet.create({
   goalsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  goalsTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: '600',
-    color: Colors.text,
-    marginLeft: Spacing.sm,
-  },
-  goalsSubtitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: Spacing.lg,
-    lineHeight: 24,
-  },
-  goalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  goalIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.gray[100],
+  goalsIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '15',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
   },
-  goalContent: {
-    flex: 1,
-  },
-  goalName: {
-    fontSize: Typography.sizes.md,
-    fontWeight: '600',
+  goalsTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 2,
   },
-  goalTarget: {
-    fontSize: Typography.sizes.sm,
+  goalLabel: {
+    fontSize: Typography.sizes.xxl,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+    lineHeight: 32,
+  },
+  goalStats: {
+    fontSize: Typography.sizes.md,
     color: Colors.lightText,
+    marginBottom: Spacing.xl,
+    lineHeight: 20,
   },
   manageGoalsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.background,
     borderRadius: 12,
     paddingVertical: Spacing.md,
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   manageGoalsText: {
     fontSize: Typography.sizes.md,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.primary,
+    marginRight: Spacing.xs,
   },
   
   // Account section styles

@@ -414,9 +414,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorText: {
-    color: Colors.error,
     fontSize: 14,
-    fontWeight: Typography.weights.medium,
+    color: Colors.error,
     textAlign: 'center',
   },
   footer: {
@@ -425,8 +424,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
-
-
-

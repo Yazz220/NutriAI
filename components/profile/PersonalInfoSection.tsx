@@ -83,7 +83,13 @@ export function PersonalInfoSection({ onBack }: PersonalInfoSectionProps) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      >
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
           
@@ -95,6 +101,7 @@ export function PersonalInfoSection({ onBack }: PersonalInfoSectionProps) {
               onChangeText={(text) => setFormData({ ...formData, name: text })}
               placeholder="Enter your name"
               placeholderTextColor={Colors.lightText}
+              returnKeyType="next"
             />
           </View>
 

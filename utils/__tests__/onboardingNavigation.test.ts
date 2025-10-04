@@ -22,11 +22,11 @@ describe('OnboardingNavigationManager', () => {
       expect(navigationManager.previousStep()).toBe('welcome');
     });
 
-    it('does not advance beyond completion', () => {
+    it('does not advance beyond final step', () => {
       for (let i = 0; i < ONBOARDING_STEPS.length - 1; i++) {
         navigationManager.nextStep();
       }
-      expect(navigationManager.getCurrentStep()).toBe('completion');
+      expect(navigationManager.getCurrentStep()).toBe('other-restrictions');
       expect(navigationManager.nextStep()).toBeNull();
     });
 
@@ -202,7 +202,7 @@ describe('OnboardingNavigationManager', () => {
 describe('Helper functions', () => {
   it('returns titles for steps', () => {
     expect(getStepTitle('calorie-plan')).toBe('Calorie Plan');
-    expect(getStepTitle('completion')).toBe("You're All Set!");
+    expect(getStepTitle('other-restrictions')).toBe('Other Restrictions');
   });
 
   it('returns descriptions for steps', () => {

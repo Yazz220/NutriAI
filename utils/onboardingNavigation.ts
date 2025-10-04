@@ -14,10 +14,7 @@ export type OnboardingStep =
   | 'calorie-plan'
   | 'dietary-preferences'
   | 'allergies'
-  | 'other-restrictions'
-  | 'pantry-setup'
-  | 'ai-coach-intro'
-  | 'completion';
+  | 'other-restrictions';
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   'welcome',
@@ -31,10 +28,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   'calorie-plan',
   'dietary-preferences',
   'allergies',
-  'other-restrictions',
-  'pantry-setup',
-  'ai-coach-intro',
-  'completion'
+  'other-restrictions'
 ];
 
 export const STEP_ROUTES: Record<OnboardingStep, string> = {
@@ -49,10 +43,7 @@ export const STEP_ROUTES: Record<OnboardingStep, string> = {
   'calorie-plan': '/(onboarding)/calorie-plan',
   'dietary-preferences': '/(onboarding)/dietary-preferences',
   'allergies': '/(onboarding)/allergies',
-  'other-restrictions': '/(onboarding)/other-restrictions',
-  'pantry-setup': '/(onboarding)/pantry-setup',
-  'ai-coach-intro': '/(onboarding)/ai-coach-intro',
-  'completion': '/(onboarding)/completion'
+  'other-restrictions': '/(onboarding)/other-restrictions'
 };
 
 export class OnboardingNavigationManager {
@@ -169,20 +160,16 @@ export class OnboardingNavigationManager {
       return 'calorie-plan';
     }
 
-    // Allergies and other-restrictions are optional and will be offered in the sequence,
-    // but we don't gate resume logic on them.
-    const hasRestrictions = data.dietaryPreferences.restrictions.length > 0;
+    // Allergies and other restrictions are optional yet still part of the guided sequence.
+    // Once dietary preferences are captured, default to the final step so the user can wrap up setup.
+    const hasRestrictions = data.dietaryPreferences.restrictions.length > 0 ||
+      (data.dietaryPreferences.customRestrictions?.length ?? 0) > 0;
     if (!hasRestrictions) {
       return 'dietary-preferences';
     }
 
-    // Pantry setup is optional, so we check if user made a choice
-    if (!data.pantrySetup.skipPantry && data.pantrySetup.initialItems.length === 0) {
-      return 'pantry-setup';
-    }
-
-    // AI coach intro
-    return 'ai-coach-intro';
+    // Final step in the flow
+    return 'other-restrictions';
   }
 
   // Validate if user can proceed from current step
@@ -259,21 +246,6 @@ export class OnboardingNavigationManager {
       case 'other-restrictions':
         // Optional step; user can skip or add any
         return { canProceed: true, missingFields: [] };
-
-      case 'pantry-setup':
-        // Pantry setup is optional - user can skip or add items
-        return { canProceed: true, missingFields: [] };
-
-      case 'ai-coach-intro':
-        // AI coach intro is informational
-        return { canProceed: true, missingFields: [] };
-
-      case 'completion':
-        // Final step - check if auth choice is made
-        if (!data.authChoice) {
-          missingFields.push('Authentication choice');
-        }
-        break;
     }
 
     return {
@@ -307,11 +279,6 @@ export class OnboardingNavigationManager {
     for (let i = 0; i < targetIndex; i++) {
       const step = ONBOARDING_STEPS[i];
       const validation = this.validateStepCompletion(step, data);
-      
-      // Skip validation for optional steps
-      if (step === 'pantry-setup' || step === 'ai-coach-intro') {
-        continue;
-      }
       
       if (!validation.canProceed) {
         return false;
@@ -357,10 +324,7 @@ export function getStepTitle(step: OnboardingStep): string {
     'calorie-plan': 'Calorie Plan',
     'dietary-preferences': 'Dietary Preferences',
     'allergies': 'Food Allergies',
-    'other-restrictions': 'Other Restrictions',
-    'pantry-setup': 'Pantry Setup',
-    'ai-coach-intro': 'Meet Your AI Coach',
-    'completion': 'You\'re All Set!'
+    'other-restrictions': 'Other Restrictions'
   };
   
   return titles[step];
@@ -380,10 +344,7 @@ export function getStepDescription(step: OnboardingStep): string {
     'calorie-plan': 'Review your recommended daily calories',
     'dietary-preferences': 'Select any dietary styles you follow',
     'allergies': 'Let us know about any food allergies',
-    'other-restrictions': 'Any other foods you avoid',
-    'pantry-setup': 'Set up your digital pantry',
-    'ai-coach-intro': 'Discover how AI can help you',
-    'completion': 'Start your nutrition journey'
+    'other-restrictions': 'Any other foods you avoid'
   };
   
   return descriptions[step];

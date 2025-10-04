@@ -6,6 +6,13 @@ import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import MaleIcon from '@/assets/icons/male.svg';
 import FemaleIcon from '@/assets/icons/Female.svg';
+import OtherIcon from '@/assets/icons/other.svg';
+
+interface GenderOption {
+  id: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+  label: string;
+  icon?: React.ReactNode;
+}
 
 const genderEducationalContent = [
   {
@@ -33,11 +40,11 @@ export default function GenderScreen() {
   );
   const [error, setError] = useState<string | null>(null);
 
-  const genderOptions = [
-    { id: 'male', label: 'Male', icon: <MaleIcon width={28} height={28} /> },
-    { id: 'female', label: 'Female', icon: <FemaleIcon width={28} height={28} /> },
-    { id: 'other', label: 'Other', icon: '⚧️' },
-    { id: 'prefer-not-to-say', label: 'Prefer not to say', icon: '❓' }
+  const genderOptions: GenderOption[] = [
+    { id: 'male', label: 'Male', icon: <MaleIcon width={58} height={58} /> },
+    { id: 'female', label: 'Female', icon: <FemaleIcon width={58} height={58} /> },
+    { id: 'other', label: 'Other', icon: <OtherIcon width={58} height={58} /> },
+    { id: 'prefer-not-to-say', label: 'Prefer not to say' }
   ];
 
   const handleGenderSelect = (gender: 'male' | 'female' | 'other' | 'prefer-not-to-say') => {
@@ -60,7 +67,6 @@ export default function GenderScreen() {
   const handleBack = () => {
     previousStep();
   };
-
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
@@ -73,10 +79,9 @@ export default function GenderScreen() {
           />
         </View>
         <OnboardingHeader
-          imageSource={require('@/assets/images/nosh/What\'s your gender.png')}
+          imageSource={require("@/assets/images/nosh/What's your gender.png")}
           title="What's your gender?"
         />
-
 
         <View style={styles.content}>
           <View style={styles.genderContainer}>
@@ -92,17 +97,21 @@ export default function GenderScreen() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: selectedGender === option.id }}
               >
-                <View style={styles.genderIcon}>
-                  {typeof option.icon === 'string' ? (
-                    <Text style={styles.genderIconText}>{option.icon}</Text>
-                  ) : (
-                    option.icon
-                  )}
-                </View>
-                <Text style={[
-                  styles.genderLabel,
-                  selectedGender === option.id && styles.selectedGenderLabel
-                ]}>
+                {option.icon && (
+                  <View style={styles.genderIcon}>
+                    {typeof option.icon === 'string' ? (
+                      <Text style={styles.genderIconText}>{option.icon}</Text>
+                    ) : (
+                      option.icon
+                    )}
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.genderLabel,
+                    selectedGender === option.id && styles.selectedGenderLabel
+                  ]}
+                >
                   {option.label}
                 </Text>
               </TouchableOpacity>
@@ -146,31 +155,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   genderContainer: {
+    width: '100%',
     gap: Spacing.md,
   },
   genderOption: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.lg,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     backgroundColor: Colors.card,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: Colors.border,
+    minHeight: 64,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   selectedGenderOption: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primary + '10',
   },
   genderIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary + '06',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -180,8 +194,9 @@ const styles = StyleSheet.create({
   },
   genderLabel: {
     fontSize: 18,
-    fontWeight: Typography.weights.medium,
     color: Colors.text,
+    fontWeight: Typography.weights.semibold,
+    textAlign: 'left',
     flex: 1,
   },
   selectedGenderLabel: {

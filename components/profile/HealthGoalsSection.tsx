@@ -192,7 +192,13 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      >
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Primary focus</Text>
           <Text style={styles.sectionDescription}>

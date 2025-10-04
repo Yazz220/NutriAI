@@ -419,7 +419,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                 >
                   <TextInput
                     style={styles.textInput}
-                    placeholder={`Ask ${APP_NAME} about meals, planning, or progress...`}
+                    placeholder={`Message ${APP_NAME}…`}
                     placeholderTextColor={Colors.lightText}
                     value={input}
                     onChangeText={setInput}
@@ -448,7 +448,7 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({
                         style={styles.sendButtonGradient}
                       >
                         <PaperPlaneTilt
-                          size={22}
+                          size={18}
                           color={input.trim() && !isTyping ? Colors.white : Colors.lightText}
                           weight="fill"
                         />
@@ -482,9 +482,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     <View style={[styles.messageContainer, isUser && styles.userMessageContainer]}>
       {/* Avatar */}
       {!isUser && (
-        <View style={styles.avatar}>
-          <NoshIconCircle width={20} height={20} />
-        </View>
+        <NoshIconCircle width={58.5} height={58.5} />
       )}
       
       {/* Message bubble */}
@@ -666,14 +664,6 @@ const styles = StyleSheet.create({
   userMessageContainer: {
     flexDirection: 'row-reverse',
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   messageBubble: {
     maxWidth: '75%',
     borderRadius: 16,
@@ -837,13 +827,13 @@ const styles = StyleSheet.create({
   },
   sendButtonWrapper: {
     marginLeft: Spacing.sm,
-    borderRadius: 28,
+    borderRadius: 17,
     overflow: 'visible',
   },
   sendButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.primary,
@@ -859,7 +849,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 28,
+    borderRadius: 17,
     width: '100%',
     height: '100%',
   },

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Brain, Send, ChefHat, Package } from 'lucide-react-native';
+import NoshChefIcon from '@/assets/icons/Nosh chef (1).svg';
 import { useInventory } from '@/hooks/useInventoryStore';
 import { InventoryStatusBar } from '@/components/inventory/InventoryStatusBar';
 import { createChatCompletion, type ChatMessage as AiChatMessage } from '@/utils/aiClient';
@@ -212,18 +213,29 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
         }}
         showsVerticalScrollIndicator={false}
       >
-        {messages.map((message) => (
-          <View key={message.id} style={[
-            styles.bubble,
-            message.role === 'user' ? styles.bubbleUser : styles.bubbleAI
-          ]}>
-            <Text style={[
-              styles.bubbleText,
-              message.role === 'user' && styles.bubbleTextOnPrimary
-            ]}>
-              {message.content}
-            </Text>
-            
+        {messages.map((message) => {
+          const isUser = message.role === 'user';
+          return (
+            <View
+              key={message.id}
+              style={[styles.messageRow, isUser && styles.userRow]}
+            >
+              {!isUser && <NoshChefIcon width={32} height={32} />}
+              <View
+                style={[
+                  styles.bubble,
+                  isUser ? styles.bubbleUser : styles.bubbleAI
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    isUser && styles.bubbleTextOnPrimary
+                  ]}
+                >
+                  {message.content}
+                </Text>
+                
             {message.suggestions && message.suggestions.length > 0 && (
               <View style={styles.suggestionsContainer}>
                 {message.suggestions.map((suggestion, index) => (
@@ -267,8 +279,10 @@ export const InventoryAwareRecipeChatInterface: React.FC<InventoryAwareRecipeCha
                 ))}
               </View>
             )}
-          </View>
-        ))}
+              </View>
+            </View>
+          );
+        })}
 
         {isTyping && (
           <View style={[styles.bubble, styles.bubbleAI]}>
@@ -334,11 +348,19 @@ const styles = StyleSheet.create({
   messages: {
     flex: 1,
   },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  userRow: {
+    flexDirection: 'row-reverse',
+  },
   bubble: {
     maxWidth: '90%',
     borderRadius: 14,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
   },
   bubbleAI: {
     alignSelf: 'flex-start',
