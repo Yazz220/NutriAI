@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { resetOnboarding } from '@/components/onboarding';
@@ -8,6 +8,9 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { User, EnvelopeSimple, Lock, SignIn } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
+import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
 
 export default function SignInScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
@@ -16,6 +19,7 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { session } = useAuth();
+  const { saveProfile } = useUserProfile();
 
   // Prefill email if provided via navigation params (e.g., after sign-up)
   useEffect(() => {
@@ -48,6 +52,47 @@ export default function SignInScreen() {
         return;
       }
       console.log('[Auth] Signed in, session received');
+      
+      // Check if we have onboarding data to sync (for users who completed onboarding then signed in)
+      const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
+      if (onboardingData) {
+        try {
+          console.log('[SignIn] Syncing onboarding data to profile...');
+          const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
+          
+          // Retry logic for profile save (network failures)
+          let retries = 3;
+          let lastError: Error | null = null;
+          while (retries > 0) {
+            try {
+              await saveProfile(profileData);
+              await OnboardingPersistenceManager.clearOnboardingData();
+              console.log('[SignIn] Onboarding data synced successfully');
+              break;
+            } catch (retryError) {
+              lastError = retryError as Error;
+              retries--;
+              if (retries > 0) {
+                console.log(`[SignIn] Retry ${3 - retries}/3 after error:`, retryError);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              }
+            }
+          }
+          
+          if (retries === 0 && lastError) {
+            throw lastError;
+          }
+        } catch (syncError) {
+          console.error('[SignIn] Failed to sync onboarding data after retries:', syncError);
+          Alert.alert(
+            'Profile Sync Issue',
+            'We couldn\'t save your preferences. You can update them in Settings.',
+            [{ text: 'OK' }]
+          );
+          // Don't block sign-in - user can update profile later
+        }
+      }
+      
       // Force navigation to tabs (especially helpful on web)
       router.replace('/(tabs)');
     } catch (err) {

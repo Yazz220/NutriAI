@@ -251,8 +251,10 @@ const StatRow = ({ items, activeFilter }: { items: { icon?: React.ReactNode; lab
       return (
         <TouchableOpacity key={idx} style={[styles.statPill, isActive && styles.activeStatPill]} onPress={it.onPress}>
           {it.icon ? <View style={styles.statPillIcon}>{it.icon}</View> : null}
-          <Text style={[styles.statPillValue, isActive && styles.statPillValueActive]}>{it.value}</Text>
-          <Text style={[styles.statPillLabel, isActive && styles.statPillLabelActive]}>{it.label}</Text>
+          <View style={styles.statPillContent}>
+            <Text style={[styles.statPillLabel, isActive && styles.statPillLabelActive]} numberOfLines={1}>{it.label}</Text>
+            <Text style={[styles.statPillValue, isActive && styles.statPillValueActive]} numberOfLines={1}>{it.value}</Text>
+          </View>
         </TouchableOpacity>
       );
     })}
@@ -311,21 +313,24 @@ const styles = StyleSheet.create({
   },
   statPill: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    minHeight: 68,
-    gap: 2,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minHeight: 52,
+    gap: 10,
   },
   activeStatPill: {
     backgroundColor: Colors.primary,
   },
-  statPillIcon: { marginBottom: 4 },
+  statPillIcon: { marginRight: 8 },
+  statPillContent: {
+    flex: 1,
+  },
   statPillValue: {
     ...Type.body,
     color: Colors.text,

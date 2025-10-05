@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, ONBOARDING_SCROLL_BOTTOM_INSET, useOnboarding } from '@/components/onboarding';
 
 import { AgeSlider } from '@/components/onboarding/AgeSlider';
 import { HeightInput, WeightInput } from '@/components/onboarding/HeightWeightInput';
@@ -92,7 +92,11 @@ export default function BasicProfileScreen() {
           content={basicProfileEducationalContent}
         />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Gender Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Gender</Text>
@@ -221,6 +225,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
   section: {
     marginBottom: Spacing.lg,
   },
@@ -288,3 +295,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

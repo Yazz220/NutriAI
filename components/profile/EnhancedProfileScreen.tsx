@@ -25,6 +25,7 @@ import { Colors } from '../../constants/colors';
 import { Spacing, Typography, Radii, Shadows } from '../../constants/spacing';
 import { useToast } from '@/contexts/ToastContext';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
+import { RecipeNutritionCard } from '@/components/recipe-detail/RecipeNutritionCard';
 
 type ProfileSection = 'overview' | 'personal' | 'dietary' | 'goals' | 'cooking';
 
@@ -170,7 +171,17 @@ export default function EnhancedProfileScreen() {
           </View>
           
           <Text style={styles.goalLabel}>{goalLabel}</Text>
-          <Text style={styles.goalStats}>{goalStats}</Text>
+          
+          {/* Nutrition Display with Ring and Bars */}
+          {profile?.dailyCalorieTarget && (
+            <RecipeNutritionCard
+              calories={profile.dailyCalorieTarget}
+              protein={profile.dailyProteinTarget || 0}
+              carbs={profile.dailyCarbTarget || 0}
+              fats={profile.dailyFatTarget || 0}
+              showGrams={true}
+            />
+          )}
           
           <TouchableOpacity 
             style={styles.manageGoalsButton}
@@ -401,7 +412,7 @@ const styles = StyleSheet.create({
   goalsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   goalsIconContainer: {
     width: 36,
@@ -418,17 +429,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   goalLabel: {
-    fontSize: Typography.sizes.xxl,
-    fontWeight: '700',
+    fontSize: Typography.sizes.lg,
+    fontWeight: '600',
     color: Colors.text,
-    marginBottom: Spacing.xs,
-    lineHeight: 32,
-  },
-  goalStats: {
-    fontSize: Typography.sizes.md,
-    color: Colors.lightText,
-    marginBottom: Spacing.xl,
-    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
   manageGoalsButton: {
     flexDirection: 'row',
@@ -439,6 +443,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginTop: Spacing.md,
   },
   manageGoalsText: {
     fontSize: Typography.sizes.md,

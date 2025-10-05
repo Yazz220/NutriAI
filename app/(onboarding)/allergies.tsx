@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, ONBOARDING_SCROLL_BOTTOM_INSET, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
  
@@ -39,7 +39,11 @@ export default function AllergiesScreen() {
           imageVisualExtraScale={1.10}
         />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.inputRow}>
             <TextInput
               style={styles.textInput}
@@ -84,7 +88,12 @@ export default function AllergiesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1 },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   textInput: {
     flex: 1,
@@ -117,4 +126,8 @@ const styles = StyleSheet.create({
   footer: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
   buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });
+
+
+
+
 

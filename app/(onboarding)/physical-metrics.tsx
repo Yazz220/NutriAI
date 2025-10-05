@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, TargetWeightInput, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, ONBOARDING_SCROLL_BOTTOM_INSET, TargetWeightInput, useOnboarding } from '@/components/onboarding';
 
 import { AgeSlider } from '@/components/onboarding/AgeSlider';
 import { HeightInput, WeightInput } from '@/components/onboarding/HeightWeightInput';
@@ -73,7 +73,11 @@ export default function PhysicalMetricsScreen() {
           content={physicalMetricsEducationalContent}
         />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.stack}>
             <AgeSlider
               value={age}
@@ -149,6 +153,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
   stack: {
     gap: Spacing.lg,
   },
@@ -176,3 +183,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+
+

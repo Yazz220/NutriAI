@@ -2,7 +2,7 @@ import HealthConcernsImage from '@/assets/images/nosh/Health Concerns.svg';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, ONBOARDING_SCROLL_BOTTOM_INSET, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -41,7 +41,8 @@ export default function HealthConcernsScreen() {
     try {
       setFinishing(true);
       await completeOnboarding();
-      router.replace('/(tabs)');
+      // Redirect to auth screen - user needs to sign up/in to save their profile
+      router.replace('/(auth)/sign-in');
     } catch (error) {
       Alert.alert('Unable to finish', 'Something went wrong while completing your setup. Please try again.');
       setFinishing(false);
@@ -69,7 +70,11 @@ export default function HealthConcernsScreen() {
           ]}
         />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={{ gap: Spacing.sm }}>
             {HEALTH_CONCERNS.map(opt => (
               <TouchableOpacity
@@ -110,7 +115,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { marginBottom: Spacing.lg },
   title: { fontSize: 28, fontWeight: Typography.weights.bold, color: Colors.text, lineHeight: 36 },
-  content: { flex: 1 },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,3 +153,7 @@ const styles = StyleSheet.create({
   footer: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
   buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });
+
+
+
+

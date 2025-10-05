@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TextInput } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, ONBOARDING_SCROLL_BOTTOM_INSET, useOnboarding } from '@/components/onboarding';
 import { RecipeNutritionCard } from '@/components/recipe-detail/RecipeNutritionCard';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
@@ -18,16 +18,22 @@ interface RecommendationSummary {
 
 const educationalContent = [
   {
-    title: 'Evidence-based calorie targets',
+    title: 'The Mifflin-St Jeor equation',
     description:
-      'We use validated formulas (Mifflin-St Jeor) plus your activity level and goal direction to set a safe starting point for your daily calories.',
-    reference: 'American Journal of Clinical Nutrition, 1990',
+      'We use the Mifflin-St Jeor equation, proven more accurate than older formulas. It calculates your Basal Metabolic Rate (BMR) based on age, height, weight, and sex, then applies activity multipliers for Total Daily Energy Expenditure (TDEE).',
+    reference: 'American Journal of Clinical Nutrition, 1990; Used by MyFitnessPal',
   },
   {
-    title: 'Adaptive nutrition planning',
+    title: 'Research-backed calorie adjustments',
     description:
-      'Pick a custom target if you already work with a coach or prefer a specific calorie intake. Nosh will adjust your macros accordingly.',
-    reference: 'Sports Medicine Research, 2021',
+      'For weight loss, we create a 500-calorie deficit (0.5-1 lb/week). For muscle gain, a 350-calorie surplus optimizes the muscle-to-fat gain ratio. These are safe, sustainable rates validated by nutrition research.',
+    reference: 'Sports Medicine & Nutrition Science, 2021',
+  },
+  {
+    title: 'Smart macro distribution',
+    description:
+      'We use a 40% carbs, 30% protein, 30% fat split—the same evidence-based ratio used by successful apps like MyFitnessPal. Higher protein preserves muscle during weight loss and supports muscle building.',
+    reference: 'PMC Nutrition Studies; MyFitnessPal Standards',
   },
 ];
 
@@ -224,6 +230,7 @@ export default function CaloriePlanScreen() {
           protein={hasData ? macros!.protein : 0}
           carbs={hasData ? macros!.carbs : 0}
           fats={hasData ? macros!.fats : 0}
+          showGrams={true}
         />
         {!hasData ? (
           <Text style={styles.cardHint}>Complete your basic profile to calculate a personalized target.</Text>
@@ -238,7 +245,11 @@ export default function CaloriePlanScreen() {
   return (
     <OnboardingScreenWrapper>
       <View style={styles.container}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Personalize your daily calories</Text>
           <Text style={styles.subtitle}>
             We start with a science-backed recommendation based on your profile. Switch to a custom value if you already know what works for you.
@@ -277,6 +288,7 @@ export default function CaloriePlanScreen() {
                     protein={storedCustomMacros.protein}
                     carbs={storedCustomMacros.carbs}
                     fats={storedCustomMacros.fats}
+                    showGrams={true}
                   />
                 </View>
               ) : null}
@@ -322,6 +334,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
   },
   title: {
     fontSize: 26,
@@ -428,3 +443,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+

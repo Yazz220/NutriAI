@@ -17,6 +17,7 @@ import {
   SimpleOptionCard,
   BehindTheQuestion,
   OnboardingButton,
+  ONBOARDING_SCROLL_BOTTOM_INSET,
   OnboardingHeader,
   useOnboarding,
 } from '@/components/onboarding';
@@ -240,7 +241,11 @@ export default function HealthGoalsScreen() {
         </Animated.View>
 
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {goalCards.map((option, index) => {
             const animationStyle = {
               opacity: cardAnimations[index],
@@ -403,6 +408,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
 
   errorContainer: {
     paddingHorizontal: Spacing.md,
@@ -561,4 +569,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
 });
+
+
+
+
 

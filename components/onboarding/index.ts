@@ -1,3 +1,4 @@
+export { ONBOARDING_SCROLL_BOTTOM_INSET } from './layout';
 export { OnboardingScreenWrapper } from './OnboardingScreenWrapper';
 export { ProgressIndicator } from './ProgressIndicator';
 export { OnboardingButton } from './OnboardingButton';

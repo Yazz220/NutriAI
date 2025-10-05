@@ -5,6 +5,9 @@ import { resetOnboarding } from '@/components/onboarding';
 import { supabase } from '../../supabase/functions/_shared/supabaseClient';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
+import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -12,6 +15,7 @@ export default function SignUpScreen() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { saveProfile } = useUserProfile();
 
   const onSignUp = async () => {
     setError(null);
@@ -27,12 +31,56 @@ export default function SignUpScreen() {
     try {
       const { data, error: authError } = await supabase.auth.signUp({ email, password });
       if (authError) throw authError;
+      
+      // Check if we have onboarding data to sync
+      const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
+      
       if (data?.user && !data.session) {
+        // Email confirmation required - user will sign in later
         Alert.alert('Verify your email', 'We sent you a confirmation link. Please verify, then sign in.');
         // Navigate to sign-in with email prefilled
         router.replace({ pathname: '/(auth)/sign-in', params: { email } });
+      } else if (data?.user && data?.session) {
+        // Session created immediately - sync onboarding data now
+        if (onboardingData) {
+          try {
+            console.log('[SignUp] Syncing onboarding data to profile...');
+            const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
+            
+            // Retry logic for profile save (network failures)
+            let retries = 3;
+            let lastError: Error | null = null;
+            while (retries > 0) {
+              try {
+                await saveProfile(profileData);
+                await OnboardingPersistenceManager.clearOnboardingData();
+                console.log('[SignUp] Onboarding data synced successfully');
+                break;
+              } catch (retryError) {
+                lastError = retryError as Error;
+                retries--;
+                if (retries > 0) {
+                  console.log(`[SignUp] Retry ${3 - retries}/3 after error:`, retryError);
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+                }
+              }
+            }
+            
+            if (retries === 0 && lastError) {
+              throw lastError;
+            }
+          } catch (syncError) {
+            console.error('[SignUp] Failed to sync onboarding data after retries:', syncError);
+            Alert.alert(
+              'Profile Sync Issue',
+              'Your account was created, but we couldn\'t save your preferences. You can update them in Settings.',
+              [{ text: 'OK' }]
+            );
+            // Don't block sign-up - user can update profile later
+          }
+        }
+        // RootLayout will switch to (tabs) automatically
       }
-      // If session is returned, RootLayout will switch to (tabs) automatically.
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sign up';
       setError(msg);

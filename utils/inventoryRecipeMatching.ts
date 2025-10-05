@@ -226,45 +226,16 @@ export function calculateRecipeAvailability(
       continue;
     }
 
-    // Convert both quantities to the same base unit for comparison
-    const requiredConverted = convertToBaseUnit(requiredQuantity, requiredUnit);
-    const availableConverted = convertToBaseUnit(inventoryMatch.quantity, inventoryMatch.unit);
+    // App doesn't use quantities - if ingredient exists in inventory, it's available
+    const isAvailable = true;
+    availableCount++;
     
-    // Only compare if units are compatible
-    if (requiredConverted.baseUnit === availableConverted.baseUnit) {
-      const isAvailable = availableConverted.quantity >= requiredConverted.quantity;
-      
-      if (isAvailable) {
-        availableCount++;
-        
-        // Expiration removed: do not compute urgency or expiring lists
-      } else {
-        const shortfall = requiredConverted.quantity - availableConverted.quantity;
-        missingIngredients.push({
-          name: ingredientName,
-          requiredQuantity,
-          requiredUnit,
-          availableQuantity: inventoryMatch.quantity,
-          shortfall: shortfall / (UNIT_CONVERSIONS[getUnitType(requiredUnit)]?.[requiredUnit.toLowerCase()] || 1)
-        });
-      }
-      
-      matches.push({
-        inventoryItem: inventoryMatch,
-        recipeIngredient,
-        isAvailable,
-        quantityMatch: isAvailable ? 'sufficient' : 'insufficient'
-      });
-    } else {
-      // Units not compatible, treat as missing
-      missingIngredients.push({
-        name: ingredientName,
-        requiredQuantity,
-        requiredUnit,
-        availableQuantity: 0,
-        shortfall: requiredQuantity
-      });
-    }
+    matches.push({
+      inventoryItem: inventoryMatch,
+      recipeIngredient,
+      isAvailable,
+      quantityMatch: 'sufficient'
+    });
   }
 
   const totalIngredients = ingredients.length;

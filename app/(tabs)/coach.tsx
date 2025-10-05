@@ -4,11 +4,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { Brain, Plus, Medal, Fire, Pencil, X } from 'phosphor-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import SearchIcon from '@/assets/icons/search.svg';
 import CalenderIcon from '@/assets/icons/Calender.svg';
 import CameraIcon from '@/assets/icons/Camera.svg';
-import LeftArrowIcon from '@/assets/icons/left arrow.svg';
-import RightArrowIcon from '@/assets/icons/right arrow.svg';
 import ProgressPageIcon from '@/assets/icons/Progress page.svg';
 import TrackingPageIcon from '@/assets/icons/Tracking page.svg';
 import BreakfastIcon from '@/assets/icons/Breakfast.svg';
@@ -764,7 +763,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Previous month"
             >
-              <LeftArrowIcon width={24} height={24} color={Colors.text} />
+              <ChevronLeft size={28} color={Colors.text} strokeWidth={2.5} />
             </TouchableOpacity>
             <Text style={styles.calendarMonthLabel}>
               {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
@@ -779,7 +778,7 @@ export default function CoachScreen() {
               accessibilityRole="button"
               accessibilityLabel="Next month"
             >
-              <RightArrowIcon width={24} height={24} color={Colors.text} />
+              <ChevronRight size={28} color={Colors.text} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
 
@@ -1803,12 +1802,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   calendarArrowButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2011,5 +2005,3 @@ const EnhancedMealCard = ({
     </TouchableOpacity>
   );
 };
-
-

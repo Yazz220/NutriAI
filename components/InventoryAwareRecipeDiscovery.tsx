@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -194,6 +194,20 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
     if (!itemWidth) return null;
     const imageHeight = Math.floor(itemWidth * 0.75);
 
+    const readyMinutes = typeof item.readyInMinutes === 'number' && item.readyInMinutes > 0
+      ? item.readyInMinutes
+      : undefined;
+
+    const calories = (() => {
+      if ('nutrition' in item && (item as any)?.nutrition?.nutrients?.length) {
+        const cal = ((item as any).nutrition.nutrients.find((n: any) => (n.name || '').toLowerCase() === 'calories')?.amount) as number | undefined;
+        if (cal && !isNaN(cal)) {
+          return Math.round(cal);
+        }
+      }
+      return undefined;
+    })();
+
     return (
       <TouchableOpacity
         style={[styles.card, { width: itemWidth, marginRight: index % 2 === 0 ? COLUMN_GAP : 0 }]}
@@ -210,33 +224,41 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.metaRow}>
-            {/* Time */}
-            {typeof item.readyInMinutes === 'number' && item.readyInMinutes > 0 ? (
-              <View style={styles.metaItem}>
-                <Clock size={12} color={Colors.lightText} />
-                <Text style={styles.metaText}>{formatCookTime(item.readyInMinutes)}</Text>
-              </View>
-            ) : <View />}
+            <View style={styles.metaInfo}>
+              {readyMinutes ? (
+                <View style={styles.metaItem}>
+                  <Clock size={12} color={Colors.lightText} />
+                  <Text style={styles.metaText}>{formatCookTime(readyMinutes)}</Text>
+                </View>
+              ) : null}
 
-            {/* Calories (if provided on recipe.nutrition) */}
-            {'nutrition' in item && (item as any)?.nutrition?.nutrients?.length ? (
-              (() => {
-                const cal = ((item as any).nutrition.nutrients.find((n: any) => (n.name || '').toLowerCase() === 'calories')?.amount) as number | undefined;
-                if (!cal || isNaN(cal)) return <View />;
-                return (
-                  <View style={styles.metaItem}>
-                    <Flame size={12} color={Colors.lightText} />
-                    <Text style={styles.metaText}>{Math.round(cal)} kcal</Text>
-                  </View>
-                );
-              })()
-            ) : <View />}
+              {typeof calories === 'number' ? (
+                <View style={styles.metaItem}>
+                  <Flame size={12} color={Colors.lightText} />
+                  <Text style={styles.metaText}>{calories} kcal</Text>
+                </View>
+              ) : null}
+            </View>
 
-            {/* Availability with cart icon */}
+            {/* Availability progress bar */}
             {item.availability ? (
-              <View style={styles.metaItem}>
-                <ShoppingCart size={12} color={item.availability.canCookNow ? Colors.success : Colors.lightText} />
-                <Text style={[styles.metaText, {
+              <View style={styles.availabilityContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View 
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${item.availability.availabilityPercentage}%`,
+                        backgroundColor: item.availability.canCookNow
+                          ? Colors.success
+                          : item.availability.availabilityPercentage >= 75
+                          ? Colors.warning
+                          : Colors.lightText,
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.availabilityText, {
                   color: item.availability.canCookNow
                     ? Colors.success
                     : item.availability.availabilityPercentage >= 75
@@ -246,7 +268,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
                   {item.availability.availabilityPercentage}%
                 </Text>
               </View>
-            ) : <View />}
+            ) : null}
           </View>
 
           {/* Expiring urgency indicator removed */}
@@ -444,15 +466,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
+  metaInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   metaText: { fontSize: 12, color: Colors.lightText },
+  availabilityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  progressBarBackground: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
   availabilityText: {
     fontSize: 11,
     fontWeight: '600',
+    minWidth: 32,
   },
   urgencyIndicator: {
     flexDirection: 'row',

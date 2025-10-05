@@ -37,28 +37,16 @@ import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
 import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
-
 // Types
 import { ExternalRecipe } from '@/types/external';
 import { Meal, RecipeFolder } from '@/types';
 import { computeForExternalRecipe, estimateServingsForExternalRecipe, computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
 
-const formatNutritionInline = (meal: Meal): string => {
-  const n = computeNutritionForMeal(meal);
-  if (!n) return '';
-  const parts: string[] = [];
-  if (typeof n.calories === 'number') parts.push(`${Math.round(n.calories)} kcal`);
-  if (typeof n.protein === 'number') parts.push(`${Math.round(n.protein)}g P`);
-  if (typeof n.carbs === 'number') parts.push(`${Math.round(n.carbs)}g C`);
-  if (typeof n.fats === 'number') parts.push(`${Math.round(n.fats)}g F`);
-  return parts.join(' • ');
-};
-
 const computeNutritionForMeal = (meal: Meal): { calories: number; protein: number; carbs: number; fats: number } | undefined => {
   if (meal?.nutritionPerServing) return meal.nutritionPerServing as any;
-  const ings = Array.isArray((meal as any).ingredients) ? (meal as any).ingredients : [];
+  const ings = Array.isArray(meal.ingredients) ? meal.ingredients : [];
   if (!ings.length) return undefined;
-  const externalIngs = ings.map((ing: any) => ({
+  const externalIngs = ings.map((ing) => ({
     name: ing.name,
     amount: ing.quantity || 0,
     unit: ing.unit || '',
@@ -553,11 +541,6 @@ export default function RecipesScreen() {
                       </View>
                     ) : null}
                   </View>
-                  {computeNutritionForMeal(item) && (
-                    <Text style={styles.nutritionInline} numberOfLines={1}>
-                      {formatNutritionInline(item)}
-                    </Text>
-                  )}
                 </View>
                 <TouchableOpacity style={styles.menuButton} onPress={() => handleRecipeMenuPress(item)}>
                   <DotsThreeVertical size={20} color={Colors.lightText} />
@@ -816,11 +799,6 @@ const styles = StyleSheet.create({
     ...Type.caption,
     color: Colors.primary,
     fontWeight: '600',
-  },
-  nutritionInline: {
-    marginTop: 4,
-    ...Type.caption,
-    color: Colors.lightText,
   },
   // Floating Add button (consistent with app FAB usage)
   fab: {

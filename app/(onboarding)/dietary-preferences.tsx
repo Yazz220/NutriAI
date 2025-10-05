@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, OnboardingHeader, ONBOARDING_SCROLL_BOTTOM_INSET, useOnboarding } from '@/components/onboarding';
 
 import { DietaryRestriction } from '@/types/index';
 import { Colors } from '@/constants/colors';
@@ -143,7 +143,11 @@ export default function DietaryPreferencesScreen() {
           title="What do you like?"
           imageTranslateExtraRatio={0.20}
         />
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.gridHeader}>
             <Text style={styles.gridSubtitle}>Select any that apply</Text>
           </View>
@@ -205,6 +209,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
+  },
   gridHeader: {
     marginBottom: Spacing.md,
   },
@@ -260,4 +267,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+
+
+
 

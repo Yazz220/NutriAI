@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Clock, Bookmark, BookmarkPlus, ExternalLink, Plus } from 'lucide-react-native';
+import { ChevronLeft, Clock, Bookmark, BookmarkPlus, ExternalLink, Plus, ShoppingCart } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import NoshChefIcon from '@/assets/icons/Nosh chef (1).svg';
 import FooterArt from '@/assets/icons/footer.svg';
@@ -119,7 +119,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const { addPlannedMeal } = useMealPlanner();
   const { meals, addMeal, setMeals } = useMeals();
   const [missingCount, setMissingCount] = useState(0);
-  const [missingList, setMissingList] = useState<Array<{ name: string; quantity: number; unit: string }>>([]);
+  const [missingList, setMissingList] = useState<Array<{ name: string }>>([]);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
   const [showPlanMealModal, setShowPlanMealModal] = useState(false);
   const [missingIngredientsAdded, setMissingIngredientsAdded] = useState(false);
@@ -165,6 +165,35 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
   // Legacy nutrition for backward compatibility
   const nutritionForSelection = scaledNutrition;
+
+  // Calculate missing ingredients based on inventory
+  useEffect(() => {
+    if (!scaledIngredients || scaledIngredients.length === 0) {
+      setMissingCount(0);
+      setMissingList([]);
+      setMissingIngredientsAdded(false);
+      return;
+    }
+
+    const missing: Array<{ name: string }> = [];
+    
+    for (const ing of scaledIngredients) {
+      const invItem = inventory.find(
+        (item) => item.name.toLowerCase() === ing.name.toLowerCase()
+      );
+      
+      // If not in inventory, mark as missing (app doesn't use quantities)
+      if (!invItem) {
+        missing.push({
+          name: ing.name,
+        });
+      }
+    }
+
+    setMissingCount(missing.length);
+    setMissingList(missing);
+    setMissingIngredientsAdded(false);
+  }, [scaledIngredients, inventory]);
 
   useEffect(() => {
     // Animate header image from bottom into place when present and visible.
@@ -341,7 +370,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
               {!!missingCount && missingCount > 0 && (
                 <Button
-                  title={missingIngredientsAdded ? 'Added' : `Add missing (${missingCount})`}
+                  title={missingIngredientsAdded ? '✓ Added' : `Add ${missingCount}`}
                   onPress={async () => {
                     if (missingIngredientsAdded) return;
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
@@ -349,8 +378,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     for (const m of missingList) {
                       await addItem({
                         name: m.name,
-                        quantity: m.quantity,
-                        unit: m.unit,
+                        quantity: 1,
+                        unit: '',
                         category: 'Other',
                         addedDate: new Date().toISOString(),
                         checked: false,
@@ -359,18 +388,19 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                       });
                       added++;
                     }
-                    Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
+                    Alert.alert('Added to Shopping List! 🛒', `${added} missing ingredient${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added to your shopping list.`);
                     setMissingIngredientsAdded(true);
                   }}
                   size="sm"
                   variant={missingIngredientsAdded ? 'primary' : 'secondary'}
                   shape="capsule"
                   disabled={missingIngredientsAdded}
+                  icon={<ShoppingCart size={16} color={missingIngredientsAdded ? Colors.white : Colors.primary} />}
+                  style={missingIngredientsAdded ? { backgroundColor: '#10b981' } : undefined}
                 />
               )}
 
               {/* Ask Nosh moved to floating button for consistency */}
-              
             </>
           )}
 
@@ -388,7 +418,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
               {!!missingCount && missingCount > 0 && (
                 <Button
-                  title={missingIngredientsAdded ? 'Added' : `Add missing (${missingCount})`}
+                  title={missingIngredientsAdded ? '✓ Added' : `Add ${missingCount}`}
                   onPress={async () => {
                     if (missingIngredientsAdded) return;
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
@@ -396,8 +426,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     for (const m of missingList) {
                       await addItem({
                         name: m.name,
-                        quantity: m.quantity,
-                        unit: m.unit,
+                        quantity: 1,
+                        unit: '',
                         category: 'Other',
                         addedDate: new Date().toISOString(),
                         checked: false,
@@ -406,12 +436,15 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                       });
                       added++;
                     }
-                    Alert.alert('Added to Shopping List', `${added} missing ingredient${added === 1 ? '' : 's'} were added.`);
+                    Alert.alert('Added to Shopping List! 🛒', `${added} missing ingredient${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added to your shopping list.`);
                     setMissingIngredientsAdded(true);
                   }}
                   size="sm"
                   variant={missingIngredientsAdded ? 'primary' : 'secondary'}
+                  shape="capsule"
                   disabled={missingIngredientsAdded}
+                  icon={<ShoppingCart size={16} color={missingIngredientsAdded ? Colors.white : Colors.primary} />}
+                  style={missingIngredientsAdded ? { backgroundColor: '#10b981' } : undefined}
                 />
               )}
 

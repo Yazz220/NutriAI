@@ -109,14 +109,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       // Only persist to Supabase if the user is authenticated. Guests should
       // still be able to complete onboarding without triggering auth errors.
       if (user) {
-        await saveProfile(profileData);
+        try {
+          await saveProfile(profileData);
+          console.log('[Onboarding] Profile saved successfully');
+        } catch (profileError) {
+          console.warn('[Onboarding] Failed to save profile, will retry on sign-in:', profileError);
+          // Don't throw - we'll save the data to AsyncStorage and sync on sign-in
+        }
       }
       
       // Mark onboarding as completed
       await OnboardingPersistenceManager.markOnboardingCompleted();
       
-      // Clear temporary onboarding data
-      await OnboardingPersistenceManager.clearOnboardingData();
+      // Don't clear onboarding data yet - keep it for sign-up/sign-in sync
+      // It will be cleared after successful profile sync in auth screens
+      console.log('[Onboarding] Onboarding marked complete, data preserved for auth sync');
       
       // Update completion timestamp
       const completedData = {
@@ -127,18 +134,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to complete onboarding';
+      console.error('[Onboarding] Completion error:', err);
       setError(message);
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [onboardingData, saveProfile]);
+  }, [onboardingData, saveProfile, user]);
 
   // Navigation helper functions
   const canGoNext = useCallback(() => {
     return navigationManager.canGoNext();
   }, []);
-
   const canGoBack = useCallback(() => {
     return navigationManager.canGoBack();
   }, []);

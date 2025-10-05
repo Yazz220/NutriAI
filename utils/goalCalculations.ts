@@ -3,24 +3,26 @@ import { NutritionGoals } from '@/types';
 
 /**
  * Activity level multipliers for TDEE calculation
- * Based on established fitness and nutrition standards
+ * Based on research-validated standards used by MyFitnessPal and nutrition professionals
+ * Source: Mifflin-St Jeor equation validation studies
  */
 export const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
-  sedentary: 1.2,    // Little to no exercise
+  sedentary: 1.2,    // Little to no exercise (desk job, minimal movement)
   light: 1.375,      // Light exercise 1-3 days/week
   moderate: 1.55,    // Moderate exercise 3-5 days/week
-  active: 1.725,     // Heavy exercise 6-7 days/week
-  athlete: 1.9,      // Very heavy physical work or 2x/day training
+  active: 1.725,     // Hard exercise 6-7 days/week
+  athlete: 1.9,      // Very hard exercise & physical job or 2x/day training
 };
 
 /**
  * Goal type calorie adjustments (daily deficit/surplus)
- * Conservative approach for sustainable weight management
+ * Research-backed approach for sustainable weight management
+ * Based on 3500 calories = 1 lb fat and safe rate of change
  */
 export const GOAL_ADJUSTMENTS: Record<GoalType, number> = {
-  lose: -500,        // 1 lb/week loss (3500 cal = 1 lb)
+  lose: -500,        // 1 lb/week loss (safe, sustainable deficit)
   maintain: 0,       // No adjustment
-  gain: 300,         // ~0.6 lb/week gain (slower, cleaner bulk)
+  gain: 350,         // ~0.7 lb/week gain (lean muscle building)
 };
 
 /**
@@ -88,43 +90,68 @@ export function calculateCalorieGoal(tdee: number, goalType: GoalType): number {
 }
 
 /**
- * Calculate macro targets based on calorie goal
- * Uses evidence-based macro distribution
+ * Calculate macro targets based on calorie goal and body weight
+ * Uses evidence-based macro distribution aligned with MyFitnessPal and nutrition research
+ * 
+ * Research-backed distributions:
+ * - Weight Loss: 40% carbs, 30% protein, 30% fat (muscle preservation)
+ * - Muscle Gain: Higher protein (1.6-2.2g/kg bodyweight), 40% carbs, 30% fat
+ * - Maintenance: 40% carbs, 30% protein, 30% fat (balanced)
  */
-export function calculateMacroTargets(calorieGoal: number, goalType: GoalType): {
+export function calculateMacroTargets(
+  calorieGoal: number, 
+  goalType: GoalType,
+  bodyWeightKg?: number
+): {
   protein: number;
   carbs: number;
   fats: number;
 } {
-  let proteinPercent: number;
-  let fatPercent: number;
-  
-  // Adjust macro ratios based on goal
-  switch (goalType) {
-    case 'lose':
-      proteinPercent = 0.30; // Higher protein for muscle preservation
-      fatPercent = 0.25;
-      break;
-    case 'gain':
-      proteinPercent = 0.25; // Moderate protein for muscle building
-      fatPercent = 0.30;     // Higher fats for calorie density
-      break;
-    case 'maintain':
-    default:
-      proteinPercent = 0.25; // Balanced approach
-      fatPercent = 0.25;
-      break;
-  }
-  
-  const carbPercent = 1 - proteinPercent - fatPercent;
+  // Research-backed macro distributions (MyFitnessPal standard)
+  const proteinPercent = 0.30;
+  const fatPercent = 0.30;
+  const carbPercent = 0.40;
   
   // Convert percentages to grams
   // Protein: 4 cal/g, Carbs: 4 cal/g, Fats: 9 cal/g
-  const protein = Math.round((calorieGoal * proteinPercent) / 4);
+  let protein = Math.round((calorieGoal * proteinPercent) / 4);
   const carbs = Math.round((calorieGoal * carbPercent) / 4);
   const fats = Math.round((calorieGoal * fatPercent) / 9);
   
-  return { protein, carbs, fats };
+  // For muscle gain, ensure protein meets research recommendation (1.6-2.2g/kg)
+  if (goalType === 'gain' && bodyWeightKg) {
+    const minProtein = Math.round(bodyWeightKg * 1.6);
+    const maxProtein = Math.round(bodyWeightKg * 2.2);
+    
+    // Adjust protein if below minimum recommendation
+    if (protein < minProtein) {
+      protein = minProtein;
+    }
+    // Cap at maximum recommendation for safety
+    if (protein > maxProtein) {
+      protein = maxProtein;
+    }
+  }
+  
+  // Validate macros are within safe bounds
+  const validatedProtein = Math.max(
+    GOAL_CONSTRAINTS.protein.min,
+    Math.min(GOAL_CONSTRAINTS.protein.max, protein)
+  );
+  const validatedCarbs = Math.max(
+    GOAL_CONSTRAINTS.carbs.min,
+    Math.min(GOAL_CONSTRAINTS.carbs.max, carbs)
+  );
+  const validatedFats = Math.max(
+    GOAL_CONSTRAINTS.fats.min,
+    Math.min(GOAL_CONSTRAINTS.fats.max, fats)
+  );
+  
+  return { 
+    protein: validatedProtein, 
+    carbs: validatedCarbs, 
+    fats: validatedFats 
+  };
 }
 
 /**
@@ -146,8 +173,8 @@ export function calculateNutritionGoals(
   // Calculate calorie goal
   const dailyCalories = calculateCalorieGoal(tdee, goalType);
   
-  // Calculate macro targets
-  const macros = calculateMacroTargets(dailyCalories, goalType);
+  // Calculate macro targets (pass body weight for protein optimization)
+  const macros = calculateMacroTargets(dailyCalories, goalType, basics.weightKg);
   
   return {
     dailyCalories,

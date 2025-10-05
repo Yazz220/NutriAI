@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, OnboardingHeader, useOnboarding } from '@/components/onboarding';
+import { OnboardingScreenWrapper, OnboardingButton, HorizontalRulerPicker, ONBOARDING_SCROLL_BOTTOM_INSET, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   content: { flex: 1 },
-  contentContainer: { alignItems: 'center', paddingBottom: Spacing.xl },
+  contentContainer: { alignItems: 'center', paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET },
   weightDisplay: { alignItems: 'center', marginBottom: Spacing.lg },
   weightNumber: { 
     fontSize: 72, 
@@ -343,3 +343,4 @@ const styles = StyleSheet.create({
   footer: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
   buttonRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', alignItems: 'center' },
 });
+

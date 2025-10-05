@@ -13,6 +13,7 @@ import { useUserProfileStore } from '../../hooks/useEnhancedUserProfile';
 import { GoalDirection, HealthGoal } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
+import { calculateMacroTargets } from '../../utils/goalCalculations';
 
 interface HealthGoalsSectionProps {
   onBack: () => void;
@@ -75,8 +76,12 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
     dailyFatTarget: profile?.dailyFatTarget ? profile.dailyFatTarget.toString() : '',
   }));
 
+  // Only load initial data once when component mounts
+  // Don't reload when profile changes to avoid overwriting user edits
+  const [hasInitialized, setHasInitialized] = React.useState(false);
+  
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || hasInitialized) return;
     setFormData({
       selectedGoal: (profile.healthGoals ?? [])[0] ?? null,
       goalDirection: profile.goalDirection ?? 'maintain',
@@ -88,7 +93,8 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
       dailyCarbTarget: profile.dailyCarbTarget ? profile.dailyCarbTarget.toString() : '',
       dailyFatTarget: profile.dailyFatTarget ? profile.dailyFatTarget.toString() : '',
     });
-  }, [profile]);
+    setHasInitialized(true);
+  }, [profile, hasInitialized]);
 
   const handleSelectGoal = (goal: HealthGoal) => {
     setFormData((prev) => ({
@@ -99,10 +105,49 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
   };
 
   const handleSelectDirection = (direction: GoalDirection) => {
-    setFormData((prev) => ({
-      ...prev,
-      goalDirection: direction,
-    }));
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        goalDirection: direction,
+      };
+      
+      // Auto-calculate macros if calories exist
+      if (prev.dailyCalorieTarget && parseFloat(prev.dailyCalorieTarget) > 0) {
+        const calories = parseFloat(prev.dailyCalorieTarget);
+        const weight = profile?.weight ? Number(profile.weight) : undefined;
+        const macros = calculateMacroTargets(calories, direction, weight);
+        return {
+          ...newData,
+          dailyProteinTarget: macros.protein.toString(),
+          dailyCarbTarget: macros.carbs.toString(),
+          dailyFatTarget: macros.fats.toString(),
+        };
+      }
+      
+      return newData;
+    });
+  };
+
+  // Auto-calculate macros when calories change
+  const handleCaloriesChange = (text: string) => {
+    setFormData((prev) => {
+      const newData = { ...prev, dailyCalorieTarget: text };
+      
+      // Only auto-calculate if we have a valid number
+      const calories = parseFloat(text);
+      if (calories > 0 && !isNaN(calories)) {
+        const weight = profile?.weight ? Number(profile.weight) : undefined;
+        const macros = calculateMacroTargets(calories, prev.goalDirection, weight);
+        return {
+          ...newData,
+          dailyProteinTarget: macros.protein.toString(),
+          dailyCarbTarget: macros.carbs.toString(),
+          dailyFatTarget: macros.fats.toString(),
+        };
+      }
+      
+      return newData;
+    });
   };
 
   const handleSave = async () => {
@@ -145,6 +190,9 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
         dailyCarbTarget: parsedCarbs,
         dailyFatTarget: parsedFats,
       });
+
+      // Small delay to ensure data is persisted before going back
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       Alert.alert(
         'Goals updated',
@@ -283,10 +331,11 @@ export function HealthGoalsSection({ onBack }: HealthGoalsSectionProps) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Daily calories</Text>
+            <Text style={styles.helperText}>Macros will auto-calculate based on your goal</Text>
             <TextInput
               style={styles.input}
               value={formData.dailyCalorieTarget}
-              onChangeText={(text) => setFormData((prev) => ({ ...prev, dailyCalorieTarget: text }))}
+              onChangeText={handleCaloriesChange}
               placeholder="e.g., 2100"
               placeholderTextColor={Colors.lightText}
               keyboardType="numeric"
@@ -470,5 +519,10 @@ const styles = StyleSheet.create({
   },
   macroInput: {
     flex: 1,
+  },
+  helperText: {
+    fontSize: 12,
+    color: Colors.lightText,
+    marginBottom: Spacing.xs,
   },
 });

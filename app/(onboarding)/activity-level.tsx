@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, OnboardingHeader, useOnboarding } from '@/components/onboarding';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { OnboardingScreenWrapper, OnboardingButton, BehindTheQuestion, ONBOARDING_SCROLL_BOTTOM_INSET, OnboardingHeader, useOnboarding } from '@/components/onboarding';
 
 import { ActivityLevelSelector, ActivityLevel } from '@/components/onboarding/ActivityLevelSelector';
 import { Colors } from '@/constants/colors';
@@ -70,13 +70,17 @@ export default function ActivityLevelScreen() {
           imageTranslateExtraRatio={0.10}
         />
 
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <ActivityLevelSelector
             value={activityLevel}
             onValueChange={handleActivityLevelSelect}
             variant="compact"
           />
-        </View>
+        </ScrollView>
 
         {error && (
           <View style={styles.errorContainer}>
@@ -112,7 +116,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: Spacing.lg,
+    paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET,
   },
   errorContainer: {
     paddingHorizontal: Spacing.md,

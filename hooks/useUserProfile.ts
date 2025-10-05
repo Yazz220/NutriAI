@@ -131,6 +131,11 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     const mapped: UserProfileState = {
       basics: {
         name: row?.display_name ?? undefined,
+        // Extract basic metrics from goals JSONB
+        age: goals.age ?? undefined,
+        heightCm: goals.height_cm ?? goals.heightCm ?? undefined,
+        weightKg: goals.weight_kg ?? goals.weightKg ?? undefined,
+        sex: undefined, // Not stored in DB yet
       },
       goals: {
         dailyCalories: goals.dailyCalories ?? goals.daily_calories ?? undefined,
@@ -197,17 +202,92 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   // Persist profile to Supabase (nutriai.profiles)
   type SaveInput = Partial<UserProfileState>;
 
-  const toRow = (state: UserProfileState | SaveInput) => ({
-    user_id: user?.id,
-    display_name: state.basics?.name ?? (state as any).display_name ?? null,
-    units: state.metrics?.unitSystem ?? (state as any).units ?? 'metric',
-    goals: state.goals ?? (state as any).goals ?? {},
-    preferences: state.preferences ?? (state as any).preferences ?? {
-      allergies: [],
-      disliked_ingredients: [],
-      preferred_cuisines: [],
-    },
-  });
+  // Validate profile data before saving
+  const validateProfile = (profile: Partial<UserProfileState>): string[] => {
+    const errors: string[] = [];
+    
+    // Validate calories
+    if (profile.goals?.dailyCalories !== undefined) {
+      if (profile.goals.dailyCalories < 1000 || profile.goals.dailyCalories > 5000) {
+        errors.push('Daily calories must be between 1000 and 5000');
+      }
+    }
+    
+    // Validate age
+    if (profile.basics?.age !== undefined) {
+      if (profile.basics.age < 13 || profile.basics.age > 120) {
+        errors.push('Age must be between 13 and 120');
+      }
+    }
+    
+    // Validate height
+    if (profile.basics?.heightCm !== undefined) {
+      if (profile.basics.heightCm < 100 || profile.basics.heightCm > 250) {
+        errors.push('Height must be between 100 and 250 cm');
+      }
+    }
+    
+    // Validate weight
+    if (profile.basics?.weightKg !== undefined) {
+      if (profile.basics.weightKg < 30 || profile.basics.weightKg > 300) {
+        errors.push('Weight must be between 30 and 300 kg');
+      }
+    }
+    
+    // Validate macros
+    if (profile.goals?.proteinTargetG !== undefined && profile.goals.proteinTargetG < 0) {
+      errors.push('Protein target cannot be negative');
+    }
+    if (profile.goals?.carbsTargetG !== undefined && profile.goals.carbsTargetG < 0) {
+      errors.push('Carbs target cannot be negative');
+    }
+    if (profile.goals?.fatsTargetG !== undefined && profile.goals.fatsTargetG < 0) {
+      errors.push('Fats target cannot be negative');
+    }
+    
+    return errors;
+  };
+
+  const toRow = (state: UserProfileState | SaveInput) => {
+    // Merge basic metrics into goals JSONB for database storage
+    const goalsData = state.goals ?? (state as any).goals ?? {};
+    const basicsData = state.basics ?? {};
+    
+    return {
+      user_id: user?.id,
+      display_name: basicsData.name ?? (state as any).display_name ?? null,
+      units: state.metrics?.unitSystem ?? (state as any).units ?? 'metric',
+      goals: {
+        // Nutrition goals (camelCase to snake_case for consistency)
+        daily_calories: goalsData.dailyCalories,
+        protein_target_g: goalsData.proteinTargetG,
+        carbs_target_g: goalsData.carbsTargetG,
+        fats_target_g: goalsData.fatsTargetG,
+        goal_type: goalsData.goalType,
+        activity_level: goalsData.activityLevel,
+        custom_goal_label: goalsData.customGoalLabel,
+        custom_goal_motivation: goalsData.customGoalMotivation,
+        uses_custom_calorie_target: goalsData.usesCustomCalorieTarget,
+        recommended_calories: goalsData.recommendedCalories,
+        recommended_protein_g: goalsData.recommendedProteinG,
+        recommended_carbs_g: goalsData.recommendedCarbsG,
+        recommended_fats_g: goalsData.recommendedFatsG,
+        health_goal_key: goalsData.healthGoalKey,
+        // Basic metrics from onboarding
+        age: basicsData.age ?? (goalsData as any).age,
+        height_cm: basicsData.heightCm ?? (goalsData as any).heightCm,
+        weight_kg: basicsData.weightKg ?? (goalsData as any).weightKg,
+        target_weight_kg: (goalsData as any).targetWeightKg,
+        gender: (goalsData as any).gender,
+      },
+      preferences: {
+        allergies: state.preferences?.allergies ?? [],
+        dietary: state.preferences?.dietary,
+        disliked_ingredients: state.preferences?.dislikedIngredients ?? [],
+        preferred_cuisines: state.preferences?.preferredCuisines ?? [],
+      },
+    };
+  };
 
   const saveMutation = useMutation({
     mutationKey: ['profile:save'],
@@ -222,6 +302,14 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         preferences: { ...profile.preferences, ...(patch.preferences ?? {}) },
         metrics: { unitSystem: patch.metrics?.unitSystem ?? profile.metrics.unitSystem },
       };
+      
+      // Validate profile data
+      const validationErrors = validateProfile(next);
+      if (validationErrors.length > 0) {
+        console.warn('[Profile] Validation errors:', validationErrors);
+        throw new Error(`Invalid profile data: ${validationErrors.join(', ')}`);
+      }
+      
       const row = toRow(next);
       const { error } = await supabase
         .schema('nutriai')

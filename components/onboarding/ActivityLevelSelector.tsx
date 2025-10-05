@@ -93,8 +93,9 @@ export function ActivityLevelSelector({
         </View>
       )}
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
       >
@@ -172,6 +173,9 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     maxHeight: 400, // Prevent taking too much space
+  },
+  scrollContent: {
+    paddingBottom: Spacing.lg,
   },
   optionContainer: {
     marginBottom: Spacing.md,
