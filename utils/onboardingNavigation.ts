@@ -103,18 +103,22 @@ export class OnboardingNavigationManager {
     }
   }
 
-  navigateNext(): void {
+  navigateNext(): OnboardingStep | null {
     const nextStep = this.nextStep();
     if (nextStep) {
       this.navigateToStep(nextStep);
+      return nextStep;
     }
+    return null;
   }
 
-  navigatePrevious(): void {
+  navigatePrevious(): OnboardingStep | null {
     const prevStep = this.previousStep();
     if (prevStep) {
       this.navigateToStep(prevStep);
+      return prevStep;
     }
+    return null;
   }
 
   // Calculate which step user should be on based on completed data

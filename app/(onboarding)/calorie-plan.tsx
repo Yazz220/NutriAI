@@ -250,9 +250,9 @@ export default function CaloriePlanScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>Personalize your daily calories</Text>
+          <Text style={styles.title}>Your calorie target</Text>
           <Text style={styles.subtitle}>
-            We start with a science-backed recommendation based on your profile. Switch to a custom value if you already know what works for you.
+            We calculate a balanced starting point from your profile. Tweak it if you already follow a plan that fits you.
           </Text>
 
           {renderNutritionCard('Recommended target', recommendedCalories, recommendedMacros)}

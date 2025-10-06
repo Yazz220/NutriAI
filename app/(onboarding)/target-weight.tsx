@@ -140,7 +140,6 @@ export default function TargetWeightScreen() {
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.weightDisplay}>
             <Text style={styles.weightNumber}>{getDisplayWeight(targetWeight)}</Text>
-            <Text style={styles.weightUnit}>{getDisplayUnit()}</Text>
             <View style={styles.currentWeightIndicator}>
               <Text style={styles.currentWeightText}>
                 ← {getDisplayWeight(currentWeight)} {getDisplayUnit()}
@@ -210,15 +209,10 @@ const styles = StyleSheet.create({
   contentContainer: { alignItems: 'center', paddingBottom: ONBOARDING_SCROLL_BOTTOM_INSET },
   weightDisplay: { alignItems: 'center', marginBottom: Spacing.lg },
   weightNumber: { 
-    fontSize: 72, 
+    fontSize: 65,
     fontWeight: Typography.weights.bold, 
     color: Colors.text,
-    lineHeight: 80 
-  },
-  weightUnit: { 
-    fontSize: 18, 
-    color: Colors.lightText, 
-    marginTop: Spacing.sm 
+    lineHeight: 72 
   },
   currentWeightIndicator: {
     marginTop: Spacing.sm,

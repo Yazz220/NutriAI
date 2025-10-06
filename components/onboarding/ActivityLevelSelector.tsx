@@ -155,6 +155,7 @@ function BarsIcon({ bars }: { bars: number }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom: Spacing.xl,
   },
   header: {
     marginBottom: Spacing.lg,
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
     maxHeight: 400, // Prevent taking too much space
   },
   scrollContent: {
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.xxl,
   },
   optionContainer: {
     marginBottom: Spacing.md,

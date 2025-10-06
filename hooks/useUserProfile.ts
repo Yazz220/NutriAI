@@ -40,6 +40,8 @@ export interface UserPreferencesProfile {
   dietary?: 'vegan' | 'vegetarian' | 'pescatarian' | 'halal' | 'kosher' | 'gluten_free' | 'keto' | 'paleo' | 'none';
   dislikedIngredients: string[];
   preferredCuisines: string[];
+  preferredMealTypes?: string[];
+  maxCookingTime?: number;
 }
 
 export interface UserProfileState {
@@ -49,10 +51,23 @@ export interface UserProfileState {
   metrics: { unitSystem: UnitSystem };
 }
 
+const normalizeGenderFromGoals = (value?: string | null): 'male' | 'female' | 'other' | undefined => {
+  if (!value) return undefined;
+  if (value === 'prefer-not-to-say') return 'other';
+  if (value === 'male' || value === 'female') return value;
+  return 'other';
+};
+
+const serializeGenderForGoals = (sex?: 'male' | 'female' | 'other'): string | undefined => {
+  if (!sex) return undefined;
+  if (sex === 'other') return 'prefer-not-to-say';
+  return sex;
+};
+
 const defaultProfile: UserProfileState = {
   basics: {},
   goals: {},
-  preferences: { allergies: [], dislikedIngredients: [], preferredCuisines: [] },
+  preferences: { allergies: [], dislikedIngredients: [], preferredCuisines: [], preferredMealTypes: [], maxCookingTime: undefined },
   metrics: { unitSystem: 'metric' },
 };
 
@@ -128,6 +143,11 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     const goals = (row?.goals || {}) as Partial<UserGoals> & Record<string, any>;
     const prefs = (row?.preferences || {}) as Partial<UserPreferencesProfile> & Record<string, any>;
 
+    const rawGender =
+      (goals as Record<string, any>).gender ??
+      (goals as Record<string, any>)['gender'] ??
+      (goals as Record<string, any>)['sex'];
+
     const mapped: UserProfileState = {
       basics: {
         name: row?.display_name ?? undefined,
@@ -135,7 +155,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         age: goals.age ?? undefined,
         heightCm: goals.height_cm ?? goals.heightCm ?? undefined,
         weightKg: goals.weight_kg ?? goals.weightKg ?? undefined,
-        sex: undefined, // Not stored in DB yet
+        sex: normalizeGenderFromGoals(rawGender),
       },
       goals: {
         dailyCalories: goals.dailyCalories ?? goals.daily_calories ?? undefined,
@@ -152,12 +172,15 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         recommendedCarbsG: goals.recommendedCarbsG ?? goals.recommended_carbs_g ?? undefined,
         recommendedFatsG: goals.recommendedFatsG ?? goals.recommended_fats_g ?? undefined,
         healthGoalKey: goals.healthGoalKey ?? goals.health_goal_key ?? undefined,
+        targetWeightKg: goals.targetWeightKg ?? goals.target_weight_kg ?? undefined,
       },
       preferences: {
         allergies: prefs.allergies ?? [],
         dietary: prefs.dietary ?? undefined,
         dislikedIngredients: prefs.dislikedIngredients ?? prefs.disliked_ingredients ?? [],
         preferredCuisines: prefs.preferredCuisines ?? prefs.preferred_cuisines ?? [],
+        preferredMealTypes: prefs.preferredMealTypes ?? prefs.preferred_meal_types ?? [],
+        maxCookingTime: prefs.maxCookingTime ?? prefs.max_cooking_time ?? undefined,
       },
       metrics: { unitSystem: (row?.units as UnitSystem) ?? 'metric' },
     };
@@ -278,13 +301,15 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         height_cm: basicsData.heightCm ?? (goalsData as any).heightCm,
         weight_kg: basicsData.weightKg ?? (goalsData as any).weightKg,
         target_weight_kg: (goalsData as any).targetWeightKg,
-        gender: (goalsData as any).gender,
+        gender: serializeGenderForGoals(basicsData.sex) ?? (goalsData as any).gender,
       },
       preferences: {
         allergies: state.preferences?.allergies ?? [],
         dietary: state.preferences?.dietary,
         disliked_ingredients: state.preferences?.dislikedIngredients ?? [],
         preferred_cuisines: state.preferences?.preferredCuisines ?? [],
+        preferred_meal_types: state.preferences?.preferredMealTypes ?? [],
+        max_cooking_time: state.preferences?.maxCookingTime ?? null,
       },
     };
   };
