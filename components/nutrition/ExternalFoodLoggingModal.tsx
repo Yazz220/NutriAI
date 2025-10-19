@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -29,6 +30,8 @@ import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
 import { searchFoodDatabase, FoodSearchResult } from '@/utils/openFoodFacts';
 import { analyzeFoodImageToLabel, analyzeFoodImageForNutrition, AINutritionResult } from '@/utils/visionClient';
+import { FoodLoggingSuccess } from '@/components/nutrition/FoodLoggingSuccess';
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 interface ExternalFoodLoggingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -96,6 +99,12 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
     carbs: '',
     fats: '',
   });
+
+  // Animation states
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [loggedFoodInfo, setLoggedFoodInfo] = useState<{ name: string; calories: number; protein: number } | null>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const searchTimeoutRef = useRef<number | null>(null);
 
@@ -303,8 +312,30 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
       return;
     }
 
-    onLogFood(foodToLog);
-    handleClose();
+    // Set up success animation
+    setLoggedFoodInfo({
+      name: foodToLog.name,
+      calories: Math.round(foodToLog.calories),
+      protein: Math.round(foodToLog.protein),
+    });
+    setShowSuccessAnimation(true);
+
+    // Animate modal fade out
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 50,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onLogFood(foodToLog);
+      setTimeout(handleClose, 1000);
+    });
   };
 
   const handleClose = () => {
@@ -735,6 +766,20 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
           />
         </View>
       </SafeAreaView>
+      
+      {/* Success Animation Overlay */}
+      {showSuccessAnimation && loggedFoodInfo && (
+        <FoodLoggingSuccess
+          visible={showSuccessAnimation}
+          calories={loggedFoodInfo.calories}
+          protein={loggedFoodInfo.protein}
+          foodName={loggedFoodInfo.name}
+          onComplete={() => {
+            setShowSuccessAnimation(false);
+            setLoggedFoodInfo(null);
+          }}
+        />
+      )}
     </Modal>
   );
 };
