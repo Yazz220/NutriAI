@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/spacing';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { useInventory } from '@/hooks/useInventoryStore';
+import { useExternalRecipeNutritionEnrichment } from '@/hooks/useRecipeNutritionEnrichment';
 import { ExternalRecipe } from '@/types/external';
 import {
   calculateRecipeAvailability,
@@ -62,7 +63,7 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
   /**
    * Combines trending and external recipes with availability data
    */
-  const enhancedRecipes = useMemo(() => {
+  const enhancedRecipesRaw = useMemo(() => {
     const combinedRecipes = mergeUniqueRecipes(trendingRecipes, externalRecipes);
     
     return combinedRecipes.map(recipe => ({
@@ -70,6 +71,9 @@ export const InventoryAwareRecipeDiscovery: React.FC<InventoryAwareRecipeDiscove
       availability: calculateRecipeAvailability(recipe, inventory)
     }));
   }, [externalRecipes, trendingRecipes, inventory, mergeUniqueRecipes]);
+
+  // Enrich with accurate USDA nutrition data
+  const enhancedRecipes = useExternalRecipeNutritionEnrichment(enhancedRecipesRaw);
 
   // No client-side filters — placeholder for future filters
   const filteredRecipes = useMemo(() => enhancedRecipes, [enhancedRecipes]);

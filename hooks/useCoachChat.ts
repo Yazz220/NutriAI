@@ -11,7 +11,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNutrition } from '@/hooks/useNutrition';
 import { buildAIContext } from '@/utils/aiContext';
 import { buildStructuredSystemPrompt, tryExtractJSON, StructuredResponse } from '@/utils/aiFormat';
-import { buildCoachSystemPrompt } from '@/utils/coach/contextBuilder';
+import { buildCoachSystemPrompt, buildEnhancedCoachSystemPrompt } from '@/utils/coach/contextBuilder';
 
 export type ChatMessage = {
   id: string;
@@ -194,23 +194,27 @@ export function useCoachChat() {
         }, 0);
         return { avgCalories: Math.round(avg), daysMetGoal: met, totalDays: recent.length };
       })();
-      const coachSystem = buildCoachSystemPrompt({
-        profile: {
-          name: profile.basics?.name,
-          dietaryRestrictions: profile.preferences?.dietary ? [profile.preferences.dietary] : [],
-          allergies: profile.preferences?.allergies || [],
-          preferences: (profile.preferences as unknown as Record<string, unknown>) || null,
-          units: profile.metrics?.unitSystem || null,
+      // Use enhanced system prompt with full profile context
+      const coachSystem = buildEnhancedCoachSystemPrompt(
+        {
+          profile: {
+            name: profile.basics?.name,
+            dietaryRestrictions: profile.preferences?.dietary ? [profile.preferences.dietary] : [],
+            allergies: profile.preferences?.allergies || [],
+            preferences: (profile.preferences as unknown as Record<string, unknown>) || null,
+            units: profile.metrics?.unitSystem || null,
+          },
+          goals: goals || null,
+          today: {
+            calories: { consumed: progress.calories.consumed, goal: progress.calories.goal, remaining: progress.calories.remaining },
+            protein: { consumed: progress.macros.protein.consumed, goal: progress.macros.protein.goal },
+            carbs: { consumed: progress.macros.carbs.consumed, goal: progress.macros.carbs.goal },
+            fats: { consumed: progress.macros.fats.consumed, goal: progress.macros.fats.goal },
+          },
+          sevenDay: seven,
         },
-        goals: goals || null,
-        today: {
-          calories: { consumed: progress.calories.consumed, goal: progress.calories.goal, remaining: progress.calories.remaining },
-          protein: { consumed: progress.macros.protein.consumed, goal: progress.macros.protein.goal },
-          carbs: { consumed: progress.macros.carbs.consumed, goal: progress.macros.carbs.goal },
-          fats: { consumed: progress.macros.fats.consumed, goal: progress.macros.fats.goal },
-        },
-        sevenDay: seven,
-      });
+        profile
+      );
 
       setIsTyping(true);
       const contextSummary = JSON.stringify(ctx, null, 2);

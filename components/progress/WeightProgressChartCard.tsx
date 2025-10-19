@@ -101,6 +101,12 @@ export const WeightProgressChartCard = ({ tracking }: { tracking: WeightTracking
                 return null;
               }
               const numericValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+              
+              // Ensure numericValue is valid before formatting
+              if (Number.isNaN(numericValue) || !Number.isFinite(numericValue)) {
+                return null;
+              }
+              
               return (
                 <View key={`dot-${index}`} style={[styles.dotLabel, { left: x - 38, top: y - 40 }]}> 
                   <Text style={styles.dotLabelText}>{numericValue.toFixed(1)} kg</Text>

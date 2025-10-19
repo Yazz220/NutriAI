@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Flame, Trophy, Target, Calendar } from 'lucide-react-native';
+import { Flame, Trophy, Calendar, TrendingUp } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Typography } from '@/constants/spacing';
+import { Typography as Type } from '@/constants/typography';
 import { useStreakTracking } from '@/hooks/useStreakTracking';
 
 interface StreakCardProps {
@@ -13,34 +13,45 @@ interface StreakCardProps {
 export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
   const { streakData, getTodayStatus, getTodayProgress, isLoading } = useStreakTracking();
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const flameAnim = useRef(new Animated.Value(0)).current;
 
   const todayStatus = getTodayStatus();
   const todayProgress = getTodayProgress();
+  const progressPercentage = Math.round(todayProgress * 100);
 
-  // Animate progress ring
+  // Animate card entrance
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  // Animate progress bar
   useEffect(() => {
     Animated.timing(progressAnim, {
       toValue: todayProgress,
-      duration: 1000,
+      duration: 800,
       useNativeDriver: false,
     }).start();
   }, [todayProgress, progressAnim]);
 
-  // Animate flame when streak is active
+  // Subtle flame animation when streak is active
   useEffect(() => {
     if (streakData.currentStreak > 0) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(flameAnim, {
             toValue: 1,
-            duration: 1500,
+            duration: 2000,
             useNativeDriver: true,
           }),
           Animated.timing(flameAnim, {
             toValue: 0,
-            duration: 1500,
+            duration: 2000,
             useNativeDriver: true,
           }),
         ])
@@ -48,55 +59,30 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
     }
   }, [streakData.currentStreak, flameAnim]);
 
-  // Pulse animation for successful days
-  useEffect(() => {
-    if (todayStatus === 'success') {
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [todayStatus, scaleAnim]);
-
   const getStatusColor = () => {
     switch (todayStatus) {
       case 'success': return Colors.success;
       case 'pending': return Colors.warning;
-      case 'missed': return Colors.error;
+      case 'missed': return Colors.lightText;
       default: return Colors.lightText;
     }
   };
 
-  const getStatusText = () => {
-    switch (todayStatus) {
-      case 'success': return 'Goal reached!';
-      case 'pending': return `${Math.round(todayProgress * 100)}% to goal`;
-      case 'missed': return 'Start logging today';
-      default: return 'Track your nutrition';
-    }
+  const getStatusMessage = () => {
+    if (todayStatus === 'success') return "Today's goal reached!";
+    if (todayStatus === 'pending') return `${Math.max(0, 100 - progressPercentage)}% left to reach goal`;
+    return 'Start logging to build your streak';
   };
 
-  const getStreakEmoji = () => {
-    if (streakData.currentStreak === 0) return '🌱';
-    if (streakData.currentStreak < 7) return '🔥';
-    if (streakData.currentStreak < 30) return '💪';
-    if (streakData.currentStreak < 100) return '🏆';
-    return '👑';
-  };
+  const isStreakActive = streakData.currentStreak > 0;
+  const shouldHighlight = isStreakActive || todayStatus === 'success';
 
   if (isLoading) {
     return (
       <View style={styles.card}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading streak...</Text>
+        <View style={styles.skeleton}>
+          <View style={styles.skeletonHeader} />
+          <View style={styles.skeletonBody} />
         </View>
       </View>
     );
@@ -104,145 +90,103 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
 
   return (
     <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        <LinearGradient
-          colors={
-            todayStatus === 'success' 
-              ? Colors.chart.gradients.success 
-              : streakData.currentStreak > 0
-              ? Colors.chart.gradients.secondary
-              : [Colors.card, Colors.card]
-          }
-          style={styles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.titleRow}>
-                <Animated.View style={{
-                  transform: [{
-                    scale: flameAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 1.2],
-                    })
-                  }]
-                }}>
-                  <Flame 
-                    size={20} 
-                    color={streakData.currentStreak > 0 ? Colors.white : Colors.primary} 
-                    fill={streakData.currentStreak > 0 ? Colors.white : 'transparent'}
-                  />
-                </Animated.View>
-                <Text style={[
-                  styles.title,
-                  { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.text }
-                ]}>
-                  Nutrition Streak
-                </Text>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        <View style={[styles.container, shouldHighlight && styles.containerActive]}>
+          {/* Subtle gradient background for active streaks */}
+          {shouldHighlight && (
+            <LinearGradient
+              colors={['rgba(129, 230, 149, 0.08)', 'rgba(129, 230, 149, 0.02)']}
+              style={styles.gradientBackground}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+          )}
+          
+          {/* Header with flame icon */}
+          <View style={styles.header}>
+            <View style={styles.titleRow}>
+              <Animated.View style={{
+                opacity: flameAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.7, 1],
+                })
+              }}>
+                <Flame 
+                  size={20} 
+                  color={isStreakActive ? Colors.primary : Colors.lightText}
+                  strokeWidth={2}
+                />
+              </Animated.View>
+              <Text style={styles.title}>Daily Streak</Text>
+            </View>
+            
+            {streakData.currentStreak > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{streakData.currentStreak}</Text>
               </View>
-              <Text style={styles.emoji}>{getStreakEmoji()}</Text>
+            )}
+          </View>
+
+          {/* Main content area */}
+          <View style={styles.content}>
+            <View style={styles.streakInfo}>
+              <Text style={styles.streakNumber}>
+                {streakData.currentStreak}
+              </Text>
+              <Text style={styles.streakLabel}>
+                {streakData.currentStreak === 1 ? 'day' : 'days'}
+              </Text>
             </View>
 
-            {/* Main Streak Display */}
-            <View style={styles.streakDisplay}>
-              <View style={styles.streakNumber}>
-                <Text style={[
-                  styles.streakValue,
-                  { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.text }
-                ]}>
-                  {streakData.currentStreak}
-                </Text>
-                <Text style={[
-                  styles.streakLabel,
-                  { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                ]}>
-                  {streakData.currentStreak === 1 ? 'day' : 'days'}
-                </Text>
-              </View>
-
-              {/* Progress Ring */}
-              <View style={styles.progressRing}>
-                <View style={styles.progressBackground} />
-                <Animated.View
+            {/* Progress bar */}
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <Animated.View 
                   style={[
-                    styles.progressForeground,
+                    styles.progressFill,
                     {
-                      transform: [{
-                        rotate: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['-90deg', '270deg'],
-                        })
-                      }]
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                      backgroundColor: getStatusColor(),
                     }
                   ]}
                 />
-                <View style={styles.progressCenter}>
-                  <Text style={[
-                    styles.progressText,
-                    { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.text }
-                  ]}>
-                    {Math.round(todayProgress * 100)}%
-                  </Text>
-                </View>
               </View>
+              <Text style={styles.progressLabel}>{progressPercentage}%</Text>
             </View>
 
-            {/* Status and Stats */}
-            <View style={styles.footer}>
-              <View style={styles.statusRow}>
-                <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-                <Text style={[
-                  styles.statusText,
-                  { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                ]}>
-                  {getStatusText()}
-                </Text>
-              </View>
+            <Text style={styles.statusText}>{getStatusMessage()}</Text>
+          </View>
 
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Trophy 
-                    size={14} 
-                    color={streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText} 
-                  />
-                  <Text style={[
-                    styles.statValue,
-                    { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                  ]}>
-                    {streakData.longestStreak}
-                  </Text>
-                  <Text style={[
-                    styles.statLabel,
-                    { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                  ]}>
-                    best
-                  </Text>
-                </View>
-                
-                <View style={styles.statItem}>
-                  <Calendar 
-                    size={14} 
-                    color={streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText} 
-                  />
-                  <Text style={[
-                    styles.statValue,
-                    { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                  ]}>
-                    {streakData.totalDaysLogged}
-                  </Text>
-                  <Text style={[
-                    styles.statLabel,
-                    { color: streakData.currentStreak > 0 || todayStatus === 'success' ? Colors.white : Colors.lightText }
-                  ]}>
-                    total
-                  </Text>
-                </View>
-              </View>
+          {/* Stats footer */}
+          <View style={styles.stats}>
+            <View style={styles.statItem}>
+              <Trophy size={14} color={Colors.lightText} strokeWidth={2} />
+              <Text style={styles.statValue}>{streakData.longestStreak}</Text>
+              <Text style={styles.statLabel}>Best</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <Calendar size={14} color={Colors.lightText} strokeWidth={2} />
+              <Text style={styles.statValue}>{streakData.totalDaysLogged}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            
+            <View style={styles.statDivider} />
+            
+            <View style={styles.statItem}>
+              <TrendingUp size={14} color={Colors.lightText} strokeWidth={2} />
+              <Text style={styles.statValue}>
+                {todayStatus === 'success' ? '+1' : progressPercentage + '%'}
+              </Text>
+              <Text style={styles.statLabel}>Today</Text>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -252,36 +196,54 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginVertical: 8,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  gradient: {
-    borderRadius: 20,
-    padding: 20,
-  },
-  content: {
-    gap: 16,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-  },
-  loadingText: {
-    color: Colors.lightText,
-    fontSize: Typography.sizes.sm,
   },
   
+  // Skeleton loading styles
+  skeleton: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+  },
+  skeletonHeader: {
+    height: 24,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    marginBottom: 16,
+    width: '60%',
+  },
+  skeletonBody: {
+    height: 60,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+  },
+  
+  // Container styles
+  container: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  containerActive: {
+    borderColor: Colors.primary + '30',
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  
+  // Header styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   titleRow: {
     flexDirection: 'row',
@@ -289,97 +251,99 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold,
+    ...Type.body,
+    fontWeight: '600',
+    color: Colors.text,
   },
-  emoji: {
-    fontSize: 24,
+  badge: {
+    backgroundColor: Colors.primary + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    ...Type.caption,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   
-  streakDisplay: {
+  // Content styles
+  content: {
+    gap: 16,
+  },
+  streakInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'baseline',
+    gap: 6,
   },
   streakNumber: {
-    alignItems: 'flex-start',
-  },
-  streakValue: {
+    ...Type.h1,
     fontSize: 48,
-    fontWeight: Typography.weights.bold,
+    fontWeight: '700',
+    color: Colors.text,
     lineHeight: 48,
   },
   streakLabel: {
-    fontSize: Typography.sizes.sm,
-    marginTop: -4,
+    ...Type.body,
+    color: Colors.lightText,
   },
   
-  progressRing: {
-    width: 80,
-    height: 80,
-    position: 'relative',
+  // Progress bar styles
+  progressContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressBackground: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 6,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  progressForeground: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 6,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRightColor: 'transparent',
-    borderBottomColor: 'transparent',
-  },
-  progressCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-  },
-  
-  footer: {
     gap: 12,
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
-  statusText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
+  progressLabel: {
+    ...Type.caption,
+    color: Colors.lightText,
+    minWidth: 35,
   },
   
-  statsRow: {
+  statusText: {
+    ...Type.caption,
+    color: Colors.lightText,
+    marginTop: 4,
+  },
+  
+  // Stats footer styles
+  stats: {
     flexDirection: 'row',
-    gap: 24,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   statValue: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
+    ...Type.caption,
+    color: Colors.text,
+    fontWeight: '600',
   },
   statLabel: {
-    fontSize: Typography.sizes.xs,
+    ...Type.caption,
+    color: Colors.lightText,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: Colors.border,
   },
 });

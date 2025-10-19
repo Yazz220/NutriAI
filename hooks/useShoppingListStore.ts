@@ -32,6 +32,17 @@ export const [ShoppingListProvider, useShoppingList] = createContextHook(() => {
   }, [shoppingList, isLoading]);
 
   const addItem = async (item: Omit<ShoppingListItem, 'id'>) => {
+    // Check if item already exists (case-insensitive name match)
+    const existingItem = shoppingList.find(
+      i => i.name.toLowerCase().trim() === item.name.toLowerCase().trim()
+    );
+    
+    if (existingItem) {
+      // Item already exists - just return the existing ID without adding duplicate
+      console.log(`[ShoppingList] Item "${item.name}" already exists, skipping duplicate`);
+      return existingItem.id;
+    }
+    
     const newItem: ShoppingListItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       ...item,

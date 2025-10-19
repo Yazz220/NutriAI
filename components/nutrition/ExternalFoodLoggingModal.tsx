@@ -28,7 +28,7 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
 import { searchFoodDatabase, FoodSearchResult } from '@/utils/openFoodFacts';
-import { analyzeFoodImageToLabel } from '@/utils/visionClient';
+import { analyzeFoodImageToLabel, analyzeFoodImageForNutrition, AINutritionResult } from '@/utils/visionClient';
 interface ExternalFoodLoggingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -48,8 +48,19 @@ interface LoggedFoodItem {
   servings: number;
   mealType: MealType;
   date: string;
+  // For portion adjustment
+  portionMultiplier?: number;
+  baseCalories?: number;
+  baseProtein?: number;
+  baseCarbs?: number;
+  baseFats?: number;
   imageUri?: string;
   source: 'manual' | 'ai_scan' | 'search';
+  confidence?: number;
+  portionEstimate?: string;
+  modelVersion?: string;
+  mappingVersion?: string;
+  alternativeLabels?: Array<{ label: string; score: number }>;
 }
 const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
@@ -155,39 +166,95 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
     }
   };
 
+  /**
+   * Analyzes food image using AI nutrition scanning
+   * 
+   * Priority order:
+   * 1. Food-101-93M via Supabase Edge Function (best: direct nutrition data)
+   * 2. FatSecret Image API + database lookup (fallback: label-only)
+   * 3. OpenRouter VLM + database lookup (last resort)
+   */
   const analyzeImage = async (imageUri: string) => {
     try {
       setIsAnalyzing(true);
       setAiAnalysisResult(null);
-      // 1) Ask our vision client to extract a label from the image (FatSecret Image API if configured)
-      const label = await analyzeFoodImageToLabel(imageUri);
-      // 2) If we got a label, search our nutrition source (Supabase Edge function backed)
-      let top: FoodSearchResult | undefined;
-      if (label) {
-        const results = await searchFoodDatabase(label);
-        top = results?.[0];
-      }
-      // 3) If we have a decent candidate, create an analysis result; otherwise, prompt user to use Search tab
-      if (top) {
+
+      // Primary: Try Food-101-93M with direct nutrition data
+      const nutritionResult = await analyzeFoodImageForNutrition(imageUri);
+      
+      if (nutritionResult && nutritionResult.items.length > 0) {
+        const primaryFood = nutritionResult.items[0];
+        const totals = nutritionResult.totals;
+        
         const analysis: LoggedFoodItem = {
-          name: top.name,
-          calories: top.calories,
-          protein: top.protein,
-          carbs: top.carbs,
-          fats: top.fats,
+          name: primaryFood.canonical_label.replace(/_/g, ' '),
+          calories: totals.calories,
+          protein: totals.protein,
+          carbs: totals.carbohydrates,
+          fats: totals.fat,
           servings: 1,
           mealType: selectedMealType,
           date: selectedDate,
           imageUri,
           source: 'ai_scan',
+          confidence: primaryFood.score,
+          portionEstimate: totals.portion_text,
+          modelVersion: nutritionResult.model_version,
+          mappingVersion: nutritionResult.mapping_version,
+          alternativeLabels: nutritionResult.items.slice(1, 4).map(item => ({
+            label: item.canonical_label.replace(/_/g, ' '),
+            score: item.score,
+          })),
+          // Initialize portion multiplier and base values
+          portionMultiplier: 1,
+          baseCalories: totals.calories,
+          baseProtein: totals.protein,
+          baseCarbs: totals.carbohydrates,
+          baseFats: totals.fat,
         };
+        
         setAiAnalysisResult(analysis);
-      } else {
-        Alert.alert('Could not identify food', 'Try retaking the photo or use the Search tab.');
+        return;
       }
+
+      // Fallback: Try label-based detection + database lookup
+      console.log('[AI Scan] Falling back to label detection');
+      const label = await analyzeFoodImageToLabel(imageUri);
+      
+      if (label) {
+        const results = await searchFoodDatabase(label);
+        const top = results?.[0];
+        
+        if (top) {
+          const analysis: LoggedFoodItem = {
+            name: top.name,
+            calories: top.calories,
+            protein: top.protein,
+            carbs: top.carbs,
+            fats: top.fats,
+            servings: 1,
+            mealType: selectedMealType,
+            date: selectedDate,
+            imageUri,
+            source: 'ai_scan',
+            portionEstimate: top.servingSize,
+          };
+          setAiAnalysisResult(analysis);
+          return;
+        }
+      }
+
+      // No match found
+      Alert.alert(
+        'Could not identify food',
+        'Try retaking the photo with better lighting or use the Search tab to find the food manually.'
+      );
     } catch (e) {
       console.warn('[analyzeImage] failed', e);
-      Alert.alert('Analysis failed', 'Please try again or use the Search tab.');
+      Alert.alert(
+        'Analysis failed',
+        'Please try again or use the Search tab.'
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -375,7 +442,73 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
           ) : aiAnalysisResult ? (
             <View style={styles.analysisResult}>
               <Text style={styles.analysisTitle}>AI Analysis Result</Text>
+              
+              {/* Confidence Badge */}
+              {aiAnalysisResult.confidence && (
+                <View style={styles.confidenceBadge}>
+                  <Check size={14} color={Colors.success} />
+                  <Text style={styles.confidenceText}>
+                    {Math.round(aiAnalysisResult.confidence * 100)}% confident
+                  </Text>
+                </View>
+              )}
+              
               <Text style={styles.detectedFood}>{aiAnalysisResult.name}</Text>
+              
+              {/* Portion Estimate */}
+              {aiAnalysisResult.portionEstimate && (
+                <Text style={styles.portionText}>
+                  Estimated portion: {aiAnalysisResult.portionEstimate}
+                </Text>
+              )}
+              
+              {/* Portion Multiplier */}
+              <View style={styles.portionMultiplier}>
+                <Text style={styles.portionMultiplierLabel}>Adjust quantity:</Text>
+                <View style={styles.portionControls}>
+                  <TouchableOpacity
+                    style={styles.portionButton}
+                    onPress={() => {
+                      const newMultiplier = Math.max(0.25, (aiAnalysisResult.portionMultiplier || 1) - 0.25);
+                      setAiAnalysisResult({
+                        ...aiAnalysisResult,
+                        portionMultiplier: newMultiplier,
+                        calories: Math.round((aiAnalysisResult.baseCalories || aiAnalysisResult.calories) * newMultiplier),
+                        protein: parseFloat(((aiAnalysisResult.baseProtein || aiAnalysisResult.protein) * newMultiplier).toFixed(1)),
+                        carbs: parseFloat(((aiAnalysisResult.baseCarbs || aiAnalysisResult.carbs) * newMultiplier).toFixed(1)),
+                        fats: parseFloat(((aiAnalysisResult.baseFats || aiAnalysisResult.fats) * newMultiplier).toFixed(1)),
+                      });
+                    }}
+                  >
+                    <Minus size={20} color={Colors.text} />
+                  </TouchableOpacity>
+                  
+                  <View style={styles.portionDisplay}>
+                    <Text style={styles.portionMultiplierValue}>
+                      {aiAnalysisResult.portionMultiplier || 1}x
+                    </Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={styles.portionButton}
+                    onPress={() => {
+                      const newMultiplier = Math.min(10, (aiAnalysisResult.portionMultiplier || 1) + 0.25);
+                      setAiAnalysisResult({
+                        ...aiAnalysisResult,
+                        portionMultiplier: newMultiplier,
+                        calories: Math.round((aiAnalysisResult.baseCalories || aiAnalysisResult.calories) * newMultiplier),
+                        protein: parseFloat(((aiAnalysisResult.baseProtein || aiAnalysisResult.protein) * newMultiplier).toFixed(1)),
+                        carbs: parseFloat(((aiAnalysisResult.baseCarbs || aiAnalysisResult.carbs) * newMultiplier).toFixed(1)),
+                        fats: parseFloat(((aiAnalysisResult.baseFats || aiAnalysisResult.fats) * newMultiplier).toFixed(1)),
+                      });
+                    }}
+                  >
+                    <Plus size={20} color={Colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              {/* Nutrition Grid */}
               <View style={styles.nutritionGrid}>
                 <View style={styles.nutritionItem}>
                   <Text style={styles.nutritionValue}>{aiAnalysisResult.calories}</Text>
@@ -394,6 +527,47 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   <Text style={styles.nutritionLabel}>Fats</Text>
                 </View>
               </View>
+              
+              {/* Alternative Labels */}
+              {aiAnalysisResult.alternativeLabels && aiAnalysisResult.alternativeLabels.length > 0 && (
+                <View style={styles.alternativesContainer}>
+                  <Text style={styles.alternativesTitle}>Not quite right? Try:</Text>
+                  <View style={styles.alternativeChips}>
+                    {aiAnalysisResult.alternativeLabels.map((alt, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={styles.alternativeChip}
+                        onPress={() => {
+                          // Switch to this alternative (would trigger re-analysis)
+                          Alert.alert(
+                            'Switch food?',
+                            `Would you like to use "${alt.label}" instead?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Switch',
+                                onPress: () => {
+                                  // Update the analysis result with the selected alternative
+                                  setAiAnalysisResult({
+                                    ...aiAnalysisResult,
+                                    name: alt.label,
+                                    confidence: alt.score,
+                                  });
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Text style={styles.alternativeChipText}>{alt.label}</Text>
+                        <Text style={styles.alternativeChipScore}>
+                          {Math.round(alt.score * 100)}%
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
               
               <TouchableOpacity 
                 style={styles.retakeButton}
@@ -859,6 +1033,107 @@ const styles = StyleSheet.create({
   retakeButtonText: {
     fontSize: Typography.sizes.sm,
     color: Colors.lightText,
+  },
+  confidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.tints.brandTintSoft,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  confidenceText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium,
+    color: Colors.success,
+  },
+  portionText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.lightText,
+    marginBottom: Spacing.md,
+    fontStyle: 'italic',
+  },
+  alternativesContainer: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  alternativesTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  alternativeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  alternativeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  alternativeChipText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text,
+  },
+  alternativeChipScore: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.lightText,
+    fontWeight: Typography.weights.medium,
+  },
+  
+  // Portion Multiplier Styles
+  portionMultiplier: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+  },
+  portionMultiplierLabel: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  portionControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.lg,
+  },
+  portionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portionDisplay: {
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  portionMultiplierValue: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold,
+    color: Colors.primary,
   },
 
   // Manual Tab Styles

@@ -74,45 +74,61 @@ export default function ShoppingListScreen() {
   }, [filter, uncheckedItems, checkedItems]);
 
   const handleToggleItem = (item: ShoppingListItem) => {
+    // Simply toggle - no popup
     toggleItemChecked(item.id);
-    if (!item.checked) {
-      if (preferences?.autoAddPurchasedToInventory) {
-        // Auto add silently
-        addInventoryItem({
-          name: item.name,
-          category: item.category,
-          addedDate: new Date().toISOString(),
-          quantity: 1,
-          unit: 'pcs',
-        }).then(() => showToast({ message: `Added ${item.name} to inventory`, type: 'success' }))
-          .catch(() => showToast({ message: 'Failed to add to inventory', type: 'error' }));
-      } else {
-        Alert.alert(
-          'Move to Inventory?',
-          `Would you like to add ${item.name} to your inventory?`,
-          [
-            { text: 'Not Now', style: 'cancel' },
-            {
-              text: 'Yes, Add',
-              onPress: async () => {
+  };
+  
+  const handleMoveCompletedToInventory = async () => {
+    if (checkedItems.length === 0) return;
+    
+    Alert.alert(
+      'Move to Inventory?',
+      `Move ${checkedItems.length} completed item${checkedItems.length > 1 ? 's' : ''} to your inventory?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Move to Inventory',
+          onPress: async () => {
+            try {
+              let successCount = 0;
+              let skippedCount = 0;
+              
+              for (const item of checkedItems) {
                 try {
-                  await addInventoryItem({
+                  const itemId = await addInventoryItem({
                     name: item.name,
                     category: item.category,
                     addedDate: new Date().toISOString(),
                     quantity: 1,
                     unit: 'pcs',
                   });
-                  showToast({ message: `Added ${item.name} to inventory`, type: 'success' });
+                  
+                  // If the returned ID is for an existing item, it means it was skipped
+                  // Check if it's newly added or already existed
+                  successCount++;
                 } catch (e) {
-                  showToast({ message: 'Failed to add to inventory', type: 'error' });
+                  console.error(`Failed to add ${item.name} to inventory:`, e);
                 }
-              },
-            },
-          ]
-        );
-      }
-    }
+              }
+              
+              if (successCount > 0) {
+                showToast({ 
+                  message: `Moved ${successCount} item${successCount > 1 ? 's' : ''} to inventory`, 
+                  type: 'success' 
+                });
+                
+                // Clear all checked items after successful move
+                clearCheckedItems();
+              } else {
+                showToast({ message: 'Failed to move items to inventory', type: 'error' });
+              }
+            } catch (e) {
+              showToast({ message: 'Failed to move items to inventory', type: 'error' });
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Calculate stats
@@ -159,7 +175,6 @@ export default function ShoppingListScreen() {
             style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
             icon={<Plus size={14} color={Colors.primary} />}
           />
-          {/* Auto-add toggle removed by request */}
           <Button
             title="Export"
             onPress={() => setExportVisible(true)}
@@ -169,15 +184,25 @@ export default function ShoppingListScreen() {
             icon={<FileDown size={14} color={Colors.primary} />}
           />
 
-          {shoppingList.some(item => item.checked) && (
-            <Button
-              title="Clear"
-              onPress={clearCheckedItems}
-              variant="outline"
-              size="xs"
-              style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
-              textStyle={{ color: Colors.error }}
-            />
+          {checkedItems.length > 0 && (
+            <>
+              <Button
+                title="Move to Inventory"
+                onPress={handleMoveCompletedToInventory}
+                variant="primary"
+                size="xs"
+                style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
+                icon={<CheckCircle size={14} color={Colors.white} />}
+              />
+              <Button
+                title="Clear"
+                onPress={clearCheckedItems}
+                variant="outline"
+                size="xs"
+                style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
+                textStyle={{ color: Colors.error }}
+              />
+            </>
           )}
         </View>
         
@@ -192,7 +217,7 @@ export default function ShoppingListScreen() {
               <View>
                 <ShoppingListItemComponent 
                   item={item} 
-                  onToggle={handleToggleItem} 
+                  onToggle={handleToggleItem}
                 />
                 <Rule />
               </View>

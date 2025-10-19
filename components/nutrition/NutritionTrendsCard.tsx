@@ -90,7 +90,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
   }, [dailyData, period]);
 
   const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - 32; // card margin
+  const chartWidth = screenWidth - 64; // Account for card margins (16 * 2) + card padding (16 * 2)
   const chartHeight = 180;
 
   return (
@@ -145,7 +145,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
         <View style={styles.chartWrap}>
           <LineChart
             data={chartData}
-            width={chartWidth - 32}
+            width={chartWidth}
             height={160}
             chartConfig={{
               backgroundGradientFrom: Colors.card,
@@ -167,7 +167,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
             <View style={styles.pieChartContainer}>
               <PieChart
                 data={stats.macroBreakdown}
-                width={screenWidth - 64}
+                width={chartWidth}
                 height={180}
                 chartConfig={{
                   color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,

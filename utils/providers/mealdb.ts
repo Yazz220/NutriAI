@@ -92,10 +92,35 @@ function mapMealToExternal(meal: any): ExternalRecipe {
     const name = (meal[`strIngredient${i}`] || '').trim();
     const measure = (meal[`strMeasure${i}`] || '').trim();
     if (!name) continue;
+    
+    // Parse measure string to extract amount and unit
+    let amount = 1;
+    let unit = '';
+    
+    if (measure) {
+      // Try to extract number from measure (e.g., "2 cups" -> amount: 2, unit: "cups")
+      const numberMatch = measure.match(/^(\d+(?:\.\d+)?(?:\/\d+)?)\s*(.*)$/);
+      if (numberMatch) {
+        const numStr = numberMatch[1];
+        // Handle fractions like "1/2"
+        if (numStr.includes('/')) {
+          const [num, den] = numStr.split('/').map(Number);
+          amount = num / den;
+        } else {
+          amount = parseFloat(numStr);
+        }
+        unit = numberMatch[2].trim();
+      } else {
+        // No number found, treat entire measure as unit (e.g., "to taste")
+        unit = measure;
+        amount = 1;
+      }
+    }
+    
     ingredients.push({
       name,
-      amount: 0,
-      unit: '',
+      amount,
+      unit,
       original: measure ? `${measure} ${name}` : name,
     });
   }

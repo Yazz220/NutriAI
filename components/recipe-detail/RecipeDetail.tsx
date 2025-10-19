@@ -113,7 +113,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
   // Inventory + shopping list integration for missing ingredients
   const { inventory } = useInventory();
-  const { addItem } = useShoppingList();
+  const { addItem, shoppingList } = useShoppingList();
   const { preferences } = useUserPreferences();
   const { logMealFromRecipe } = useNutritionWithMealPlan();
   const { addPlannedMeal } = useMealPlanner();
@@ -376,17 +376,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
                     let added = 0;
                     for (const m of missingList) {
-                      await addItem({
-                        name: m.name,
-                        quantity: 1,
-                        unit: '',
-                        category: 'Other',
-                        addedDate: new Date().toISOString(),
-                        checked: false,
-                        addedBy: 'meal',
-                        mealId: recipe.id,
-                      });
-                      added++;
+                      // Check if item already exists in shopping list (case-insensitive)
+                      const exists = shoppingList.some((item: any) => 
+                        item.name.toLowerCase().trim() === m.name.toLowerCase().trim()
+                      );
+                      if (!exists) {
+                        await addItem({
+                          name: m.name,
+                          quantity: 1,
+                          unit: '',
+                          category: 'Other',
+                          addedDate: new Date().toISOString(),
+                          checked: false,
+                          addedBy: 'meal',
+                          mealId: recipe.id,
+                        });
+                        added++;
+                      }
                     }
                     Alert.alert('Added to Shopping List! 🛒', `${added} missing ingredient${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added to your shopping list.`);
                     setMissingIngredientsAdded(true);
@@ -424,17 +430,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
                     let added = 0;
                     for (const m of missingList) {
-                      await addItem({
-                        name: m.name,
-                        quantity: 1,
-                        unit: '',
-                        category: 'Other',
-                        addedDate: new Date().toISOString(),
-                        checked: false,
-                        addedBy: 'meal',
-                        mealId: recipe.id,
-                      });
-                      added++;
+                      // Check if item already exists in shopping list (case-insensitive)
+                      const exists = shoppingList.some((item: any) => 
+                        item.name.toLowerCase().trim() === m.name.toLowerCase().trim()
+                      );
+                      if (!exists) {
+                        await addItem({
+                          name: m.name,
+                          quantity: 1,
+                          unit: '',
+                          category: 'Other',
+                          addedDate: new Date().toISOString(),
+                          checked: false,
+                          addedBy: 'meal',
+                          mealId: recipe.id,
+                        });
+                        added++;
+                      }
                     }
                     Alert.alert('Added to Shopping List! 🛒', `${added} missing ingredient${added === 1 ? '' : 's'} ${added === 1 ? 'was' : 'were'} added to your shopping list.`);
                     setMissingIngredientsAdded(true);

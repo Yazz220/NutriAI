@@ -1,8 +1,17 @@
-// Vision AI client for extracting inventory items from images via OpenRouter
-// Uses OpenAI-compatible /chat/completions with image input.
-// For local images, pass a base64 data URL to avoid hosting.
+/**
+ * Vision AI Client
+ * 
+ * Provides multiple AI-powered image analysis capabilities:
+ * 1. Food nutrition scanning (Food-101-93M + USDA nutrition data)
+ * 2. Inventory item extraction (for receipt/fridge scanning)
+ * 3. Food label detection (fallback using FatSecret/VLM)
+ * 
+ * Priority order for food nutrition:
+ * - Primary: Food-101-93M via Supabase Edge Function (best accuracy + nutrition)
+ * - Fallback: FatSecret Image API (label-only, requires database lookup)
+ * - Last resort: OpenRouter VLM (generic vision model)
+ */
 import { APP_NAME, APP_WEBSITE } from '@/constants/brand';
-import * as FileSystem from 'expo-file-system';
 
 const AI_API_BASE = process.env.EXPO_PUBLIC_AI_API_BASE || 'https://openrouter.ai/api/v1';
 const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY;
@@ -11,6 +20,7 @@ const VISION_MODEL = process.env.EXPO_PUBLIC_AI_VISION_MODEL || 'qwen/qwen2.5-vl
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const FATSECRET_IMAGE_URL = process.env.EXPO_PUBLIC_FATSECRET_IMAGE_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/fatsecret-image` : undefined);
+const AI_NUTRITION_SCAN_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/ai-nutrition-scan` : undefined;
 
 // Prompt used by the generic VLM fallback
 const defaultPrompt = [
@@ -88,12 +98,32 @@ export async function detectItemsFromImage(params: {
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 // Analyze a local image and return a best-guess food label.
+/**
+ * Converts image URI to base64 string
+ */
+async function imageUriToBase64(imageUri: string): Promise<string> {
+  const response = await fetch(imageUri);
+  const blob = await response.blob();
+  
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Remove data:image/...;base64, prefix
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function analyzeFoodImageToLabel(imageUri: string): Promise<string | null> {
   let base64: string | null = null;
   try {
-    base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' as any });
+    base64 = await imageUriToBase64(imageUri);
   } catch (e) {
-    console.warn('[visionClient] readAsStringAsync failed', e);
+    console.warn('[visionClient] imageUriToBase64 failed', e);
   }
 
   if (FATSECRET_IMAGE_URL && base64) {
@@ -141,6 +171,137 @@ export async function analyzeFoodImageToLabel(imageUri: string): Promise<string 
   }
 
   return null;
+}
+
+/**
+ * AI Nutrition Result Interface
+ * Matches the response from the ai-nutrition-scan edge function
+ */
+export interface AINutritionResult {
+  items: Array<{
+    label: string;
+    score: number;
+    canonical_label: string;
+  }>;
+  totals: {
+    calories: number;
+    protein: number;
+    carbohydrates: number;
+    fat: number;
+    fiber?: number;
+    sugar?: number;
+    portion_text: string;
+    grams_total: number;
+  };
+  model_version: string;
+  mapping_version: string;
+  cached: boolean;
+}
+
+/**
+ * Analyzes food image and returns complete nutrition data
+ * 
+ * Uses Food-101-93M model for classification and USDA FoodData Central for nutrition.
+ * This is the primary method for AI-powered food logging.
+ * 
+ * @param imageUri Local file path to the food image
+ * @returns Complete nutrition analysis with calories, macros, and portion estimate
+ * @throws Error if analysis fails or endpoint not configured
+ * 
+ * @example
+ * const result = await analyzeFoodImageForNutrition('file:///path/to/pizza.jpg');
+ * if (result) {
+ *   console.log(`Found: ${result.items[0].label}`);
+ *   console.log(`Calories: ${result.totals.calories}`);
+ * }
+ */
+export async function analyzeFoodImageForNutrition(
+  imageUri: string
+): Promise<AINutritionResult | null> {
+  if (!AI_NUTRITION_SCAN_URL) {
+    console.warn('[visionClient] AI nutrition scan endpoint not configured');
+    console.warn('[visionClient] Set EXPO_PUBLIC_SUPABASE_URL to enable');
+    return null;
+  }
+
+  try {
+    console.log('[visionClient] Starting AI nutrition scan...', {
+      imageUri,
+      endpoint: AI_NUTRITION_SCAN_URL,
+    });
+
+    // Read image as base64
+    const base64 = await imageUriToBase64(imageUri);
+
+    if (!base64) {
+      console.warn('[visionClient] Failed to read image as base64');
+      return null;
+    }
+
+    console.log('[visionClient] Image read successfully, size:', base64.length, 'chars');
+
+    // Prepare request headers
+    const headers: Record<string, string> = { 
+      'Content-Type': 'application/json' 
+    };
+    
+    if (SUPABASE_ANON_KEY) {
+      headers['apikey'] = SUPABASE_ANON_KEY;
+      headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+      console.log('[visionClient] Auth headers added');
+    } else {
+      console.warn('[visionClient] No SUPABASE_ANON_KEY found!');
+    }
+
+    console.log('[visionClient] Calling AI nutrition scan endpoint...');
+
+    // Call AI nutrition scan endpoint
+    const response = await fetch(AI_NUTRITION_SCAN_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ image_b64: base64 }),
+    });
+
+    console.log('[visionClient] Response received:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+      
+      console.error('[visionClient] AI scan failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        code: errorData.code,
+        error: errorData.error,
+        details: errorData.details,
+        rawError: errorText,
+      });
+
+      // Don't throw - return null to allow fallback
+      return null;
+    }
+
+    const result: AINutritionResult = await response.json();
+    
+    console.log('[visionClient] AI scan success:', {
+      label: result.items[0]?.label,
+      confidence: result.items[0]?.score,
+      calories: result.totals.calories,
+      cached: result.cached,
+    });
+
+    return result;
+    
+  } catch (error) {
+    console.error('[visionClient] AI nutrition scan error:', error);
+    // Return null to allow fallback to other methods
+    return null;
+  }
 }
 
 function safeParseItems(text: string): DetectedItem[] {

@@ -133,13 +133,84 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
   };
 
   /**
-   * Logs a custom meal with manually entered nutrition values
+   * Syncs AI scan result to Supabase food_logs table
+   * 
+   * This enables analytics, model improvement, and cross-device sync.
+   * Falls back gracefully if Supabase is not configured.
    */
-  const logCustomMeal = (
+  const syncAIScanToSupabase = async (meal: LoggedMeal): Promise<void> => {
+    const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.log('[Nutrition] Supabase not configured, skipping AI scan sync');
+      return;
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      };
+
+      const body = {
+        source: meal.source,
+        label: meal.customName || 'unknown',
+        confidence: meal.confidence,
+        grams_total: 100, // Default, can be enhanced with portion parsing
+        portion_text: meal.portionEstimate || '1 serving',
+        totals: {
+          calories: meal.calories,
+          protein: meal.protein,
+          carbohydrates: meal.carbs,
+          fat: meal.fats,
+        },
+        model_version: meal.modelVersion,
+        mapping_version: meal.mappingVersion,
+      };
+
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/food_logs`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('[Nutrition] Failed to sync AI scan to Supabase:', {
+          status: response.status,
+          error: errorText,
+        });
+      } else {
+        console.log('[Nutrition] AI scan synced to Supabase successfully');
+      }
+    } catch (error) {
+      console.warn('[Nutrition] Error syncing AI scan to Supabase:', error);
+      // Don't throw - sync failures shouldn't block user
+    }
+  };
+
+  /**
+   * Logs a custom meal with manually entered nutrition values
+   * 
+   * Supports AI scan metadata for tracking and analytics.
+   * Automatically syncs AI scans to Supabase if configured.
+   */
+  const logCustomMeal = async (
     name: string,
     date: string,
     mealType: MealType,
     macros: { calories: number; protein: number; carbs: number; fats: number },
+    metadata?: {
+      source?: 'manual' | 'ai_scan' | 'search' | 'recipe';
+      imageUri?: string;
+      confidence?: number;
+      portionEstimate?: string;
+      modelVersion?: string;
+      mappingVersion?: string;
+      alternativeLabels?: Array<{ label: string; score: number }>;
+    }
   ) => {
     const customEntry: LoggedMeal = {
       id: Date.now().toString(),
@@ -151,9 +222,18 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
       protein: macros.protein,
       carbs: macros.carbs,
       fats: macros.fats,
+      ...metadata,
     };
     
     setLoggedMeals(prev => [...prev, customEntry]);
+
+    // Sync AI scans to Supabase for analytics
+    if (metadata?.source === 'ai_scan') {
+      syncAIScanToSupabase(customEntry).catch(error => {
+        console.warn('[Nutrition] AI scan sync failed (non-blocking):', error);
+      });
+    }
+    
     return customEntry.id;
   };
 

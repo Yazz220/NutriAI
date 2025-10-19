@@ -24,7 +24,7 @@ export const ShoppingListItem: React.FC<ShoppingListItemProps> = ({ item, onTogg
   
   return (
     <View 
-      style={[styles.container]}
+      style={styles.container}
       testID={`shopping-item-${item.id}`}
     >
       <TouchableOpacity 

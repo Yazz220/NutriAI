@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { AlertCircle, TrendingUp, Barcode, Camera as IconCamera } from 'lucide-react-native';
+import { AlertCircle, TrendingUp, Barcode, Camera as IconCamera, CheckSquare, Square, Trash2 } from 'lucide-react-native';
 import InventoryHeaderIcon from '@/assets/icons/Inventory.svg';
 import SearchIcon from '@/assets/icons/search.svg';
 import PlusIcon from '@/assets/icons/Plus.svg';
@@ -210,6 +210,11 @@ const styles = StyleSheet.create({
     ...Type.caption,
     color: Colors.lightText,
   },
+  categoryText: {
+    ...Type.caption,
+    color: Colors.lightText,
+    marginTop: 4,
+  },
   categoryBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -339,6 +344,34 @@ const styles = StyleSheet.create({
     zIndex: 2,
     elevation: 2,
   },
+  selectionToolbar: {
+    flexDirection: 'column',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 8,
+  },
+  selectModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 12,
+    gap: 8,
+  },
+  selectModeText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
 
 export default function InventoryScreen() {
@@ -367,6 +400,10 @@ export default function InventoryScreen() {
   const quickAddAnim = useRef(new Animated.Value(0)).current; // 0 collapsed, 1 expanded
   const TAB_BAR_HEIGHT = 56; // pill tab bar height
   const bottomOffset = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 12; // raise above nav
+  
+  // Selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   const expandQuickAdd = () => {
     setQuickAddExpanded(true);
@@ -421,40 +458,152 @@ export default function InventoryScreen() {
 
   const handleUseItem = async (item: InventoryItem) => {
     try {
+      // Remove from inventory
       await removeItem(item.id);
-      showToast({ message: `Used up ${item.name}`, type: 'success', duration: 2000 });
-      // Prompt to add to shopping list
-      Alert.alert(
-        'Add to Shopping List?',
-        `Would you like to add ${item.name} to your shopping list?`,
-        [
-          { text: 'No', style: 'cancel' },
-          {
-            text: 'Yes',
-            onPress: async () => {
-              try {
-                await addToShoppingList({
-                  name: item.name,
-                  quantity: 1,
-                  unit: item.unit || 'pcs',
-                  category: item.category || 'Other',
-                  addedDate: new Date().toISOString(),
-                  checked: false,
-                  addedBy: 'system',
-                } as Omit<ShoppingListItem, 'id'>);
-                showToast({ message: `Added ${item.name} to shopping list`, type: 'success', duration: 1800 });
-              } catch (e) {
-                console.error(e);
-                showToast({ message: 'Failed to add to shopping list', type: 'error', duration: 2500 });
-              }
-            },
-          },
-        ]
-      );
+      
+      // Automatically add to shopping list (no prompt)
+      try {
+        await addToShoppingList({
+          name: item.name,
+          quantity: 1,
+          unit: item.unit || 'pcs',
+          category: item.category || 'Other',
+          addedDate: new Date().toISOString(),
+          checked: false,
+          addedBy: 'system',
+        } as Omit<ShoppingListItem, 'id'>);
+        showToast({ message: `${item.name} moved to shopping list`, type: 'success', duration: 2000 });
+      } catch (e) {
+        console.error(e);
+        showToast({ message: `Used up ${item.name}`, type: 'success', duration: 2000 });
+      }
     } catch (e) {
       console.error(e);
       showToast({ message: 'Failed to update inventory', type: 'error', duration: 2500 });
     }
+  };
+  
+  const handleBulkUseUp = async () => {
+    if (selectedItems.size === 0) return;
+    
+    const itemsToUse = inventory.filter(item => selectedItems.has(item.id));
+    const count = itemsToUse.length;
+    
+    Alert.alert(
+      'Use Up Selected Items?',
+      `This will move ${count} item${count > 1 ? 's' : ''} to your shopping list.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Use Up',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Process all selected items
+              for (const item of itemsToUse) {
+                await removeItem(item.id);
+                try {
+                  await addToShoppingList({
+                    name: item.name,
+                    quantity: 1,
+                    unit: item.unit || 'pcs',
+                    category: item.category || 'Other',
+                    addedDate: new Date().toISOString(),
+                    checked: false,
+                    addedBy: 'system',
+                  } as Omit<ShoppingListItem, 'id'>);
+                } catch (e) {
+                  console.error(`Failed to add ${item.name} to shopping list:`, e);
+                }
+              }
+              
+              showToast({ 
+                message: `Moved ${count} item${count > 1 ? 's' : ''} to shopping list`, 
+                type: 'success', 
+                duration: 2500 
+              });
+              
+              // Exit selection mode
+              setSelectedItems(new Set());
+              setIsSelectionMode(false);
+            } catch (e) {
+              console.error(e);
+              showToast({ message: 'Failed to process items', type: 'error', duration: 2500 });
+            }
+          },
+        },
+      ]
+    );
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    
+    const itemsToDelete = inventory.filter(item => selectedItems.has(item.id));
+    const count = itemsToDelete.length;
+    
+    Alert.alert(
+      'Delete Selected Items?',
+      `This will permanently remove ${count} item${count > 1 ? 's' : ''} from your inventory.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              for (const item of itemsToDelete) {
+                await removeItem(item.id);
+              }
+              
+              showToast({ 
+                message: `Deleted ${count} item${count > 1 ? 's' : ''}`, 
+                type: 'success', 
+                duration: 2500 
+              });
+              
+              // Exit selection mode
+              setSelectedItems(new Set());
+              setIsSelectionMode(false);
+            } catch (e) {
+              console.error(e);
+              showToast({ message: 'Failed to delete items', type: 'error', duration: 2500 });
+            }
+          },
+        },
+      ]
+    );
+  };
+  
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+  
+  const toggleSelectAll = () => {
+    const visibleItemIds = filteredInventory.map(item => item.id);
+    if (selectedItems.size === visibleItemIds.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(visibleItemIds));
+    }
+  };
+  
+  const enterSelectionMode = () => {
+    setIsSelectionMode(true);
+    setSelectedItems(new Set());
+  };
+  
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedItems(new Set());
   };
 
   const handleAddItem = async (item: Partial<{ name: string; category: ItemCategory; addedDate: string; quantity?: number; unit?: string }>) => {
@@ -822,20 +971,73 @@ export default function InventoryScreen() {
 
 
       <View style={styles.hero}>
-        {/* Search Bar (matches Discover style) */}
-        <View style={styles.searchContainer}>
-          <View style={styles.inventorySearchBar}>
-            <SearchIcon width={24} height={24} color={Colors.lightText} />
-            <TextInput
-              placeholder="Search your inventory..."
-              placeholderTextColor={Colors.lightText}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={styles.inventorySearchInput}
-              returnKeyType="search"
-            />
+        {/* Selection Mode Toolbar */}
+        {isSelectionMode ? (
+          <View style={styles.selectionToolbar}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <TouchableOpacity onPress={exitSelectionMode} style={{ marginRight: 16 }}>
+                <Text style={{ color: Colors.primary, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={{ color: Colors.text, fontSize: 16, fontWeight: '600' }}>
+                {selectedItems.size} selected
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Button 
+                title="Select All" 
+                variant="outline" 
+                size="sm" 
+                onPress={toggleSelectAll}
+                style={{ flex: 1, minWidth: 100 }}
+              />
+              <Button 
+                title="Use Up" 
+                variant="primary" 
+                size="sm" 
+                onPress={handleBulkUseUp}
+                disabled={selectedItems.size === 0}
+                style={{ flex: 1, minWidth: 100 }}
+              />
+              <Button 
+                title="Delete" 
+                variant="outline" 
+                size="sm" 
+                onPress={handleBulkDelete}
+                disabled={selectedItems.size === 0}
+                textStyle={{ color: Colors.error }}
+                style={{ flex: 1, minWidth: 100, borderColor: Colors.error }}
+                icon={<Trash2 size={16} color={Colors.error} />}
+              />
+            </View>
           </View>
-        </View>
+        ) : (
+          <>
+            {/* Search Bar (matches Discover style) */}
+            <View style={styles.searchContainer}>
+              <View style={styles.inventorySearchBar}>
+                <SearchIcon width={24} height={24} color={Colors.lightText} />
+                <TextInput
+                  placeholder="Search your inventory..."
+                  placeholderTextColor={Colors.lightText}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={styles.inventorySearchInput}
+                  returnKeyType="search"
+                />
+              </View>
+            </View>
+            {/* Selection Mode Button */}
+            {inventory.length > 0 && (
+              <TouchableOpacity 
+                onPress={enterSelectionMode}
+                style={styles.selectModeButton}
+              >
+                <CheckSquare size={18} color={Colors.primary} />
+                <Text style={styles.selectModeText}>Select Items</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
 
       <AddItemModal
@@ -849,22 +1051,38 @@ export default function InventoryScreen() {
         keyExtractor={(item) => `section-${item.id}`}
         renderItem={({ item }) => (
           <View>
-            <View style={styles.itemRowContainer}>
+            <TouchableOpacity 
+              style={styles.itemRowContainer}
+              onPress={() => isSelectionMode ? toggleItemSelection(item.id) : undefined}
+              activeOpacity={isSelectionMode ? 0.7 : 1}
+            >
+              {isSelectionMode && (
+                <TouchableOpacity 
+                  onPress={() => toggleItemSelection(item.id)}
+                  style={{ marginRight: 12 }}
+                >
+                  {selectedItems.has(item.id) ? (
+                    <CheckSquare size={24} color={Colors.primary} />
+                  ) : (
+                    <Square size={24} color={Colors.lightText} />
+                  )}
+                </TouchableOpacity>
+              )}
               <View style={styles.itemLeft}>
                 <View style={[styles.tileSquare, styles.tileCenter]}>
                   <IngredientIcon slug={slugifyIngredient(item.name)} size={64} />
                 </View>
                 <View style={styles.itemTexts}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
-                  <View style={styles.itemMetaRow}>
-                    <Text style={styles.qtyText}>{item.quantity} {item.unit || 'pcs'}</Text>
-                  </View>
+                  <Text style={styles.categoryText}>{item.category}</Text>
                 </View>
               </View>
-              <View style={styles.itemRight}>
-                <Button title="Use up" variant="outline" size="sm" onPress={() => handleUseItem(item)} />
-              </View>
-            </View>
+              {!isSelectionMode && (
+                <View style={styles.itemRight}>
+                  <Button title="Use up" variant="outline" size="sm" onPress={() => handleUseItem(item)} />
+                </View>
+              )}
+            </TouchableOpacity>
             <Rule />
           </View>
         )}

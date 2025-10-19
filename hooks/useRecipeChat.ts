@@ -3,6 +3,8 @@ import { Recipe, RecipeIngredient, RecipeWithAvailability } from '@/types';
 import { createChatCompletion } from '@/utils/aiClient';
 import { buildStructuredSystemPrompt, tryExtractJSON, type StructuredResponse } from '@/utils/aiFormat';
 import { buildRecipeSystemPrompt } from '@/utils/recipe/contextBuilder';
+import { buildAIProfileContext } from '@/utils/ai/profileContextBuilder';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 export type RecipeChatMessage = {
   id: string;
@@ -38,14 +40,18 @@ function buildRecipeContext(recipe: Recipe, availability?: RecipeWithAvailabilit
 }
 
 export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailability['availability']) {
-
+  const { profile } = useUserProfile();
+  
   const [messages, setMessages] = useState<RecipeChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const idSeq = useRef(0);
   const newId = () => `${Date.now()}-${idSeq.current++}`;
 
-  // System prompt focused only on this recipe
-  const systemPrompt = useMemo(() => buildRecipeSystemPrompt(recipe), [recipe]);
+  // System prompt with user profile context for safety
+  const systemPrompt = useMemo(() => {
+    const userContext = buildAIProfileContext(profile);
+    return buildRecipeSystemPrompt(recipe, userContext);
+  }, [recipe, profile]);
 
   function pushCoach(msg: Omit<RecipeChatMessage, 'id' | 'role'>) {
     setMessages(prev => [...prev, { id: newId(), role: 'coach', source: msg.source || 'ai', ...msg }]);

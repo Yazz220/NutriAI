@@ -63,16 +63,16 @@ serve(async (req: Request) => {
           } as IconResponse),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200
-          }
+            status: 200,
+          },
         )
       }
     }
 
     // Generate new image with improved prompt
     const ingredientName = display_name || slug.replace(/-/g, ' ')
-    const positivePrompt = `Three-quarter angle food photography of ${ingredientName}, shot at 45 degrees, isolated on a solid light-gray background. Clean studio product photography with bright, even lighting. Sharp focus, centered, square frame, true-to-life color, minimalist editorial style.`
-    const negativePrompt = `multiple items, cluttered, dark background, blurry, low quality, cartoon, illustration, text, watermark, logo, hands, people`
+    const positivePrompt = `Marker illustration (editorial food art) of a typical portion of ${ingredientName} as a cooking ingredient, true to life colors, isolated and centered on a solid cream-white background. Soft natural lighting with subtle shadows and balanced contrast. Clean composition, minimal styling, consistent angle, and perspective. Sharp focus, high detail.`
+    const negativePrompt = `text, label, logo, watermark, brand name, table, spoon, multiple ingredients, collage, background clutter, reflections, extra props, artistic filters, oversaturation, exaggerated colors.`
 
     console.log('📷 Generating image for:', ingredientName)
 
@@ -90,9 +90,9 @@ serve(async (req: Request) => {
           storage_path: imageGenerationResponse.storage_path,
           status: 'ready',
           prompt: positivePrompt,
-          model: 'imagen-3.0-generate-002',
+          model: 'black-forest-labs/FLUX.1-schnell',
           seed: imageGenerationResponse.seed,
-          prompt_version: 4,
+          prompt_version: 5,
           updated_at: new Date().toISOString()
         })
 
@@ -127,7 +127,8 @@ serve(async (req: Request) => {
           image_url: null,
           status: 'pending',
           prompt: positivePrompt,
-          model: 'imagen-3.0-generate-002',
+          model: 'black-forest-labs/FLUX.1-schnell',
+          prompt_version: 5,
           updated_at: new Date().toISOString()
         })
 
@@ -178,65 +179,55 @@ async function generateImageWithAI(
   error?: string;
 }> {
   try {
-    // Use your existing Gemini configuration
-    const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY')
+    // Use Hugging Face FLUX.1-schnell
+    const apiKey = Deno.env.get('HUGGINGFACE_API_KEY')
     if (!apiKey) {
-      console.error('❌ Missing GEMINI_API_KEY')
-      return { success: false, error: 'Gemini API not configured' }
+      console.error('❌ Missing HUGGINGFACE_API_KEY')
+      return { success: false, error: 'Hugging Face API not configured' }
     }
 
-    const modelId = Deno.env.get('ICON_MODEL') || 'imagen-3.0-generate-002'
-    console.log('🤖 Calling Gemini/Imagen API...')
-    console.log('Positive prompt:', positivePrompt.substring(0, 100) + '...')
+    const modelId = Deno.env.get('ICON_MODEL') || 'black-forest-labs/FLUX.1-schnell'
+    console.log('🤖 Calling Hugging Face API...')
+    console.log('Model:', modelId)
+    console.log('Prompt:', positivePrompt.substring(0, 100) + '...')
 
-    // Use your existing Gemini endpoint format
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:predict`
+    const endpoint = `https://api-inference.huggingface.co/models/${modelId}`
 
-    const body = {
-      instances: [{ prompt: positivePrompt }],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: '1:1'
-      }
-    }
-
-    const response = await fetch(endpoint + `?key=${encodeURIComponent(apiKey)}`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        inputs: positivePrompt,
+        parameters: {
+          num_inference_steps: 4, // FLUX.1-schnell is optimized for 4 steps
+          guidance_scale: 0, // schnell works best with guidance_scale = 0
+        }
+      }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('❌ Gemini API error:', response.status, errorText)
-      return { success: false, error: `Gemini API error: ${response.status}` }
+      console.error('❌ Hugging Face API error:', response.status, errorText)
+      return { success: false, error: `Hugging Face API error: ${response.status}` }
     }
 
-    const data = await response.json()
-    console.log('📊 Gemini API response received')
+    console.log('📊 Hugging Face API response received')
 
-    // Extract base64 image using your existing logic
-    let b64: string | undefined
-    if (Array.isArray(data?.predictions) && data.predictions[0]) {
-      const p0 = data.predictions[0]
-      b64 = typeof p0?.bytesBase64Encoded === 'string' ? p0.bytesBase64Encoded :
-        typeof p0?.imageBytes === 'string' ? p0.imageBytes :
-          Array.isArray(p0?.images) && typeof p0.images[0]?.bytesBase64Encoded === 'string' ? p0.images[0].bytesBase64Encoded :
-            undefined
+    // Hugging Face returns raw image bytes
+    const imageBytes = new Uint8Array(await response.arrayBuffer())
+    console.log('✅ Image generated:', imageBytes.length, 'bytes')
+
+    // Convert to base64 for upload
+    let binary = ''
+    for (let i = 0; i < imageBytes.length; i++) {
+      binary += String.fromCharCode(imageBytes[i])
     }
+    const b64 = btoa(binary)
 
-    if (!b64 && Array.isArray(data?.generatedImages) && data.generatedImages[0]?.image?.imageBytes) {
-      b64 = data.generatedImages[0].image.imageBytes
-    }
-
-    if (!b64) {
-      console.error('❌ No image data in Gemini response')
-      return { success: false, error: 'No image data in response' }
-    }
-
-    // Upload to Supabase Storage using your existing bucket
+    // Upload to Supabase Storage
     const seed = Math.floor(Math.random() * 10000000000)
     const uploadResult = await uploadImageToSupabase(b64, slug, seed)
 
@@ -244,7 +235,7 @@ async function generateImageWithAI(
       return { success: false, error: 'Failed to upload image to storage' }
     }
 
-    console.log('✅ Gemini image generated and uploaded successfully')
+    console.log('✅ Hugging Face image generated and uploaded successfully')
     return {
       success: true,
       image_url: uploadResult.imageUrl,
@@ -253,7 +244,7 @@ async function generateImageWithAI(
     }
 
   } catch (error) {
-    console.error('❌ Gemini image generation error:', error)
+    console.error('❌ Image generation error:', error)
     return { success: false, error: error.message }
   }
 }
@@ -313,7 +304,7 @@ async function uploadImageToSupabase(base64Data: string, slug: string, seed: num
 /* 
 ENVIRONMENT VARIABLES (should already be set in your Supabase project):
 
-GEMINI_API_KEY or GOOGLE_API_KEY - Your Google Gemini API key
-ICON_MODEL - Model to use (defaults to imagen-3.0-generate-002)
-EXPO_PUBLIC_SUPABASE_IMAGES_BUCKET - Bucket name for storing images
+HUGGINGFACE_API_KEY - Your Hugging Face API key
+ICON_MODEL - Model to use (defaults to black-forest-labs/FLUX.1-schnell)
+ICON_PROVIDER - Provider to use (set to 'huggingface')
 */

@@ -191,9 +191,9 @@ export interface InventoryItem {
 
   export interface NutritionGoals {
     dailyCalories: number;
-    protein: number; // grams
-    carbs: number;   // grams
-    fats: number;    // grams
+    protein: number; //grams
+    carbs: number;   //grams
+    fats: number;    //grams
   }
 
   export interface LoggedMeal {
@@ -207,6 +207,15 @@ export interface InventoryItem {
     protein: number;
     carbs: number;
     fats: number;
+    
+    // AI Scan metadata (optional)
+    imageUri?: string; // Local image path
+    source?: 'manual' | 'ai_scan' | 'search' | 'recipe';
+    confidence?: number; // 0-1 confidence score from AI model
+    portionEstimate?: string; // Human-readable portion (e.g., "1 cup", "150g")
+    modelVersion?: string; // AI model version for reproducibility
+    mappingVersion?: string; // Nutrition mapping version
+    alternativeLabels?: Array<{ label: string; score: number }>; // Top-3 alternative predictions
   }
 
   // Recipe filtering and sorting types

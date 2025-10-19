@@ -20,8 +20,8 @@ const ICON_S3_BUCKET = Deno.env.get('ICON_S3_BUCKET') || undefined
 const ICON_S3_PUBLIC_BASE = Deno.env.get('ICON_S3_PUBLIC_BASE') || undefined
 const ICON_S3_USE_PUBLIC_READ = (Deno.env.get('ICON_S3_USE_PUBLIC_READ') || 'true').toLowerCase() === 'true'
 
-// Improved prompt for realistic food photography
-const BASE_STYLE = 'A single {subject}, isolated on pure white background, professional food photography, high resolution, clean, centered, natural lighting, realistic, detailed'
+// Improved prompt for marker illustration style
+const BASE_STYLE = 'Marker illustration (editorial food art) of a typical portion of {subject} as a cooking ingredient, isolated and centered on a solid cream-white background. Soft natural lighting with subtle shadows and balanced contrast. Clean composition, minimal styling, consistent angle, and perspective. Sharp focus, high detail, hand-rendered marker texture, 4K.'
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -215,6 +215,91 @@ async function generatePng({ prompt, seed, model }: { prompt: string; seed?: num
       throw new Error(`Modelslab response missing image output. body=${snapshot}`)
     }
     return imgBytes
+  }
+  if (provider === 'fal') {
+    // Fal.ai API with FLUX Pro
+    const apiKey = Deno.env.get('FAL_API_KEY')
+    if (!apiKey) throw new Error('Missing FAL_API_KEY')
+
+    const modelId = (Deno.env.get('ICON_MODEL') || model || 'fal-ai/flux-pro/kontext/max/text-to-image').trim()
+    const endpoint = `https://queue.fal.run/${modelId}`
+
+    console.log(`🤖 Calling Fal.ai API (${modelId})...`)
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        image_size: 'square',
+        num_inference_steps: 28,
+        guidance_scale: 3.5,
+        num_images: 1,
+        enable_safety_checker: false,
+      }),
+    })
+
+    if (!res.ok) {
+      let errText: string
+      try { errText = await res.text() } catch { errText = `${res.status} ${res.statusText}` }
+      throw new Error(`Fal.ai error ${res.status}: ${errText}`)
+    }
+
+    const data: any = await res.json()
+    console.log('📊 Fal.ai response received')
+
+    // Fal.ai returns image URL in data.images[0].url
+    const imageUrl = data?.images?.[0]?.url
+    if (!imageUrl) {
+      throw new Error('No image URL in Fal.ai response')
+    }
+
+    // Download the image
+    const imgRes = await fetch(imageUrl)
+    if (!imgRes.ok) throw new Error(`Failed to download image: ${imgRes.status}`)
+    
+    const bytes = new Uint8Array(await imgRes.arrayBuffer())
+    console.log(`✅ Fal.ai image generated (${bytes.length} bytes)`)
+    return bytes
+  }
+  if (provider === 'huggingface') {
+    // Hugging Face Inference API with Stable Diffusion 2.1
+    const apiKey = Deno.env.get('HUGGINGFACE_API_KEY')
+    if (!apiKey) throw new Error('Missing HUGGINGFACE_API_KEY')
+
+    const modelId = (Deno.env.get('ICON_MODEL') || model || 'black-forest-labs/FLUX.1-schnell').trim()
+    const endpoint = `https://api-inference.huggingface.co/models/${modelId}`
+
+    console.log(`🤖 Calling Hugging Face API (${modelId})...`)
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          num_inference_steps: 4, // FLUX.1-schnell is optimized for 4 steps
+          guidance_scale: 0, // schnell works best with guidance_scale = 0
+        }
+      }),
+    })
+
+    if (!res.ok) {
+      let errText: string
+      try { errText = await res.text() } catch { errText = `${res.status} ${res.statusText}` }
+      throw new Error(`Hugging Face error ${res.status}: ${errText}`)
+    }
+
+    // Hugging Face returns raw image bytes
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    console.log(`✅ Hugging Face image generated (${bytes.length} bytes)`)
+    return bytes
   }
   if (provider === 'gemini') {
     // Google Gemini API (Imagen). Uses API key auth via header x-goog-api-key.

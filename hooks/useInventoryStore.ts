@@ -36,6 +36,17 @@ export const [InventoryProvider, useInventory] = createContextHook(() => {
   }, [inventory, isLoading]);
 
   const addItem = async (item: Omit<InventoryItem, 'id'>): Promise<string> => {
+    // Check if item already exists (case-insensitive name match)
+    const existingItem = inventory.find(
+      i => i.name.toLowerCase().trim() === item.name.toLowerCase().trim()
+    );
+    
+    if (existingItem) {
+      // Item already exists - just return the existing ID without adding duplicate
+      console.log(`[Inventory] Item "${item.name}" already exists, skipping duplicate`);
+      return existingItem.id;
+    }
+    
     const newItem: InventoryItem = { ...item, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
     setInventory(prev => [newItem, ...prev]);
     return newItem.id;

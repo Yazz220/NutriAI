@@ -32,13 +32,16 @@ import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
 import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
+import { ImportRecipeModal } from '@/components/ImportRecipeModal';
 
 // Hooks
 import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+import { useRecipeNutritionEnrichment } from '@/hooks/useRecipeNutritionEnrichment';
 // Types
 import { ExternalRecipe } from '@/types/external';
+import { ImportedRecipe } from '@/types/importedRecipe';
 import { Meal, RecipeFolder } from '@/types';
 import { computeForExternalRecipe, estimateServingsForExternalRecipe, computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
 
@@ -100,6 +103,7 @@ export default function RecipesScreen() {
   const [showAddRecipesModal, setShowAddRecipesModal] = useState(false);
   const [newFolderId, setNewFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Local search and favorites
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -156,7 +160,7 @@ export default function RecipesScreen() {
   const { getTrendingRecipes, getRandomRecipes } = useRecipeStore();
 
   // Filter local recipes (and folder view) by name or tags and exclude placeholders (no ingredients & no steps)
-  const filteredLocalRecipes = React.useMemo(() => {
+  const filteredLocalRecipesRaw = React.useMemo(() => {
     const q = localSearchQuery.trim().toLowerCase();
     const isMeaningful = (m: Meal) =>
       !!m?.name?.trim() && ((m?.ingredients?.length || 0) > 0 || (m?.steps?.length || 0) > 0);
@@ -178,6 +182,9 @@ export default function RecipesScreen() {
       return Boolean(nameMatch || tagMatch);
     });
   }, [localSearchQuery, localRecipes, activeFolderId, folders]);
+
+  // Enrich with accurate USDA nutrition data
+  const filteredLocalRecipes = useRecipeNutritionEnrichment(filteredLocalRecipesRaw);
 
   // Import handlers removed
 
@@ -521,6 +528,15 @@ export default function RecipesScreen() {
 
           {/* Moved Add-to-Folder action to a floating button for cleaner layout */}
 
+          {/* Floating Action Button for Import */}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setShowImportModal(true)}
+            activeOpacity={0.8}
+          >
+            <Plus size={24} color={Colors.white} />
+          </TouchableOpacity>
+
           <FlatList
             data={filteredLocalRecipes}
             keyExtractor={(item) => item.id}
@@ -591,6 +607,38 @@ export default function RecipesScreen() {
         onClose={() => setAddToFolderVisible(false)}
         onCreateNew={() => { setAddToFolderVisible(false); openCreateFolder(); }}
       />
+      <ImportRecipeModal
+        visible={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={async (recipe: ImportedRecipe) => {
+          // Convert imported recipe to Meal format
+          const meal: Meal = {
+            id: recipe.id,
+            name: recipe.title,
+            description: recipe.description || '',
+            image: recipe.image || '',
+            ingredients: recipe.ingredients?.map(ing => ({
+              name: ing.name,
+              quantity: ing.amount || 0,
+              unit: ing.unit || '',
+            })) || [],
+            steps: recipe.instructions?.map(inst => inst.text) || [],
+            prepTime: recipe.prepTime || 0,
+            cookTime: recipe.cookTime || 0,
+            servings: recipe.servings || 4,
+            tags: recipe.tags || [],
+            sourceUrl: recipe.sourceUrl,
+          };
+          
+          // Add the recipe to local storage
+          await addMeal(meal);
+          
+          // Show success message
+          Alert.alert('Success', 'Recipe imported successfully!');
+          setShowImportModal(false);
+        }}
+      />
+
       <AddRecipesSheet
         visible={showAddRecipesModal}
         folderId={newFolderId || ''}
@@ -798,22 +846,27 @@ const styles = StyleSheet.create({
   caloriesText: {
     ...Type.caption,
     color: Colors.primary,
-    fontWeight: '600',
   },
-  // Floating Add button (consistent with app FAB usage)
+  emptyText: {
+    ...Type.body,
+    color: Colors.lightText,
+    textAlign: 'center',
+  },
   fab: {
     position: 'absolute',
     right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    bottom: 90,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 8,
+    zIndex: 100,
   },
 });

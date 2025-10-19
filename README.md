@@ -30,6 +30,12 @@ NutriAI is a comprehensive mobile application designed to revolutionize your kit
 - Daily macro totals vs goals and weekly trend snapshots
 - Proactive "Right Now" suggestions
 - Conversational assistant via `useCoachChat`
+- **AI Food Scan** 🆕: Take a photo of your meal and automatically get calorie and macro estimates
+  - Powered by Food-101-93M (93M parameter vision model)
+  - USDA-verified nutrition data
+  - Confidence scores and alternative suggestions
+  - Smart portion estimation
+  - See [AI Scan Setup Guide](./docs/AI-Scan-Setup-Guide.md) for details
 
 ## 🚀 Getting Started
 

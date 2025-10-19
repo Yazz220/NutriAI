@@ -1,5 +1,7 @@
 import { NutritionGoals } from '@/types';
 import { NOSH_SYSTEM_RULES } from '@/constants/brand';
+import { buildAIProfileContext, buildSafetyWarningsPrompt, buildPreferencesPrompt, buildGoalsPrompt, AIProfileContext } from '@/utils/ai/profileContextBuilder';
+import { UserProfileState } from '@/hooks/useUserProfile';
 
 export type CoachProfile = {
   name?: string | null;
@@ -57,5 +59,29 @@ export function buildCoachContext(params: CoachContext) {
 export function buildCoachSystemPrompt(ctx: CoachContext) {
   const contextText = buildCoachContext(ctx);
   return `${NOSH_SYSTEM_RULES}\n\n${contextText}`;
+}
+
+/**
+ * Enhanced version with full profile context
+ */
+export function buildEnhancedCoachSystemPrompt(
+  ctx: CoachContext,
+  fullProfile: UserProfileState | null
+): string {
+  const aiContext = buildAIProfileContext(fullProfile);
+  const safetyWarnings = buildSafetyWarningsPrompt(aiContext);
+  const preferences = buildPreferencesPrompt(aiContext);
+  const goals = buildGoalsPrompt(aiContext);
+  const contextText = buildCoachContext(ctx);
+  
+  const sections = [
+    NOSH_SYSTEM_RULES,
+    safetyWarnings,
+    contextText,
+    preferences,
+    goals,
+  ].filter(Boolean);
+  
+  return sections.join('\n\n');
 }
 
