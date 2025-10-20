@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert, PanResponder, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Modal, Dimensions, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, Alert, PanResponder, TouchableWithoutFeedback, Easing } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
@@ -47,8 +47,6 @@ import { MeasurementModal } from '@/components/progress/MeasurementModal';
 import { BMICard } from '@/components/progress/BMICard';
 import BMIModal from '@/components/progress/BMIModal';
 // Removed EnhancedDayStreakCard from Progress page; keep StreakCard in Tracking
-// Removed unused TotalCaloriesCard import; using EnhancedTotalCaloriesCard instead
-import { EnhancedTotalCaloriesCard } from '@/components/progress/EnhancedTotalCaloriesCard';
 import { Rule } from '@/components/ui/Rule';
 import { IconButtonSquare } from '@/components/ui/IconButtonSquare';
 import { DayCell, DateCarousel, WeekRings, CoachErrorBoundary } from '@/components/coach';
@@ -199,9 +197,10 @@ export default function CoachScreen() {
   }, [dayISO]);
 
   // Carousel-style swipe for WeekRings (prev/current/next) only
-  const SWIPE_THRESHOLD = 60;
+  const SWIPE_THRESHOLD = 50;
   const [ringsWidth, setRingsWidth] = useState<number>(0);
   const translateX = useRef(new Animated.Value(0)).current; // will be set after layout
+  const scaleAnim = useRef(new Animated.Value(1)).current; // scale animation for transition feedback
 
   const changeWeek = useCallback((delta: number) => {
     setDayISO((prev) => {
@@ -210,6 +209,9 @@ export default function CoachScreen() {
       return d.toISOString().split('T')[0];
     });
   }, []);
+
+  // Trigger slide animation when week changes
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const prevWeekISO = useMemo(() => {
     const d = new Date(dayISO);
@@ -224,13 +226,15 @@ export default function CoachScreen() {
 
   const weekSwipe = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => (Math.abs(g.dx) > 8 && Math.abs(g.dy) < 12),
+      onMoveShouldSetPanResponder: (_, g) => (Math.abs(g.dx) > 10 && Math.abs(g.dy) < 20),
       onPanResponderGrant: () => {
-        translateX.stopAnimation();
+        if (!isAnimating) {
+          translateX.stopAnimation();
+        }
       },
       onPanResponderMove: (_, g) => {
         // drag current row; base offset centers current panel
-        if (ringsWidth > 0) {
+        if (ringsWidth > 0 && !isAnimating) {
           let val = -ringsWidth + g.dx;
           // clamp so we don't reveal whitespace beyond panels
           if (val > 0) val = 0;
@@ -242,21 +246,77 @@ export default function CoachScreen() {
         const toNext = (g.dx <= -SWIPE_THRESHOLD) || (g.vx < -0.5);
         const toPrev = (g.dx >= SWIPE_THRESHOLD) || (g.vx > 0.5);
         if (toNext) {
-          // animate out to next, then animate new week in
-          Animated.spring(translateX, { toValue: -2 * ringsWidth, useNativeDriver: true, velocity: -2, friction: 8, tension: 70 }).start(() => {
+          setIsAnimating(true);
+          // Smooth slide to next week with scale effect
+          Animated.parallel([
+            Animated.timing(translateX, { 
+              toValue: -2 * ringsWidth, 
+              duration: 400,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true 
+            }),
+            Animated.sequence([
+              Animated.timing(scaleAnim, {
+                toValue: 0.95,
+                duration: 200,
+                useNativeDriver: true
+              }),
+              Animated.timing(scaleAnim, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true
+              })
+            ])
+          ]).start(() => {
             changeWeek(1);
-            translateX.setValue(0); // position at left edge (prev panel) to slide in to center
-            Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, velocity: -1.5, friction: 9, tension: 80 }).start();
+            translateX.setValue(0);
+            Animated.timing(translateX, { 
+              toValue: -ringsWidth, 
+              duration: 400,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true 
+            }).start(() => setIsAnimating(false));
           });
         } else if (toPrev) {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, velocity: 2, friction: 8, tension: 70 }).start(() => {
+          setIsAnimating(true);
+          // Smooth slide to previous week with scale effect
+          Animated.parallel([
+            Animated.timing(translateX, { 
+              toValue: 0, 
+              duration: 400,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true 
+            }),
+            Animated.sequence([
+              Animated.timing(scaleAnim, {
+                toValue: 0.95,
+                duration: 200,
+                useNativeDriver: true
+              }),
+              Animated.timing(scaleAnim, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true
+              })
+            ])
+          ]).start(() => {
             changeWeek(-1);
-            translateX.setValue(-2 * ringsWidth); // position at right edge (next panel) to slide in to center
-            Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, velocity: 1.5, friction: 9, tension: 80 }).start();
+            translateX.setValue(-2 * ringsWidth);
+            Animated.timing(translateX, { 
+              toValue: -ringsWidth, 
+              duration: 400,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true 
+            }).start(() => setIsAnimating(false));
           });
         } else {
-          // snap back to center
-          Animated.spring(translateX, { toValue: -ringsWidth, useNativeDriver: true, friction: 9, tension: 120 }).start();
+          // snap back to center with spring for natural feel
+          Animated.spring(translateX, { 
+            toValue: -ringsWidth, 
+            useNativeDriver: true, 
+            friction: 10, 
+            tension: 100 
+          }).start();
         }
       },
     })
@@ -433,7 +493,7 @@ export default function CoachScreen() {
           {...weekSwipe.panHandlers}
         >
           {ringsWidth > 0 ? (
-            <Animated.View style={{ width: ringsWidth * 3, flexDirection: 'row', transform: [{ translateX }] }}>
+            <Animated.View style={{ width: ringsWidth * 3, flexDirection: 'row', transform: [{ translateX }, { scale: scaleAnim }] }}>
               {(() => {
                 // Compute base sizes then scale down by ~10% to make the rings slightly more compact
                 const baseCell = Math.floor(ringsWidth / 7);
@@ -656,14 +716,6 @@ export default function CoachScreen() {
           {/* Weight Card - full width */}
           <WeightCard tracking={weightTracking} onUpdateWeight={() => setShowQuickWeightModal(true)} />
           <WeightProgressChartCard tracking={weightTracking} />
-
-          {/* Enhanced Total Calories Card */}
-          <EnhancedTotalCaloriesCard onOpenPeriod={(p) => {
-            // Map to trends initial period and open modal
-            const map: Record<string, '7d' | '30d' | '90d'> = { week: '7d', month: '30d', quarter: '90d' };
-            setTrendsInitialPeriod(map[p]);
-            setShowTrendsModal(true);
-          }} />
 
           {/* Nutrition Trends Card opens bottom sheet modal */}
           <NutritionTrendsCard onPress={() => setShowTrendsModal(true)} />

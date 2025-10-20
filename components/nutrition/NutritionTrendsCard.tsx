@@ -4,7 +4,7 @@ import { ChevronRight, TrendingUp, TrendingDown } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
-import { LineChart, PieChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 import { ProgressCardContainer } from '@/components/progress/ProgressCardContainer';
 
 const hexToRgba = (hex: string, opacity: number) => {
@@ -44,12 +44,9 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
 
   // Calculate averages and trends
   const stats = useMemo(() => {
-    if (dailyData.length === 0) return { avgCalories: 0, trend: 0, macroBreakdown: [], avgProtein: 0, avgCarbs: 0, avgFats: 0 };
+    if (dailyData.length === 0) return { avgCalories: 0, trend: 0 };
     
     const avgCalories = Math.round(dailyData.reduce((sum, d) => sum + d.calories, 0) / dailyData.length);
-    const avgProtein = Math.round(dailyData.reduce((sum, d) => sum + d.protein, 0) / dailyData.length);
-    const avgCarbs = Math.round(dailyData.reduce((sum, d) => sum + d.carbs, 0) / dailyData.length);
-    const avgFats = Math.round(dailyData.reduce((sum, d) => sum + d.fats, 0) / dailyData.length);
     
     // Calculate trend (comparing first half vs second half)
     const midPoint = Math.floor(dailyData.length / 2);
@@ -59,15 +56,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
     const secondAvg = secondHalf.reduce((sum, d) => sum + d.calories, 0) / secondHalf.length;
     const trend = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
     
-    // Macro breakdown for pie chart (using grams, not calories for cleaner display)
-    const totalMacros = avgProtein + avgCarbs + avgFats;
-    const macroBreakdown = totalMacros > 0 ? [
-      { name: 'Protein', population: avgProtein, color: Colors.nutrition.protein, legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Carbs', population: avgCarbs, color: Colors.nutrition.carbs, legendFontColor: Colors.text, legendFontSize: 12 },
-      { name: 'Fats', population: avgFats, color: Colors.nutrition.fats, legendFontColor: Colors.text, legendFontSize: 12 },
-    ] : [];
-    
-    return { avgCalories, trend, macroBreakdown, avgProtein, avgCarbs, avgFats };
+    return { avgCalories, trend };
   }, [dailyData]);
 
   const chartData = useMemo(() => {
@@ -146,12 +135,12 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
           <LineChart
             data={chartData}
             width={chartWidth}
-            height={160}
+            height={220}
             chartConfig={{
-              backgroundGradientFrom: Colors.card,
-              backgroundGradientTo: Colors.card,
+              backgroundGradientFrom: Colors.background,
+              backgroundGradientTo: Colors.background,
               decimalPlaces: 0,
-              color: (opacity = 1) => hexToRgba(Colors.nutrition.calories, opacity),
+              color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
               labelColor: (opacity = 1) => Colors.lightText,
               propsForBackgroundLines: { stroke: Colors.border, strokeWidth: 0.5 },
             }}
@@ -160,41 +149,7 @@ export const NutritionTrendsCard: React.FC<NutritionTrendsCardProps> = ({ onPres
           />
         </View>
 
-        {/* Macro Breakdown Pie Chart */}
-        {stats.macroBreakdown.length > 0 && (
-          <View style={styles.pieSection}>
-            <Text style={styles.pieTitle}>Macro Breakdown</Text>
-            <View style={styles.pieChartContainer}>
-              <PieChart
-                data={stats.macroBreakdown}
-                width={chartWidth}
-                height={180}
-                chartConfig={{
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-                accessor="population"
-                backgroundColor="transparent"
-                hasLegend={false}
-              />
-            </View>
-            
-            {/* Clean Legend */}
-            <View style={styles.legend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.protein }]} />
-                <Text style={styles.legendText}>Protein {stats.avgProtein}g</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.carbs }]} />
-                <Text style={styles.legendText}>Carbs {stats.avgCarbs}g</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.nutrition.fats }]} />
-                <Text style={styles.legendText}>Fats {stats.avgFats}g</Text>
-              </View>
-            </View>
-          </View>
-        )}
+
       </View>
 
       <Text style={styles.hint}>Tap for detailed nutrition analysis</Text>
@@ -310,46 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   
-  pieSection: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-  },
-  pieTitle: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  pieChartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 12,
-    color: Colors.text,
-    fontWeight: Typography.weights.medium,
-  },
-  
+
   hint: { 
     fontSize: 11, 
     color: Colors.lightText, 
