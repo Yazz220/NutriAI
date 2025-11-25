@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '@/constants/colors';
 import { Typography, Spacing } from '@/constants/spacing';
 
@@ -36,8 +36,8 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   const fatsPercent = totalMacroCalories > 0 ? (fatsCalories / totalMacroCalories) * 100 : 0;
   
   // SVG circle properties for compact ring
-  const ringRadius = 38;
-  const ringStrokeWidth = 5;
+  const ringRadius = 36;
+  const ringStrokeWidth = 8; // Increased from 5 for modern look
   const svgSize = (ringRadius + ringStrokeWidth) * 2;
   const svgCenter = svgSize / 2;
   const circumference = 2 * Math.PI * ringRadius;
@@ -69,59 +69,74 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
         <View style={styles.nutritionDisplayVertical}>
           {/* Main Calorie Ring */}
           <View style={styles.calorieRingContainer}>
-            <Svg width={110} height={110} style={styles.calorieRing}>
+            <Svg width={112} height={112} style={styles.calorieRing}>
+              <Defs>
+                <SvgLinearGradient id="proteinGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor={Colors.nutrition.protein} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={Colors.nutrition.protein} stopOpacity="0.75" />
+                </SvgLinearGradient>
+                <SvgLinearGradient id="carbsGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor={Colors.nutrition.carbs} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={Colors.nutrition.carbs} stopOpacity="0.75" />
+                </SvgLinearGradient>
+                <SvgLinearGradient id="fatsGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor={Colors.nutrition.fats} stopOpacity="1" />
+                  <Stop offset="100%" stopColor={Colors.nutrition.fats} stopOpacity="0.75" />
+                </SvgLinearGradient>
+              </Defs>
               {/* Background circle */}
               <Circle
-                cx={55}
-                cy={55}
-                r={45}
+                cx={56}
+                cy={56}
+                r={44}
                 stroke={Colors.border}
-                strokeWidth={6}
+                strokeWidth={9}
                 fill="none"
+                opacity={0.2}
               />
-              {/* Protein segment (green) */}
+              {/* Protein segment (green) with gradient */}
               <Circle
-                cx={55}
-                cy={55}
-                r={45}
-                stroke={Colors.nutrition.protein}
-                strokeWidth={6}
+                cx={56}
+                cy={56}
+                r={44}
+                stroke="url(#proteinGradLarge)"
+                strokeWidth={9}
                 fill="none"
                 strokeDasharray={proteinDashArray}
                 strokeDashoffset={proteinDashOffset}
                 strokeLinecap="round"
-                transform={`rotate(-90 55 55)`}
+                transform={`rotate(-90 56 56)`}
               />
-              {/* Carbs segment (orange) */}
+              {/* Carbs segment (orange) with gradient */}
               <Circle
-                cx={55}
-                cy={55}
-                r={45}
-                stroke={Colors.nutrition.carbs}
-                strokeWidth={6}
+                cx={56}
+                cy={56}
+                r={44}
+                stroke="url(#carbsGradLarge)"
+                strokeWidth={9}
                 fill="none"
                 strokeDasharray={carbsDashArray}
                 strokeDashoffset={carbsDashOffset}
                 strokeLinecap="round"
-                transform={`rotate(-90 55 55)`}
+                transform={`rotate(-90 56 56)`}
               />
-              {/* Fats segment (red) */}
+              {/* Fats segment (red) with gradient */}
               <Circle
-                cx={55}
-                cy={55}
-                r={45}
-                stroke={Colors.nutrition.fats}
-                strokeWidth={6}
+                cx={56}
+                cy={56}
+                r={44}
+                stroke="url(#fatsGradLarge)"
+                strokeWidth={9}
                 fill="none"
                 strokeDasharray={fatsDashArray}
                 strokeDashoffset={fatsDashOffset}
                 strokeLinecap="round"
-                transform={`rotate(-90 55 55)`}
+                transform={`rotate(-90 56 56)`}
               />
             </Svg>
             
             {/* Center content */}
-            <View style={styles.calorieCenterLarge}>
+            <View style={[styles.calorieCenterLarge, { width: 112, height: 112 }]}>
               <Text style={styles.caloriesValueLarge}>{Math.round(calories)}</Text>
               <Text style={styles.caloriesLabel}>CALORIES</Text>
             </View>
@@ -166,6 +181,20 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
         {/* Main Calorie Ring - Top Center */}
         <View style={[styles.calorieRingContainer, { width: svgSize, height: svgSize }]}>
           <Svg width={svgSize} height={svgSize} style={styles.calorieRing}>
+            <Defs>
+              <SvgLinearGradient id="proteinGradSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={Colors.nutrition.protein} stopOpacity="1" />
+                <Stop offset="100%" stopColor={Colors.nutrition.protein} stopOpacity="0.75" />
+              </SvgLinearGradient>
+              <SvgLinearGradient id="carbsGradSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={Colors.nutrition.carbs} stopOpacity="1" />
+                <Stop offset="100%" stopColor={Colors.nutrition.carbs} stopOpacity="0.75" />
+              </SvgLinearGradient>
+              <SvgLinearGradient id="fatsGradSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={Colors.nutrition.fats} stopOpacity="1" />
+                <Stop offset="100%" stopColor={Colors.nutrition.fats} stopOpacity="0.75" />
+              </SvgLinearGradient>
+            </Defs>
             {/* Background circle */}
             <Circle
               cx={svgCenter}
@@ -174,13 +203,14 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               stroke={Colors.border}
               strokeWidth={ringStrokeWidth}
               fill="none"
+              opacity={0.2}
             />
-            {/* Protein segment (green) */}
+            {/* Protein segment (green) with gradient */}
             <Circle
               cx={svgCenter}
               cy={svgCenter}
               r={ringRadius}
-              stroke={Colors.nutrition.protein}
+              stroke="url(#proteinGradSmall)"
               strokeWidth={ringStrokeWidth}
               fill="none"
               strokeDasharray={proteinDashArray}
@@ -188,12 +218,12 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               strokeLinecap="round"
               transform={`rotate(-90 ${svgCenter} ${svgCenter})`}
             />
-            {/* Carbs segment (orange) */}
+            {/* Carbs segment (orange) with gradient */}
             <Circle
               cx={svgCenter}
               cy={svgCenter}
               r={ringRadius}
-              stroke={Colors.nutrition.carbs}
+              stroke="url(#carbsGradSmall)"
               strokeWidth={ringStrokeWidth}
               fill="none"
               strokeDasharray={carbsDashArray}
@@ -201,12 +231,12 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               strokeLinecap="round"
               transform={`rotate(-90 ${svgCenter} ${svgCenter})`}
             />
-            {/* Fats segment (red) */}
+            {/* Fats segment (red) with gradient */}
             <Circle
               cx={svgCenter}
               cy={svgCenter}
               r={ringRadius}
-              stroke={Colors.nutrition.fats}
+              stroke="url(#fatsGradSmall)"
               strokeWidth={ringStrokeWidth}
               fill="none"
               strokeDasharray={fatsDashArray}
@@ -312,10 +342,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   calorieCenterLarge: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 110,
-    height: 110,
   },
   caloriesValueLarge: {
     fontSize: 28,
@@ -325,22 +354,26 @@ const styles = StyleSheet.create({
   },
   macroCirclesContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    marginTop: Spacing.md,
   },
   macroCircleContainer: {
     alignItems: 'center',
     gap: Spacing.xs,
+    flex: 1,
   },
   macroCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.background,
+    alignSelf: 'center',
   },
   macroValue: {
     fontSize: 13,
@@ -369,13 +402,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   calorieRing: {
     position: 'absolute',
+    top: 0,
+    left: 0,
   },
   calorieCenter: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+    top: 0,
+    left: 0,
   },
   caloriesValue: {
     fontSize: 24,

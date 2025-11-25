@@ -33,6 +33,7 @@ export interface UserGoals {
   recommendedCarbsG?: number;
   recommendedFatsG?: number;
   healthGoalKey?: HealthGoal | null;
+  targetWeightKg?: number;
 }
 
 export interface UserPreferencesProfile {
@@ -117,9 +118,26 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       return undefined;
     }
 
-    // If no row yet, create a default profile for this user (first login)
+    // If no row yet, check if onboarding data exists before creating default
     let row = data as any | null;
     if (!row) {
+      // Check if onboarding data exists (sign-up/sign-in will handle profile creation)
+      try {
+        const { OnboardingPersistenceManager } = await import('@/utils/onboardingPersistence');
+        const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
+        
+        if (onboardingData) {
+          // Onboarding data exists - sign-up/sign-in will create the profile
+          // Don't create default profile to avoid duplicate writes
+          console.log('[Profile] Onboarding data exists, skipping default profile creation');
+          return undefined;
+        }
+      } catch (err) {
+        console.warn('[Profile] Error checking onboarding data:', err);
+        // Continue with default profile creation if check fails
+      }
+      
+      // Only create default profile if NO onboarding data exists
       const insertDefault = {
         user_id: user.id,
         display_name: null,
@@ -364,13 +382,19 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       }
     },
     onSuccess: async (next) => {
+      // Update cache and local storage immediately
       queryClient.setQueryData(QUERY_KEY, next);
       try {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch {}
+      
+      // Force invalidation and refetch to ensure all consuming hooks update
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    onSettled: async () => {
+      // Additional invalidation as safety net
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
 

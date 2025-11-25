@@ -83,6 +83,16 @@ export async function detectItemsFromImage(params: {
       const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
+        
+        // Log specific error types
+        if (res.status === 401) {
+          console.warn('[visionClient] Authentication failed for vision model - check AI_API_KEY configuration');
+        } else if (res.status === 429) {
+          console.warn('[visionClient] Rate limited - will retry after delay');
+        } else {
+          console.error('[visionClient] Vision request failed:', res.status, text.slice(0, 200));
+        }
+        
         throw new Error(`Vision request failed (${res.status}): ${text}`);
       }
       const json = await res.json();
@@ -92,6 +102,13 @@ export async function detectItemsFromImage(params: {
     } catch (err) {
       lastErr = err;
       if (attempt === maxRetries) break;
+      
+      // Don't retry on authentication errors
+      if (err instanceof Error && err.message.includes('(401)')) {
+        console.warn('[visionClient] Skipping retries due to authentication error');
+        break;
+      }
+      
       await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
     }
   }
@@ -273,14 +290,20 @@ export async function analyzeFoodImageForNutrition(
         errorData = { error: errorText };
       }
       
-      console.error('[visionClient] AI scan failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        code: errorData.code,
-        error: errorData.error,
-        details: errorData.details,
-        rawError: errorText,
-      });
+      // Log different error types with appropriate levels
+      if (response.status === 401) {
+        console.warn('[visionClient] Authentication failed - check SUPABASE_ANON_KEY configuration');
+      } else if (response.status === 404) {
+        console.warn('[visionClient] Nutrition data not found for this food item');
+      } else {
+        console.error('[visionClient] AI scan failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          code: errorData.code,
+          error: errorData.error,
+          details: errorData.details,
+        });
+      }
 
       // Don't throw - return null to allow fallback
       return null;

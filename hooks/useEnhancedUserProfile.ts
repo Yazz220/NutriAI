@@ -170,6 +170,13 @@ export const useUserProfileStore = () => {
     const goalKey = primaryGoal ?? directionToGoal(goals.goalDirection);
     const customSelected = goalKey === 'custom';
 
+    console.log('[EnhancedProfile] Saving health goals:', {
+      goalType: goals.goalDirection,
+      healthGoalKey: goalKey,
+      targetWeight: goals.targetWeight,
+      calories: goals.dailyCalorieTarget,
+    });
+
     savePartial('goals', {
       goalType: goals.goalDirection,
       healthGoalKey: goalKey,

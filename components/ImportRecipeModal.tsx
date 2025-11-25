@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
-  Image,
+  Keyboard,
+
 } from 'react-native';
+
+import { importRecipe } from '@/utils/recipeImport';
 import {
   X,
   Link,
-  Image as ImageIcon,
   FileText,
-  Video,
   ChevronRight,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -33,7 +33,7 @@ interface ImportRecipeModalProps {
   onImport: (recipe: ImportedRecipe) => void;
 }
 
-type ImportMode = 'selection' | 'link' | 'text' | 'image' | 'video';
+type ImportMode = 'selection' | 'url' | 'text';
 
 export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
   visible,
@@ -45,12 +45,31 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const resetModal = useCallback(() => {
     setMode('selection');
     setInputValue('');
     setError(null);
     setLoading(false);
+
   }, []);
 
   const handleClose = useCallback(() => {
@@ -61,11 +80,15 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
   const handleModeSelect = (selectedMode: ImportMode) => {
     setMode(selectedMode);
     setError(null);
+    
+
   };
+
+
 
   const handleImport = async () => {
     if (!inputValue.trim()) {
-      setError('Please enter a valid input');
+      setError('Please enter a recipe URL or text');
       return;
     }
 
@@ -73,9 +96,14 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
     setError(null);
 
     try {
-      // Import using client-side function for now
-      const { importRecipe } = await import('@/utils/recipeImport');
-      const result = await importRecipe(inputValue, mode as any);
+      // Determine import type based on mode
+      const importType = mode === 'url' ? 'link' : 'text';
+      
+      const result = await importRecipe(inputValue, importType, {
+        useAI: false,
+        includeNutrition: false,
+        maxRetries: 1,
+      });
       
       if (result.success && result.recipe) {
         onImport(result.recipe);
@@ -85,7 +113,18 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
       }
     } catch (err: any) {
       console.error('Import error:', err);
-      setError(err.message || 'Failed to import recipe. Please try again.');
+      
+      // Provide helpful error messages
+      let errorMessage = 'Failed to import recipe. Please try again.';
+      if (err.message?.includes('CORS') || err.message?.includes('network')) {
+        errorMessage = 'Unable to access this website. Try copying the recipe text instead.';
+      } else if (err.message?.includes('not found') || err.message?.includes('404')) {
+        errorMessage = 'Recipe not found at this URL. Please check the link and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -106,31 +145,11 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
         <ChevronRight size={20} color={Colors.lightText} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.optionCard}
-        onPress={() => handleModeSelect('image')}
-      >
-        <View style={styles.optionIcon}>
-          <ImageIcon size={24} color={Colors.text} />
-        </View>
-        <Text style={styles.optionLabel}>Image</Text>
-        <ChevronRight size={20} color={Colors.lightText} />
-      </TouchableOpacity>
+
 
       <TouchableOpacity
         style={styles.optionCard}
-        onPress={() => handleModeSelect('video')}
-      >
-        <View style={styles.optionIcon}>
-          <Video size={24} color={Colors.text} />
-        </View>
-        <Text style={styles.optionLabel}>Video</Text>
-        <ChevronRight size={20} color={Colors.lightText} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.optionCard}
-        onPress={() => handleModeSelect('link')}
+        onPress={() => handleModeSelect('url')}
       >
         <View style={styles.optionIcon}>
           <Link size={24} color={Colors.text} />
@@ -140,101 +159,109 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
       </TouchableOpacity>
 
       <Text style={styles.supportedText}>
-        We support website, Instagram, TikTok, and YouTube links. 
+        Enter recipe text manually or paste a recipe website link.
         Tap the icon below to paste from clipboard.
       </Text>
     </View>
   );
 
   const renderInputMode = () => {
-    const placeholderText = {
-      link: 'Paste your link here',
-      text: 'Paste or type your recipe here',
-      image: 'Paste image URL or select from gallery',
-      video: 'Paste video URL (TikTok, Instagram, YouTube)',
-    }[mode];
+    const textMappings = {
+      url: {
+        placeholder: 'Paste your link here',
+        title: 'Add a recipe using a link',
+        support: 'We support website, Instagram, TikTok, and YouTube links',
+      },
+      text: {
+        placeholder: 'Paste or type your recipe here',
+        title: 'Add a recipe using text',
+        support: 'Paste recipe text from any source',
+      },
+      image: {
+        placeholder: 'Paste image URL or select from gallery',
+        title: 'Add a recipe using an image',
+        support: 'Take a photo of your meal or upload a recipe image. Our AI will identify the food and create a recipe for you.',
+      },
+      video: {
+        placeholder: 'Paste video URL (TikTok, Instagram, YouTube)',
+        title: 'Add a recipe using a video',
+        support: 'Paste a video link from TikTok, Instagram, or YouTube',
+      },
+    };
 
-    const titleText = {
-      link: 'Add a recipe using a link',
-      text: 'Add a recipe using text',
-      image: 'Add a recipe using an image',
-      video: 'Add a recipe using a video',
-    }[mode];
+    const currentMapping = textMappings[mode as keyof typeof textMappings] || {
+      placeholder: 'Enter your content here',
+      title: 'Add a recipe',
+      support: 'Enter your recipe content',
+    };
 
-    const supportText = {
-      link: 'We support website, Instagram, TikTok, and YouTube links',
-      text: 'Paste recipe text from any source',
-      image: 'Upload a photo of a recipe or paste an image URL',
-      video: 'Paste a video link from TikTok, Instagram, or YouTube',
-    }[mode];
+    const placeholderText = currentMapping.placeholder;
+    const titleText = currentMapping.title;
+    const supportText = currentMapping.support;
 
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top + 48}
-        style={styles.keyboardAvoiding}
+      <ScrollView
+        contentContainerStyle={styles.inputScrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={styles.inputScrollView}
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       >
-        <ScrollView
-          contentContainerStyle={styles.inputScrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.inputContainer}>
+        <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setMode('selection')}
+          >
+            <ChevronRight
+              size={24}
+              color={Colors.text}
+              style={{ transform: [{ rotate: '180deg' }] }}
+            />
+          </TouchableOpacity>
+
+          <Text style={styles.title}>{titleText}</Text>
+          <Text style={styles.supportText}>{supportText}</Text>
+
+          <TextInput
+            style={[styles.input, error && styles.inputError]}
+            placeholder={placeholderText}
+            placeholderTextColor={Colors.lightText}
+            value={inputValue}
+            onChangeText={setInputValue}
+            multiline={mode === 'text'}
+            numberOfLines={mode === 'text' ? 6 : 1}
+            autoFocus={true}
+            textAlignVertical={mode === 'text' ? 'top' : 'center'}
+          />
+
+          {error && <Text style={styles.errorText}>{error}</Text>}
+
+          <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => setMode('selection')}
+              style={[styles.button, styles.cancelButton]}
+              onPress={handleClose}
             >
-              <ChevronRight
-                size={24}
-                color={Colors.text}
-                style={{ transform: [{ rotate: '180deg' }] }}
-              />
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
 
-            <Text style={styles.title}>{titleText}</Text>
-            <Text style={styles.supportText}>{supportText}</Text>
-
-            <TextInput
-              style={[styles.input, error && styles.inputError]}
-              placeholder={placeholderText}
-              placeholderTextColor={Colors.lightText}
-              value={inputValue}
-              onChangeText={setInputValue}
-              multiline={mode === 'text'}
-              numberOfLines={mode === 'text' ? 6 : 1}
-              autoFocus
-              textAlignVertical={mode === 'text' ? 'top' : 'center'}
-            />
-
-            {error && <Text style={styles.errorText}>{error}</Text>}
-
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={handleClose}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.addButton,
-                  (!inputValue.trim() || loading) && styles.buttonDisabled,
-                ]}
-                onPress={handleImport}
-                disabled={!inputValue.trim() || loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                ) : (
-                  <Text style={styles.addButtonText}>Add</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.addButton,
+                (!inputValue.trim() || loading) && styles.buttonDisabled,
+              ]}
+              onPress={handleImport}
+              disabled={!inputValue.trim() || loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.white} />
+              ) : (
+                <Text style={styles.addButtonText}>Add</Text>
+              )}
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
     );
   };
 
@@ -246,15 +273,28 @@ export const ImportRecipeModal: React.FC<ImportRecipeModalProps> = ({
       onRequestClose={handleClose}
     >
       <BlurView intensity={20} style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={24} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={[
+            styles.modalContent, 
+            { 
+              paddingBottom: Math.max(insets.bottom + 20, keyboardHeight > 0 ? 20 : insets.bottom + 20),
+              maxHeight: keyboardHeight > 0 ? '95%' : '80%'
+            },
+            mode !== 'selection' && styles.modalContentInput
+          ]}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+                <X size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
 
-          {mode === 'selection' ? renderSelectionMode() : renderInputMode()}
-        </View>
+            {mode === 'selection' ? renderSelectionMode() : renderInputMode()}
+          </View>
+        </KeyboardAvoidingView>
       </BlurView>
     </Modal>
   );
@@ -266,6 +306,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
+  keyboardAvoidingContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   modalContent: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
@@ -273,6 +317,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 20,
     maxHeight: '80%',
+  },
+  modalContentInput: {
+    maxHeight: '90%',
+    minHeight: '50%',
   },
   header: {
     flexDirection: 'row',
@@ -285,15 +333,15 @@ const styles = StyleSheet.create({
   selectionContainer: {
     paddingBottom: 20,
   },
-  keyboardAvoiding: {
+  inputScrollView: {
     flex: 1,
   },
   inputScrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingBottom: 32,
   },
   inputContainer: {
+    flex: 1,
     paddingBottom: 20,
   },
   title: {
@@ -347,7 +395,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: Colors.background,
     borderRadius: 12,
     padding: 16,
     ...Typography.body,
@@ -383,17 +431,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   cancelButtonText: {
-    ...Typography.buttonText,
+    ...Typography.body,
+    fontWeight: '600',
     color: Colors.text,
   },
   addButton: {
     backgroundColor: Colors.primary,
   },
   addButtonText: {
-    ...Typography.buttonText,
+    ...Typography.body,
+    fontWeight: '600',
     color: Colors.white,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
+
+
 });

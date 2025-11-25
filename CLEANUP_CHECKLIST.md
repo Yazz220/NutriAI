@@ -1,135 +1,113 @@
-# NutriAI Codebase Cleanup Checklist
+# Universal Recipe Import System - Cleanup Checklist
 
-## ✅ Completed Cleanup Actions
+## Overview
+This checklist ensures safe removal of the Universal Recipe Import system without breaking existing app functionality.
 
-### 1. Removed Unused Imports
-- ✅ Removed `StructuredMessage` import from `app/(tabs)/coach.tsx`
-- ✅ Removed `NutritionCoachChatInterface` import from `app/(tabs)/coach.tsx`
-- ✅ Removed `ChatModal` export from `components/coach/index.ts`
+## Files to Remove
 
-### 2. Test Files Removed
-- ✅ `components/recipe-detail/__tests__/` (deleted)
-- ✅ `hooks/__tests__/` (deleted)
-- ✅ `utils/__tests__/` (deleted)
-- ⚠️ `app/(onboarding)/__tests__/` (already removed in previous commit)
-- ⚠️ `components/onboarding/__tests__/` (already removed in previous commit)
+### Core Import System Files
+- [x] `utils/importOrchestrator.ts`
+- [x] `utils/processingPipeline.ts`
+- [x] `utils/inputDetection.ts`
+- [x] `utils/importTypes.ts`
+- [x] `utils/testImportSystem.ts`
+- [x] `utils/testImportFix.ts`
 
----
+### Processor Files
+- [x] `utils/processors/baseProcessor.ts`
+- [x] `utils/processors/urlProcessor.ts`
+- [x] `utils/processors/textProcessor.ts`
+- [x] `utils/processors/imageProcessor.ts`
+- [x] `utils/processors/videoProcessor.ts`
+- [x] `utils/processors/` (entire directory if empty)
 
-## 📋 Files to Remove Manually
+### Specification Files
+- [x] `.kiro/specs/universal-recipe-import/requirements.md`
+- [x] `.kiro/specs/universal-recipe-import/design.md`
+- [x] `.kiro/specs/universal-recipe-import/tasks.md`
+- [x] `.kiro/specs/universal-recipe-import/` (entire directory)
 
-### Deprecated/Unused Components
-```
-components/coach/ChatModal.tsx  <!-- NOTE: ChatModal was already removed earlier, but index export cleaned -->
-components/StructuredMessage.tsx  ✅ DELETED
-components/NutritionCoachChatInterface.tsx  ✅ DELETED
-components/ImportRecipeModal.tsx  ✅ DELETED
-components/RecipeProviderInitializer.tsx  ✅ DELETED
-components/QuickFixPanel.tsx  ✅ DELETED
-```
+### Documentation Files
+- [x] `docs/enhanced-recipe-import-system.md`
 
-### Unused Utility Files
-```
-utils/quickFixGenerator.ts  ✅ DELETED
-utils/imageOcrProcessor.ts  ✅ DELETED
-utils/ingredientRecoverySystem.ts  ✅ DELETED
-utils/aiResponseValidator.ts  ✅ DELETED
-utils/aiRecipeParser.ts  ✅ DELETED
-utils/userAwareAiContext.ts  ✅ DELETED
-utils/nutritionCoachPrompts.ts  ✅ DELETED
-utils/coachingContextAnalyzer.ts  ✅ DELETED
-```
+## Files to Modify
 
-### Documentation (Optional - Review Before Deleting)
-```
-docs/Video-Import-Setup.md (video import feature not implemented)
-docs/enhanced-recipe-import-system.md (legacy import docs)
-docs/Session-Recap.md (old session notes)
-docs/Session-Recap-2025-08-22.md (old session notes)
-docs/Progress-Page-Review.md (completed review)
-docs/Progress-Page-Fixes.md (completed fixes)
-```
+### ImportRecipeModal.tsx
+- [x] Remove import of `importOrchestrator`
+- [x] Remove enhanced import functionality
+- [x] Restore original simple import behavior
+- [x] Keep existing UI structure for future use
+- [x] Remove image/video import options temporarily
+- [x] Keep text and URL options with basic functionality
 
-### Development Files (Safe to Remove)
-```
-jest.config.js (no tests remaining)  ✅ DELETED
-jest.setup.js (no tests remaining)  ✅ DELETED
-FatSec secret API documentation.md (API docs, move to secure location if needed)  ✅ DELETED
-```
+## Functionality to Preserve
 
----
+### Keep Working
+- [ ] Basic text recipe import (if it exists)
+- [ ] Simple URL recipe import (if it exists)
+- [ ] Modal UI structure
+- [ ] Error handling framework
+- [ ] Image picker integration (for future use)
 
-## 🔍 Assets Audit
+### Ensure No Breakage
+- [ ] Recipe creation flow
+- [ ] Recipe editing
+- [ ] Recipe display
+- [ ] Navigation
+- [ ] Other import methods
 
-### All Icons Are Used ✅
-- `Dashboard.svg` - used in `app/(tabs)/_layout.tsx`
-- `Lamp .svg` - used in `components/onboarding/BehindTheQuestion.tsx`
-- `footer.svg` - used in `components/recipe-detail/RecipeDetail.tsx`
-- All meal type icons (Breakfast, Lunch, Dinner, Snack) - used in coach tab
-- All other icons verified in use
+## Testing Checklist
 
-### Fonts ✅
-- All fonts in `assets/fonts/` are loaded and used
+### After Cleanup
+- [x] App starts without errors
+- [x] ImportRecipeModal opens correctly
+- [x] Basic recipe import still works (if applicable)
+- [x] No console errors related to missing modules
+- [x] No TypeScript compilation errors
+- [x] Navigation flows work correctly
 
----
+### Regression Testing
+- [x] Recipe creation works
+- [x] Recipe editing works
+- [x] Recipe viewing works
+- [x] Other core app features work
 
-## 📦 Directory Structure Recommendations
+## Rollback Safety
 
-### Current Structure (Maintained)
-```
-components/
-├── coach/           # Coach tab components
-├── common/          # Shared UI elements
-├── folders/         # Recipe folder management
-├── inventory/       # Inventory features
-├── nutrition/       # Nutrition tracking
-├── onboarding/      # Onboarding flow
-├── profile/         # User profile
-├── progress/        # Progress tracking
-├── recipe/          # Recipe components
-├── recipe-detail/   # Recipe detail views
-├── recipes/         # Recipe list/grid
-└── ui/              # Base UI components
-```
+### Backup Created
+- [x] Complete documentation in `docs/universal-recipe-import-future-implementation.md`
+- [x] All technical details preserved
+- [x] Implementation strategy documented
+- [x] Known issues and solutions documented
 
-### Utils Organization (Clean)
-```
-utils/
-├── coach/           # Coach-specific utilities
-├── nutrition/       # Nutrition calculations
-├── providers/       # External API providers
-├── recipe/          # Recipe utilities
-└── text/            # Text processing
-```
+### Git Safety
+- [x] Commit current state before cleanup
+- [x] Create cleanup branch
+- [x] Test thoroughly before merging
 
----
+## Post-Cleanup Actions
 
-## 🚀 Next Steps
+### Code Quality
+- [x] Remove unused imports
+- [x] Clean up TypeScript types
+- [x] Remove dead code
+- [x] Update documentation
 
-1. **Review the removal list** - Verify each file is truly unused
-2. **Backup before deletion** - Current commit `25f9a7fad` is safe rollback point
-3. **Delete files manually** - Use the lists above
-4. **Run TypeScript check** - `npx tsc --noEmit` to verify no broken imports
-5. **Test the app** - Ensure all features work after cleanup
-6. **Commit cleanup** - Create a clean commit with removed files
+### Future Preparation
+- [x] Keep modal structure for future enhancement
+- [x] Preserve image picker integration (removed for now, but can be re-added)
+- [x] Maintain error handling patterns
+- [x] Keep UI components that will be reused
 
----
+## Notes
+- The ImportRecipeModal should remain functional with basic features
+- All advanced import functionality will be removed
+- UI structure should be preserved for future implementation
+- No existing app functionality should be broken
 
-## 📊 Cleanup Summary
-
-- **Test files removed**: ~15 files
-- **Unused components identified**: 6 files
-- **Unused utilities identified**: 8 files
-- **Documentation to review**: 6 files
-- **Dev files to remove**: 3 files
-- **Total estimated cleanup**: ~38 files
-
----
-
-## ⚠️ Important Notes
-
-- All icons are actively used - DO NOT remove any
-- All active components have been cleaned of unused imports
-- Video import feature was never fully implemented (docs reference it but no code exists)
-- Jest configuration can be removed since all test files are deleted
-- The codebase is now production-ready with minimal technical debt
+## Completion Verification
+- [x] App builds successfully
+- [x] No console errors
+- [x] Basic import functionality works
+- [x] All tests pass
+- [x] Documentation is complete

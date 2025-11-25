@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -41,22 +41,32 @@ const Ring = ({
   const c = 2 * Math.PI * radius;
   const p = clamp01(progress);
   const offset = c * (1 - p);
+  const gradientId = `gradient-${color.replace('#', '')}`;
+  
   return (
     <Svg width={size} height={size}>
+      <Defs>
+        <SvgLinearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor={color} stopOpacity="1" />
+          <Stop offset="100%" stopColor={color} stopOpacity="0.7" />
+        </SvgLinearGradient>
+      </Defs>
+      {/* Track with subtle shadow effect */}
       <Circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
         stroke={trackColor}
         strokeWidth={stroke}
-        opacity={0.3}
+        opacity={0.2}
         fill="none"
       />
+      {/* Progress ring with gradient and depth */}
       <Circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
-        stroke={color}
+        stroke={`url(#${gradientId})`}
         strokeWidth={stroke}
         strokeLinecap="round"
         strokeDasharray={`${c} ${c}`}
@@ -96,8 +106,8 @@ export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protei
         <View style={styles.container}>
           {/* Big calorie ring */}
           <View style={styles.calorieCard}>
-            <View style={{ position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' }}>
-              <Ring size={120} stroke={12} progress={calPct} color={Colors.nutrition.calories} />
+            <View style={{ position: 'relative', width: 140, height: 140, alignItems: 'center', justifyContent: 'center' }}>
+              <Ring size={140} stroke={18} progress={calPct} color={Colors.nutrition.calories} />
               <View style={styles.centerLabel}>
                 <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
                 <Text style={styles.caloriesUnit}>/{goals.dailyCalories}kcal</Text>
@@ -108,8 +118,8 @@ export const NutritionRings: React.FC<NutritionRingsProps> = ({ calories, protei
           {/* Macro rings */}
           <View style={styles.macrosRow}>
             <MacroRing label="Protein" grams={protein} goal={goals.protein} color={Colors.nutrition.protein} />
-            <MacroRing label="Fat" grams={fats} goal={goals.fats} color={Colors.nutrition.fats} />
             <MacroRing label="Carbs" grams={carbs} goal={goals.carbs} color={Colors.nutrition.carbs} />
+            <MacroRing label="Fat" grams={fats} goal={goals.fats} color={Colors.nutrition.fats} />
           </View>
         </View>
       </LinearGradient>
@@ -129,8 +139,8 @@ const MacroRing = ({ label, grams, goal, color }: { label: string; grams: number
   const pct = clamp01((goal ? grams / goal : 0));
   return (
     <View style={styles.macroItem}>
-      <View style={{ position: 'relative', width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
-        <Ring size={60} stroke={8} progress={pct} color={color} />
+      <View style={{ position: 'relative', width: 63, height: 63, alignItems: 'center', justifyContent: 'center' }}>
+        <Ring size={63} stroke={11} progress={pct} color={color} />
         <View style={styles.macroCenter}>
           <Text style={styles.macroValue}>{Math.round(grams)}g</Text>
           <Text style={styles.macroGoal}>/{goal}g</Text>
@@ -183,6 +193,11 @@ const styles = StyleSheet.create({
   calorieCard: {
     alignItems: 'center',
     marginBottom: 24,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   centerLabel: {
     position: 'absolute',
@@ -225,11 +240,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    marginTop: 8,
-    gap: 16,
+    marginTop: 16,
+    gap: 24,
+    paddingHorizontal: 8,
   },
   macroItem: {
     alignItems: 'center',
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   macroCenter: {
     position: 'absolute',

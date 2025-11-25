@@ -4,7 +4,6 @@
  */
 
 import { ImportedRecipe, toExternalRecipe } from '@/types/importedRecipe';
-import { detectInputType, extractVideoId, getPlatformStrategy } from './inputDetection';
 
 export interface ImportOptions {
   useAI?: boolean;
@@ -29,9 +28,6 @@ export async function importRecipe(
   options: ImportOptions = {}
 ): Promise<ImportResult> {
   try {
-    // Detect input type and platform
-    const detection = detectInputType(input);
-    
     // Route to appropriate handler based on type
     switch (type) {
       case 'link':
@@ -39,9 +35,17 @@ export async function importRecipe(
       case 'text':
         return await importFromText(input, options);
       case 'image':
-        return await importFromImage(input, options);
+        // Simplified - return not implemented for now
+        return {
+          success: false,
+          error: 'Image import is not available yet. Try copying the recipe text instead.',
+        };
       case 'video':
-        return await importFromVideo(input, options);
+        // Simplified - return not implemented for now
+        return {
+          success: false,
+          error: 'Video import is not available yet. Try copying the recipe text instead.',
+        };
       default:
         throw new Error(`Unsupported import type: ${type}`);
     }

@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
 import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
+import { withTimeout, getUserFriendlyErrorMessage } from '@/utils/networkTimeout';
 
 export default function SignInScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
@@ -40,7 +41,10 @@ export default function SignInScreen() {
       try { await supabase.auth.signOut(); } catch {}
 
       console.log('[Auth] Signing in with password', { email });
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: authError } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        30000
+      );
       if (authError) {
         console.warn('[Auth] signInWithPassword error', authError);
         throw authError;
@@ -65,7 +69,20 @@ export default function SignInScreen() {
           let lastError: Error | null = null;
           while (retries > 0) {
             try {
-              await saveProfile(profileData);
+              // Wrap saveProfile in Promise with timeout
+              await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => reject(new Error('Profile save timeout')), 15000);
+                try {
+                  saveProfile(profileData);
+                  setTimeout(() => {
+                    clearTimeout(timeoutId);
+                    resolve();
+                  }, 2000);
+                } catch (err) {
+                  clearTimeout(timeoutId);
+                  reject(err);
+                }
+              });
               await OnboardingPersistenceManager.clearOnboardingData();
               console.log('[SignIn] Onboarding data synced successfully');
               break;
@@ -84,19 +101,54 @@ export default function SignInScreen() {
           }
         } catch (syncError) {
           console.error('[SignIn] Failed to sync onboarding data after retries:', syncError);
-          Alert.alert(
-            'Profile Sync Issue',
-            'We couldn\'t save your preferences. You can update them in Settings.',
-            [{ text: 'OK' }]
-          );
-          // Don't block sign-in - user can update profile later
+          
+          // Offer retry option
+          return new Promise<void>((resolve) => {
+            Alert.alert(
+              'Profile Sync Issue',
+              'We couldn\'t save your health preferences. Would you like to retry?',
+              [
+                {
+                  text: 'Retry',
+                  onPress: async () => {
+                    try {
+                      const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
+                      await new Promise<void>((resolveProfile, rejectProfile) => {
+                        const timeoutId = setTimeout(() => rejectProfile(new Error('Profile save timeout')), 15000);
+                        try {
+                          saveProfile(profileData);
+                          setTimeout(() => {
+                            clearTimeout(timeoutId);
+                            resolveProfile();
+                          }, 2000);
+                        } catch (err) {
+                          clearTimeout(timeoutId);
+                          rejectProfile(err);
+                        }
+                      });
+                      await OnboardingPersistenceManager.clearOnboardingData();
+                      Alert.alert('Success', 'Your preferences have been saved!');
+                    } catch (retryError) {
+                      Alert.alert('Still having issues?', 'You can update preferences later in Settings.');
+                    } finally {
+                      resolve();
+                    }
+                  }
+                },
+                {
+                  text: 'Continue',
+                  onPress: () => resolve()
+                }
+              ]
+            );
+          });
         }
       }
       
       // Force navigation to tabs (especially helpful on web)
       router.replace('/(tabs)');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to sign in';
+      const msg = getUserFriendlyErrorMessage(err);
       setError(msg);
       Alert.alert('Sign in failed', msg);
     } finally {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -52,7 +52,12 @@ export default function EnhancedProfileScreen() {
   const insets = useSafeAreaInsets();
   const [kbHeight, setKbHeight] = useState(0);
 
-  const closeSheet = () => { setSheetVisible(false); setSheetSection(null); };
+  const closeSheet = useCallback(() => { 
+    setSheetVisible(false); 
+    setSheetSection(null); 
+    // Trigger profile refresh to ensure UI shows latest data
+    // The profile hook will automatically refetch from React Query cache
+  }, []);
 
   // Track keyboard to avoid sheet collapsing behind it
   useEffect(() => {

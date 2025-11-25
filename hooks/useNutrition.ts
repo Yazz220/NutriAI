@@ -325,9 +325,10 @@ export const [NutritionProvider, useNutrition] = createContextHook((plannedMeals
   }, [profile, preferences.goals]);
 
   // Recalculate goals when profile changes
+  // Include profile directly in dependencies to ensure recalculation on any profile update
   useEffect(() => {
     calculateGoalsFromProfile();
-  }, [calculateGoalsFromProfile]);
+  }, [calculateGoalsFromProfile, profile, profile?.goals, profile?.basics]);
 
   // Current goals (calculated or fallback)
   const goals: NutritionGoals | undefined = calculatedGoals || (() => {

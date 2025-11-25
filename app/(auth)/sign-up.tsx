@@ -8,6 +8,7 @@ import { Spacing } from '@/constants/spacing';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
 import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
+import { withTimeout, getUserFriendlyErrorMessage } from '@/utils/networkTimeout';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -27,9 +28,17 @@ export default function SignUpScreen() {
       setError('Passwords do not match');
       return;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
     setLoading(true);
     try {
-      const { data, error: authError } = await supabase.auth.signUp({ email, password });
+      // Add timeout to auth request
+      const { data, error: authError } = await withTimeout(
+        supabase.auth.signUp({ email, password }),
+        30000
+      );
       if (authError) throw authError;
       
       // Check if we have onboarding data to sync
@@ -47,12 +56,26 @@ export default function SignUpScreen() {
             console.log('[SignUp] Syncing onboarding data to profile...');
             const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
             
-            // Retry logic for profile save (network failures)
+            // Retry logic for profile save with timeout
             let retries = 3;
             let lastError: Error | null = null;
             while (retries > 0) {
               try {
-                await saveProfile(profileData);
+                // saveProfile triggers mutation, wrap in Promise to await completion
+                await new Promise<void>((resolve, reject) => {
+                  const timeoutId = setTimeout(() => reject(new Error('Profile save timeout')), 15000);
+                  try {
+                    saveProfile(profileData);
+                    // Wait a bit for mutation to complete
+                    setTimeout(() => {
+                      clearTimeout(timeoutId);
+                      resolve();
+                    }, 2000);
+                  } catch (err) {
+                    clearTimeout(timeoutId);
+                    reject(err);
+                  }
+                });
                 await OnboardingPersistenceManager.clearOnboardingData();
                 console.log('[SignUp] Onboarding data synced successfully');
                 break;
@@ -71,18 +94,56 @@ export default function SignUpScreen() {
             }
           } catch (syncError) {
             console.error('[SignUp] Failed to sync onboarding data after retries:', syncError);
-            Alert.alert(
-              'Profile Sync Issue',
-              'Your account was created, but we couldn\'t save your preferences. You can update them in Settings.',
-              [{ text: 'OK' }]
-            );
-            // Don't block sign-up - user can update profile later
+            
+            // Offer retry option
+            return new Promise<void>((resolve) => {
+              Alert.alert(
+                'Profile Sync Issue',
+                'We couldn\'t save your health preferences. Would you like to retry?',
+                [
+                  {
+                    text: 'Retry',
+                    onPress: async () => {
+                      setLoading(true);
+                      try {
+                        const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
+                        // Wrap saveProfile in Promise
+                        await new Promise<void>((resolveProfile, rejectProfile) => {
+                          const timeoutId = setTimeout(() => rejectProfile(new Error('Profile save timeout')), 15000);
+                          try {
+                            saveProfile(profileData);
+                            setTimeout(() => {
+                              clearTimeout(timeoutId);
+                              resolveProfile();
+                            }, 2000);
+                          } catch (err) {
+                            clearTimeout(timeoutId);
+                            rejectProfile(err);
+                          }
+                        });
+                        await OnboardingPersistenceManager.clearOnboardingData();
+                        Alert.alert('Success', 'Your preferences have been saved!');
+                      } catch (retryError) {
+                        Alert.alert('Still having issues?', 'Your account is ready. You can update preferences later in Settings.');
+                      } finally {
+                        setLoading(false);
+                        resolve();
+                      }
+                    }
+                  },
+                  {
+                    text: 'Continue',
+                    onPress: () => resolve()
+                  }
+                ]
+              );
+            });
           }
         }
         // RootLayout will switch to (tabs) automatically
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to sign up';
+      const msg = getUserFriendlyErrorMessage(err);
       setError(msg);
       Alert.alert('Sign up failed', msg);
     } finally {

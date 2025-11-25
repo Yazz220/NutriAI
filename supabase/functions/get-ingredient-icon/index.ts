@@ -71,7 +71,7 @@ serve(async (req: Request) => {
 
     // Generate new image with improved prompt
     const ingredientName = display_name || slug.replace(/-/g, ' ')
-    const positivePrompt = `Marker illustration (editorial food art) of a typical portion of ${ingredientName} as a cooking ingredient, true to life colors, isolated and centered on a solid cream-white background. Soft natural lighting with subtle shadows and balanced contrast. Clean composition, minimal styling, consistent angle, and perspective. Sharp focus, high detail.`
+    const positivePrompt = `illustration (editorial food art) of ${ingredientName} true to life colors, isolated and centered on a solid cream-white background. Soft natural lighting with subtle shadows and balanced contrast. Clean composition, minimal styling, consistent angle, and perspective. Sharp focus, high detail.`
     const negativePrompt = `text, label, logo, watermark, brand name, table, spoon, multiple ingredients, collage, background clutter, reflections, extra props, artistic filters, oversaturation, exaggerated colors.`
 
     console.log('📷 Generating image for:', ingredientName)
@@ -92,7 +92,7 @@ serve(async (req: Request) => {
           prompt: positivePrompt,
           model: 'black-forest-labs/FLUX.1-schnell',
           seed: imageGenerationResponse.seed,
-          prompt_version: 5,
+          prompt_version: 6,
           updated_at: new Date().toISOString()
         })
 
@@ -128,7 +128,7 @@ serve(async (req: Request) => {
           status: 'pending',
           prompt: positivePrompt,
           model: 'black-forest-labs/FLUX.1-schnell',
-          prompt_version: 5,
+          prompt_version: 6,
           updated_at: new Date().toISOString()
         })
 

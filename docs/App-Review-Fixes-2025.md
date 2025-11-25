@@ -28,7 +28,6 @@
 - **Files Created**:
   - `components/ImportRecipeModal.tsx`
   - `utils/recipeImport.ts`
-  - `utils/inputDetection.ts`
   - `types/importedRecipe.ts`
 - **Features**:
   - Multi-source import (Text, URL, Image*, Video*)

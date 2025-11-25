@@ -61,12 +61,7 @@ User Input → Detection → Extraction → Parsing → Storage
    - Supports multiple input modes
    - Validates and processes input
 
-2. **Input Detection** (`utils/inputDetection.ts`)
-   - Automatically detects content type
-   - Identifies platforms (TikTok, Instagram, etc.)
-   - Provides parsing hints
-
-3. **Recipe Import** (`utils/recipeImport.ts`)
+2. **Recipe Import** (`utils/recipeImport.ts`)
    - Core import logic
    - HTML parsing for websites
    - Text parsing for pasted recipes

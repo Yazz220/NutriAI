@@ -87,25 +87,38 @@ export const useWeightTracking = () => {
     }
   };
 
-  // Derive a weight goal from enhanced profile if missing
+  // Derive and sync weight goal from enhanced profile
   useEffect(() => {
     (async () => {
       if (loading) return;
-      if (goal) return;
-      const target = enhanced.profile?.targetWeight;
+      
+      const goalType = enhanced.profile?.goalDirection || profile?.goals?.goalType;
+      const explicitTarget = enhanced.profile?.targetWeight;
       const current = entries.length > 0 ? entries[0].weight : (profile?.basics?.weightKg ?? undefined);
-      if (typeof target === 'number' && target > 0 && typeof current === 'number' && current > 0) {
-        const derived: WeightGoal = {
-          targetWeight: target,
-          startWeight: current,
-          startDate: new Date().toISOString().split('T')[0],
-          targetDate: new Date(new Date().getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +60 days
-        };
-        setGoal(derived);
-        try { await AsyncStorage.setItem(WEIGHT_GOAL_KEY, JSON.stringify(derived)); } catch {}
+      
+      if (typeof current !== 'number' || current <= 0) return;
+      
+      // For 'maintain' goal without explicit target, use current weight as target
+      const target = (goalType === 'maintain' && !explicitTarget) ? current : explicitTarget;
+      
+      if (typeof target === 'number' && target > 0) {
+        // Update goal if target weight changed in profile OR goal type changed
+        const shouldUpdate = !goal || goal.targetWeight !== target;
+        
+        if (shouldUpdate) {
+          console.log('[WeightTracking] Syncing weight goal:', { goalType, target, current });
+          const derived: WeightGoal = {
+            targetWeight: target,
+            startWeight: goal?.startWeight ?? current,
+            startDate: goal?.startDate ?? new Date().toISOString().split('T')[0],
+            targetDate: goal?.targetDate ?? new Date(new Date().getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          };
+          setGoal(derived);
+          try { await AsyncStorage.setItem(WEIGHT_GOAL_KEY, JSON.stringify(derived)); } catch {}
+        }
       }
     })();
-  }, [loading, goal, enhanced.profile?.targetWeight, entries, profile?.basics?.weightKg]);
+  }, [loading, goal, enhanced.profile?.targetWeight, enhanced.profile?.goalDirection, profile?.goals?.goalType, entries, profile?.basics?.weightKg]);
 
   const addWeightEntry = async (weight: number, date?: string) => {
     const entry: WeightEntry = {

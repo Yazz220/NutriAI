@@ -38,8 +38,8 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
   
   // Main calorie ring calculations - now with macro segments
   const percentage = calories.goal > 0 ? calories.consumed / calories.goal : 0;
-  const radius = 85; // Reduced from 100 for more compact design
-  const strokeWidth = 12;
+  const radius = 82; // Optimized for thicker stroke
+  const strokeWidth = 16; // Increased from 12 for modern look
   const circumference = 2 * Math.PI * radius;
   
   // Calculate calories from macros for the ring segments
@@ -104,8 +104,8 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
     },
   ];
 
-  const macroRingSize = 80; // Smaller macro rings
-  const macroStrokeWidth = 8;
+  const macroRingSize = 76.5; // Reduced by 10% from 85
+  const macroStrokeWidth = 11; // Adjusted proportionally
   const macroRadius = (macroRingSize - macroStrokeWidth) / 2;
   const macroCircumference = 2 * Math.PI * macroRadius;
 
@@ -222,6 +222,20 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
             {/* Main Calorie Ring */}
             <View style={styles.mainRingContainer}>
               <Svg width={200} height={200}>
+                <Defs>
+                  <SvgLinearGradient id="proteinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor={Colors.nutrition.protein} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={Colors.nutrition.protein} stopOpacity="0.75" />
+                  </SvgLinearGradient>
+                  <SvgLinearGradient id="carbsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor={Colors.nutrition.carbs} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={Colors.nutrition.carbs} stopOpacity="0.75" />
+                  </SvgLinearGradient>
+                  <SvgLinearGradient id="fatsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor={Colors.nutrition.fats} stopOpacity="1" />
+                    <Stop offset="100%" stopColor={Colors.nutrition.fats} stopOpacity="0.75" />
+                  </SvgLinearGradient>
+                </Defs>
                 {/* Background circle */}
                 <Circle
                   cx={100}
@@ -230,15 +244,15 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   stroke={Colors.border}
                   strokeWidth={strokeWidth}
                   fill="none"
-                  opacity={0.3}
+                  opacity={0.2}
                 />
 
-                {/* Protein segment (green) */}
+                {/* Protein segment (green) with gradient */}
                 <Circle
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke={Colors.nutrition.protein}
+                  stroke="url(#proteinGrad)"
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={proteinDashArray}
@@ -247,12 +261,12 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   transform={`rotate(-90 100 100)`}
                 />
 
-                {/* Carbs segment (orange) */}
+                {/* Carbs segment (orange) with gradient */}
                 <Circle
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke={Colors.nutrition.carbs}
+                  stroke="url(#carbsGrad)"
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={carbsDashArray}
@@ -261,12 +275,12 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                   transform={`rotate(-90 100 100)`}
                 />
 
-                {/* Fats segment (red) */}
+                {/* Fats segment (red) with gradient */}
                 <Circle
                   cx={100}
                   cy={100}
                   r={radius}
-                  stroke={Colors.nutrition.fats}
+                  stroke="url(#fatsGrad)"
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={fatsDashArray}
@@ -293,9 +307,16 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                 // Calculate stroke dash array for progress
                 const progressDashArray = `${(progressPercentage / 100) * macroCircumference} ${macroCircumference}`;
                 
+                const macroGradId = `macroGrad-${index}`;
                 return (
                   <View key={macro.name} style={styles.macroRingItem}>
                     <Svg width={macroRingSize} height={macroRingSize}>
+                      <Defs>
+                        <SvgLinearGradient id={macroGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                          <Stop offset="0%" stopColor={macro.color} stopOpacity="1" />
+                          <Stop offset="100%" stopColor={macro.color} stopOpacity="0.7" />
+                        </SvgLinearGradient>
+                      </Defs>
                       {/* Background circle */}
                       <Circle
                         cx={macroRingSize / 2}
@@ -306,12 +327,12 @@ export const CompactNutritionRings: React.FC<CompactNutritionRingsProps> = ({
                         fill="none"
                       />
 
-                      {/* Progress circle with macro color */}
+                      {/* Progress circle with gradient */}
                       <Circle
                         cx={macroRingSize / 2}
                         cy={macroRingSize / 2}
                         r={macroRadius}
-                        stroke={macro.color}
+                        stroke={`url(#${macroGradId})`}
                         strokeWidth={macroStrokeWidth}
                         fill="none"
                         strokeDasharray={progressDashArray}
@@ -463,6 +484,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     width: 200,
     height: 200,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   centerContent: {
     position: 'absolute',
@@ -495,8 +521,13 @@ const styles = StyleSheet.create({
   macroRingItem: {
     alignItems: 'center',
     position: 'relative',
-    width: 80,
-    height: 100,
+    width: 76.5,
+    height: 94.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   macroCenterContent: {
     position: 'absolute',
