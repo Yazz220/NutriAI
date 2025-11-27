@@ -65,7 +65,7 @@ export interface ConsistencyAnalysis {
 // Core analysis functions
 export function analyzeEatingPatterns(meals: LoggedMeal[], goals: NutritionGoals): EatingPattern[] {
   const patterns: EatingPattern[] = [];
-  
+
   if (meals.length < 7) {
     return [{
       type: 'meal_frequency',
@@ -108,7 +108,7 @@ function analyzeMealTiming(meals: LoggedMeal[]): EatingPattern[] {
     if (typeMeals.length < 3) return; // Need at least 3 instances
 
     const analysis = analyzeMealTimingForType(typeMeals, mealType as MealType);
-    
+
     if (analysis.consistency > 0.7) {
       patterns.push({
         type: 'meal_timing',
@@ -136,7 +136,7 @@ function analyzeMealTiming(meals: LoggedMeal[]): EatingPattern[] {
 function analyzeCalorieConsistency(meals: LoggedMeal[], goals: NutritionGoals): EatingPattern[] {
   const patterns: EatingPattern[] = [];
   const dailyCalories = calculateDailyCalories(meals);
-  
+
   if (dailyCalories.length < 5) return patterns;
 
   const consistency = calculateConsistencyScore(dailyCalories);
@@ -194,7 +194,7 @@ function analyzeCalorieConsistency(meals: LoggedMeal[], goals: NutritionGoals): 
 function analyzeMacroDistribution(meals: LoggedMeal[], goals: NutritionGoals): EatingPattern[] {
   const patterns: EatingPattern[] = [];
   const macroTotals = calculateMacroTotals(meals);
-  
+
   if (macroTotals.totalCalories === 0) return patterns;
 
   const currentDistribution = {
@@ -237,7 +237,7 @@ function analyzeMacroDistribution(meals: LoggedMeal[], goals: NutritionGoals): E
 function analyzeMealFrequency(meals: LoggedMeal[]): EatingPattern[] {
   const patterns: EatingPattern[] = [];
   const dailyMealCounts = calculateDailyMealCounts(meals);
-  
+
   if (dailyMealCounts.length < 5) return patterns;
 
   const averageMealsPerDay = dailyMealCounts.reduce((sum, count) => sum + count, 0) / dailyMealCounts.length;
@@ -280,7 +280,7 @@ function analyzeMealFrequency(meals: LoggedMeal[]): EatingPattern[] {
 function analyzeWeekendVariance(meals: LoggedMeal[]): EatingPattern[] {
   const patterns: EatingPattern[] = [];
   const { weekdayCalories, weekendCalories } = separateWeekdayWeekend(meals);
-  
+
   if (weekdayCalories.length < 3 || weekendCalories.length < 2) return patterns;
 
   const weekdayAvg = weekdayCalories.reduce((sum, cal) => sum + cal, 0) / weekdayCalories.length;
@@ -320,8 +320,50 @@ function groupMealsByType(meals: LoggedMeal[]): Record<MealType, LoggedMeal[]> {
   }, {} as Record<MealType, LoggedMeal[]>);
 }
 
-function analyzeMealTimingForType(meals: LoggedMeal[], mealType: MealType): MealTimingAnalysis {
-  // Mock implementation - in real app, would analyze actual timestamps
+export function analyzeMealTimingForType(meals: LoggedMeal[], mealType: MealType): MealTimingAnalysis {
+  // Calculate average time and consistency based on actual timestamps
+  const timesInMinutes = meals.map(meal => {
+    const date = new Date(meal.date); // Assuming date string is ISO or parseable
+    // If meal.date is just YYYY-MM-DD, we can't get time. 
+    // However, LoggedMeal usually has a specific time or we might need to rely on `createdAt` or similar if `date` is just a day.
+    // Looking at types, LoggedMeal.date is string. Let's assume it might contain time or we check another field.
+    // If LoggedMeal doesn't have time, we can't do this.
+    // Let's check LoggedMeal type definition first to be safe.
+    return date.getHours() * 60 + date.getMinutes();
+  });
+
+  // If date string doesn't have time (e.g. "2023-01-01"), this will default to 00:00 (UTC) or local start of day.
+  // We need to verify if LoggedMeal has time info.
+  // Based on previous context, LoggedMeal has `date` which is likely an ISO string with time for logged meals.
+
+  // Filter out invalid times (e.g. if all are 0 because of date-only strings)
+  // For now, assuming ISO strings with time.
+
+  if (timesInMinutes.length < 2) {
+    return {
+      mealType,
+      averageTime: 12,
+      consistency: 1,
+      optimalWindow: { start: 12, end: 13 },
+      deviation: 0
+    };
+  }
+
+  // Handle midnight crossover (e.g. 23:00 and 01:00 should be close)
+  // Simple approach: Average minutes.
+  const averageMinutes = timesInMinutes.reduce((sum, t) => sum + t, 0) / timesInMinutes.length;
+  const averageTime = averageMinutes / 60;
+
+  // Calculate Standard Deviation
+  const variance = timesInMinutes.reduce((sum, t) => sum + Math.pow(t - averageMinutes, 2), 0) / timesInMinutes.length;
+  const stdDevMinutes = Math.sqrt(variance);
+
+  // Map SD to consistency (0-1). 
+  // SD of 0 mins = 1.0 consistency
+  // SD of 60 mins = 0.5 consistency
+  // SD of 120 mins = 0.0 consistency
+  const consistency = Math.max(0, 1 - (stdDevMinutes / 120));
+
   const optimalWindows = {
     breakfast: { start: 6, end: 10 },
     lunch: { start: 11, end: 14 },
@@ -329,40 +371,47 @@ function analyzeMealTimingForType(meals: LoggedMeal[], mealType: MealType): Meal
     snack: { start: 14, end: 16 }
   };
 
+  const window = optimalWindows[mealType] || { start: 12, end: 13 };
+
+  // Deviation from optimal window (in hours)
+  let deviation = 0;
+  if (averageTime < window.start) deviation = window.start - averageTime;
+  else if (averageTime > window.end) deviation = averageTime - window.end;
+
   return {
     mealType,
-    averageTime: optimalWindows[mealType]?.start + 1 || 12,
-    consistency: 0.7, // Mock value
-    optimalWindow: optimalWindows[mealType] || { start: 12, end: 13 },
-    deviation: 0.5 // Mock value
+    averageTime,
+    consistency,
+    optimalWindow: window,
+    deviation
   };
 }
 
-function calculateDailyCalories(meals: LoggedMeal[]): number[] {
+export function calculateDailyCalories(meals: LoggedMeal[]): number[] {
   const dailyTotals = new Map<string, number>();
-  
+
   meals.forEach(meal => {
     const existing = dailyTotals.get(meal.date) || 0;
     dailyTotals.set(meal.date, existing + meal.calories);
   });
-  
+
   return Array.from(dailyTotals.values());
 }
 
-function calculateConsistencyScore(values: number[]): number {
+export function calculateConsistencyScore(values: number[]): number {
   if (values.length < 2) return 1;
-  
+
   const coefficientOfVariation = calculateCoefficientOfVariation(values);
   return Math.max(0, 1 - coefficientOfVariation);
 }
 
 function calculateCoefficientOfVariation(values: number[]): number {
   if (values.length < 2) return 0;
-  
+
   const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
   const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
   const standardDeviation = Math.sqrt(variance);
-  
+
   return mean > 0 ? standardDeviation / mean : 0;
 }
 
@@ -377,29 +426,29 @@ function calculateMacroTotals(meals: LoggedMeal[]): { protein: number; carbs: nu
 
 function calculateDailyMealCounts(meals: LoggedMeal[]): number[] {
   const dailyCounts = new Map<string, number>();
-  
+
   meals.forEach(meal => {
     const existing = dailyCounts.get(meal.date) || 0;
     dailyCounts.set(meal.date, existing + 1);
   });
-  
+
   return Array.from(dailyCounts.values());
 }
 
 function separateWeekdayWeekend(meals: LoggedMeal[]): { weekdayCalories: number[]; weekendCalories: number[] } {
   const weekdayTotals = new Map<string, number>();
   const weekendTotals = new Map<string, number>();
-  
+
   meals.forEach(meal => {
     const date = new Date(meal.date);
     const dayOfWeek = date.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    
+
     const targetMap = isWeekend ? weekendTotals : weekdayTotals;
     const existing = targetMap.get(meal.date) || 0;
     targetMap.set(meal.date, existing + meal.calories);
   });
-  
+
   return {
     weekdayCalories: Array.from(weekdayTotals.values()),
     weekendCalories: Array.from(weekendTotals.values())
@@ -409,40 +458,40 @@ function separateWeekdayWeekend(meals: LoggedMeal[]): { weekdayCalories: number[
 // Advanced analysis functions
 export function calculateGoalAdherenceScore(dailyProgress: DailyProgress[], goals: NutritionGoals): number {
   if (dailyProgress.length === 0) return 0;
-  
+
   const adherentDays = dailyProgress.filter(day => {
     const calorieAdherence = day.calories.percentage >= 0.8 && day.calories.percentage <= 1.2;
     const proteinAdherence = day.macros.protein.percentage >= 0.8;
     const overallBalance = Math.abs(day.calories.percentage - 1) < 0.2;
-    
+
     return calorieAdherence && proteinAdherence && overallBalance;
   }).length;
-  
+
   return adherentDays / dailyProgress.length;
 }
 
 export function identifyProgressTrends(weeklyData: WeeklyTrend[], dailyData: DailyProgress[]): ProgressTrend[] {
   const trends: ProgressTrend[] = [];
-  
+
   if (weeklyData.length < 2) return trends;
-  
+
   const recent = weeklyData[weeklyData.length - 1];
   const previous = weeklyData[weeklyData.length - 2];
-  
+
   // Analyze each metric
   const metrics = [
     { key: 'averageCalories', name: 'calories' },
     { key: 'goalAdherence', name: 'adherence' }
   ] as const;
-  
+
   metrics.forEach(({ key, name }) => {
     const recentValue = recent[key];
     const previousValue = previous[key];
-    
+
     if (previousValue > 0) {
       const change = ((recentValue - previousValue) / previousValue) * 100;
       const magnitude = Math.abs(change);
-      
+
       if (magnitude > 5) {
         trends.push({
           metric: name as any,
@@ -455,38 +504,38 @@ export function identifyProgressTrends(weeklyData: WeeklyTrend[], dailyData: Dai
       }
     }
   });
-  
+
   return trends;
 }
 
 export function generateCoachingInsights(context: NutritionCoachAiContext): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
   const { currentProgress, remainingTargets, eatingPatterns } = context;
-  
+
   // Advanced daily progress analysis
   insights.push(...analyzeDailyProgressAdvanced(context));
-  
+
   // Advanced weekly pattern analysis
   insights.push(...analyzeWeeklyPatternsAdvanced(context));
-  
+
   // Macro balance and timing insights
   insights.push(...analyzeMacroBalanceInsights(context));
-  
+
   // Behavioral pattern insights
   insights.push(...analyzeBehavioralPatterns(context));
-  
+
   // Predictive insights based on trends
   insights.push(...generatePredictiveInsights(context));
-  
+
   // Legacy insights for compatibility
   insights.push(...generateLegacyInsights(context));
-  
+
   return insights
     .sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
       if (priorityDiff !== 0) return priorityDiff;
-      
+
       // Secondary sort by confidence if available
       const aConfidence = (a as any).confidence || 0.5;
       const bConfidence = (b as any).confidence || 0.5;
@@ -499,7 +548,7 @@ function analyzeDailyProgressAdvanced(context: NutritionCoachAiContext): Coachin
   const insights: CoachingInsight[] = [];
   const { currentProgress, remainingTargets, userProfile } = context;
   const today = currentProgress.today;
-  
+
   // Precision tracking analysis
   const calorieAccuracy = Math.abs(today.calories.percentage - 1.0);
   if (calorieAccuracy < 0.05) {
@@ -512,11 +561,11 @@ function analyzeDailyProgressAdvanced(context: NutritionCoachAiContext): Coachin
       relatedGoal: 'dailyCalories'
     });
   }
-  
+
   // Protein timing optimization
   const proteinDeficit = remainingTargets.protein;
   const timeOfDay = remainingTargets.timeOfDay;
-  
+
   if (proteinDeficit > 20 && timeOfDay === 'evening') {
     insights.push({
       type: 'suggestion',
@@ -536,7 +585,7 @@ function analyzeDailyProgressAdvanced(context: NutritionCoachAiContext): Coachin
       timeframe: 'today'
     });
   }
-  
+
   // Calorie distribution analysis
   const remainingCalorieRatio = remainingTargets.calories / userProfile.calculatedGoals.dailyCalories;
   if (remainingCalorieRatio > 0.4 && timeOfDay === 'evening') {
@@ -549,16 +598,16 @@ function analyzeDailyProgressAdvanced(context: NutritionCoachAiContext): Coachin
       timeframe: 'today'
     });
   }
-  
+
   return insights;
 }
 
 function analyzeWeeklyPatternsAdvanced(context: NutritionCoachAiContext): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
-  const { currentProgress } = context;
-  
+  const { currentProgress, eatingPatterns } = context;
+
   const adherenceScore = currentProgress.adherenceScore || 0;
-  
+
   // Exceptional consistency recognition
   if (adherenceScore > 0.9) {
     insights.push({
@@ -585,9 +634,11 @@ function analyzeWeeklyPatternsAdvanced(context: NutritionCoachAiContext): Coachi
       timeframe: 'week'
     });
   }
-  
-  // Weekend variance analysis (placeholder - would need actual data)
-  const weekendVariance = 0.2; // Mock value
+
+  // Weekend variance analysis
+  // Use the pre-calculated variance from context if available, or default to 0
+  const weekendVariance = eatingPatterns.weekendVariance || 0;
+
   if (weekendVariance > 0.3) {
     insights.push({
       type: 'education',
@@ -597,7 +648,7 @@ function analyzeWeeklyPatternsAdvanced(context: NutritionCoachAiContext): Coachi
       timeframe: 'week'
     });
   }
-  
+
   return insights;
 }
 
@@ -605,16 +656,16 @@ function analyzeMacroBalanceInsights(context: NutritionCoachAiContext): Coaching
   const insights: CoachingInsight[] = [];
   const { currentProgress } = context;
   const today = currentProgress.today;
-  
+
   // Macro balance analysis
   const proteinRatio = today.macros.protein.percentage;
   const carbRatio = today.macros.carbs.percentage;
   const fatRatio = today.macros.fats.percentage;
-  
+
   const isBalanced = proteinRatio >= 0.8 && proteinRatio <= 1.2 &&
-                   carbRatio >= 0.8 && carbRatio <= 1.2 &&
-                   fatRatio >= 0.8 && fatRatio <= 1.2;
-  
+    carbRatio >= 0.8 && carbRatio <= 1.2 &&
+    fatRatio >= 0.8 && fatRatio <= 1.2;
+
   if (isBalanced) {
     insights.push({
       type: 'encouragement',
@@ -624,7 +675,7 @@ function analyzeMacroBalanceInsights(context: NutritionCoachAiContext): Coaching
       timeframe: 'today'
     });
   }
-  
+
   // Specific macro insights
   if (proteinRatio < 0.7) {
     insights.push({
@@ -636,7 +687,7 @@ function analyzeMacroBalanceInsights(context: NutritionCoachAiContext): Coaching
       timeframe: 'today'
     });
   }
-  
+
   if (carbRatio > 1.3) {
     insights.push({
       type: 'education',
@@ -647,14 +698,14 @@ function analyzeMacroBalanceInsights(context: NutritionCoachAiContext): Coaching
       timeframe: 'today'
     });
   }
-  
+
   return insights;
 }
 
 function analyzeBehavioralPatterns(context: NutritionCoachAiContext): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
   const { eatingPatterns } = context;
-  
+
   // Pattern-based insights
   const concerningPatterns = eatingPatterns.commonPatterns.filter(p => p.impact === 'concerning');
   if (concerningPatterns.length > 0) {
@@ -667,7 +718,7 @@ function analyzeBehavioralPatterns(context: NutritionCoachAiContext): CoachingIn
       timeframe: 'ongoing'
     });
   }
-  
+
   // Positive reinforcement
   const positivePatterns = eatingPatterns.commonPatterns.filter(p => p.impact === 'positive');
   if (positivePatterns.length > 0) {
@@ -679,19 +730,19 @@ function analyzeBehavioralPatterns(context: NutritionCoachAiContext): CoachingIn
       timeframe: 'ongoing'
     });
   }
-  
+
   return insights;
 }
 
 function generatePredictiveInsights(context: NutritionCoachAiContext): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
   const { currentProgress, remainingTargets } = context;
-  
+
   // Predict daily outcome based on current progress
   const currentTime = new Date().getHours();
   const progressRatio = currentProgress.today.calories.percentage;
   const expectedProgressByTime = currentTime / 24; // Simple linear expectation
-  
+
   if (progressRatio > expectedProgressByTime * 1.2) {
     insights.push({
       type: 'encouragement',
@@ -709,7 +760,7 @@ function generatePredictiveInsights(context: NutritionCoachAiContext): CoachingI
       timeframe: 'immediate'
     });
   }
-  
+
   // Weekly trajectory prediction
   const adherenceScore = currentProgress.adherenceScore || 0;
   if (adherenceScore > 0.8) {
@@ -729,14 +780,14 @@ function generatePredictiveInsights(context: NutritionCoachAiContext): CoachingI
       timeframe: 'week'
     });
   }
-  
+
   return insights;
 }
 
 function generateLegacyInsights(context: NutritionCoachAiContext): CoachingInsight[] {
   const insights: CoachingInsight[] = [];
   const { currentProgress, remainingTargets } = context;
-  
+
   // Legacy progress-based insights for compatibility
   if (currentProgress.today.status === 'met') {
     insights.push({
@@ -765,7 +816,7 @@ function generateLegacyInsights(context: NutritionCoachAiContext): CoachingInsig
       timeframe: 'today'
     });
   }
-  
+
   // Time-based insights
   if (remainingTargets.timeOfDay === 'evening' && remainingTargets.calories > 300) {
     insights.push({
@@ -776,7 +827,7 @@ function generateLegacyInsights(context: NutritionCoachAiContext): CoachingInsig
       timeframe: 'immediate'
     });
   }
-  
+
   return insights;
 }
 
@@ -786,7 +837,7 @@ export function generateAnalysisRecommendations(
   context: NutritionCoachAiContext
 ): AnalysisRecommendation[] {
   const recommendations: AnalysisRecommendation[] = [];
-  
+
   // Pattern-based recommendations
   const concerningPatterns = patterns.filter(p => p.impact === 'concerning');
   concerningPatterns.forEach(pattern => {
@@ -822,7 +873,7 @@ export function generateAnalysisRecommendations(
       });
     }
   });
-  
+
   // Trend-based recommendations
   const decliningTrends = trends.filter(t => t.direction === 'declining' && t.significance !== 'low');
   decliningTrends.forEach(trend => {
@@ -843,7 +894,7 @@ export function generateAnalysisRecommendations(
       });
     }
   });
-  
+
   // Context-based recommendations
   if (context.remainingTargets.protein > context.userProfile.calculatedGoals.protein * 0.5) {
     recommendations.push({
@@ -861,7 +912,7 @@ export function generateAnalysisRecommendations(
       timeframe: 'Today and ongoing'
     });
   }
-  
+
   return recommendations.sort((a, b) => {
     const priorityOrder = { high: 3, medium: 2, low: 1 };
     return priorityOrder[b.priority] - priorityOrder[a.priority];
@@ -877,29 +928,29 @@ export function detectEatingPatternTrends(context: NutritionCoachAiContext): {
   adherenceTrend: 'improving' | 'stable' | 'declining';
 } {
   const { currentProgress, eatingPatterns } = context;
-  
+
   // Calculate meal timing consistency (placeholder implementation)
   const mealTimingConsistency = 0.7; // Would analyze actual meal times
-  
+
   // Calculate weekend variance (placeholder)
   const weekendVariance = 0.2; // Would compare weekend vs weekday patterns
-  
+
   // Analyze protein distribution throughout the day (placeholder)
   const proteinDistribution: 'optimal' | 'front-loaded' | 'back-loaded' | 'uneven' = 'optimal';
-  
+
   // Analyze calorie distribution (placeholder)
   const calorieDistribution: 'even' | 'front-loaded' | 'back-loaded' = 'even';
-  
+
   // Determine adherence trend
   const adherenceScore = currentProgress.adherenceScore || 0;
   let adherenceTrend: 'improving' | 'stable' | 'declining' = 'stable';
-  
+
   if (adherenceScore > 0.8) {
     adherenceTrend = 'improving';
   } else if (adherenceScore < 0.6) {
     adherenceTrend = 'declining';
   }
-  
+
   return {
     mealTimingConsistency,
     weekendVariance,
@@ -917,50 +968,50 @@ export function generatePersonalizedRecommendations(context: NutritionCoachAiCon
 } {
   const { currentProgress, remainingTargets, userProfile } = context;
   const trends = detectEatingPatternTrends(context);
-  
+
   const recommendations = {
     immediate: [] as string[],
     daily: [] as string[],
     weekly: [] as string[],
     longTerm: [] as string[]
   };
-  
+
   // Immediate recommendations based on current state
   if (remainingTargets.protein > 20) {
     recommendations.immediate.push(`Add ${Math.round(remainingTargets.protein)}g protein to your next meal`);
   }
-  
+
   if (remainingTargets.calories > 500 && remainingTargets.timeOfDay === 'evening') {
     recommendations.immediate.push('Plan a substantial dinner to meet your calorie goals');
   }
-  
+
   // Daily recommendations based on patterns
   if (trends.proteinDistribution === 'back-loaded') {
     recommendations.daily.push('Try to include more protein in your breakfast and lunch');
   }
-  
+
   if (trends.calorieDistribution === 'back-loaded') {
     recommendations.daily.push('Spread your calories more evenly throughout the day');
   }
-  
+
   // Weekly recommendations based on consistency
   if (trends.weekendVariance > 0.3) {
     recommendations.weekly.push('Plan your weekend meals in advance to maintain consistency');
   }
-  
+
   if (trends.mealTimingConsistency < 0.6) {
     recommendations.weekly.push('Establish more regular meal times to support your metabolism');
   }
-  
+
   // Long-term recommendations based on goals and trends
   if (trends.adherenceTrend === 'declining') {
     recommendations.longTerm.push('Consider simplifying your approach and focusing on one habit at a time');
   }
-  
+
   if (currentProgress.adherenceScore > 0.8) {
     recommendations.longTerm.push('You\'re ready to add more advanced nutrition strategies');
   }
-  
+
   return recommendations;
 }
 
@@ -977,32 +1028,32 @@ export function calculateNutritionQualityScore(context: NutritionCoachAiContext)
 } {
   const { currentProgress } = context;
   const trends = detectEatingPatternTrends(context);
-  
+
   // Calculate individual scores
   const macroBalance = calculateMacroBalanceScore(currentProgress);
   const consistency = trends.mealTimingConsistency;
   const timing = 1 - Math.min(trends.weekendVariance, 0.5) * 2; // Convert variance to score
   const adherence = currentProgress.adherenceScore || 0;
-  
+
   // Calculate overall score (weighted average)
   const overall = (macroBalance * 0.3 + consistency * 0.2 + timing * 0.2 + adherence * 0.3);
-  
+
   // Identify strengths and improvements
   const strengths: string[] = [];
   const improvements: string[] = [];
-  
+
   if (adherence > 0.8) strengths.push('Excellent goal adherence');
   else if (adherence < 0.6) improvements.push('Improve goal consistency');
-  
+
   if (macroBalance > 0.8) strengths.push('Well-balanced macronutrients');
   else if (macroBalance < 0.6) improvements.push('Better macro distribution');
-  
+
   if (consistency > 0.8) strengths.push('Consistent meal timing');
   else if (consistency < 0.6) improvements.push('More regular meal schedule');
-  
+
   if (timing > 0.8) strengths.push('Consistent eating patterns');
   else if (timing < 0.6) improvements.push('Reduce weekend variance');
-  
+
   return {
     overall,
     macroBalance,
@@ -1021,12 +1072,12 @@ function calculateMacroBalanceScore(currentProgress: any): number {
   const proteinRatio = today.macros.protein.percentage;
   const carbRatio = today.macros.carbs.percentage;
   const fatRatio = today.macros.fats.percentage;
-  
+
   // Calculate how close each macro is to the target (1.0)
   const proteinScore = 1 - Math.abs(proteinRatio - 1.0);
   const carbScore = 1 - Math.abs(carbRatio - 1.0);
   const fatScore = 1 - Math.abs(fatRatio - 1.0);
-  
+
   // Return average score, clamped between 0 and 1
   return Math.max(0, Math.min(1, (proteinScore + carbScore + fatScore) / 3));
 }
@@ -1043,7 +1094,7 @@ export function performComprehensiveAnalysis(
   const trends = identifyProgressTrends(weeklyTrends, dailyProgress);
   const insights = generateCoachingInsights(context);
   const recommendations = generateAnalysisRecommendations(eatingPatterns, trends, context);
-  
+
   return {
     eatingPatterns,
     adherenceScore,

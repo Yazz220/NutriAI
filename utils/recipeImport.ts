@@ -71,14 +71,14 @@ async function importFromUrl(url: string, options: ImportOptions): Promise<Impor
 
     // Try to fetch and parse the URL
     const response = await fetchUrlContent(normalizedUrl);
-    
+
     if (!response.success) {
       throw new Error(response.error || 'Failed to fetch URL content');
     }
 
     // Parse the HTML content
     const recipe = await parseHtmlRecipe(response.html || '', normalizedUrl);
-    
+
     if (!recipe) {
       throw new Error('No recipe found at this URL');
     }
@@ -121,7 +121,7 @@ async function importFromText(text: string, options: ImportOptions): Promise<Imp
 
     // Parse text into recipe format
     const recipe = parseTextRecipe(cleanedText);
-    
+
     if (!recipe) {
       throw new Error('Could not parse recipe from text');
     }
@@ -201,7 +201,7 @@ async function fetchUrlContent(url: string): Promise<{ success: boolean; html?: 
     // In production, this should be handled by your backend
     const corsProxy = 'https://api.allorigins.win/raw?url=';
     const proxiedUrl = corsProxy + encodeURIComponent(url);
-    
+
     const response = await fetch(proxiedUrl, {
       method: 'GET',
       headers: {
@@ -217,7 +217,7 @@ async function fetchUrlContent(url: string): Promise<{ success: boolean; html?: 
     return { success: true, html };
   } catch (error) {
     console.error('Fetch error:', error);
-    
+
     // Provide helpful error message for CORS issues
     if (error instanceof Error && error.message.includes('CORS')) {
       return {
@@ -225,9 +225,9 @@ async function fetchUrlContent(url: string): Promise<{ success: boolean; html?: 
         error: 'Unable to fetch from this URL directly. Please copy and paste the recipe text instead.',
       };
     }
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       error: 'Unable to fetch from this URL. Try copying the recipe text directly from the website instead.',
     };
   }
@@ -240,22 +240,22 @@ async function parseHtmlRecipe(html: string, sourceUrl: string): Promise<Importe
   try {
     // Look for JSON-LD structured data
     const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
-    
+
     if (jsonLdMatch) {
       for (const match of jsonLdMatch) {
         const jsonStr = match.replace(/<\/?script[^>]*>/gi, '');
         try {
           const data = JSON.parse(jsonStr);
-          
+
           // Check if it's a Recipe schema
           if (data['@type'] === 'Recipe' || (Array.isArray(data['@type']) && data['@type'].includes('Recipe'))) {
             return convertSchemaToRecipe(data, sourceUrl);
           }
-          
+
           // Check for @graph structure
           if (data['@graph']) {
-            const recipe = data['@graph'].find((item: any) => 
-              item['@type'] === 'Recipe' || 
+            const recipe = data['@graph'].find((item: any) =>
+              item['@type'] === 'Recipe' ||
               (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
             );
             if (recipe) {
@@ -345,13 +345,13 @@ function convertSchemaToRecipe(schema: any, sourceUrl: string): ImportedRecipe {
 
   // Parse categories/tags
   if (schema.recipeCategory) {
-    recipe.categories = Array.isArray(schema.recipeCategory) 
-      ? schema.recipeCategory 
+    recipe.categories = Array.isArray(schema.recipeCategory)
+      ? schema.recipeCategory
       : [schema.recipeCategory];
   }
 
   if (schema.keywords) {
-    recipe.tags = typeof schema.keywords === 'string' 
+    recipe.tags = typeof schema.keywords === 'string'
       ? schema.keywords.split(',').map((k: string) => k.trim())
       : schema.keywords;
   }
@@ -433,7 +433,7 @@ function parseHtmlFallback(html: string, sourceUrl: string): ImportedRecipe | nu
  */
 function parseTextRecipe(text: string): ImportedRecipe | null {
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
-  
+
   const recipe: ImportedRecipe = {
     id: generateRecipeId(),
     title: 'Imported Recipe',
@@ -451,7 +451,7 @@ function parseTextRecipe(text: string): ImportedRecipe | null {
 
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
-    
+
     // Detect section headers
     if (lowerLine.includes('ingredient')) {
       section = 'ingredients';
@@ -460,7 +460,7 @@ function parseTextRecipe(text: string): ImportedRecipe | null {
       section = 'instructions';
       continue;
     }
-    
+
     // Extract title (usually first line or after "Recipe:")
     if (section === 'none' && !recipe.title.startsWith('Imported')) {
       if (lowerLine.startsWith('recipe:')) {
@@ -470,7 +470,7 @@ function parseTextRecipe(text: string): ImportedRecipe | null {
       }
       continue;
     }
-    
+
     // Parse ingredients
     if (section === 'ingredients') {
       // Skip if it looks like a section header
@@ -478,13 +478,13 @@ function parseTextRecipe(text: string): ImportedRecipe | null {
         section = 'instructions';
         continue;
       }
-      
+
       recipe.ingredients.push({
         name: line,
         original: line,
       });
     }
-    
+
     // Parse instructions
     if (section === 'instructions') {
       // Remove step numbers if present
@@ -495,26 +495,62 @@ function parseTextRecipe(text: string): ImportedRecipe | null {
       });
     }
   }
-  
+
   // Return null if no meaningful content was extracted
   if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
     return null;
   }
-  
+
   return recipe;
 }
 
+import { createChatCompletion } from './aiClient';
+
 /**
- * Enhance recipe with AI (placeholder for now)
+ * Enhance recipe with AI
  */
 async function enhanceRecipeWithAI(recipe: ImportedRecipe): Promise<ImportedRecipe> {
-  // In production, this would call an AI service to:
-  // 1. Fill missing information
-  // 2. Standardize measurements
-  // 3. Improve clarity of instructions
-  // 4. Add nutrition information
-  
-  return recipe;
+  try {
+    const prompt = `
+    Enhance the following recipe data into a structured JSON format.
+    
+    Input Recipe:
+    ${JSON.stringify(recipe, null, 2)}
+    
+    Tasks:
+    1. Standardize ingredients (quantity, unit, name).
+    2. Improve instruction clarity and add step numbers if missing.
+    3. Estimate nutrition per serving if missing (calories, protein, carbs, fat).
+    4. Fix any typos or formatting issues.
+    5. Ensure title and description are engaging.
+    
+    Return ONLY the valid JSON of the enhanced recipe structure, matching the input format.
+    `;
+
+    const response = await createChatCompletion([
+      { role: 'system', content: 'You are a culinary expert and nutritionist AI. Output only valid JSON.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    const content = response;
+    if (!content) return recipe;
+
+    // Parse the response
+    const enhanced = JSON.parse(content);
+
+    // Merge enhanced data with original ID and source to preserve identity
+    return {
+      ...recipe,
+      ...enhanced,
+      id: recipe.id,
+      source: recipe.source,
+      sourceUrl: recipe.sourceUrl,
+      sourceType: recipe.sourceType
+    };
+  } catch (error) {
+    console.warn('AI enhancement failed, returning original recipe:', error);
+    return recipe;
+  }
 }
 
 /**
@@ -522,13 +558,13 @@ async function enhanceRecipeWithAI(recipe: ImportedRecipe): Promise<ImportedReci
  */
 function parseTime(isoDuration?: string): number | undefined {
   if (!isoDuration) return undefined;
-  
+
   const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
   if (!match) return undefined;
-  
+
   const hours = parseInt(match[1] || '0');
   const minutes = parseInt(match[2] || '0');
-  
+
   return hours * 60 + minutes;
 }
 
@@ -538,7 +574,7 @@ function parseTime(isoDuration?: string): number | undefined {
 function parseNutritionValue(value?: string | number): number | undefined {
   if (!value) return undefined;
   if (typeof value === 'number') return value;
-  
+
   const numMatch = value.match(/[\d.]+/);
   return numMatch ? parseFloat(numMatch[0]) : undefined;
 }

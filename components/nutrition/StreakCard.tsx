@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Modal, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, Modal, SafeAreaView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flame, Trophy, Calendar, TrendingUp, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 
@@ -12,65 +12,63 @@ interface StreakCardProps {
   onPress?: () => void;
 }
 
-// Fire icon component with number inside
-const FireIcon: React.FC<{ number: number; size?: number; animated?: boolean }> = ({ 
-  number, 
-  size = 80, 
-  animated = false 
+// Animated Fire Icon Component
+const FireIcon: React.FC<{ number: number; size?: number; active?: boolean }> = ({
+  number,
+  size = 80,
+  active = false
 }) => {
-  const flameAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (animated && number > 0) {
+    if (active && number > 0) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(flameAnim, {
-            toValue: 1,
-            duration: 2000,
+          Animated.timing(scaleAnim, {
+            toValue: 1.1,
+            duration: 1500,
             useNativeDriver: true,
           }),
-          Animated.timing(flameAnim, {
-            toValue: 0,
-            duration: 2000,
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 1500,
             useNativeDriver: true,
           }),
         ])
       ).start();
+    } else {
+      scaleAnim.setValue(1);
     }
-  }, [animated, number]);
-
-  const scale = animated ? flameAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.05],
-  }) : 1;
+  }, [active, number]);
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <View style={[styles.fireContainer, { width: size, height: size }]}>
-        <LinearGradient
-          colors={['#FF6B35', '#FF8E53', '#FFB366']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={[styles.fireShape, { width: size, height: size }]}
-        >
-          <View style={styles.fireNumberContainer}>
-            <Text style={[styles.fireNumber, { fontSize: size * 0.25 }]}>{number}</Text>
-          </View>
-        </LinearGradient>
-      </View>
-    </Animated.View>
+    <View style={[styles.fireContainer, { width: size, height: size }]}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <View style={[styles.iconCircle, active ? styles.iconCircleActive : styles.iconCircleInactive]}>
+          <Flame
+            size={size * 0.6}
+            color={active ? Colors.white : Colors.lightText}
+            fill={active ? Colors.white : 'transparent'}
+          />
+        </View>
+      </Animated.View>
+      {active && (
+        <View style={styles.badgeContainer}>
+          <Text style={styles.badgeText}>{number}</Text>
+        </View>
+      )}
+    </View>
   );
 };
 
 export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
-  const { streakData, getTodayStatus, getTodayProgress, isLoading } = useStreakTracking();
+  const { streakData, getTodayStatus, isLoading } = useStreakTracking();
   const { getDailyProgress } = useNutritionWithMealPlan();
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   const todayStatus = getTodayStatus();
-  const todayProgress = getTodayProgress();
   const isStreakActive = streakData.currentStreak > 0;
 
   // Animate card entrance
@@ -84,9 +82,9 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
   }, [scaleAnim]);
 
   const getStatusMessage = () => {
-    if (todayStatus === 'success') return "Keep up your streak!";
-    if (todayStatus === 'pending') return "Log your meals to continue";
-    return 'Start logging to build your streak';
+    if (todayStatus === 'success') return "Streak Active!";
+    if (todayStatus === 'pending') return "Log meals to keep it going";
+    return 'Start your streak today';
   };
 
   const handleCardPress = () => {
@@ -135,11 +133,11 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
           >
             <ChevronLeft size={24} color={Colors.text} />
           </TouchableOpacity>
-          
+
           <Text style={styles.monthLabel}>
             {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </Text>
-          
+
           <TouchableOpacity
             style={styles.monthNavButton}
             onPress={() => {
@@ -165,32 +163,30 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
             const year = calendarMonth.getFullYear();
             const month = calendarMonth.getMonth();
             const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
             const startDate = new Date(firstDay);
             startDate.setDate(startDate.getDate() - firstDay.getDay());
-            
+
             const days = [];
             const current = new Date(startDate);
-            
+
             for (let i = 0; i < 42; i++) {
               const dateISO = current.toISOString().split('T')[0];
               const isCurrentMonth = current.getMonth() === month;
               const isToday = dateISO === new Date().toISOString().split('T')[0];
               const hasLogged = hasLoggedFood(dateISO);
-              
+
               days.push(
-                <TouchableOpacity
+                <View
                   key={dateISO}
                   style={[
                     styles.calendarDay,
                     !isCurrentMonth && styles.calendarDayOtherMonth,
                     isToday && styles.calendarDayToday,
                   ]}
-                  disabled={!isCurrentMonth}
                 >
                   {hasLogged && isCurrentMonth ? (
                     <View style={styles.calendarFireContainer}>
-                      <FireIcon number={current.getDate()} size={32} />
+                      <Flame size={20} color={Colors.secondary} fill={Colors.secondary} />
                     </View>
                   ) : (
                     <Text style={[
@@ -201,12 +197,12 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
                       {current.getDate()}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </View>
               );
-              
+
               current.setDate(current.getDate() + 1);
             }
-            
+
             return days;
           })()}
         </View>
@@ -214,7 +210,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <FireIcon number={1} size={20} />
+            <Flame size={16} color={Colors.secondary} fill={Colors.secondary} />
             <Text style={styles.legendText}>Logged food</Text>
           </View>
           <View style={styles.legendItem}>
@@ -239,185 +235,186 @@ export const StreakCard: React.FC<StreakCardProps> = ({ onPress }) => {
 
   return (
     <>
-      <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-        <TouchableOpacity onPress={handleCardPress} activeOpacity={0.7}>
+      <Animated.View style={[styles.cardWrapper, { transform: [{ scale: scaleAnim }] }]}>
+        <TouchableOpacity onPress={handleCardPress} activeOpacity={0.9}>
           <LinearGradient
-            colors={isStreakActive ? ['#FF6B35', '#FF8E53'] : [Colors.card, Colors.card]}
-            style={styles.container}
+            colors={isStreakActive
+              ? [Colors.secondary, Colors.secondaryLight]
+              : [Colors.card, Colors.background]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
+            style={styles.cardContent}
           >
-            {/* Fire Icon with Number */}
-            <View style={styles.fireSection}>
-              <FireIcon 
-                number={streakData.currentStreak} 
-                size={100} 
-                animated={isStreakActive}
-              />
+            <View style={styles.leftContent}>
+              <Text style={[styles.label, isStreakActive && styles.textInverse]}>
+                Current Streak
+              </Text>
+              <View style={styles.streakRow}>
+                <Text style={[styles.streakNumber, isStreakActive && styles.textInverse]}>
+                  {streakData.currentStreak}
+                </Text>
+                <Text style={[styles.streakUnit, isStreakActive && styles.textInverse]}>
+                  days
+                </Text>
+              </View>
+              <Text style={[styles.subtext, isStreakActive && styles.textInverse]}>
+                {getStatusMessage()}
+              </Text>
             </View>
 
-            {/* Message */}
-            <Text style={[styles.message, isStreakActive && styles.messageActive]}>
-              {getStatusMessage()}
-            </Text>
-
-            {/* Stats Row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, isStreakActive && styles.statValueActive]}>
-                  {streakData.longestStreak}
-                </Text>
-                <Text style={[styles.statLabel, isStreakActive && styles.statLabelActive]}>
-                  Best Streak
-                </Text>
-              </View>
-              
-              <View style={styles.statDivider} />
-              
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, isStreakActive && styles.statValueActive]}>
-                  {streakData.totalDaysLogged}
-                </Text>
-                <Text style={[styles.statLabel, isStreakActive && styles.statLabelActive]}>
-                  Total Days
-                </Text>
-              </View>
+            <View style={styles.rightContent}>
+              <FireIcon
+                number={streakData.currentStreak}
+                size={72}
+                active={isStreakActive}
+              />
             </View>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
-      
+
       {renderCalendarModal()}
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 20,
+    shadowColor: Colors.shadows.colored,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 24,
+    borderRadius: 20,
+    minHeight: 120,
+  },
+
+  // Left Content
+  leftContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.lightText,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
+  streakNumber: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: Colors.text,
+    lineHeight: 48,
+  },
+  streakUnit: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginLeft: 6,
+  },
+  subtext: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // Right Content
+  rightContent: {
+    marginLeft: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Fire Icon
+  fireContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  iconCircle: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconCircleActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  iconCircleInactive: {
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  badgeContainer: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.secondary,
+  },
+
+  // Text Variants
+  textInverse: {
+    color: Colors.white,
+  },
+
+  // Skeleton
   card: {
     marginHorizontal: 16,
     marginVertical: 8,
   },
-  
-  // Skeleton loading styles
   skeleton: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 20,
-  },
-  skeletonHeader: {
-    height: 24,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
-    marginBottom: 16,
-    width: '60%',
-  },
-  skeletonBody: {
-    height: 60,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
-  },
-  
-  // Fire icon styles
-  fireContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fireShape: {
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Create flame-like shape using border radius
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    // Add some shadow for depth
-    shadowColor: '#FF6B35',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  fireNumberContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%',
-  },
-  fireNumber: {
-    fontWeight: '700',
-    color: Colors.white,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  
-  // Container styles
-  container: {
     borderRadius: 20,
     padding: 24,
-    alignItems: 'center',
-    minHeight: 200,
-    justifyContent: 'space-between',
+    height: 120,
   },
-  
-  // Fire section
-  fireSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  
-  // Message styles
-  message: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  messageActive: {
-    color: Colors.white,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  
-  // Stats row
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  statValueActive: {
-    color: Colors.white,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.lightText,
-    fontWeight: '500',
-  },
-  statLabelActive: {
-    color: 'rgba(255,255,255,0.9)',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
+  skeletonHeader: {
+    height: 20,
     backgroundColor: Colors.border,
+    borderRadius: 4,
+    marginBottom: 16,
+    width: '40%',
   },
-  
-  // Calendar modal styles
+  skeletonBody: {
+    height: 40,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    width: '70%',
+  },
+
+  // Calendar Modal
   calendarContainer: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -444,8 +441,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  
-  // Month navigation
   monthNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -466,8 +461,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text,
   },
-  
-  // Calendar grid
   weekdayHeaders: {
     flexDirection: 'row',
     paddingHorizontal: 20,
@@ -496,8 +489,10 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   calendarDayToday: {
-    backgroundColor: Colors.primary + '20',
+    backgroundColor: Colors.alpha.primary[10],
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
   },
   calendarDayText: {
     fontSize: 16,
@@ -509,14 +504,12 @@ const styles = StyleSheet.create({
   },
   calendarDayTextToday: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   calendarFireContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
-  // Legend
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -536,9 +529,9 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
   },
   legendDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: Colors.border,
   },
 });

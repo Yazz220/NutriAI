@@ -27,7 +27,7 @@ import { Typography as Type } from '@/constants/typography';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { InventoryAwareRecipeDiscovery } from '@/components/InventoryAwareRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
-import { EnhancedRecipeDetailModal } from '@/components/EnhancedRecipeDetailModal';
+// EnhancedRecipeDetailModal removed
 import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
 import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
@@ -64,11 +64,10 @@ export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
   // Import UI/state removed
   // Modal states
-  const [showEnhancedRecipeDetail, setShowEnhancedRecipeDetail] = useState(false);
-  const [selectedExternalRecipe, setSelectedExternalRecipe] = useState<ExternalRecipe | null>(null);
+  // EnhancedRecipeDetailModal state removed
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
   // Tab configuration and animation
@@ -104,7 +103,7 @@ export default function RecipesScreen() {
   const [newFolderId, setNewFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
-  
+
   // Local search and favorites
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
@@ -149,13 +148,13 @@ export default function RecipesScreen() {
 
   // Hooks
   const { meals: localRecipes, addMeal, removeMeal } = useMeals();
-  const { 
-    folders, 
-    createFolder, 
-    renameFolder, 
-    deleteFolder, 
-    toggleRecipeInFolder, 
-    addRecipeToFolder 
+  const {
+    folders,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    toggleRecipeInFolder,
+    addRecipeToFolder
   } = useRecipeFolders();
   const { getTrendingRecipes, getRandomRecipes } = useRecipeStore();
 
@@ -167,8 +166,8 @@ export default function RecipesScreen() {
 
     const baseList: Meal[] = activeFolderId
       ? (folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [])
-          .map((id: string) => localRecipes.find((r: Meal) => r.id === id))
-          .filter(Boolean) as Meal[]
+        .map((id: string) => localRecipes.find((r: Meal) => r.id === id))
+        .filter(Boolean) as Meal[]
       : localRecipes;
 
     const meaningfulList = baseList.filter(isMeaningful);
@@ -274,8 +273,70 @@ export default function RecipesScreen() {
 
   // Handle external recipe press
   const handleExternalRecipePress = (recipe: ExternalRecipe) => {
-    setSelectedExternalRecipe(recipe);
-    setShowEnhancedRecipeDetail(true);
+    // Convert to temporary Meal object for display
+    const estServings = estimateServingsForExternalRecipe(recipe);
+    const computed = computeForExternalRecipe({ ...recipe, servings: estServings });
+
+    // Fallback: map provider nutrients if available
+    const pickNutrient = (names: string[]): number | undefined => {
+      const list = (recipe as any)?.nutrition?.nutrients || [];
+      const found = list.find((n: any) => names.some(name => (n?.name || '').toLowerCase() === name.toLowerCase()));
+      return typeof found?.amount === 'number' ? found.amount : undefined;
+    };
+    const calories = pickNutrient(['Calories', 'Energy']);
+    const protein = pickNutrient(['Protein']);
+    const carbs = pickNutrient(['Carbohydrates', 'Carbs']);
+    const fats = pickNutrient(['Fat', 'Total Fat']);
+
+    const steps = recipe.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step)
+      || (recipe.instructions ? recipe.instructions.split('\n').filter(Boolean) : ['Follow recipe instructions']);
+
+    const tags = [
+      ...(recipe.cuisines || []),
+      ...(recipe.diets || []),
+      ...(recipe.dishTypes || []),
+      recipe.vegetarian ? 'vegetarian' : '',
+      recipe.vegan ? 'vegan' : '',
+      recipe.glutenFree ? 'gluten-free' : '',
+      recipe.dairyFree ? 'dairy-free' : '',
+    ].filter(Boolean) as string[];
+
+    const meal: Meal = {
+      id: String(recipe.id),
+      name: recipe.title,
+      description: (recipe.instructions || 'Imported recipe').slice(0, 200),
+      ingredients: (recipe.ingredients || []).map((ing: any) => ({
+        name: ing.name,
+        quantity: ing.amount || 1,
+        unit: ing.unit || 'unit',
+        optional: false,
+      })),
+      steps,
+      image: recipe.image || '',
+      tags,
+      prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
+      cookTime: recipe.cookingMinutes || 0,
+      servings: estServings || recipe.servings || 1,
+      sourceUrl: recipe.sourceUrl,
+      nutritionPerServing: computed
+        ? {
+          calories: computed.calories,
+          protein: computed.protein,
+          carbs: computed.carbs,
+          fats: computed.fats,
+        }
+        : (calories || protein || carbs || fats)
+          ? {
+            calories: calories ?? 0,
+            protein: protein ?? 0,
+            carbs: carbs ?? 0,
+            fats: fats ?? 0,
+          }
+          : undefined,
+    };
+
+    setSelectedMeal(meal);
+    setShowMealDetail(true);
   };
 
   // Handle save external recipe
@@ -327,19 +388,19 @@ export default function RecipesScreen() {
       // First choice: computed macros; fallback to provider nutrients if present
       nutritionPerServing: computed
         ? {
-            calories: computed.calories,
-            protein: computed.protein,
-            carbs: computed.carbs,
-            fats: computed.fats,
-          }
+          calories: computed.calories,
+          protein: computed.protein,
+          carbs: computed.carbs,
+          fats: computed.fats,
+        }
         : (calories || protein || carbs || fats)
-        ? {
+          ? {
             calories: calories ?? 0,
             protein: protein ?? 0,
             carbs: carbs ?? 0,
             fats: fats ?? 0,
           }
-        : undefined,
+          : undefined,
     };
 
     const newId = addMeal(newMeal);
@@ -353,7 +414,7 @@ export default function RecipesScreen() {
       Alert.alert('Recipe Saved', `${recipe.title} has been added to your recipes. Choose a folder to organize it.`);
     }
   };
-  
+
   // (Optional) Remove-saved-recipe could be implemented in store later
 
   // Handle add to meal plan (handled within modal if needed)
@@ -389,13 +450,13 @@ export default function RecipesScreen() {
 
   const requestDeleteFolder = (folderId: string, folderName: string) => {
     Alert.alert(
-      'Delete Folder', 
+      'Delete Folder',
       `Delete "${folderName}"? Recipes remain available in All Recipes.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
+        {
+          text: 'Delete',
+          style: 'destructive',
           onPress: () => {
             if (activeFolderId === folderId) {
               setActiveFolderId(null);
@@ -406,7 +467,7 @@ export default function RecipesScreen() {
       ]
     );
   };
-  
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: '', headerShown: false }} />
@@ -571,7 +632,7 @@ export default function RecipesScreen() {
         </>
       )}
 
-  {/* Import feature removed */}
+      {/* Import feature removed */}
 
       <MealDetailModal
         visible={showMealDetail}
@@ -579,13 +640,7 @@ export default function RecipesScreen() {
         onClose={() => setShowMealDetail(false)}
       />
 
-      {selectedExternalRecipe && (
-        <EnhancedRecipeDetailModal
-          visible={showEnhancedRecipeDetail}
-          onClose={() => setShowEnhancedRecipeDetail(false)}
-          recipe={selectedExternalRecipe as any}
-        />
-      )}
+      {/* EnhancedRecipeDetailModal removed */}
 
       {/* Folder sheets */}
       <CreateFolderSheet
@@ -629,10 +684,10 @@ export default function RecipesScreen() {
             tags: recipe.tags || [],
             sourceUrl: recipe.sourceUrl,
           };
-          
+
           // Add the recipe to local storage
           await addMeal(meal);
-          
+
           // Show success message
           Alert.alert('Success', 'Recipe imported successfully!');
           setShowImportModal(false);
@@ -795,7 +850,7 @@ const styles = StyleSheet.create({
   listContentContainer: {
     paddingHorizontal: 16,
   },
-  
+
   recipeCard: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -25,8 +25,8 @@ class NutritionSyncManager {
   private syncQueue: SyncQueueItem[] = [];
   private syncInProgress = false;
   private listeners: ((status: SyncStatus) => void)[] = [];
-  private retryTimeouts: Map<string, NodeJS.Timeout> = new Map();
-  
+  private retryTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
   private constructor() {
     this.initializeSync();
   }
@@ -108,7 +108,7 @@ class NutritionSyncManager {
         successfulItems.push(item.id);
       } catch (error) {
         console.error(`Failed to sync item ${item.id}:`, error);
-        
+
         item.retryCount++;
         if (item.retryCount >= item.maxRetries) {
           // Remove item after max retries
@@ -216,12 +216,12 @@ class NutritionSyncManager {
   // Schedule retry with exponential backoff
   private scheduleRetry(item: SyncQueueItem): void {
     const delay = Math.min(1000 * Math.pow(2, item.retryCount), 30000); // Max 30 seconds
-    
+
     const timeoutId = setTimeout(() => {
       this.retryTimeouts.delete(item.id);
       this.processSyncQueue();
     }, delay);
-    
+
     this.retryTimeouts.set(item.id, timeoutId);
   }
 
@@ -270,7 +270,7 @@ class NutritionSyncManager {
   // Add status listener
   addStatusListener(listener: (status: SyncStatus) => void): () => void {
     this.listeners.push(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.listeners.indexOf(listener);
@@ -304,11 +304,11 @@ class NutritionSyncManager {
   async clearSyncQueue(): Promise<void> {
     this.syncQueue = [];
     await this.saveSyncQueue();
-    
+
     // Clear any pending retries
     this.retryTimeouts.forEach(timeout => clearTimeout(timeout));
     this.retryTimeouts.clear();
-    
+
     this.notifyListeners();
   }
 

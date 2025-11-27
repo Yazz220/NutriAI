@@ -13,11 +13,11 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  X, 
-  Search, 
-  Camera, 
-  Plus, 
+import {
+  X,
+  Search,
+  Camera,
+  Plus,
   Minus,
   Check,
   Info,
@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/Button';
 import { MealType } from '@/types';
 import { searchFoodDatabase, FoodSearchResult } from '@/utils/openFoodFacts';
 import { analyzeFoodImageToLabel, analyzeFoodImageForNutrition, AINutritionResult } from '@/utils/visionClient';
-import { FoodLoggingSuccess } from '@/components/nutrition/FoodLoggingSuccess';
+// FoodLoggingSuccess removed
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 interface ExternalFoodLoggingModalProps {
   visible: boolean;
@@ -90,7 +90,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
   const [capturedImage, setCapturedImage] = useState<string | null>(imageToAnalyze || null);
   const [isAnalyzing, setIsAnalyzing] = useState(!!imageToAnalyze);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<LoggedFoodItem | null>(null);
-  
+
   // Manual entry states
   const [manualFood, setManualFood] = useState({
     name: '',
@@ -190,11 +190,11 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
 
       // Primary: Try Food-101-93M with direct nutrition data
       const nutritionResult = await analyzeFoodImageForNutrition(imageUri);
-      
+
       if (nutritionResult && nutritionResult.items.length > 0) {
         const primaryFood = nutritionResult.items[0];
         const totals = nutritionResult.totals;
-        
+
         const analysis: LoggedFoodItem = {
           name: primaryFood.canonical_label.replace(/_/g, ' '),
           calories: totals.calories,
@@ -221,7 +221,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
           baseCarbs: totals.carbohydrates,
           baseFats: totals.fat,
         };
-        
+
         setAiAnalysisResult(analysis);
         return;
       }
@@ -229,11 +229,11 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
       // Fallback: Try label-based detection + database lookup
       console.log('[AI Scan] Falling back to label detection');
       const label = await analyzeFoodImageToLabel(imageUri);
-      
+
       if (label) {
         const results = await searchFoodDatabase(label);
         const top = results?.[0];
-        
+
         if (top) {
           const analysis: LoggedFoodItem = {
             name: top.name,
@@ -451,11 +451,11 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
             <Camera size={32} color={Colors.primary} />
             <Text style={styles.scanButtonText}>Take Photo</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.scanButton} onPress={handleSelectFromGallery}>
-            <Image 
-              source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTkgMTJMMTEgMTRMMTUgMTBNMjEgMTJDMjEgMTYuOTcwNiAxNi45NzA2IDIxIDEyIDIxQzcuMDI5NDQgMjEgMyAxNi45NzA2IDMgMTJDMyA3LjAyOTQ0IDcuMDI5NDQgMyAxMiAzQzE2Ljk3MDYgMyAyMSA3LjAyOTQ0IDIxIDEyWiIgc3Ryb2tlPSIjNjM2NkYxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K' }} 
-              style={{ width: 32, height: 32, tintColor: Colors.primary }} 
+            <Image
+              source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTkgMTJMMTEgMTRMMTUgMTBNMjEgMTJDMjEgMTYuOTcwNiAxNi45NzA2IDIxIDEyIDIxQzcuMDI5NDQgMjEgMyAxNi45NzA2IDMgMTJDMyA3LjAyOTQ0IDcuMDI5NDQgMyAxMiAzQzE2Ljk3MDYgMyAyMSA3LjAyOTQ0IDIxIDEyWiIgc3Ryb2tlPSIjNjM2NkYxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K' }}
+              style={{ width: 32, height: 32, tintColor: Colors.primary }}
             />
             <Text style={styles.scanButtonText}>Choose from Gallery</Text>
           </TouchableOpacity>
@@ -463,7 +463,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
       ) : (
         <View style={styles.imageAnalysisContainer}>
           <Image source={{ uri: capturedImage }} style={styles.capturedImage} />
-          
+
           {isAnalyzing ? (
             <View style={styles.analyzingContainer}>
               <ActivityIndicator size="large" color={Colors.primary} />
@@ -473,7 +473,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
           ) : aiAnalysisResult ? (
             <View style={styles.analysisResult}>
               <Text style={styles.analysisTitle}>AI Analysis Result</Text>
-              
+
               {/* Confidence Badge */}
               {aiAnalysisResult.confidence && (
                 <View style={styles.confidenceBadge}>
@@ -483,16 +483,16 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   </Text>
                 </View>
               )}
-              
+
               <Text style={styles.detectedFood}>{aiAnalysisResult.name}</Text>
-              
+
               {/* Portion Estimate */}
               {aiAnalysisResult.portionEstimate && (
                 <Text style={styles.portionText}>
                   Estimated portion: {aiAnalysisResult.portionEstimate}
                 </Text>
               )}
-              
+
               {/* Portion Multiplier */}
               <View style={styles.portionMultiplier}>
                 <Text style={styles.portionMultiplierLabel}>Adjust quantity:</Text>
@@ -513,13 +513,13 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   >
                     <Minus size={20} color={Colors.text} />
                   </TouchableOpacity>
-                  
+
                   <View style={styles.portionDisplay}>
                     <Text style={styles.portionMultiplierValue}>
                       {aiAnalysisResult.portionMultiplier || 1}x
                     </Text>
                   </View>
-                  
+
                   <TouchableOpacity
                     style={styles.portionButton}
                     onPress={() => {
@@ -538,7 +538,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   </TouchableOpacity>
                 </View>
               </View>
-              
+
               {/* Nutrition Grid */}
               <View style={styles.nutritionGrid}>
                 <View style={styles.nutritionItem}>
@@ -558,7 +558,7 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   <Text style={styles.nutritionLabel}>Fats</Text>
                 </View>
               </View>
-              
+
               {/* Alternative Labels */}
               {aiAnalysisResult.alternativeLabels && aiAnalysisResult.alternativeLabels.length > 0 && (
                 <View style={styles.alternativesContainer}>
@@ -599,8 +599,8 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
                   </View>
                 </View>
               )}
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.retakeButton}
                 onPress={() => {
                   setCapturedImage(null);
@@ -766,20 +766,9 @@ export const ExternalFoodLoggingModal: React.FC<ExternalFoodLoggingModalProps> =
           />
         </View>
       </SafeAreaView>
-      
+
       {/* Success Animation Overlay */}
-      {showSuccessAnimation && loggedFoodInfo && (
-        <FoodLoggingSuccess
-          visible={showSuccessAnimation}
-          calories={loggedFoodInfo.calories}
-          protein={loggedFoodInfo.protein}
-          foodName={loggedFoodInfo.name}
-          onComplete={() => {
-            setShowSuccessAnimation(false);
-            setLoggedFoodInfo(null);
-          }}
-        />
-      )}
+      {/* FoodLoggingSuccess removed */}
     </Modal>
   );
 };
@@ -854,7 +843,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Spacing.md,
   },
-  
+
   // Search Tab Styles
   searchContainer: {
     marginBottom: Spacing.md,
@@ -1138,7 +1127,7 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     fontWeight: Typography.weights.medium,
   },
-  
+
   // Portion Multiplier Styles
   portionMultiplier: {
     marginTop: Spacing.md,

@@ -1,3 +1,4 @@
+import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -88,12 +89,12 @@ function RootLayoutNav() {
       cancelled = true;
     };
   }, [fontsLoaded, segments]);
-  
+
   // Hide the splash screen once fonts are loaded. Declare this effect before
   // any early returns so hook order remains stable across renders.
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }
   }, [fontsLoaded]);
 
@@ -128,7 +129,7 @@ function RootLayoutNav() {
   if (!fontsLoaded || onboardingCompleted === null) {
     return null; // Or a loading screen
   }
-  
+
   // splash hide is handled by the fontsLoaded effect above
 
   if (initializing) {
@@ -165,11 +166,11 @@ export default function RootLayout() {
                   <NutritionProvider>
                     <RecipeStoreProvider>
                       <RecipeFoldersProvider>
-                      <ToastProvider>
-                        <GlobalErrorBoundary>
-                          <RootLayoutNav />
-                        </GlobalErrorBoundary>
-                      </ToastProvider>
+                        <ToastProvider>
+                          <GlobalErrorBoundary>
+                            <RootLayoutNav />
+                          </GlobalErrorBoundary>
+                        </ToastProvider>
                       </RecipeFoldersProvider>
                     </RecipeStoreProvider>
                   </NutritionProvider>

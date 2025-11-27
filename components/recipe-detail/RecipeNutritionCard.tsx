@@ -29,24 +29,24 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   const carbsCalories = carbs * 4;
   const fatsCalories = fats * 9;
   const totalMacroCalories = proteinCalories + carbsCalories + fatsCalories;
-  
+
   // Calculate percentages for the ring segments
   const proteinPercent = totalMacroCalories > 0 ? (proteinCalories / totalMacroCalories) * 100 : 0;
   const carbsPercent = totalMacroCalories > 0 ? (carbsCalories / totalMacroCalories) * 100 : 0;
   const fatsPercent = totalMacroCalories > 0 ? (fatsCalories / totalMacroCalories) * 100 : 0;
-  
+
   // SVG circle properties for compact ring
   const ringRadius = 36;
   const ringStrokeWidth = 8; // Increased from 5 for modern look
   const svgSize = (ringRadius + ringStrokeWidth) * 2;
   const svgCenter = svgSize / 2;
   const circumference = 2 * Math.PI * ringRadius;
-  
+
   // Calculate stroke dash arrays for each segment
   const proteinDashArray = `${(proteinPercent / 100) * circumference} ${circumference}`;
   const carbsDashArray = `${(carbsPercent / 100) * circumference} ${circumference}`;
   const fatsDashArray = `${(fatsPercent / 100) * circumference} ${circumference}`;
-  
+
   // Calculate stroke dash offsets to position segments
   const proteinDashOffset = 0;
   const carbsDashOffset = -(proteinPercent / 100) * circumference;
@@ -55,7 +55,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
   // Use different layouts based on showGrams prop
   // showGrams=true: Onboarding (vertical with circles)
   // showGrams=false: Recipe detail (horizontal with bars)
-  
+
   if (showGrams) {
     // Original vertical layout for onboarding
     return (
@@ -65,10 +65,10 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
             <Text style={styles.title}>{title}</Text>
           </View>
         ) : null}
-        
+
         <View style={styles.nutritionDisplayVertical}>
           {/* Main Calorie Ring */}
-          <View style={styles.calorieRingContainer}>
+          <View style={[styles.calorieRingContainer, { width: 112, height: 112 }]}>
             <Svg width={112} height={112} style={styles.calorieRing}>
               <Defs>
                 <SvgLinearGradient id="proteinGradLarge" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -134,40 +134,40 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
                 transform={`rotate(-90 56 56)`}
               />
             </Svg>
-            
+
             {/* Center content */}
             <View style={[styles.calorieCenterLarge, { width: 112, height: 112 }]}>
               <Text style={styles.caloriesValueLarge}>{Math.round(calories)}</Text>
               <Text style={styles.caloriesLabel}>CALORIES</Text>
             </View>
           </View>
-          
+
           {/* Macro Circles */}
           <View style={styles.macroCirclesContainer}>
-            <MacroCircle 
-              label="PROTEIN" 
+            <MacroCircle
+              label="PROTEIN"
               value={Math.round(protein)}
               unit="g"
-              color={Colors.nutrition.protein} 
+              color={Colors.nutrition.protein}
             />
-            <MacroCircle 
-              label="CARBS" 
+            <MacroCircle
+              label="CARBS"
               value={Math.round(carbs)}
               unit="g"
-              color={Colors.nutrition.carbs} 
+              color={Colors.nutrition.carbs}
             />
-            <MacroCircle 
-              label="FAT" 
+            <MacroCircle
+              label="FAT"
               value={Math.round(fats)}
               unit="g"
-              color={Colors.nutrition.fats} 
+              color={Colors.nutrition.fats}
             />
           </View>
         </View>
       </View>
     );
   }
-  
+
   // Compact vertical layout for recipe detail (ring on top, bars below)
   return (
     <View style={styles.container}>
@@ -176,7 +176,7 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
           <Text style={styles.title}>{title}</Text>
         </View>
       ) : null}
-      
+
       <View style={styles.nutritionDisplayCompact}>
         {/* Main Calorie Ring - Top Center */}
         <View style={[styles.calorieRingContainer, { width: svgSize, height: svgSize }]}>
@@ -245,30 +245,30 @@ export const RecipeNutritionCard: React.FC<RecipeNutritionCardProps> = ({
               transform={`rotate(-90 ${svgCenter} ${svgCenter})`}
             />
           </Svg>
-          
+
           {/* Center content */}
-          <View style={[styles.calorieCenter, { width: svgSize, height: svgSize }]}> 
+          <View style={[styles.calorieCenter, { width: svgSize, height: svgSize }]}>
             <Text style={styles.caloriesValue}>{Math.round(calories)}</Text>
             <Text style={styles.caloriesLabel}>kcal</Text>
           </View>
         </View>
-        
+
         {/* Macro Bars - Below Ring */}
         <View style={styles.macrosContainerCompact}>
-          <MacroBar 
-            label="Protein" 
+          <MacroBar
+            label="Protein"
             value={Math.round(proteinCalories)}
             unit="cal"
             color={Colors.nutrition.protein}
           />
-          <MacroBar 
-            label="Carbs" 
+          <MacroBar
+            label="Carbs"
             value={Math.round(carbsCalories)}
             unit="cal"
             color={Colors.nutrition.carbs}
           />
-          <MacroBar 
-            label="Fat" 
+          <MacroBar
+            label="Fat"
             value={Math.round(fatsCalories)}
             unit="cal"
             color={Colors.nutrition.fats}

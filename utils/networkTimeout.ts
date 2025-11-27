@@ -19,7 +19,7 @@ export async function withTimeout<T>(
   timeoutMs: number = 30000,
   onTimeout?: () => void
 ): Promise<T> {
-  let timeoutId: NodeJS.Timeout | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -97,7 +97,7 @@ export function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
 
   const message = error.message.toLowerCase();
-  
+
   // Network errors are retryable
   if (isNetworkError(error)) return true;
 

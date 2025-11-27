@@ -16,10 +16,10 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
 import EnhancedProfileScreen from '@/components/profile/EnhancedProfileScreen';
 
-const dietOptions = ['none','vegan','vegetarian','pescatarian','halal','kosher','gluten_free','keto','paleo'] as const;
-const goalTypes = ['maintain','lose','gain'] as const;
-const activityLevels = ['sedentary','light','moderate','active','athlete'] as const;
-const units = ['metric','imperial'] as const;
+const dietOptions = ['none', 'vegan', 'vegetarian', 'pescatarian', 'halal', 'kosher', 'gluten_free', 'keto', 'paleo'] as const;
+const goalTypes = ['maintain', 'lose', 'gain'] as const;
+const activityLevels = ['sedentary', 'light', 'moderate', 'active', 'athlete'] as const;
+const units = ['metric', 'imperial'] as const;
 
 export default function ProfileScreen() {
   const { profile, savePartial } = useUserProfile();
@@ -93,151 +93,153 @@ export default function ProfileScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
-      <ScreenHeader
-        title="Profile"
-        icon={<User size={28} color={Colors.text} />}
-      />
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
-      >
-        {/* Enhanced Hero Header */}
-        <ExpoLinearGradient
-          colors={[Colors.background, Colors.background]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
+        <ScreenHeader
+          title="Profile"
+          icon={<User size={28} color={Colors.text} />}
+        />
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }}
         >
-          {/* Profile Header (avatar only; title moved to ScreenHeader) */}
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <User size={32} color={Colors.white} />
+          {/* Enhanced Hero Header */}
+          <ExpoLinearGradient
+            colors={[Colors.background, Colors.background]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
+          >
+            {/* Profile Header (avatar only; title moved to ScreenHeader) */}
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  <User size={32} color={Colors.white} />
+                </View>
               </View>
+              {/* Name/subtitle removed for unified header */}
             </View>
-            {/* Name/subtitle removed for unified header */}
+
+            {/* Quick Stats */}
+            <View style={styles.quickStats}>
+              <StatCard icon={<Scale size={20} color={Colors.primary} />} label="Weight" value={local.weightKg ? `${local.weightKg} kg` : '--'} />
+              <StatCard icon={<Ruler size={20} color={Colors.primary} />} label="Height" value={local.heightCm ? `${local.heightCm} cm` : '--'} />
+              <StatCard icon={<Target size={20} color={Colors.primary} />} label="Goal" value={local.goalType || '--'} />
+            </View>
+          </ExpoLinearGradient>
+
+          {/* Enhanced Sections */}
+          <View style={styles.sectionsContainer}>
+            {/* Basics Section */}
+            <EnhancedCard
+              title="Personal Information"
+              icon={<User size={20} color={Colors.primary} />}
+            >
+              <View style={styles.inputGroup}>
+                <Input label="Full Name" value={local.name} onChangeText={(t) => setLocal(p => ({ ...p, name: t }))} onBlur={saveBasics} />
+              </View>
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Input label="Age" keyboardType="number-pad" value={local.age} onChangeText={(t) => setLocal(p => ({ ...p, age: t }))} onBlur={saveBasics} />
+                </View>
+                <View style={styles.halfInput}>
+                  <Input label="Sex" value={local.sex} onChangeText={(t) => setLocal(p => ({ ...p, sex: t as any }))} onBlur={saveBasics} />
+                </View>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Input label="Height (cm)" keyboardType="number-pad" value={local.heightCm} onChangeText={(t) => setLocal(p => ({ ...p, heightCm: t }))} onBlur={saveBasics} />
+                </View>
+                <View style={styles.halfInput}>
+                  <Input label="Weight (kg)" keyboardType="number-pad" value={local.weightKg} onChangeText={(t) => setLocal(p => ({ ...p, weightKg: t }))} onBlur={saveBasics} />
+                </View>
+              </View>
+            </EnhancedCard>
+
+            {/* Goals Section */}
+            <EnhancedCard
+              title="Nutrition Goals"
+              icon={<Target size={20} color={Colors.primary} />}
+            >
+              <View style={styles.inputGroup}>
+                <Input label="Daily Calories Target" keyboardType="number-pad" value={local.dailyCalories} onChangeText={(t) => setLocal(p => ({ ...p, dailyCalories: t }))} onBlur={saveGoals} />
+              </View>
+
+              <Text style={{ ...Type.body, fontSize: 14, color: Colors.text, marginBottom: 8, fontWeight: LegacyType.weights.medium }}>Macro Targets</Text>
+              <View style={styles.macroRow}>
+                <View style={styles.macroInput}>
+                  <Input label="Protein" placeholder="g" keyboardType="number-pad" value={local.proteinTargetG} onChangeText={(t) => setLocal(p => ({ ...p, proteinTargetG: t }))} onBlur={saveGoals} />
+                </View>
+                <View style={styles.macroInput}>
+                  <Input label="Carbs" placeholder="g" keyboardType="number-pad" value={local.carbsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, carbsTargetG: t }))} onBlur={saveGoals} />
+                </View>
+                <View style={styles.macroInput}>
+                  <Input label="Fats" placeholder="g" keyboardType="number-pad" value={local.fatsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, fatsTargetG: t }))} onBlur={saveGoals} />
+                </View>
+              </View>
+
+              <ChipSelector
+                label="Goal Type"
+                options={goalTypes}
+                selected={local.goalType}
+                onSelect={(g) => { setLocal(p => ({ ...p, goalType: g as typeof goalTypes[number] })); savePartial('goals', { goalType: g as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
+              />
+
+              <ChipSelector
+                label="Activity Level"
+                options={activityLevels}
+                selected={local.activityLevel}
+                onSelect={(a) => { setLocal(p => ({ ...p, activityLevel: a as typeof activityLevels[number] })); savePartial('goals', { activityLevel: a as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
+              />
+            </EnhancedCard>
+
+            {/* Preferences Section */}
+            <EnhancedCard
+              title="Dietary Preferences"
+              icon={<Heart size={20} color={Colors.primary} />}
+            >
+              <ChipSelector
+                label="Dietary Restrictions"
+                options={dietOptions}
+                selected={local.dietary}
+                onSelect={(d) => { setLocal(p => ({ ...p, dietary: d as typeof dietOptions[number] })); savePartial('preferences', { dietary: d as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
+              />
+
+              <View style={styles.inputGroup}>
+                <Input label="Allergies (comma-separated)" value={local.allergies} onChangeText={(t) => setLocal(p => ({ ...p, allergies: t }))} onBlur={savePreferences} multiline />
+              </View>
+              <View style={styles.inputGroup}>
+                <Input label="Disliked Ingredients (comma-separated)" value={local.dislikes} onChangeText={(t) => setLocal(p => ({ ...p, dislikes: t }))} onBlur={savePreferences} multiline />
+              </View>
+              <View style={styles.inputGroup}>
+                <Input label="Preferred Cuisines (comma-separated)" value={local.cuisines} onChangeText={(t) => setLocal(p => ({ ...p, cuisines: t }))} onBlur={savePreferences} multiline />
+              </View>
+
+              <ChipSelector
+                label="Unit System"
+                options={units}
+                selected={local.unitSystem}
+                onSelect={(u) => { setLocal(p => ({ ...p, unitSystem: u as typeof units[number] })); savePartial('metrics', { unitSystem: u as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
+              />
+            </EnhancedCard>
+
+            {/* Account Section */}
+            <EnhancedCard
+              title="Account Settings"
+              icon={<Settings size={20} color={Colors.primary} />}
+            >
+              <Button
+                title="Sign Out"
+                onPress={() => { signOut(); }}
+                variant="outline"
+                icon={<LogOut size={18} color={Colors.primary} />}
+                fullWidth
+              />
+            </EnhancedCard>
           </View>
 
-          {/* Quick Stats */}
-          <View style={styles.quickStats}>
-            <StatCard icon={<Scale size={20} color={Colors.primary} />} label="Weight" value={local.weightKg ? `${local.weightKg} kg` : '--'} />
-            <StatCard icon={<Ruler size={20} color={Colors.primary} />} label="Height" value={local.heightCm ? `${local.heightCm} cm` : '--'} />
-            <StatCard icon={<Target size={20} color={Colors.primary} />} label="Goal" value={local.goalType || '--'} />
-          </View>
-        </ExpoLinearGradient>
-
-        {/* Enhanced Sections */}
-        <View style={styles.sectionsContainer}>
-          {/* Basics Section */}
-          <EnhancedCard 
-            title="Personal Information" 
-            icon={<User size={20} color={Colors.primary} />}
-          >
-            <View style={styles.inputGroup}>
-              <Input label="Full Name" value={local.name} onChangeText={(t) => setLocal(p => ({ ...p, name: t }))} onBlur={saveBasics} />
-            </View>
-            <View style={styles.row}>
-              <View style={styles.halfInput}>
-                <Input label="Age" keyboardType="number-pad" value={local.age} onChangeText={(t) => setLocal(p => ({ ...p, age: t }))} onBlur={saveBasics} />
-              </View>
-              <View style={styles.halfInput}>
-                <Input label="Sex" value={local.sex} onChangeText={(t) => setLocal(p => ({ ...p, sex: t as any }))} onBlur={saveBasics} />
-              </View>
-            </View>
-            <View style={styles.row}>
-              <View style={styles.halfInput}>
-                <Input label="Height (cm)" keyboardType="number-pad" value={local.heightCm} onChangeText={(t) => setLocal(p => ({ ...p, heightCm: t }))} onBlur={saveBasics} />
-              </View>
-              <View style={styles.halfInput}>
-                <Input label="Weight (kg)" keyboardType="number-pad" value={local.weightKg} onChangeText={(t) => setLocal(p => ({ ...p, weightKg: t }))} onBlur={saveBasics} />
-              </View>
-            </View>
-          </EnhancedCard>
-
-          {/* Goals Section */}
-          <EnhancedCard 
-            title="Nutrition Goals" 
-            icon={<Target size={20} color={Colors.primary} />}
-          >
-            <View style={styles.inputGroup}>
-              <Input label="Daily Calories Target" keyboardType="number-pad" value={local.dailyCalories} onChangeText={(t) => setLocal(p => ({ ...p, dailyCalories: t }))} onBlur={saveGoals} />
-            </View>
-            <View style={styles.macroRow}>
-              <View style={styles.macroInput}>
-                <Input label="Protein (g)" keyboardType="number-pad" value={local.proteinTargetG} onChangeText={(t) => setLocal(p => ({ ...p, proteinTargetG: t }))} onBlur={saveGoals} />
-              </View>
-              <View style={styles.macroInput}>
-                <Input label="Carbs (g)" keyboardType="number-pad" value={local.carbsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, carbsTargetG: t }))} onBlur={saveGoals} />
-              </View>
-              <View style={styles.macroInput}>
-                <Input label="Fats (g)" keyboardType="number-pad" value={local.fatsTargetG} onChangeText={(t) => setLocal(p => ({ ...p, fatsTargetG: t }))} onBlur={saveGoals} />
-              </View>
-            </View>
-            
-            <ChipSelector 
-              label="Goal Type" 
-              options={goalTypes} 
-              selected={local.goalType} 
-              onSelect={(g) => { setLocal(p => ({ ...p, goalType: g as typeof goalTypes[number] })); savePartial('goals', { goalType: g as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
-            />
-            
-            <ChipSelector 
-              label="Activity Level" 
-              options={activityLevels} 
-              selected={local.activityLevel} 
-              onSelect={(a) => { setLocal(p => ({ ...p, activityLevel: a as typeof activityLevels[number] })); savePartial('goals', { activityLevel: a as any } as any); showToast({ message: 'Goals saved', type: 'success' }); }}
-            />
-          </EnhancedCard>
-
-          {/* Preferences Section */}
-          <EnhancedCard 
-            title="Dietary Preferences" 
-            icon={<Heart size={20} color={Colors.primary} />}
-          >
-            <ChipSelector 
-              label="Dietary Restrictions" 
-              options={dietOptions} 
-              selected={local.dietary} 
-              onSelect={(d) => { setLocal(p => ({ ...p, dietary: d as typeof dietOptions[number] })); savePartial('preferences', { dietary: d as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
-            />
-            
-            <View style={styles.inputGroup}>
-              <Input label="Allergies (comma-separated)" value={local.allergies} onChangeText={(t) => setLocal(p => ({ ...p, allergies: t }))} onBlur={savePreferences} multiline />
-            </View>
-            <View style={styles.inputGroup}>
-              <Input label="Disliked Ingredients (comma-separated)" value={local.dislikes} onChangeText={(t) => setLocal(p => ({ ...p, dislikes: t }))} onBlur={savePreferences} multiline />
-            </View>
-            <View style={styles.inputGroup}>
-              <Input label="Preferred Cuisines (comma-separated)" value={local.cuisines} onChangeText={(t) => setLocal(p => ({ ...p, cuisines: t }))} onBlur={savePreferences} multiline />
-            </View>
-            
-            <ChipSelector 
-              label="Unit System" 
-              options={units} 
-              selected={local.unitSystem} 
-              onSelect={(u) => { setLocal(p => ({ ...p, unitSystem: u as typeof units[number] })); savePartial('metrics', { unitSystem: u as any } as any); showToast({ message: 'Preferences saved', type: 'success' }); }}
-            />
-          </EnhancedCard>
-
-          {/* Account Section */}
-          <EnhancedCard 
-            title="Account Settings" 
-            icon={<Settings size={20} color={Colors.primary} />}
-          >
-            <Button
-              title="Sign Out"
-              onPress={() => { signOut(); }}
-              variant="outline"
-              icon={<LogOut size={18} color={Colors.primary} />}
-              fullWidth
-            />
-          </EnhancedCard>
-        </View>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-      </View>
+          <View style={styles.bottomSpacer} />
+        </ScrollView >
+      </View >
     </>
   );
 }
@@ -251,14 +253,14 @@ const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string
   </View>
 );
 
-const EnhancedCard = ({ 
-  title, 
-  icon, 
-  children, 
-}: { 
-  title: string; 
-  icon: React.ReactNode; 
-  children: React.ReactNode; 
+const EnhancedCard = ({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
 }) => (
   <View style={styles.enhancedCard}>
     <View style={styles.cardHeader}>
@@ -273,15 +275,15 @@ const EnhancedCard = ({
   </View>
 );
 
-const ChipSelector = ({ 
-  label, 
-  options, 
-  selected, 
-  onSelect 
-}: { 
-  label: string; 
-  options: readonly string[]; 
-  selected: string; 
+const ChipSelector = ({
+  label,
+  options,
+  selected,
+  onSelect
+}: {
+  label: string;
+  options: readonly string[];
+  selected: string;
   onSelect: (value: string) => void;
 }) => (
   <View style={styles.chipSelectorContainer}>
@@ -456,8 +458,8 @@ const styles = StyleSheet.create({
   },
   macroRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 20,
   },
   macroInput: {
     flex: 1,

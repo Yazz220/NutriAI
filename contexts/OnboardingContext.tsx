@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'expo-router';
-import { 
-  OnboardingContextType, 
-  OnboardingData, 
+import {
+  OnboardingContextType,
+  OnboardingData,
   defaultOnboardingData,
   OnboardingError,
   healthGoalToProfileMapping
@@ -17,7 +17,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [onboardingData, setOnboardingData] = useState<OnboardingData>(defaultOnboardingData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigationManagerRef = useRef<OnboardingNavigationManager>();
+  const navigationManagerRef = useRef<OnboardingNavigationManager | null>(null);
   if (!navigationManagerRef.current) {
     navigationManagerRef.current = new OnboardingNavigationManager();
   }

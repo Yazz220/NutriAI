@@ -67,9 +67,9 @@ export default function CaloriePlanScreen() {
 
   const canCalculate = Boolean(
     basicProfile.age &&
-      basicProfile.height &&
-      basicProfile.weight &&
-      basicProfile.activityLevel
+    basicProfile.height &&
+    basicProfile.weight &&
+    basicProfile.activityLevel
   );
 
   const recommendation: RecommendationSummary | null = useMemo(() => {
@@ -223,18 +223,22 @@ export default function CaloriePlanScreen() {
     const hasData = typeof calories === 'number' && Number.isFinite(calories) && !!macros;
     return (
       <View style={styles.recommendationCard}>
-        <Text style={styles.cardHeading}>{title}</Text>
-        <RecipeNutritionCard
-          title=""
-          calories={hasData ? calories! : 0}
-          protein={hasData ? macros!.protein : 0}
-          carbs={hasData ? macros!.carbs : 0}
-          fats={hasData ? macros!.fats : 0}
-          showGrams={true}
-        />
-        {!hasData ? (
-          <Text style={styles.cardHint}>Complete your basic profile to calculate a personalized target.</Text>
-        ) : null}
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardHeading}>{title}</Text>
+        </View>
+        <View style={styles.cardContent}>
+          <RecipeNutritionCard
+            title=""
+            calories={hasData ? calories! : 0}
+            protein={hasData ? macros!.protein : 0}
+            carbs={hasData ? macros!.carbs : 0}
+            fats={hasData ? macros!.fats : 0}
+            showGrams={true}
+          />
+          {!hasData ? (
+            <Text style={styles.cardHint}>Complete your basic profile to calculate a personalized target.</Text>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -351,9 +355,40 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     lineHeight: 20,
   },
-  recommendationCard: { marginBottom: Spacing.lg },
-  cardHeading: { fontSize: 16, fontWeight: Typography.weights.semibold, color: Colors.text, marginBottom: Spacing.sm },
-  cardHint: { fontSize: 13, color: Colors.lightText, marginTop: Spacing.sm },
+  recommendationCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  cardHeading: {
+    fontSize: 18,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text,
+  },
+  cardContent: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  cardHint: {
+    fontSize: 13,
+    color: Colors.lightText,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
