@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   macroItem: {
     alignItems: 'center',
     flex: 1,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,

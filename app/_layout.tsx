@@ -23,6 +23,7 @@ import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
 import { isOnboardingCompleted } from '@/contexts/OnboardingContext';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -150,6 +151,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+      <OfflineBanner />
     </GestureHandlerRootView>
   );
 }

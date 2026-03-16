@@ -33,6 +33,7 @@ import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
 import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
 import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
 import { ImportRecipeModal } from '@/components/ImportRecipeModal';
+import { EditRecipeModal } from '@/components/EditRecipeModal';
 
 // Hooks
 import { useMeals } from '@/hooks/useMealsStore';
@@ -103,6 +104,8 @@ export default function RecipesScreen() {
   const [newFolderId, setNewFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [editRecipe, setEditRecipe] = useState<Meal | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Local search and favorites
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -147,7 +150,7 @@ export default function RecipesScreen() {
   }, [persistFavorites]);
 
   // Hooks
-  const { meals: localRecipes, addMeal, removeMeal } = useMeals();
+  const { meals: localRecipes, addMeal, updateMeal, removeMeal } = useMeals();
   const {
     folders,
     createFolder,
@@ -230,8 +233,8 @@ export default function RecipesScreen() {
         {
           text: 'Edit',
           onPress: () => {
-            // TODO: Implement edit functionality
-            Alert.alert('Edit', 'Edit functionality not implemented yet.');
+            setEditRecipe(recipe);
+            setShowEditModal(true);
           },
         },
         {
@@ -694,6 +697,13 @@ export default function RecipesScreen() {
         }}
       />
 
+      <EditRecipeModal
+        visible={showEditModal}
+        recipe={editRecipe}
+        onClose={() => { setShowEditModal(false); setEditRecipe(null); }}
+        onSave={(updated) => updateMeal(updated)}
+      />
+
       <AddRecipesSheet
         visible={showAddRecipesModal}
         folderId={newFolderId || ''}
@@ -860,7 +870,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
@@ -917,7 +927,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

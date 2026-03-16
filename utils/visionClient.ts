@@ -1,32 +1,29 @@
 /**
  * Vision AI Client
- * 
+ *
  * Provides multiple AI-powered image analysis capabilities:
- * 1. Food nutrition scanning (Food-101-93M + USDA nutrition data)
- * 2. Inventory item extraction (for receipt/fridge scanning)
- * 3. Food label detection (fallback using FatSecret/VLM)
- * 
- * Priority order for food nutrition:
- * - Primary: Food-101-93M via Supabase Edge Function (best accuracy + nutrition)
- * - Fallback: FatSecret Image API (label-only, requires database lookup)
- * - Last resort: OpenRouter VLM (generic vision model)
+ * 1. Food nutrition scanning (Food-101-93M + USDA nutrition data) via Edge Function
+ * 2. Inventory item extraction (receipt/fridge scanning) via ai-chat Edge Function
+ * 3. Food label detection (FatSecret Edge Function fallback)
+ *
+ * All AI calls route through Supabase Edge Functions — no provider keys in the client.
  */
-import { APP_NAME, APP_WEBSITE } from '@/constants/brand';
 
-const AI_API_BASE = process.env.EXPO_PUBLIC_AI_API_BASE || 'https://openrouter.ai/api/v1';
-const AI_API_KEY = process.env.EXPO_PUBLIC_AI_API_KEY;
-const AI_PROXY_BASE = process.env.EXPO_PUBLIC_AI_PROXY_BASE; // Optional proxy
-const VISION_MODEL = process.env.EXPO_PUBLIC_AI_VISION_MODEL || 'qwen/qwen2.5-vl-72b-instruct:free';
+import { createVisionChatCompletion, type ChatMessage } from '@/utils/aiClient';
+
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const FATSECRET_IMAGE_URL = process.env.EXPO_PUBLIC_FATSECRET_IMAGE_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/fatsecret-image` : undefined);
-const AI_NUTRITION_SCAN_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/ai-nutrition-scan` : undefined;
+const FATSECRET_IMAGE_URL =
+  process.env.EXPO_PUBLIC_FATSECRET_IMAGE_URL ||
+  (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/fatsecret-image` : undefined);
+const AI_NUTRITION_SCAN_URL = SUPABASE_URL
+  ? `${SUPABASE_URL}/functions/v1/ai-nutrition-scan`
+  : undefined;
 
-// Prompt used by the generic VLM fallback
 const defaultPrompt = [
   'Extract a list of grocery items you can identify in this image. If it is a receipt, read line items; if it is a table/fridge, identify visible items.',
   'Return ONLY JSON of the form: {"items": [{"name":"tomatoes","quantity":3,"unit":"pcs","category":"Produce"}, ...]}',
-  'Avoid duplicates; group same items with summed quantity when obvious.'
+  'Avoid duplicates; group same items with summed quantity when obvious.',
 ].join('\n');
 
 export type DetectedItem = {
@@ -36,34 +33,29 @@ export type DetectedItem = {
   category?: string;
 };
 
+// ---------------------------------------------------------------------------
+// Inventory item detection (via ai-chat Edge Function with vision model)
+// ---------------------------------------------------------------------------
+
 export async function detectItemsFromImage(params: {
-  imageDataUrl: string; // data:image/<type>;base64,<...>
+  imageDataUrl: string;
   prompt?: string;
   maxRetries?: number;
 }): Promise<DetectedItem[]> {
-  const { imageDataUrl, prompt = defaultPrompt, maxRetries = 1 } = params;
-  const base = AI_PROXY_BASE || AI_API_BASE;
-  const url = `${base.replace(/\/$/, '')}/chat/completions`;
+  const { imageDataUrl, prompt = defaultPrompt } = params;
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (!AI_PROXY_BASE && AI_API_KEY) {
-    headers['Authorization'] = `Bearer ${AI_API_KEY}`;
-    headers['HTTP-Referer'] = APP_WEBSITE;
-    headers['X-Title'] = APP_NAME;
-  }
-
-  const messages = [
+  const messages: ChatMessage[] = [
     {
-      role: 'system' as const,
+      role: 'system',
       content: [
         'You extract grocery/inventory items from a user-provided image (receipt, fridge table, pantry).',
         'Output ONLY compact JSON with an array named "items". No extra text.',
         'Each item: { name, quantity (number if obvious), unit (e.g., pcs, kg, g, ml, L, can, bottle, bunch, cup), category (Produce, Dairy, Meat, Seafood, Frozen, Pantry, Bakery, Beverages, Other) }.',
-        'Guess reasonable category; omit fields you cannot infer. Keep names simple (e.g., "tomatoes", "milk").'
+        'Guess reasonable category; omit fields you cannot infer. Keep names simple (e.g., "tomatoes", "milk").',
       ].join('\n'),
     },
     {
-      role: 'user' as const,
+      role: 'user',
       content: [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: imageDataUrl } },
@@ -71,68 +63,37 @@ export async function detectItemsFromImage(params: {
     },
   ];
 
-  const body = {
-    model: VISION_MODEL,
-    messages,
-    temperature: 0.2,
-  } as const;
-
-  let lastErr: any;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        
-        // Log specific error types
-        if (res.status === 401) {
-          console.warn('[visionClient] Authentication failed for vision model - check AI_API_KEY configuration');
-        } else if (res.status === 429) {
-          console.warn('[visionClient] Rate limited - will retry after delay');
-        } else {
-          console.error('[visionClient] Vision request failed:', res.status, text.slice(0, 200));
-        }
-        
-        throw new Error(`Vision request failed (${res.status}): ${text}`);
-      }
-      const json = await res.json();
-      const content = json?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string') throw new Error('Vision response missing content');
-      return safeParseItems(content);
-    } catch (err) {
-      lastErr = err;
-      if (attempt === maxRetries) break;
-      
-      // Don't retry on authentication errors
-      if (err instanceof Error && err.message.includes('(401)')) {
-        console.warn('[visionClient] Skipping retries due to authentication error');
-        break;
-      }
-      
-      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  const content = await createVisionChatCompletion(messages);
+  return safeParseItems(content);
 }
-// Analyze a local image and return a best-guess food label.
-/**
- * Converts image URI to base64 string
- */
+
+// ---------------------------------------------------------------------------
+// Food label detection (FatSecret → VLM fallback)
+// ---------------------------------------------------------------------------
+
 async function imageUriToBase64(imageUri: string): Promise<string> {
   const response = await fetch(imageUri);
   const blob = await response.blob();
-  
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      // Remove data:image/...;base64, prefix
       const base64 = result.split(',')[1];
       resolve(base64);
     };
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+function supabaseHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (SUPABASE_ANON_KEY) {
+    headers['apikey'] = SUPABASE_ANON_KEY;
+    headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+  }
+  return headers;
 }
 
 export async function analyzeFoodImageToLabel(imageUri: string): Promise<string | null> {
@@ -143,17 +104,18 @@ export async function analyzeFoodImageToLabel(imageUri: string): Promise<string 
     console.warn('[visionClient] imageUriToBase64 failed', e);
   }
 
+  // Try FatSecret image recognition first
   if (FATSECRET_IMAGE_URL && base64) {
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (SUPABASE_ANON_KEY) {
-        headers['apikey'] = SUPABASE_ANON_KEY;
-        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
-      }
       const res = await fetch(FATSECRET_IMAGE_URL, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ image_b64: base64, region: 'US', language: 'en', include_food_data: true }),
+        headers: supabaseHeaders(),
+        body: JSON.stringify({
+          image_b64: base64,
+          region: 'US',
+          language: 'en',
+          include_food_data: true,
+        }),
       });
       if (res.ok) {
         const json: any = await res.json();
@@ -162,7 +124,9 @@ export async function analyzeFoodImageToLabel(imageUri: string): Promise<string 
         if (json?.food) candidates.push(json.food);
         const first = candidates.find(Boolean);
         if (first) {
-          const label = String(first.food_name || first.name || first.label || first.title || '').trim();
+          const label = String(
+            first.food_name || first.name || first.label || first.title || '',
+          ).trim();
           if (label) return label;
         }
         if (typeof json?.predicted_food === 'string' && json.predicted_food.trim()) {
@@ -177,10 +141,15 @@ export async function analyzeFoodImageToLabel(imageUri: string): Promise<string 
     }
   }
 
+  // Fallback: VLM via ai-chat Edge Function
   try {
-    if (AI_PROXY_BASE || AI_API_KEY) {
-      const dataUrl = `data:image/jpeg;base64,${base64 ?? ''}`;
-      const items = await detectItemsFromImage({ imageDataUrl: dataUrl, maxRetries: 1, prompt: defaultPrompt });
+    if (SUPABASE_URL && SUPABASE_ANON_KEY && base64) {
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
+      const items = await detectItemsFromImage({
+        imageDataUrl: dataUrl,
+        maxRetries: 1,
+        prompt: defaultPrompt,
+      });
       if (items?.length && items[0].name) return items[0].name;
     }
   } catch (e) {
@@ -190,10 +159,10 @@ export async function analyzeFoodImageToLabel(imageUri: string): Promise<string 
   return null;
 }
 
-/**
- * AI Nutrition Result Interface
- * Matches the response from the ai-nutrition-scan edge function
- */
+// ---------------------------------------------------------------------------
+// AI Nutrition Scan (Food-101-93M + USDA via Edge Function)
+// ---------------------------------------------------------------------------
+
 export interface AINutritionResult {
   items: Array<{
     label: string;
@@ -215,121 +184,46 @@ export interface AINutritionResult {
   cached: boolean;
 }
 
-/**
- * Analyzes food image and returns complete nutrition data
- * 
- * Uses Food-101-93M model for classification and USDA FoodData Central for nutrition.
- * This is the primary method for AI-powered food logging.
- * 
- * @param imageUri Local file path to the food image
- * @returns Complete nutrition analysis with calories, macros, and portion estimate
- * @throws Error if analysis fails or endpoint not configured
- * 
- * @example
- * const result = await analyzeFoodImageForNutrition('file:///path/to/pizza.jpg');
- * if (result) {
- *   console.log(`Found: ${result.items[0].label}`);
- *   console.log(`Calories: ${result.totals.calories}`);
- * }
- */
 export async function analyzeFoodImageForNutrition(
-  imageUri: string
+  imageUri: string,
 ): Promise<AINutritionResult | null> {
   if (!AI_NUTRITION_SCAN_URL) {
     console.warn('[visionClient] AI nutrition scan endpoint not configured');
-    console.warn('[visionClient] Set EXPO_PUBLIC_SUPABASE_URL to enable');
     return null;
   }
 
   try {
-    console.log('[visionClient] Starting AI nutrition scan...', {
-      imageUri,
-      endpoint: AI_NUTRITION_SCAN_URL,
-    });
-
-    // Read image as base64
     const base64 = await imageUriToBase64(imageUri);
-
     if (!base64) {
       console.warn('[visionClient] Failed to read image as base64');
       return null;
     }
 
-    console.log('[visionClient] Image read successfully, size:', base64.length, 'chars');
-
-    // Prepare request headers
-    const headers: Record<string, string> = { 
-      'Content-Type': 'application/json' 
-    };
-    
-    if (SUPABASE_ANON_KEY) {
-      headers['apikey'] = SUPABASE_ANON_KEY;
-      headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
-      console.log('[visionClient] Auth headers added');
-    } else {
-      console.warn('[visionClient] No SUPABASE_ANON_KEY found!');
-    }
-
-    console.log('[visionClient] Calling AI nutrition scan endpoint...');
-
-    // Call AI nutrition scan endpoint
     const response = await fetch(AI_NUTRITION_SCAN_URL, {
       method: 'POST',
-      headers,
+      headers: supabaseHeaders(),
       body: JSON.stringify({ image_b64: base64 }),
     });
 
-    console.log('[visionClient] Response received:', response.status, response.statusText);
-
     if (!response.ok) {
       const errorText = await response.text();
-      let errorData: any = {};
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText };
-      }
-      
-      // Log different error types with appropriate levels
-      if (response.status === 401) {
-        console.warn('[visionClient] Authentication failed - check SUPABASE_ANON_KEY configuration');
-      } else if (response.status === 404) {
-        console.warn('[visionClient] Nutrition data not found for this food item');
-      } else {
-        console.error('[visionClient] AI scan failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          code: errorData.code,
-          error: errorData.error,
-          details: errorData.details,
-        });
-      }
-
-      // Don't throw - return null to allow fallback
+      console.warn('[visionClient] AI scan failed:', response.status, errorText.slice(0, 200));
       return null;
     }
 
-    const result: AINutritionResult = await response.json();
-    
-    console.log('[visionClient] AI scan success:', {
-      label: result.items[0]?.label,
-      confidence: result.items[0]?.score,
-      calories: result.totals.calories,
-      cached: result.cached,
-    });
-
-    return result;
-    
+    return await response.json();
   } catch (error) {
     console.error('[visionClient] AI nutrition scan error:', error);
-    // Return null to allow fallback to other methods
     return null;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function safeParseItems(text: string): DetectedItem[] {
   try {
-    // Attempt to find JSON block
     const match = text.match(/\{[\s\S]*\}/);
     const toParse = match ? match[0] : text;
     const parsed = JSON.parse(toParse);
@@ -343,10 +237,9 @@ function safeParseItems(text: string): DetectedItem[] {
       }))
       .filter((x: DetectedItem) => x.name.length > 0);
   } catch {
-    // Fallback: attempt to split lines as names only
     return text
       .split(/\n|,|\u2022|-/)
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean)
       .map((name) => ({ name }));
   }

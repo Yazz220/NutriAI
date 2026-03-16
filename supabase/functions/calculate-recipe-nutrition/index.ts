@@ -17,24 +17,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-// AI configuration (optional - falls back to database-only lookup)
-const AI_API_KEY =
-  Deno.env.get('OPENROUTER_API_KEY') ||
-  Deno.env.get('AI_API_KEY') ||
-  Deno.env.get('EXPO_PUBLIC_AI_API_KEY') ||
-  '';
-
-const AI_API_BASE =
-  Deno.env.get('OPENROUTER_API_BASE') ||
-  Deno.env.get('AI_API_BASE') ||
-  Deno.env.get('EXPO_PUBLIC_AI_API_BASE') ||
-  'https://openrouter.ai/api/v1';
-
-const AI_MODEL =
-  Deno.env.get('OPENROUTER_MODEL') ||
-  Deno.env.get('AI_MODEL') ||
-  Deno.env.get('EXPO_PUBLIC_AI_MODEL') ||
-  'openai/gpt-oss-20b:free';
+// AI configuration (set as Supabase Function secrets, NOT client-side env vars)
+const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
+const AI_API_BASE = Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1';
+const AI_MODEL = Deno.env.get('AI_MODEL') || 'openai/gpt-oss-20b:free';
 
 console.log('[Config] AI_API_KEY configured:', !!AI_API_KEY);
 console.log('[Config] AI_MODEL:', AI_MODEL);
@@ -129,8 +115,8 @@ Example:
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${AI_API_KEY}`,
         // OpenRouter recommends passing Referer / Title for attribution
-        'HTTP-Referer': 'https://nutriai.app/recipes',
-        'X-Title': 'NutriAI Recipe Normalizer',
+        'HTTP-Referer': 'https://nosh.app/recipes',
+        'X-Title': 'Nosh Recipe Normalizer',
       },
       body: JSON.stringify({
         model: AI_MODEL,
@@ -215,27 +201,27 @@ async function canonicalizeIngredient(
   // Try exact match in synonyms table
   let { data } = await supabase
     .from('food_synonyms')
-    .select('canonical_name')
-    .eq('synonym', normalized)
+    .select('canonical_label')
+    .eq('alias', normalized)
     .limit(1)
     .maybeSingle();
   
-  if (data?.canonical_name) {
-    console.log(`[Canonicalize] Exact match: "${ingredientName}" → "${data.canonical_name}"`);
-    return data.canonical_name;
+  if (data?.canonical_label) {
+    console.log(`[Canonicalize] Exact match: "${ingredientName}" → "${data.canonical_label}"`);
+    return data.canonical_label;
   }
   
   // Try partial match
   const result = await supabase
     .from('food_synonyms')
-    .select('canonical_name')
-    .or(`synonym.ilike.%${normalized}%,canonical_name.ilike.%${normalized}%`)
+    .select('canonical_label')
+    .or(`alias.ilike.%${normalized}%,canonical_label.ilike.%${normalized}%`)
     .limit(1)
     .maybeSingle();
   
-  if (result.data?.canonical_name) {
-    console.log(`[Canonicalize] Partial match: "${ingredientName}" → "${result.data.canonical_name}"`);
-    return result.data.canonical_name;
+  if (result.data?.canonical_label) {
+    console.log(`[Canonicalize] Partial match: "${ingredientName}" → "${result.data.canonical_label}"`);
+    return result.data.canonical_label;
   }
   
   // Return normalized version if no match
@@ -254,11 +240,11 @@ async function getUSDANutrition(
   const { data, error } = await supabase
     .from('food_usda_mapping')
     .select('*')
-    .eq('canonical_food', canonicalName)
+    .eq('label', canonicalName)
     .maybeSingle();
   
   if (data) {
-    console.log(`[USDA] Found: "${canonicalName}" → ${data.calories_per_100g} cal/100g`);
+    console.log(`[USDA] Found: "${canonicalName}" → ${data.calories} cal/100g`);
   } else {
     console.log(`[USDA] Not found: "${canonicalName}"`, error?.message || '');
   }
@@ -376,11 +362,11 @@ async function calculateIngredientNutrition(
     name: ingredient.name,
     canonical,
     grams,
-    calories: Math.round((usdaData.calories_per_100g || 0) * multiplier),
-    protein: parseFloat(((usdaData.protein_g_per_100g || 0) * multiplier).toFixed(1)),
-    carbs: parseFloat(((usdaData.carbs_g_per_100g || 0) * multiplier).toFixed(1)),
-    fats: parseFloat(((usdaData.fat_g_per_100g || 0) * multiplier).toFixed(1)),
-    fiber: parseFloat(((usdaData.fiber_g_per_100g || 0) * multiplier).toFixed(1)),
+    calories: Math.round((usdaData.calories || 0) * multiplier),
+    protein: parseFloat(((usdaData.protein || 0) * multiplier).toFixed(1)),
+    carbs: parseFloat(((usdaData.carbohydrates || 0) * multiplier).toFixed(1)),
+    fats: parseFloat(((usdaData.fat || 0) * multiplier).toFixed(1)),
+    fiber: parseFloat(((usdaData.fiber || 0) * multiplier).toFixed(1)),
     matched: true,
   };
   

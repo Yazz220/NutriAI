@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../supabase/functions/_shared/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { identifyUser } from '@/utils/analytics';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -20,6 +21,7 @@ export function useAuth() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
+      identifyUser(s?.user?.id ?? null, { email: s?.user?.email });
     });
 
     return () => {

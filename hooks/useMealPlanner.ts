@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
 import { PlannedMeal, MealType, MealPlanSummary, WeeklyMealPlan, Meal } from '@/types';
-import { supabase } from '../supabase/functions/_shared/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 
 export const [MealPlannerProvider, useMealPlanner] = createContextHook((meals?: Meal[]) => {

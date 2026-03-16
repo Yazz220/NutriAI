@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { resetOnboarding } from '@/components/onboarding';
-import { supabase } from '../../supabase/functions/_shared/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';

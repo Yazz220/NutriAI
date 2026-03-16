@@ -11,6 +11,7 @@ import {
   Animated,
   TextInput,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { AlertCircle, TrendingUp, Barcode, Camera as IconCamera, CheckSquare, Square, Trash2 } from 'lucide-react-native';
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     marginTop: -10,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     marginHorizontal: 20,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 25,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -395,6 +396,11 @@ export default function InventoryScreen() {
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [isReceiptMode, setIsReceiptMode] = useState<boolean>(true); // affects category mapping
   const cameraRef = useRef<CameraView>(null);
+
+  // Barcode scan → pre-fill AddItemModal
+  const [barcodeInitialName, setBarcodeInitialName] = useState<string | undefined>(undefined);
+  const [barcodeInitialCategory, setBarcodeInitialCategory] = useState<ItemCategory | undefined>(undefined);
+  const [isBarcodeLoading, setIsBarcodeLoading] = useState(false);
 
   const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
   const quickAddAnim = useRef(new Animated.Value(0)).current; // 0 collapsed, 1 expanded
@@ -650,6 +656,42 @@ export default function InventoryScreen() {
     collapseQuickAdd();
   };
 
+  const handleBarcodeScanned = async (barcode: string) => {
+    setBarcodeScannerOpen(false);
+    setIsBarcodeLoading(true);
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,categories_tags`,
+        { headers: { 'User-Agent': 'Nosh/1.0 (nutrition-app)' } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.status === 1 && json.product?.product_name) {
+        const productName: string = json.product.product_name;
+        const tags: string[] = json.product.categories_tags ?? [];
+        const categoryTag = tags.join(' ').toLowerCase();
+        const guessedCategory = mapCategory(categoryTag, productName, false);
+        setBarcodeInitialName(productName);
+        setBarcodeInitialCategory(guessedCategory);
+        setModalVisible(true);
+      } else {
+        // Product not found — let user enter manually
+        setBarcodeInitialName('');
+        setBarcodeInitialCategory(undefined);
+        setModalVisible(true);
+        showToast({ message: 'Product not found. Enter details manually.', type: 'info', duration: 3000 });
+      }
+    } catch (e) {
+      console.error('Barcode lookup failed:', e);
+      setBarcodeInitialName('');
+      setBarcodeInitialCategory(undefined);
+      setModalVisible(true);
+      showToast({ message: 'Lookup failed. Enter details manually.', type: 'info', duration: 3000 });
+    } finally {
+      setIsBarcodeLoading(false);
+    }
+  };
+
   const handleTakePicture = async () => {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync();
@@ -761,15 +803,20 @@ export default function InventoryScreen() {
             barcodeTypes: ['qr', 'ean13', 'upc_a', 'upc_e'],
           }}
           onBarcodeScanned={(result) => {
-            if (isBarcodeScannerOpen) {
-              setBarcodeScannerOpen(false);
-              Alert.alert('Barcode Scanned', `Data: ${result.data} (Adding not implemented yet)`);
+            if (isBarcodeScannerOpen && !isBarcodeLoading) {
+              handleBarcodeScanned(result.data);
             }
           }}
         />
         <TouchableOpacity style={styles.closeScannerButton} onPress={() => { setCameraOpen(false); setBarcodeScannerOpen(false); }}>
           <AlertCircle size={32} color={Colors.white} />
         </TouchableOpacity>
+        {isBarcodeLoading && (
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={Colors.white} />
+            <Text style={{ color: Colors.white, marginTop: 12, fontSize: 16 }}>Looking up product...</Text>
+          </View>
+        )}
         {isCameraOpen && (
             <View style={styles.cameraActionsContainer}>
                 <TouchableOpacity style={styles.captureButton} onPress={handleTakePicture} />
@@ -1042,8 +1089,14 @@ export default function InventoryScreen() {
 
       <AddItemModal
         visible={isModalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setBarcodeInitialName(undefined);
+          setBarcodeInitialCategory(undefined);
+        }}
         onAdd={handleAddItem}
+        initialName={barcodeInitialName}
+        initialCategory={barcodeInitialCategory}
       />
 
       <SectionList

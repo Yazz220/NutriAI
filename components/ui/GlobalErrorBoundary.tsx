@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { captureError } from '@/utils/analytics';
 
 interface State {
   hasError: boolean;
@@ -16,8 +17,8 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // Surface errors to Metro logs
     console.error('[GlobalErrorBoundary] Uncaught error:', error, errorInfo);
+    captureError(error, { componentStack: errorInfo.componentStack });
     this.setState({ error, errorInfo });
   }
 

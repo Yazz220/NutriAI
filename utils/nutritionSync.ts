@@ -1,6 +1,6 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import * as Network from 'expo-network';
 import { NutritionGoals, LoggedMeal } from '@/types';
 
 export interface SyncQueueItem {
@@ -27,6 +27,8 @@ class NutritionSyncManager {
   private listeners: ((status: SyncStatus) => void)[] = [];
   private retryTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
+  private networkPollInterval: ReturnType<typeof setInterval> | null = null;
+
   private constructor() {
     this.initializeSync();
   }
@@ -46,17 +48,22 @@ class NutritionSyncManager {
         this.syncQueue = JSON.parse(storedQueue);
       }
 
-      // Listen for network changes
-      NetInfo.addEventListener((state: any) => {
-        if (state.isConnected && !this.syncInProgress && this.syncQueue.length > 0) {
-          this.processSyncQueue();
+      // Poll network state periodically (expo-network has no real-time listener)
+      this.networkPollInterval = setInterval(async () => {
+        try {
+          const state = await Network.getNetworkStateAsync();
+          if (state.isConnected && !this.syncInProgress && this.syncQueue.length > 0) {
+            this.processSyncQueue();
+          }
+          this.notifyListeners();
+        } catch {
+          // Ignore polling errors
         }
-        this.notifyListeners();
-      });
+      }, 15_000);
 
-      // Process any pending items
-      const netInfo = await NetInfo.fetch();
-      if (netInfo.isConnected && this.syncQueue.length > 0) {
+      // Process any pending items on startup
+      const state = await Network.getNetworkStateAsync();
+      if (state.isConnected && this.syncQueue.length > 0) {
         this.processSyncQueue();
       }
     } catch (error) {
@@ -84,8 +91,8 @@ class NutritionSyncManager {
     this.notifyListeners();
 
     // Try to sync immediately if online
-    const netInfo = await NetInfo.fetch();
-    if (netInfo.isConnected && !this.syncInProgress) {
+    const netState = await Network.getNetworkStateAsync();
+    if (netState.isConnected && !this.syncInProgress) {
       this.processSyncQueue();
     }
   }
@@ -236,11 +243,11 @@ class NutritionSyncManager {
 
   // Get current sync status
   async getSyncStatus(): Promise<SyncStatus> {
-    const netInfo = await NetInfo.fetch();
+    const netState = await Network.getNetworkStateAsync();
     const lastSyncTime = await this.getLastSyncTime();
 
     return {
-      isOnline: netInfo.isConnected || false,
+      isOnline: netState.isConnected ?? false,
       lastSyncTime,
       pendingItems: this.syncQueue.length,
       syncInProgress: this.syncInProgress,
@@ -292,8 +299,8 @@ class NutritionSyncManager {
       return;
     }
 
-    const netInfo = await NetInfo.fetch();
-    if (!netInfo.isConnected) {
+    const netState = await Network.getNetworkStateAsync();
+    if (!netState.isConnected) {
       throw new Error('No internet connection');
     }
 

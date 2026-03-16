@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { resetOnboarding } from '@/components/onboarding';
-import { supabase } from '../../supabase/functions/_shared/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { useUserProfile } from '@/hooks/useUserProfile';

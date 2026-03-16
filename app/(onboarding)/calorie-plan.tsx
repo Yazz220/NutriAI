@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: Spacing.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,

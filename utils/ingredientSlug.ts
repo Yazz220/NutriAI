@@ -36,8 +36,8 @@ export function slugifyIngredient(name: string, variant?: string): string {
   // Generic normalization: words -> hyphen
   const norm = key || base
   return norm
-    .replace(/[^a-z0-9\\s-]/g, '')
-    .replace(/\\s+/g, '-')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
 }
 
 function withVariant(baseSlug: string, v: string): string {
@@ -49,5 +49,5 @@ function withVariant(baseSlug: string, v: string): string {
 export function ingredientDisplayFromSlug(slug: string): string {
   return slug
     .replace(/-/g, ' ')
-    .replace(/\\b\\w/g, (c) => c.toUpperCase())
+    .replace(/\b\w/g, (c) => c.toUpperCase())
 }

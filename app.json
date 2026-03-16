@@ -6,29 +6,71 @@
     "orientation": "portrait",
     "scheme": "nosh",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F5F7F2"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nosh.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Nosh uses your camera to scan barcodes and capture food items for inventory.",
         "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes and inventory.",
-        "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features."
+        "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.nosh.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF"
-      }
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F7F2"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "VIBRATE",
+        "RECORD_AUDIO"
+      ]
     },
     "plugins": [
-      "expo-camera",
-      "expo-font"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Nosh uses your camera to scan barcodes and capture food items.",
+          "microphonePermission": "Nosh may use the microphone for voice input."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nosh needs access to your photos to import images for recipes and inventory."
+        }
+      ]
     ],
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "updates": {
+      "url": ""
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

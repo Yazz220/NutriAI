@@ -25,6 +25,8 @@ interface AddItemModalProps {
   // Keep the shape flexible for now to avoid tight coupling; callers typically pass
   // an inventory-like object. Narrow types can be restored later.
   onAdd: (item: { name: string; category: ItemCategory; addedDate: string; }) => void;
+  initialName?: string;
+  initialCategory?: ItemCategory;
 }
 
 const categories: ItemCategory[] = [
@@ -53,17 +55,27 @@ const commonUnits = [
   'bottle'
 ];
 
-export const AddItemModal: React.FC<AddItemModalProps> = ({ 
-  visible, 
-  onClose, 
-  onAdd 
+export const AddItemModal: React.FC<AddItemModalProps> = ({
+  visible,
+  onClose,
+  onAdd,
+  initialName,
+  initialCategory,
 }) => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<ItemCategory>('Produce');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { validateInventoryItem, errors, clearErrors } = useValidation();
-  
+
+  // Seed form fields when initial values change (e.g. barcode scan result)
+  React.useEffect(() => {
+    if (visible) {
+      if (initialName !== undefined) setName(initialName);
+      if (initialCategory !== undefined) setCategory(initialCategory);
+    }
+  }, [visible, initialName, initialCategory]);
+
   const resetForm = () => {
     setName('');
     setCategory('Produce');
