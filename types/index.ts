@@ -8,18 +8,18 @@ export interface InventoryItem {
     expiryDate?: string;
     imageUrl?: string;
   }
-  
-  export type ItemCategory = 
-    | "Produce" 
-    | "Dairy" 
-    | "Meat" 
-    | "Seafood" 
-    | "Frozen" 
-    | "Pantry" 
-    | "Bakery" 
-    | "Beverages" 
+
+  export type ItemCategory =
+    | "Produce"
+    | "Dairy"
+    | "Meat"
+    | "Seafood"
+    | "Frozen"
+    | "Pantry"
+    | "Bakery"
+    | "Beverages"
     | "Other";
-  
+
   export interface Meal {
     id: string;
     name: string;
@@ -39,21 +39,21 @@ export interface InventoryItem {
       fats: number;    // grams
     };
   }
-  
+
   export interface MealIngredient {
     name: string;
     quantity: number;
     unit: string;
     optional?: boolean;
   }
-  
+
   export interface ShoppingListItem extends Omit<InventoryItem, 'expiryDate' | 'imageUrl'> {
     checked: boolean;
     addedBy: "user" | "system" | "meal" | "mealPlan";
     mealId?: string;
     plannedMealId?: string;
   }
-  
+
   export interface RecipeIngredient {
     name: string;
     quantity: number;
@@ -78,24 +78,22 @@ export interface InventoryItem {
     dietaryPreferences: string[];
     allergies: string[];
     mealPlanDays: number;
-    // If true, checking a shopping list item will automatically add it to Inventory without prompting
     autoAddPurchasedToInventory?: boolean;
-    goals?: NutritionGoals;
   }
 
   // Enhanced User Profile Types
-  export type DietaryRestriction = 
-    | 'vegetarian' 
-    | 'vegan' 
-    | 'pescatarian' 
-    | 'keto' 
-    | 'paleo' 
-    | 'gluten-free' 
-    | 'dairy-free' 
-    | 'nut-free' 
-    | 'low-carb' 
-    | 'low-sodium' 
-    | 'halal' 
+  export type DietaryRestriction =
+    | 'vegetarian'
+    | 'vegan'
+    | 'pescatarian'
+    | 'keto'
+    | 'paleo'
+    | 'gluten-free'
+    | 'dairy-free'
+    | 'nut-free'
+    | 'low-carb'
+    | 'low-sodium'
+    | 'halal'
     | 'kosher'
     | 'none';
 
@@ -103,39 +101,23 @@ export interface InventoryItem {
 
   export type HealthGoal = 'lose-weight' | 'maintain-weight' | 'gain-weight' | 'custom';
 
+  export type GoalDirection = 'lose' | 'maintain' | 'gain';
+
   export interface EnhancedUserProfile {
     id: string;
     email?: string;
     name?: string;
-    
-    // Personal Information
-    age?: number;
-    height?: number; // in cm
-    weight?: number; // in kg
-    gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
-    activityLevel?: ActivityLevel;
-    
+
     // Dietary Preferences
     dietaryRestrictions: DietaryRestriction[];
     allergies: string[];
     dislikedFoods: string[];
     preferredCuisines: string[];
-    
-    // Health Goals
-    healthGoals: HealthGoal[];
-    goalDirection?: 'lose' | 'maintain' | 'gain';
-    customGoalTitle?: string;
-    customGoalMotivation?: string;
-    targetWeight?: number;
-    dailyCalorieTarget?: number;
-    dailyProteinTarget?: number;
-    dailyCarbTarget?: number;
-    dailyFatTarget?: number;
-    
+
     // Cooking Preferences
     maxCookingTime?: number; // in minutes
     preferredMealTypes: string[];
-    
+
     // Timestamps
     createdAt: string;
     updatedAt: string;
@@ -167,10 +149,6 @@ export interface InventoryItem {
   export interface MealPlanSummary {
     date: string; // ISO date string (YYYY-MM-DD)
     meals: PlannedMeal[];
-    totalCalories?: number;
-    totalProtein?: number;
-    totalCarbs?: number;
-    totalFats?: number;
     missingIngredientsCount: number;
   }
 
@@ -178,44 +156,6 @@ export interface InventoryItem {
     weekStartDate: string; // ISO date string (YYYY-MM-DD) - Monday of the week
     days: MealPlanSummary[];
     totalMissingIngredients: MealIngredient[];
-    weeklyNutritionSummary?: NutritionSummary;
-  }
-
-  export interface NutritionSummary {
-    totalCalories: number;
-    totalProtein: number;
-    totalCarbs: number;
-    totalFats: number;
-    averageDailyCalories: number;
-  }
-
-  export interface NutritionGoals {
-    dailyCalories: number;
-    protein: number; //grams
-    carbs: number;   //grams
-    fats: number;    //grams
-  }
-
-  export interface LoggedMeal {
-    id: string;
-    date: string; // YYYY-MM-DD
-    mealType: MealType;
-    mealId?: string; // reference to Meal if logged from a recipe
-    customName?: string;
-    servings: number;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fats: number;
-    
-    // AI Scan metadata (optional)
-    imageUri?: string; // Local image path
-    source?: 'manual' | 'ai_scan' | 'search' | 'recipe';
-    confidence?: number; // 0-1 confidence score from AI model
-    portionEstimate?: string; // Human-readable portion (e.g., "1 cup", "150g")
-    modelVersion?: string; // AI model version for reproducibility
-    mappingVersion?: string; // Nutrition mapping version
-    alternativeLabels?: Array<{ label: string; score: number }>; // Top-3 alternative predictions
   }
 
   // Recipe filtering and sorting types
@@ -242,7 +182,7 @@ export interface InventoryItem {
     createdAt: string; // ISO datetime
     updatedAt: string; // ISO datetime
   }
-  
+
   export type RecipeFolderMap = Record<string, RecipeFolder>;
 
   // Canonical recipe model used across Discover/Library/AI detail screens

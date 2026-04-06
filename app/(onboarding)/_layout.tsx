@@ -12,18 +12,10 @@ export default function OnboardingLayout() {
     let mounted = true;
     (async () => {
       try {
-        // Preload all Nosh onboarding illustrations so they appear instantly
         await Asset.loadAsync([
           require('@/assets/images/nosh/Nosh.gif'),
-          require('@/assets/images/nosh/What\'s your goal.png'),
-          require('@/assets/images/nosh/What\'s your gender.png'),
-          require('@/assets/images/nosh/How old are you.png'),
           require('@/assets/images/nosh/What do you like to eat.png'),
-          require('@/assets/images/nosh/How often do you work out.png'),
-          require('@/assets/images/nosh/What\'s your height.png'),
-          require('@/assets/images/nosh/What\'s your target weight.png'),
           require('@/assets/images/nosh/Do you have any allergies.png'),
-          require('@/assets/images/nosh/What is your current weight.png'),
         ]);
       } catch {}
       finally {
@@ -51,25 +43,16 @@ export default function OnboardingLayout() {
           gestureEnabled: true,
           gestureDirection: 'horizontal',
           animation: 'slide_from_right',
-          // Slightly slower for a more organic feel specific to onboarding
           animationDuration: 260,
           contentStyle: { backgroundColor: Colors.background },
         }}
       >
-        <Stack.Screen 
-          name="welcome" 
+        <Stack.Screen
+          name="welcome"
           options={{
-            gestureEnabled: false, // Prevent going back from welcome screen
+            gestureEnabled: false,
           }}
         />
-        <Stack.Screen name="health-goals" />
-        <Stack.Screen name="gender" />
-        <Stack.Screen name="age" />
-        <Stack.Screen name="height" />
-        <Stack.Screen name="weight" />
-        <Stack.Screen name="target-weight" />
-        <Stack.Screen name="activity-level" />
-        <Stack.Screen name="calorie-plan" />
         <Stack.Screen name="dietary-preferences" />
         <Stack.Screen name="allergies" />
         <Stack.Screen name="other-restrictions" />

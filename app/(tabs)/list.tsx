@@ -16,7 +16,6 @@ import { Colors } from '@/constants/colors';
 import { Spacing, Typography as LegacyType } from '@/constants/spacing';
 import { Typography as Type } from '@/constants/typography';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
-import { useInventory } from '@/hooks/useInventoryStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { ShoppingListItem as ShoppingListItemComponent } from '@/components/ShoppingListItem';
 import { AddToListModal } from '@/components/AddToListModal';
@@ -42,7 +41,6 @@ export default function ShoppingListScreen() {
     toggleItemChecked,
     clearRecentlyPurchased
   } = useShoppingList();
-  const { addItem: addInventoryItem } = useInventory();
   const { preferences } = useUserPreferences();
   const { showToast } = useToast();
   // Bottom padding is handled by the tab bar itself (non-absolute). Keep lists compact.
@@ -78,58 +76,6 @@ export default function ShoppingListScreen() {
     toggleItemChecked(item.id);
   };
   
-  const handleMoveCompletedToInventory = async () => {
-    if (checkedItems.length === 0) return;
-    
-    Alert.alert(
-      'Move to Inventory?',
-      `Move ${checkedItems.length} completed item${checkedItems.length > 1 ? 's' : ''} to your inventory?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Move to Inventory',
-          onPress: async () => {
-            try {
-              let successCount = 0;
-              let skippedCount = 0;
-              
-              for (const item of checkedItems) {
-                try {
-                  const itemId = await addInventoryItem({
-                    name: item.name,
-                    category: item.category,
-                    addedDate: new Date().toISOString(),
-                    quantity: 1,
-                    unit: 'pcs',
-                  });
-                  
-                  // If the returned ID is for an existing item, it means it was skipped
-                  // Check if it's newly added or already existed
-                  successCount++;
-                } catch (e) {
-                  console.error(`Failed to add ${item.name} to inventory:`, e);
-                }
-              }
-              
-              if (successCount > 0) {
-                showToast({ 
-                  message: `Moved ${successCount} item${successCount > 1 ? 's' : ''} to inventory`, 
-                  type: 'success' 
-                });
-                
-                // Clear all checked items after successful move
-                clearCheckedItems();
-              } else {
-                showToast({ message: 'Failed to move items to inventory', type: 'error' });
-              }
-            } catch (e) {
-              showToast({ message: 'Failed to move items to inventory', type: 'error' });
-            }
-          },
-        },
-      ]
-    );
-  };
 
   // Calculate stats
   const totalItems = shoppingList.length;
@@ -185,24 +131,14 @@ export default function ShoppingListScreen() {
           />
 
           {checkedItems.length > 0 && (
-            <>
-              <Button
-                title="Move to Inventory"
-                onPress={handleMoveCompletedToInventory}
-                variant="primary"
-                size="xs"
-                style={{ flex: 1, minWidth: 0, paddingHorizontal: 12 }}
-                icon={<CheckCircle size={14} color={Colors.white} />}
-              />
-              <Button
-                title="Clear"
-                onPress={clearCheckedItems}
-                variant="outline"
-                size="xs"
-                style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
-                textStyle={{ color: Colors.error }}
-              />
-            </>
+            <Button
+              title="Clear Completed"
+              onPress={clearCheckedItems}
+              variant="outline"
+              size="xs"
+              style={{ flex: 1, minWidth: 0, paddingHorizontal: 12, borderColor: Colors.error }}
+              textStyle={{ color: Colors.error }}
+            />
           )}
         </View>
         
@@ -238,7 +174,7 @@ export default function ShoppingListScreen() {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Your shopping list is empty</Text>
               <Text style={styles.emptySubtext}>
-                Add items manually or generate a smart list based on your inventory
+                Add items manually or generate a list from a recipe
               </Text>
               <View style={styles.emptyActions}>
                 <TouchableOpacity 

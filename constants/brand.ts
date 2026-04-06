@@ -1,19 +1,19 @@
 // Nosh brand constants and voice guidelines
 // Centralized place for app-wide naming, voice and copy strings
 
-export const APP_NAME = 'Nosh';
-export const APP_SLUG = 'nosh';
-export const APP_SCHEME = 'nosh';
-export const APP_WEBSITE = 'https://nosh.app'; // placeholder domain
+export const APP_NAME = 'RecipeBox';
+export const APP_SLUG = 'recipebox';
+export const APP_SCHEME = 'recipebox';
+export const APP_WEBSITE = 'https://recipebox.app'; // placeholder domain
 
 // Chat storage keys
 export const CHAT_STORAGE_KEY = 'nosh_chat_history';
 export const LEGACY_CHAT_STORAGE_KEY = 'nutriai_chat_history';
 
 // Welcome strings used across onboarding/chat
-export const NOSH_WELCOME_TITLE = 'Welcome to Nosh!';
+export const NOSH_WELCOME_TITLE = 'Welcome to RecipeBox!';
 export const NOSH_WELCOME_MESSAGE =
-  "I'm here to make eating well easy—ask me to plan your day, suggest a meal, or build a shopping list.";
+  "Save recipes from anywhere, plan your meals, and generate smart shopping lists.";
 
 // Persona, tone, and safety rules (short form for UI and prompts)
 export const NOSH_PERSONA = {
@@ -43,4 +43,4 @@ export const NOSH_SYSTEM_RULES = [
 export const NOSH_CHEF_TITLE = 'Nosh — Kitchen Companion (v2)';
 
 // Reusable subtitles
-export const NOSH_HEADER_SUBTITLE = 'Your friendly nutrition companion';
+export const NOSH_HEADER_SUBTITLE = 'Save and organize recipes from anywhere';

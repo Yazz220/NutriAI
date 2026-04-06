@@ -20,17 +20,14 @@ import { RecipeNutritionCard } from './RecipeNutritionCard';
 import { PlanMealModal } from './PlanMealModal';
 import { ServingSizeChanger } from './ServingSizeChanger';
 import IngredientIcon from '@/components/common/IngredientIcon';
-import { EnhancedFloatingChatButton } from '@/components/coach/EnhancedFloatingChatButton';
 import { RecipeChatModal } from './RecipeChatModal';
 import { Button } from '@/components/ui/Button';
 import { Colors } from '@/constants/colors';
 import { Spacing, Radii, Typography as LegacyType } from '@/constants/spacing';
 import { Typography as Type } from '@/constants/typography';
 import LeafIcon from '@/assets/icons/Leaf.svg';
-import { useInventory } from '@/hooks/useInventoryStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useNutritionWithMealPlan } from '@/hooks/useNutritionWithMealPlan';
 import { useMealPlanner } from '@/hooks/useMealPlanner';
 import { useMeals } from '@/hooks/useMealsStore';
 import { CanonicalRecipe, RecipeDetailMode, Meal, MealType } from '@/types';
@@ -111,11 +108,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const imageAnim = useRef(new Animated.Value(0));
   const translateAnim = useRef(new Animated.Value(0));
 
-  // Inventory + shopping list integration for missing ingredients
-  const { inventory } = useInventory();
+  // Shopping list integration for missing ingredients
   const { addItem, shoppingList } = useShoppingList();
   const { preferences } = useUserPreferences();
-  const { logMealFromRecipe } = useNutritionWithMealPlan();
   const { addPlannedMeal } = useMealPlanner();
   const { meals, addMeal, setMeals } = useMeals();
   const [missingCount, setMissingCount] = useState(0);
@@ -167,33 +162,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const nutritionForSelection = scaledNutrition;
 
   // Calculate missing ingredients based on inventory
+  // All ingredients are considered available (no inventory tracking)
   useEffect(() => {
-    if (!scaledIngredients || scaledIngredients.length === 0) {
-      setMissingCount(0);
-      setMissingList([]);
-      setMissingIngredientsAdded(false);
-      return;
-    }
-
-    const missing: Array<{ name: string }> = [];
-    
-    for (const ing of scaledIngredients) {
-      const invItem = inventory.find(
-        (item) => item.name.toLowerCase() === ing.name.toLowerCase()
-      );
-      
-      // If not in inventory, mark as missing (app doesn't use quantities)
-      if (!invItem) {
-        missing.push({
-          name: ing.name,
-        });
-      }
-    }
-
-    setMissingCount(missing.length);
-    setMissingList(missing);
+    setMissingCount(0);
+    setMissingList([]);
     setMissingIngredientsAdded(false);
-  }, [scaledIngredients, inventory]);
+  }, [scaledIngredients]);
 
   useEffect(() => {
     // Animate header image from bottom into place when present and visible.
@@ -213,49 +187,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
 
   const handleLogMeal = async (mealType: MealType, logDate?: string) => {
-    try {
-      // Convert recipe to meal format
-      const meal = convertToMeal(recipe, desiredServings);
-      
-      // Log the meal for the selected date (priority: logDate > selectedDate > today)
-      const targetDate = logDate || selectedDate || new Date().toISOString().split('T')[0];
-      const loggedId = logMealFromRecipe(meal, targetDate, mealType, desiredServings);
-      
-      // Haptic feedback
-      if (Platform.OS === 'ios') {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-      
-      // Show success message with nutrition info
-      const totalCalories = scaledNutrition?.calories || 0;
-      const totalProtein = scaledNutrition?.protein || 0;
-      
-      Alert.alert(
-        'Meal Logged Successfully! 🎉',
-        `${recipe.title} (${desiredServings} servings) has been added to your ${mealType} for today.\n\nCalories: ${totalCalories}\nProtein: ${totalProtein}g\n\nCheck your Coach dashboard to see your updated progress!`,
-        [
-          {
-            text: 'View Progress',
-            onPress: () => {
-              // Close the recipe detail to go back to main app
-              onClose();
-            },
-          },
-          { text: 'OK' },
-        ]
-      );
-      
-      // Call parent callback if provided
-      onLog?.(recipe, mealType, desiredServings);
-      
-    } catch (error) {
-      console.error('Error logging meal:', error);
-      Alert.alert(
-        'Error Logging Meal',
-        'There was an issue logging your meal. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
+    // Log meal callback for parent
+    onLog?.(recipe, mealType, desiredServings);
   };
 
   // Share removed per request
@@ -610,17 +543,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         defaultDate={selectedDate}
       />
 
-      {/* Floating Ask Nosh button (consistent with Tracking page) */}
-      <EnhancedFloatingChatButton
-        onPress={async () => {
-          try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-          if (onAskAI) { onAskAI(recipe); } else { setShowAiChat(true); }
-        }}
-        bottom={Math.max(20, (insets?.bottom ?? 0) + 120)}
-        hasUnreadMessages={false}
-        isTyping={false}
-        IconComponent={NoshChefIcon as any}
-      />
 
       {/* Recipe Chat Modal (contextual) */}
       <RecipeChatModal visible={showAiChat} onClose={() => setShowAiChat(false)} recipe={mealLike as any} />

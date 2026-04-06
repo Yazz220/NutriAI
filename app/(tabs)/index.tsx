@@ -1,1200 +1,376 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SectionList,
-  Alert,
   Image,
-  Animated,
-  TextInput,
-  TouchableWithoutFeedback,
-  ActivityIndicator,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { AlertCircle, TrendingUp, Barcode, Camera as IconCamera, CheckSquare, Square, Trash2 } from 'lucide-react-native';
-import InventoryHeaderIcon from '@/assets/icons/Inventory.svg';
-import SearchIcon from '@/assets/icons/search.svg';
-import PlusIcon from '@/assets/icons/Plus.svg';
-import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import IngredientIcon from '@/components/common/IngredientIcon';
-import { slugifyIngredient } from '@/utils/ingredientSlug';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import { Plus, Clock, BookOpen } from 'phosphor-react-native';
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
-import { useInventory } from '@/hooks/useInventoryStore';
-import { useShoppingList } from '@/hooks/useShoppingListStore';
-import { useToast } from '@/contexts/ToastContext';
-import { InventoryItemCard } from '@/components/InventoryItemCard';
-import { AddItemModal } from '@/components/AddItemModal';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-// Removed Input in favor of inline search bar styling consistent with Discover
-import { Button } from '@/components/ui/Button';
+import { useMeals } from '@/hooks/useMealsStore';
+import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+import { ImportRecipeModal } from '@/components/ImportRecipeModal';
+import { MealDetailModal } from '@/components/MealDetailModal';
 import ScreenHeader from '@/components/ui/ScreenHeader';
-import Rule from '@/components/ui/Rule';
-import { InventoryItem, ItemCategory, ShoppingListItem } from '@/types';
-import { detectItemsFromImage, DetectedItem } from '@/utils/visionClient';
+import HomeIcon from '@/assets/icons/Dashboard.svg';
+import { Meal } from '@/types';
+import { ImportedRecipe } from '@/types/importedRecipe';
 
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const { meals, addMeal } = useMeals();
+  const { folders } = useRecipeFolders();
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [showMealDetail, setShowMealDetail] = useState(false);
 
-// StatRow with three outline panels (compact) - kept for expiring section
-const StatRow = ({ items }: { items: { icon?: React.ReactNode; label: string; value: string }[] }) => (
-  <View style={styles.statRow}>
-    {items.map((it, idx) => (
-      <View key={idx} style={styles.statPill}>
-        {it.icon ? <View style={{ marginRight: 6 }}>{it.icon}</View> : null}
-        <Text style={styles.statPillValue}>{it.value}</Text>
-        <Text style={styles.statPillLabel}>{it.label}</Text>
-      </View>
-    ))}
-  </View>
-);
+  // Get recent recipes (last 6 meaningful ones)
+  const recentRecipes = useMemo(() => {
+    const meaningful = meals.filter(
+      (m) => m.name?.trim() && (m.ingredients?.length || m.steps?.length)
+    );
+    return meaningful.slice(-6).reverse();
+  }, [meals]);
+
+  const handleImport = async (recipe: ImportedRecipe) => {
+    const meal: Meal = {
+      id: recipe.id,
+      name: recipe.title,
+      description: recipe.description || '',
+      image: recipe.image || '',
+      ingredients: recipe.ingredients?.map((ing) => ({
+        name: ing.name,
+        quantity: ing.amount || 0,
+        unit: ing.unit || '',
+      })) || [],
+      steps: recipe.instructions?.map((inst) => inst.text) || [],
+      prepTime: recipe.prepTime || 0,
+      cookTime: recipe.cookTime || 0,
+      servings: recipe.servings || 4,
+      tags: recipe.tags || [],
+      sourceUrl: recipe.sourceUrl,
+    };
+    await addMeal(meal);
+    setShowImportModal(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <ExpoLinearGradient
+        colors={[Colors.background, Colors.background]}
+        style={styles.hero}
+      >
+        <ScreenHeader
+          title="RecipeBox"
+          icon={
+            <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+              <HomeIcon width={38} height={38} color={Colors.text} />
+            </View>
+          }
+          includeStatusBarSpacer
+          containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
+        />
+      </ExpoLinearGradient>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: (insets?.bottom ?? 0) + 100 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Quick Import CTA */}
+        <TouchableOpacity
+          style={styles.importCta}
+          onPress={() => setShowImportModal(true)}
+          activeOpacity={0.85}
+        >
+          <ExpoLinearGradient
+            colors={[Colors.primary, Colors.primaryDark ?? Colors.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.importCtaGradient}
+          >
+            <View style={styles.importCtaContent}>
+              <View style={styles.importCtaIcon}>
+                <Plus size={28} color={Colors.white} weight="bold" />
+              </View>
+              <View style={styles.importCtaText}>
+                <Text style={styles.importCtaTitle}>Import a Recipe</Text>
+                <Text style={styles.importCtaSubtitle}>
+                  From TikTok, Instagram, YouTube, or any website
+                </Text>
+              </View>
+            </View>
+          </ExpoLinearGradient>
+        </TouchableOpacity>
+
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{meals.filter((m) => m.name?.trim() && (m.ingredients?.length || m.steps?.length)).length}</Text>
+            <Text style={styles.statLabel}>Saved Recipes</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{folders.length}</Text>
+            <Text style={styles.statLabel}>Collections</Text>
+          </View>
+        </View>
+
+        {/* Recent Recipes */}
+        {recentRecipes.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Recipes</Text>
+            {recentRecipes.map((recipe) => (
+              <TouchableOpacity
+                key={recipe.id}
+                style={styles.recipeRow}
+                onPress={() => {
+                  setSelectedMeal(recipe);
+                  setShowMealDetail(true);
+                }}
+                activeOpacity={0.75}
+              >
+                {recipe.image ? (
+                  <Image source={{ uri: recipe.image }} style={styles.recipeThumb} />
+                ) : (
+                  <View style={[styles.recipeThumb, styles.recipeThumbPlaceholder]}>
+                    <BookOpen size={24} color={Colors.lightText} />
+                  </View>
+                )}
+                <View style={styles.recipeRowInfo}>
+                  <Text style={styles.recipeRowTitle} numberOfLines={1}>
+                    {recipe.name}
+                  </Text>
+                  <View style={styles.recipeRowMeta}>
+                    {(recipe.cookTime || recipe.prepTime) ? (
+                      <View style={styles.metaItem}>
+                        <Clock size={13} color={Colors.lightText} />
+                        <Text style={styles.metaText}>
+                          {(recipe.cookTime || 0) + (recipe.prepTime || 0)}m
+                        </Text>
+                      </View>
+                    ) : null}
+                    {recipe.servings ? (
+                      <Text style={styles.metaText}>{recipe.servings} servings</Text>
+                    ) : null}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Empty state */}
+        {recentRecipes.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No recipes yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Import your first recipe from social media or any cooking website to get started.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => setShowImportModal(true)}
+            >
+              <Plus size={16} color={Colors.white} />
+              <Text style={styles.emptyButtonText}>Import Recipe</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+
+      <ImportRecipeModal
+        visible={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImport}
+      />
+
+      <MealDetailModal
+        visible={showMealDetail}
+        meal={selectedMeal as any}
+        onClose={() => setShowMealDetail(false)}
+      />
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
   },
+  hero: {
+    paddingBottom: 8,
+  },
   content: {
     flex: 1,
   },
-  hero: {
-    paddingBottom: 12,
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  
-  statRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 0,
-    marginTop: 8,
-    marginBottom: 16,
+  importCta: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  statPill: {
-    flex: 1,
+  importCtaGradient: {
+    padding: 20,
+  },
+  importCtaContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  importCtaIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingVertical: 10,
+    marginRight: 16,
   },
-  statPillValue: {
-    ...Type.body,
-    color: Colors.text,
-    fontWeight: '700',
-    marginRight: 6,
-  },
-  statPillLabel: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  searchContainer: {
-    marginTop: 6,
-  },
-  inventorySearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.tabBackground,
-  },
-  inventorySearchInput: {
+  importCtaText: {
     flex: 1,
-    color: Colors.text,
-    paddingVertical: 0,
   },
-  expiringSection: {
+  importCtaTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  importCtaSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 18,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
     backgroundColor: Colors.card,
-    marginHorizontal: 20,
-    marginTop: -10,
     borderRadius: 16,
     padding: 16,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  expiringHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  statLabel: {
+    ...Type.caption,
+    color: Colors.lightText,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    ...Type.h3,
+    fontSize: 18,
+    color: Colors.text,
     marginBottom: 12,
   },
-  expiringTitleRow: {
+  recipeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  expiringTitle: {
-    ...Type.h3,
-    fontSize: 18,
-    color: Colors.text,
-    marginLeft: 8,
-  },
-  expiringCount: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  expiringScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-  },
-  expiringItem: {
-    width: 250,
-    marginRight: 12,
-  },
-  sectionHeader: {
-    ...Type.h3,
-    fontSize: 18,
-    color: Colors.text,
-    marginTop: 24, // section gap spec
-    marginBottom: 8,
-    paddingHorizontal: 20,
-    backgroundColor: Colors.background,
-  },
-  sectionListContent: {
-    paddingBottom: 150,
-    paddingTop: 0,
-  },
-  itemRowContainer: {
-    height: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  tileSquare: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    backgroundColor: Colors.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 12,
-  },
-  tileCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemTexts: {
-    flexShrink: 1,
-  },
-  itemTitle: {
-    ...Type.body,
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  itemMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 8,
-  },
-  qtyText: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  categoryText: {
-    ...Type.caption,
-    color: Colors.lightText,
-    marginTop: 4,
-  },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: Colors.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  categoryBadgeText: {
-    ...Type.caption,
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  itemRight: {
-    marginLeft: 12,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    marginTop: 50,
     backgroundColor: Colors.card,
-    marginHorizontal: 20,
-    borderRadius: 16,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  emptyText: {
-    ...Type.h3,
-    fontSize: 18,
+  recipeThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  recipeThumbPlaceholder: {
+    backgroundColor: Colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipeRowInfo: {
+    flex: 1,
+  },
+  recipeRowTitle: {
+    ...Type.body,
+    fontWeight: '600',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  recipeRowMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    ...Type.caption,
+    color: Colors.lightText,
+  },
+  emptyState: {
+    marginTop: 40,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    ...Type.h3,
+    fontSize: 20,
+    color: Colors.text,
+    marginBottom: 10,
     textAlign: 'center',
   },
-  quickAddContainer: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    alignItems: 'flex-end',
-  },
-  quickAddButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  quickAddOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 25,
-    marginBottom: 12,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  quickAddText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: '500',
-  },
-  cameraContainer: {
-    flex: 1,
-  },
-  cameraActionsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 20,
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: Colors.white,
-    borderWidth: 4,
-    borderColor: Colors.primary,
-  },
-  closeScannerButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
-  },
-  previewImage: {
-    flex: 1,
-  },
-  previewActionsContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 20,
-  },
-  previewButton: {
-    padding: 12,
-  },
-  previewButtonText: {
+  emptySubtitle: {
     ...Type.body,
-    color: Colors.white,
-    fontWeight: '600',
+    color: Colors.lightText,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
   },
-  stickyHeader: {
-    backgroundColor: Colors.background,
-    zIndex: 2,
-    elevation: 2,
-  },
-  selectionToolbar: {
-    flexDirection: 'column',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginTop: 8,
-  },
-  selectModeButton: {
+  emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginTop: 12,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
     gap: 8,
   },
-  selectModeText: {
-    color: Colors.primary,
-    fontSize: 14,
+  emptyButtonText: {
+    color: Colors.white,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
-
-export default function InventoryScreen() {
-  const insets = useSafeAreaInsets();
-  const { inventory, isLoading, addItem, removeItem, refresh } = useInventory();
-  // Freshness/expiration removed; no categorized freshness usage
-  const { addItem: addToShoppingList } = useShoppingList();
-  const { showToast } = useToast();
-  const params = useLocalSearchParams<{ category?: string }>();
-
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const [isCameraOpen, setCameraOpen] = useState(false);
-  const [isBarcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [detectedItems, setDetectedItems] = useState<DetectedItem[] | null>(null);
-  const [editableItems, setEditableItems] = useState<Array<{ name: string; quantity: string; unit: string; category: ItemCategory }>>([]);
-  const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
-  const [isReceiptMode, setIsReceiptMode] = useState<boolean>(true); // affects category mapping
-  const cameraRef = useRef<CameraView>(null);
-
-  // Barcode scan → pre-fill AddItemModal
-  const [barcodeInitialName, setBarcodeInitialName] = useState<string | undefined>(undefined);
-  const [barcodeInitialCategory, setBarcodeInitialCategory] = useState<ItemCategory | undefined>(undefined);
-  const [isBarcodeLoading, setIsBarcodeLoading] = useState(false);
-
-  const [isQuickAddExpanded, setQuickAddExpanded] = useState(false);
-  const quickAddAnim = useRef(new Animated.Value(0)).current; // 0 collapsed, 1 expanded
-  const TAB_BAR_HEIGHT = 56; // pill tab bar height
-  const bottomOffset = (insets?.bottom ?? 0) + TAB_BAR_HEIGHT + 12; // raise above nav
-  
-  // Selection mode state
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
-  const expandQuickAdd = () => {
-    setQuickAddExpanded(true);
-    Animated.timing(quickAddAnim, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const collapseQuickAdd = () => {
-    Animated.timing(quickAddAnim, {
-      toValue: 0,
-      duration: 160,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setQuickAddExpanded(false);
-    });
-  };
-
-  const toggleQuickAdd = () => {
-    if (isQuickAddExpanded) collapseQuickAdd(); else expandQuickAdd();
-  };
-  const [categoryFilter, setCategoryFilter] = useState<ItemCategory | 'Other' | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const onRefresh = async () => {
-    try {
-      setIsRefreshing(true);
-      await refresh?.();
-      showToast({ message: 'Inventory refreshed', type: 'info', duration: 1500 });
-    } catch (e) {
-      console.error(e);
-      showToast({ message: 'Refresh failed', type: 'error', duration: 2500 });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Apply category filter from route param on first mount
-  useEffect(() => {
-    const cat = params?.category;
-    if (cat && typeof cat === 'string') {
-      // Narrow to known categories else treat as Other
-      const known = ['Produce','Dairy','Meat','Seafood','Frozen','Pantry','Bakery','Beverages','Other'] as const;
-      const asKnown = known.find(k => k.toLowerCase() === cat.toLowerCase());
-      setCategoryFilter((asKnown as ItemCategory | 'Other') ?? 'Other');
-    }
-  // run only on first render for drill-in behavior
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleUseItem = async (item: InventoryItem) => {
-    try {
-      // Remove from inventory
-      await removeItem(item.id);
-      
-      // Automatically add to shopping list (no prompt)
-      try {
-        await addToShoppingList({
-          name: item.name,
-          quantity: 1,
-          unit: item.unit || 'pcs',
-          category: item.category || 'Other',
-          addedDate: new Date().toISOString(),
-          checked: false,
-          addedBy: 'system',
-        } as Omit<ShoppingListItem, 'id'>);
-        showToast({ message: `${item.name} moved to shopping list`, type: 'success', duration: 2000 });
-      } catch (e) {
-        console.error(e);
-        showToast({ message: `Used up ${item.name}`, type: 'success', duration: 2000 });
-      }
-    } catch (e) {
-      console.error(e);
-      showToast({ message: 'Failed to update inventory', type: 'error', duration: 2500 });
-    }
-  };
-  
-  const handleBulkUseUp = async () => {
-    if (selectedItems.size === 0) return;
-    
-    const itemsToUse = inventory.filter(item => selectedItems.has(item.id));
-    const count = itemsToUse.length;
-    
-    Alert.alert(
-      'Use Up Selected Items?',
-      `This will move ${count} item${count > 1 ? 's' : ''} to your shopping list.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Use Up',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Process all selected items
-              for (const item of itemsToUse) {
-                await removeItem(item.id);
-                try {
-                  await addToShoppingList({
-                    name: item.name,
-                    quantity: 1,
-                    unit: item.unit || 'pcs',
-                    category: item.category || 'Other',
-                    addedDate: new Date().toISOString(),
-                    checked: false,
-                    addedBy: 'system',
-                  } as Omit<ShoppingListItem, 'id'>);
-                } catch (e) {
-                  console.error(`Failed to add ${item.name} to shopping list:`, e);
-                }
-              }
-              
-              showToast({ 
-                message: `Moved ${count} item${count > 1 ? 's' : ''} to shopping list`, 
-                type: 'success', 
-                duration: 2500 
-              });
-              
-              // Exit selection mode
-              setSelectedItems(new Set());
-              setIsSelectionMode(false);
-            } catch (e) {
-              console.error(e);
-              showToast({ message: 'Failed to process items', type: 'error', duration: 2500 });
-            }
-          },
-        },
-      ]
-    );
-  };
-  
-  const handleBulkDelete = async () => {
-    if (selectedItems.size === 0) return;
-    
-    const itemsToDelete = inventory.filter(item => selectedItems.has(item.id));
-    const count = itemsToDelete.length;
-    
-    Alert.alert(
-      'Delete Selected Items?',
-      `This will permanently remove ${count} item${count > 1 ? 's' : ''} from your inventory.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              for (const item of itemsToDelete) {
-                await removeItem(item.id);
-              }
-              
-              showToast({ 
-                message: `Deleted ${count} item${count > 1 ? 's' : ''}`, 
-                type: 'success', 
-                duration: 2500 
-              });
-              
-              // Exit selection mode
-              setSelectedItems(new Set());
-              setIsSelectionMode(false);
-            } catch (e) {
-              console.error(e);
-              showToast({ message: 'Failed to delete items', type: 'error', duration: 2500 });
-            }
-          },
-        },
-      ]
-    );
-  };
-  
-  const toggleItemSelection = (itemId: string) => {
-    setSelectedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
-      return next;
-    });
-  };
-  
-  const toggleSelectAll = () => {
-    const visibleItemIds = filteredInventory.map(item => item.id);
-    if (selectedItems.size === visibleItemIds.length) {
-      setSelectedItems(new Set());
-    } else {
-      setSelectedItems(new Set(visibleItemIds));
-    }
-  };
-  
-  const enterSelectionMode = () => {
-    setIsSelectionMode(true);
-    setSelectedItems(new Set());
-  };
-  
-  const exitSelectionMode = () => {
-    setIsSelectionMode(false);
-    setSelectedItems(new Set());
-  };
-
-  const handleAddItem = async (item: Partial<{ name: string; category: ItemCategory; addedDate: string; quantity?: number; unit?: string }>) => {
-    // Guard and normalize the incoming item shape from AddItemModal
-    const name = (item.name || '').trim();
-    if (!name) {
-      showToast({ message: 'Item name is required', type: 'error', duration: 2000 });
-      return;
-    }
-
-    const category = (item.category || 'Other') as ItemCategory;
-    const quantity = item.quantity ?? 1;
-    const unit = item.unit ?? 'pcs';
-    const addedDate = item.addedDate ?? new Date().toISOString();
-
-    try {
-      // Do not track expiration dates
-      await addItem({ name, category, quantity, unit, addedDate });
-      setModalVisible(false);
-      showToast({ message: `Added ${name}`, type: 'success', duration: 2000 });
-    } catch (e) {
-      console.error(e);
-      showToast({ message: 'Add failed. Please try again.', type: 'error', duration: 2500 });
-    }
-  };
-
-  const openCamera = async () => {
-    const { status } = await requestPermission();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera access is required to add items with a photo.');
-      return;
-    }
-    setCameraOpen(true);
-    collapseQuickAdd();
-  };
-
-  const openBarcodeScanner = async () => {
-    const { status } = await requestPermission();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera access is required for barcode scanning.');
-      return;
-    }
-    setBarcodeScannerOpen(true);
-    collapseQuickAdd();
-  };
-
-  const handleBarcodeScanned = async (barcode: string) => {
-    setBarcodeScannerOpen(false);
-    setIsBarcodeLoading(true);
-    try {
-      const res = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,categories_tags`,
-        { headers: { 'User-Agent': 'Nosh/1.0 (nutrition-app)' } },
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.status === 1 && json.product?.product_name) {
-        const productName: string = json.product.product_name;
-        const tags: string[] = json.product.categories_tags ?? [];
-        const categoryTag = tags.join(' ').toLowerCase();
-        const guessedCategory = mapCategory(categoryTag, productName, false);
-        setBarcodeInitialName(productName);
-        setBarcodeInitialCategory(guessedCategory);
-        setModalVisible(true);
-      } else {
-        // Product not found — let user enter manually
-        setBarcodeInitialName('');
-        setBarcodeInitialCategory(undefined);
-        setModalVisible(true);
-        showToast({ message: 'Product not found. Enter details manually.', type: 'info', duration: 3000 });
-      }
-    } catch (e) {
-      console.error('Barcode lookup failed:', e);
-      setBarcodeInitialName('');
-      setBarcodeInitialCategory(undefined);
-      setModalVisible(true);
-      showToast({ message: 'Lookup failed. Enter details manually.', type: 'info', duration: 3000 });
-    } finally {
-      setIsBarcodeLoading(false);
-    }
-  };
-
-  const handleTakePicture = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
-      if (photo) {
-        setCapturedImage(photo.uri);
-        setCameraOpen(false);
-      }
-    }
-  };
-
-  const analyzeCapturedImage = async () => {
-    if (!capturedImage) return;
-    try {
-      setIsAnalyzing(true);
-      // Convert to base64 data URL for model input
-      const base64 = await FileSystem.readAsStringAsync(capturedImage, { encoding: 'base64' });
-      const dataUrl = `data:image/jpeg;base64,${base64}`;
-      const items = await detectItemsFromImage({ imageDataUrl: dataUrl });
-      setDetectedItems(items);
-      setSelectedIdx(new Set(items.map((_, i) => i))); // preselect all
-      const editable = items.map((it) => ({
-        name: (it.name || 'Item').trim(),
-        quantity: String(it.quantity && it.quantity > 0 ? it.quantity : 1),
-        unit: (it.unit as any) || 'pcs',
-        category: mapCategory(it.category, (it.name || ''), isReceiptMode),
-      }));
-      setEditableItems(editable);
-    } catch (e) {
-      Alert.alert('Vision Error', 'Failed to analyze image. Please try again.');
-      console.error('Vision analyze error', e);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const toggleSelect = (i: number) => {
-    setSelectedIdx(prev => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i); else next.add(i);
-      return next;
-    });
-  };
-
-  const addSelectedToInventory = async () => {
-    if (!detectedItems) return;
-    const now = new Date();
-    try {
-      const tasks: Promise<any>[] = [];
-      let addedCount = 0;
-      detectedItems.forEach((it, idx) => {
-        if (!selectedIdx.has(idx)) return;
-        const edit = editableItems[idx];
-        const item: Omit<InventoryItem, 'id'> = {
-          name: edit?.name || it.name || 'Item',
-          quantity: Number(edit?.quantity || it.quantity || 1) || 1,
-          unit: (edit?.unit as any) || (it.unit as any) || 'pcs',
-          category: (edit?.category as ItemCategory) || (mapCategory(it.category, it.name || '', isReceiptMode)) || 'Other',
-          addedDate: now.toISOString(),
-        };
-        addedCount += 1;
-        tasks.push(addItem(item));
-      });
-      await Promise.all(tasks);
-      setDetectedItems(null);
-      setCapturedImage(null);
-      setSelectedIdx(new Set());
-      showToast({ message: `Added ${addedCount} item(s)`, type: 'success', duration: 2000 });
-    } catch (e) {
-      console.error(e);
-      showToast({ message: 'Some items could not be added', type: 'error', duration: 2500 });
-    }
-  };
-
-  
-
-  const filteredInventory = useMemo(() => {
-    return inventory.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = categoryFilter ? (item.category || 'Other') === categoryFilter : true;
-      return matchesSearch && matchesCategory;
-    });
-  }, [inventory, searchQuery, categoryFilter]);
-
-  const groupedInventory = useMemo(() => {
-    const grouped = filteredInventory.reduce((acc, item) => {
-      const category = item.category || 'Other';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(item);
-      return acc;
-    }, {} as Record<ItemCategory | 'Other', InventoryItem[]>);
-
-    return Object.entries(grouped).map(([title, data]) => ({ title, data }));
-  }, [filteredInventory]);
-
-  if (isLoading) {
-    return <LoadingSpinner text="Loading your inventory..." />;
-  }
-
-  if (isCameraOpen || isBarcodeScannerOpen) {
-    return (
-      <View style={styles.cameraContainer}>
-        <CameraView 
-          style={StyleSheet.absoluteFillObject}
-          facing='back'
-          ref={cameraRef}
-          barcodeScannerSettings={{
-            barcodeTypes: ['qr', 'ean13', 'upc_a', 'upc_e'],
-          }}
-          onBarcodeScanned={(result) => {
-            if (isBarcodeScannerOpen && !isBarcodeLoading) {
-              handleBarcodeScanned(result.data);
-            }
-          }}
-        />
-        <TouchableOpacity style={styles.closeScannerButton} onPress={() => { setCameraOpen(false); setBarcodeScannerOpen(false); }}>
-          <AlertCircle size={32} color={Colors.white} />
-        </TouchableOpacity>
-        {isBarcodeLoading && (
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={Colors.white} />
-            <Text style={{ color: Colors.white, marginTop: 12, fontSize: 16 }}>Looking up product...</Text>
-          </View>
-        )}
-        {isCameraOpen && (
-            <View style={styles.cameraActionsContainer}>
-                <TouchableOpacity style={styles.captureButton} onPress={handleTakePicture} />
-            </View>
-        )}
-      </View>
-    );
-  }
-
-  if (capturedImage && !detectedItems) {
-    return (
-      <View style={styles.cameraContainer}>
-        <Image source={{ uri: capturedImage }} style={styles.previewImage} />
-        <View style={styles.previewActionsContainer}>
-          <TouchableOpacity style={styles.previewButton} onPress={() => setCapturedImage(null)}>
-            <Text style={styles.previewButtonText}>Retake</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.previewButton} onPress={analyzeCapturedImage} disabled={isAnalyzing}>
-            <Text style={styles.previewButtonText}>{isAnalyzing ? 'Analyzing…' : 'Analyze Items'}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (capturedImage && detectedItems) {
-    return (
-      <View style={styles.cameraContainer}>
-        <Image source={{ uri: capturedImage }} style={styles.previewImage} />
-        <View style={[styles.previewActionsContainer, { flexDirection: 'column', alignItems: 'stretch' }]}> 
-          <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', paddingVertical: 8 }}>
-            <Text style={[styles.previewButtonText, { textAlign: 'center' }]}>Detected Items</Text>
-          </View>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.96)', borderBottomWidth: 1, borderBottomColor: Colors.border }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ color: Colors.text, fontWeight: '600' }}>Mode</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity onPress={() => setIsReceiptMode(true)} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: isReceiptMode ? Colors.primary : Colors.secondary, borderRadius: 10 }}>
-                  <Text style={{ color: isReceiptMode ? Colors.white : Colors.text }}>Receipt</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsReceiptMode(false)} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: !isReceiptMode ? Colors.primary : Colors.secondary, borderRadius: 10 }}>
-                  <Text style={{ color: !isReceiptMode ? Colors.white : Colors.text }}>Items Photo</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-          <ScrollView style={{ maxHeight: 300, backgroundColor: Colors.card }} contentContainerStyle={{ padding: 12 }}>
-            {detectedItems.map((it, idx) => (
-              <View key={`det-${idx}`} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
-                <TouchableOpacity onPress={() => toggleSelect(idx)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <View style={{ width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: Colors.primary, backgroundColor: selectedIdx.has(idx) ? Colors.primary : 'transparent', marginRight: 10 }} />
-                  <Text style={{ color: Colors.text, fontWeight: '600' }}>{editableItems[idx]?.name || it.name}</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 2 }}>
-                    <Text style={{ color: Colors.lightText, marginBottom: 4 }}>Name</Text>
-                    <TextInput
-                      value={editableItems[idx]?.name}
-                      onChangeText={(v) => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, name: v } : e))}
-                      style={{ backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: Colors.lightText, marginBottom: 4 }}>Qty</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      value={editableItems[idx]?.quantity}
-                      onChangeText={(v) => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, quantity: v.replace(/[^0-9.]/g, '') } : e))}
-                      style={{ backgroundColor: Colors.secondary, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, color: Colors.text }}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: Colors.lightText, marginBottom: 4 }}>Unit</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {['pcs','kg','g','l','ml','can','bottle','bunch'].map(u => (
-                        <TouchableOpacity key={u} onPress={() => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, unit: u } : e))} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: editableItems[idx]?.unit === u ? Colors.primary : Colors.secondary, borderRadius: 8, marginRight: 6 }}>
-                          <Text style={{ color: editableItems[idx]?.unit === u ? Colors.white : Colors.text }}>{u}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                </View>
-                <View style={{ marginTop: 8 }}>
-                  <Text style={{ color: Colors.lightText, marginBottom: 4 }}>Category</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {(['Produce','Dairy','Meat','Seafood','Frozen','Pantry','Bakery','Beverages','Other'] as ItemCategory[]).map(cat => (
-                      <TouchableOpacity key={cat} onPress={() => setEditableItems(prev => prev.map((e, i) => i === idx ? { ...e, category: cat } : e))} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: editableItems[idx]?.category === cat ? Colors.primary : Colors.secondary, borderRadius: 8, marginRight: 6 }}>
-                        <Text style={{ color: editableItems[idx]?.category === cat ? Colors.white : Colors.text }}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            ))}
-            {detectedItems.length === 0 && <Text style={{ color: Colors.text }}>No items detected. Try another photo.</Text>}
-          </ScrollView>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <TouchableOpacity style={styles.previewButton} onPress={() => { setDetectedItems(null); }}>
-              <Text style={styles.previewButtonText}>Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.previewButton} onPress={addSelectedToInventory} disabled={selectedIdx.size === 0}>
-              <Text style={styles.previewButtonText}>Add Selected</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.previewButton} onPress={() => { setSelectedIdx(new Set(detectedItems.map((_, i) => i))); addSelectedToInventory(); }} disabled={detectedItems.length === 0}>
-              <Text style={styles.previewButtonText}>Add All</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  // Simple category mapping heuristic
-  function mapCategory(cat?: string, name?: string, receiptMode?: boolean): ItemCategory {
-    const n = (name || '').toLowerCase();
-    const c = (cat || '').toLowerCase();
-    const inAny = (s: string, arr: string[]) => arr.some(x => s.includes(x));
-    if (inAny(c, ['produce','vegetable','fruit'])) return 'Produce';
-    if (inAny(c, ['dairy'])) return 'Dairy';
-    if (inAny(c, ['meat','poultry','beef','chicken','pork'])) return 'Meat';
-    if (inAny(c, ['seafood','fish','shrimp','salmon','tuna'])) return 'Seafood';
-    if (inAny(c, ['frozen'])) return 'Frozen';
-    if (inAny(c, ['bakery','bread'])) return 'Bakery';
-    if (inAny(c, ['beverage','drink','soda','juice','water'])) return 'Beverages';
-    if (inAny(c, ['pantry','dry'])) return 'Pantry';
-
-    if (inAny(n, ['apple','banana','lettuce','tomato','onion','pepper','spinach','carrot','broccoli','herb','cilantro','parsley','avocado'])) return 'Produce';
-    if (inAny(n, ['milk','cheese','yogurt','butter','cream'])) return 'Dairy';
-    if (inAny(n, ['beef','chicken','pork','turkey','sausage','bacon'])) return 'Meat';
-    if (inAny(n, ['salmon','tuna','shrimp','cod','tilapia'])) return 'Seafood';
-    if (inAny(n, ['frozen','ice cream','frozen pizza','peas'])) return 'Frozen';
-    if (inAny(n, ['bread','bagel','bun','tortilla'])) return 'Bakery';
-    if (inAny(n, ['soda','cola','juice','water','coffee','tea','beer','wine'])) return 'Beverages';
-
-    // Receipt mode leans toward Pantry/Beverages
-    if (receiptMode) {
-      if (inAny(n, ['sauce','pasta','rice','flour','sugar','oil','salt','cereal','beans','canned','can'])) return 'Pantry';
-      if (inAny(n, ['soda','juice','water','coffee','tea','beer','wine'])) return 'Beverages';
-    }
-    return 'Pantry';
-  }
-
-  const renderEmptyComponent = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Your inventory is empty. Add some items to get started!</Text>
-      <Button
-        title="Add First Item"
-        onPress={() => setModalVisible(true)}
-        icon={<PlusIcon width={14} height={14} color={Colors.white} />}
-        size="xs"
-      />
-    </View>
-  );
-
-  // Optional active filter pill (shown above list when filter is active)
-  const FilterPill = () => (
-    categoryFilter ? (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8 }}>
-        <Text style={{ color: Colors.lightText, marginRight: 8 }}>Filter:</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.secondary, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ color: Colors.text, fontWeight: '600' }}>{categoryFilter}</Text>
-          <TouchableOpacity onPress={() => setCategoryFilter(null)} style={{ marginLeft: 8 }}>
-            <Text style={{ color: Colors.primary, fontWeight: '600' }}>Clear</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    ) : null
-  );
-
-  // Main render
-  return (
-    <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-
-      {/* Header */}
-      <ExpoLinearGradient
-        colors={[Colors.background, Colors.background]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <ScreenHeader
-          title="Inventory"
-          icon={
-            <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
-              <InventoryHeaderIcon width={38} height={38} color={Colors.text} />
-            </View>
-          }
-          iconScale={1}
-          includeStatusBarSpacer
-          containerStyle={{ paddingBottom: 0, paddingHorizontal: 20 }}
-        />
-      </ExpoLinearGradient>
-
-
-
-      <View style={styles.hero}>
-        {/* Selection Mode Toolbar */}
-        {isSelectionMode ? (
-          <View style={styles.selectionToolbar}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <TouchableOpacity onPress={exitSelectionMode} style={{ marginRight: 16 }}>
-                <Text style={{ color: Colors.primary, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={{ color: Colors.text, fontSize: 16, fontWeight: '600' }}>
-                {selectedItems.size} selected
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              <Button 
-                title="Select All" 
-                variant="outline" 
-                size="sm" 
-                onPress={toggleSelectAll}
-                style={{ flex: 1, minWidth: 100 }}
-              />
-              <Button 
-                title="Use Up" 
-                variant="primary" 
-                size="sm" 
-                onPress={handleBulkUseUp}
-                disabled={selectedItems.size === 0}
-                style={{ flex: 1, minWidth: 100 }}
-              />
-              <Button 
-                title="Delete" 
-                variant="outline" 
-                size="sm" 
-                onPress={handleBulkDelete}
-                disabled={selectedItems.size === 0}
-                textStyle={{ color: Colors.error }}
-                style={{ flex: 1, minWidth: 100, borderColor: Colors.error }}
-                icon={<Trash2 size={16} color={Colors.error} />}
-              />
-            </View>
-          </View>
-        ) : (
-          <>
-            {/* Search Bar (matches Discover style) */}
-            <View style={styles.searchContainer}>
-              <View style={styles.inventorySearchBar}>
-                <SearchIcon width={24} height={24} color={Colors.lightText} />
-                <TextInput
-                  placeholder="Search your inventory..."
-                  placeholderTextColor={Colors.lightText}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  style={styles.inventorySearchInput}
-                  returnKeyType="search"
-                />
-              </View>
-            </View>
-            {/* Selection Mode Button */}
-            {inventory.length > 0 && (
-              <TouchableOpacity 
-                onPress={enterSelectionMode}
-                style={styles.selectModeButton}
-              >
-                <CheckSquare size={18} color={Colors.primary} />
-                <Text style={styles.selectModeText}>Select Items</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-      </View>
-
-      <AddItemModal
-        visible={isModalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setBarcodeInitialName(undefined);
-          setBarcodeInitialCategory(undefined);
-        }}
-        onAdd={handleAddItem}
-        initialName={barcodeInitialName}
-        initialCategory={barcodeInitialCategory}
-      />
-
-      <SectionList
-        sections={groupedInventory}
-        keyExtractor={(item) => `section-${item.id}`}
-        renderItem={({ item }) => (
-          <View>
-            <TouchableOpacity 
-              style={styles.itemRowContainer}
-              onPress={() => isSelectionMode ? toggleItemSelection(item.id) : undefined}
-              activeOpacity={isSelectionMode ? 0.7 : 1}
-            >
-              {isSelectionMode && (
-                <TouchableOpacity 
-                  onPress={() => toggleItemSelection(item.id)}
-                  style={{ marginRight: 12 }}
-                >
-                  {selectedItems.has(item.id) ? (
-                    <CheckSquare size={24} color={Colors.primary} />
-                  ) : (
-                    <Square size={24} color={Colors.lightText} />
-                  )}
-                </TouchableOpacity>
-              )}
-              <View style={styles.itemLeft}>
-                <View style={[styles.tileSquare, styles.tileCenter]}>
-                  <IngredientIcon slug={slugifyIngredient(item.name)} size={64} />
-                </View>
-                <View style={styles.itemTexts}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.categoryText}>{item.category}</Text>
-                </View>
-              </View>
-              {!isSelectionMode && (
-                <View style={styles.itemRight}>
-                  <Button title="Use up" variant="outline" size="sm" onPress={() => handleUseItem(item)} />
-                </View>
-              )}
-            </TouchableOpacity>
-            <Rule />
-          </View>
-        )}
-        renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.stickyHeader}>
-            <Text style={styles.sectionHeader}>{title}</Text>
-            <View style={{ paddingHorizontal: 20 }}>
-              <Rule />
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={renderEmptyComponent}
-        contentContainerStyle={styles.sectionListContent}
-        showsVerticalScrollIndicator={false}
-        refreshing={isRefreshing}
-        onRefresh={onRefresh}
-        stickySectionHeadersEnabled
-        ListHeaderComponent={
-          <>
-            <FilterPill />
-          </>
-        }
-      />
-
-      {/* Backdrop for outside-tap close */}
-      {isQuickAddExpanded && (
-        <TouchableWithoutFeedback onPress={collapseQuickAdd}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-        </TouchableWithoutFeedback>
-      )}
-
-      <View style={[styles.quickAddContainer, { bottom: bottomOffset }]}>
-        {isQuickAddExpanded && (
-          <Animated.View
-            style={{
-              opacity: quickAddAnim,
-              transform: [{ scale: quickAddAnim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
-            }}
-          >
-            <TouchableOpacity style={styles.quickAddOption} onPress={() => { setModalVisible(true); collapseQuickAdd(); }}>
-              <PlusIcon width={20} height={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>Add Manually</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAddOption} onPress={openBarcodeScanner}>
-              <Barcode size={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>Scan Barcode</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickAddOption} onPress={openCamera}>
-              <IconCamera size={20} color={Colors.primary} />
-              <Text style={styles.quickAddText}>Use Camera</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-        <TouchableOpacity style={styles.quickAddButton} onPress={toggleQuickAdd}>
-          <View style={{ width: 64, height: 64, justifyContent: 'center', alignItems: 'center' }}>
-            <PlusIcon width={136} height={136} color={Colors.white} style={{ position: 'absolute', left: -(136 - 64) / 2, top: -(136 - 64) / 2 }} />
-          </View>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}

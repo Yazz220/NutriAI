@@ -7,18 +7,16 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { InventoryProvider } from "@/hooks/useInventoryStore";
-import { MealsProvider } from "@/hooks/useMealsStore";
 import { ShoppingListProvider } from "@/hooks/useShoppingListStore";
 import { UserPreferencesProvider } from "@/hooks/useUserPreferences";
 import { UserProfileProvider } from "@/hooks/useUserProfile";
 import { MealPlannerProvider } from "@/hooks/useMealPlanner";
-import { NutritionProvider } from "@/hooks/useNutrition";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
 import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
+import { MealsProvider } from "@/hooks/useMealsStore";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -44,10 +42,6 @@ function RootLayoutNav() {
       try {
         await loadFonts();
         // Set global default font family to Manrope (UI) for all RN <Text />
-        // This ensures existing components pick up the new UI font without code changes
-        // while we gradually migrate to the custom Typography/Text components.
-        // Merge with any existing default styles to avoid clobbering them.
-        // Note: defaultProps is safe for RN Text in app code (not on web SSR).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (RNText as any).defaultProps = {
           ...(RNText as any).defaultProps,
@@ -61,7 +55,7 @@ function RootLayoutNav() {
         setOnboardingCompleted(completed);
       } catch (e) {
         console.warn('Error loading fonts:', e);
-        setOnboardingCompleted(false); // Default to showing onboarding on error
+        setOnboardingCompleted(false);
       } finally {
         setFontsLoaded(true);
       }
@@ -91,8 +85,7 @@ function RootLayoutNav() {
     };
   }, [fontsLoaded, segments]);
 
-  // Hide the splash screen once fonts are loaded. Declare this effect before
-  // any early returns so hook order remains stable across renders.
+  // Hide the splash screen once fonts are loaded.
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync().catch(() => { });
@@ -128,10 +121,8 @@ function RootLayoutNav() {
   }, [initializing, session, segments, fontsLoaded, onboardingCompleted, devBypass, router]);
 
   if (!fontsLoaded || onboardingCompleted === null) {
-    return null; // Or a loading screen
+    return null;
   }
-
-  // splash hide is handled by the fontsLoaded effect above
 
   if (initializing) {
     return (
@@ -161,25 +152,21 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <UserProfileProvider>
         <UserPreferencesProvider>
-          <InventoryProvider>
-            <MealsProvider>
-              <ShoppingListProvider>
-                <MealPlannerProvider>
-                  <NutritionProvider>
-                    <RecipeStoreProvider>
-                      <RecipeFoldersProvider>
-                        <ToastProvider>
-                          <GlobalErrorBoundary>
-                            <RootLayoutNav />
-                          </GlobalErrorBoundary>
-                        </ToastProvider>
-                      </RecipeFoldersProvider>
-                    </RecipeStoreProvider>
-                  </NutritionProvider>
-                </MealPlannerProvider>
-              </ShoppingListProvider>
-            </MealsProvider>
-          </InventoryProvider>
+          <MealsProvider>
+            <ShoppingListProvider>
+              <MealPlannerProvider>
+                <RecipeStoreProvider>
+                  <RecipeFoldersProvider>
+                    <ToastProvider>
+                      <GlobalErrorBoundary>
+                        <RootLayoutNav />
+                      </GlobalErrorBoundary>
+                    </ToastProvider>
+                  </RecipeFoldersProvider>
+                </RecipeStoreProvider>
+              </MealPlannerProvider>
+            </ShoppingListProvider>
+          </MealsProvider>
         </UserPreferencesProvider>
       </UserProfileProvider>
     </QueryClientProvider>

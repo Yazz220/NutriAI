@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, DotsThreeVertical, Clock, Fire } from 'phosphor-react-native';
+import { Plus, DotsThreeVertical, Clock } from 'phosphor-react-native';
 import RecipePageIcon from '@/assets/icons/Recipe page.svg';
 import SearchIcon from '@/assets/icons/search.svg';
 import { X } from 'lucide-react-native';
@@ -25,7 +25,6 @@ import { Typography as Type } from '@/constants/typography';
 
 // Components
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { InventoryAwareRecipeDiscovery } from '@/components/InventoryAwareRecipeDiscovery';
 import { MealDetailModal } from '@/components/MealDetailModal';
 // EnhancedRecipeDetailModal removed
 import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
@@ -39,27 +38,11 @@ import { EditRecipeModal } from '@/components/EditRecipeModal';
 import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
 import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
-import { useRecipeNutritionEnrichment } from '@/hooks/useRecipeNutritionEnrichment';
 // Types
 import { ExternalRecipe } from '@/types/external';
 import { ImportedRecipe } from '@/types/importedRecipe';
 import { Meal, RecipeFolder } from '@/types';
-import { computeForExternalRecipe, estimateServingsForExternalRecipe, computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
-
-const computeNutritionForMeal = (meal: Meal): { calories: number; protein: number; carbs: number; fats: number } | undefined => {
-  if (meal?.nutritionPerServing) return meal.nutritionPerServing as any;
-  const ings = Array.isArray(meal.ingredients) ? meal.ingredients : [];
-  if (!ings.length) return undefined;
-  const externalIngs = ings.map((ing) => ({
-    name: ing.name,
-    amount: ing.quantity || 0,
-    unit: ing.unit || '',
-    original: `${ing.quantity ?? ''} ${ing.unit ?? ''} ${ing.name}`.trim(),
-  }));
-  const servings = (meal.servings && meal.servings > 0) ? meal.servings : estimateServingsFromIngredients(externalIngs as any);
-  const computed = computeFromIngredients(externalIngs as any, servings || 1);
-  return computed as any;
-};
+import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
@@ -185,8 +168,7 @@ export default function RecipesScreen() {
     });
   }, [localSearchQuery, localRecipes, activeFolderId, folders]);
 
-  // Enrich with accurate USDA nutrition data
-  const filteredLocalRecipes = useRecipeNutritionEnrichment(filteredLocalRecipesRaw);
+  const filteredLocalRecipes = filteredLocalRecipesRaw;
 
   // Import handlers removed
 
@@ -519,7 +501,21 @@ export default function RecipesScreen() {
       </View>
 
       {activeTab === 'discovery' ? (
-        <InventoryAwareRecipeDiscovery onRecipePress={handleExternalRecipePress} onSaveRecipe={handleSaveExternalRecipe} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ ...Type.h3, fontSize: 18, color: Colors.text, marginBottom: 10, textAlign: 'center' }}>
+            Discover Recipes
+          </Text>
+          <Text style={{ ...Type.body, color: Colors.lightText, textAlign: 'center', lineHeight: 22 }}>
+            Browse and save recipes from around the web, or import directly from TikTok, Instagram, YouTube, and more.
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: 24, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, gap: 8 }}
+            onPress={() => setShowImportModal(true)}
+          >
+            <Plus size={16} color={Colors.white} />
+            <Text style={{ color: Colors.white, fontSize: 15, fontWeight: '600' }}>Import a Recipe</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <>
           <View style={styles.searchContainer}>
@@ -614,11 +610,8 @@ export default function RecipesScreen() {
                       <Clock size={14} color={Colors.lightText} />
                       <Text style={styles.metaText}>{item.cookTime}m</Text>
                     </View>
-                    {(() => { const m = computeNutritionForMeal(item); return m?.calories; })() ? (
-                      <View style={styles.metaItem}>
-                        <Fire size={14} color={Colors.primary} />
-                        <Text style={styles.caloriesText}>{Math.round(computeNutritionForMeal(item)!.calories)} kcal</Text>
-                      </View>
+                    {item.servings ? (
+                      <Text style={styles.metaText}>{item.servings} servings</Text>
                     ) : null}
                   </View>
                 </View>

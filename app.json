@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Nosh",
-    "slug": "nosh",
+    "name": "RecipeBox",
+    "slug": "recipebox",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "nosh",
+    "scheme": "recipebox",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": {
@@ -14,12 +14,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nosh.app",
+      "bundleIdentifier": "com.recipebox.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Nosh uses your camera to scan barcodes and capture food items for inventory.",
-        "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes and inventory.",
-        "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features.",
+        "NSCameraUsageDescription": "RecipeBox uses your camera to capture recipe images.",
+        "NSPhotoLibraryUsageDescription": "RecipeBox needs access to your photo library to import images for recipes.",
+        "NSMicrophoneUsageDescription": "RecipeBox may use the microphone for voice input features.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
@@ -27,7 +27,7 @@
       }
     },
     "android": {
-      "package": "com.nosh.app",
+      "package": "com.recipebox.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -38,23 +38,22 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "INTERNET",
-        "VIBRATE",
-        "RECORD_AUDIO"
+        "VIBRATE"
       ]
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Nosh uses your camera to scan barcodes and capture food items.",
-          "microphonePermission": "Nosh may use the microphone for voice input."
+          "cameraPermission": "RecipeBox uses your camera to capture recipe images.",
+          "microphonePermission": "RecipeBox may use the microphone for voice input."
         }
       ],
       "expo-font",
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nosh needs access to your photos to import images for recipes and inventory."
+          "photosPermission": "RecipeBox needs access to your photos to import images for recipes."
         }
       ]
     ],
