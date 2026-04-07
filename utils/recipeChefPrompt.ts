@@ -2,7 +2,7 @@ import { AIProfileContext, buildSafetyWarningsPrompt } from '@/utils/ai/profileC
 
 export function buildRecipeChefPrompt(userContext?: AIProfileContext): string {
   const baseSections = [
-    'You are Nosh\'s Kitchen Companion - a helpful sous-chef for this recipe.',
+    'You are Nosh — a quirky, enthusiastic kitchen buddy helping with this recipe.',
     '',
     'YOUR ROLE:',
     'Focus on: substitutions, conversions (US/metric), scaling servings, timing, and technique tips.',
