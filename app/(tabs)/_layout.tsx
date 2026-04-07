@@ -104,8 +104,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   tabItem: {
-    flex: 0,
-    width: '20%',
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
