@@ -1,462 +1,146 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  Image,
-  FlatList,
-  TextInput,
-  Animated,
-  ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, Image,
+  FlatList, TextInput, ScrollView, Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, DotsThreeVertical, Clock } from 'phosphor-react-native';
+import { Plus, Clock } from 'phosphor-react-native';
+import { X } from 'lucide-react-native';
 import RecipePageIcon from '@/assets/icons/Recipe page.svg';
 import SearchIcon from '@/assets/icons/search.svg';
-import { X } from 'lucide-react-native';
-
-// Constants
 import { Colors } from '@/constants/colors';
 import { Typography as Type } from '@/constants/typography';
-
-// Components
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { MealDetailModal } from '@/components/MealDetailModal';
-// EnhancedRecipeDetailModal removed
-import CreateFolderSheet from '@/components/folders/CreateFolderSheet';
-import RenameFolderSheet from '@/components/folders/RenameFolderSheet';
-import { AddToFolderSheet } from '@/components/folders/AddToFolderSheet';
-import { AddRecipesSheet } from '@/components/folders/AddRecipesSheet';
 import { ImportRecipeModal } from '@/components/ImportRecipeModal';
 import { EditRecipeModal } from '@/components/EditRecipeModal';
-
-// Hooks
 import { useMeals } from '@/hooks/useMealsStore';
-import { useRecipeStore } from '@/hooks/useRecipeStore';
-import { useRecipeFolders, RecipeFolder } from '@/hooks/useRecipeFoldersStore';
-// Types
-import { ExternalRecipe } from '@/types/external';
+import { Meal, MEAL_CATEGORIES, MEAL_CATEGORY_LABELS, MealCategory } from '@/types';
 import { ImportedRecipe } from '@/types/importedRecipe';
-import { Meal } from '@/types';
-import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
-  // Import UI/state removed
-  // Modal states
-  // EnhancedRecipeDetailModal state removed
+  const { meals, addMeal, updateMeal, removeMeal } = useMeals();
+
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
-
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'local' | 'discovery'>('discovery');
-  // Tab configuration and animation
-  const tabs = [
-    { key: 'discovery' as const, label: 'Discover' },
-    { key: 'local' as const, label: 'Recipes' },
-  ];
-  const activeIndex = tabs.findIndex(t => t.key === activeTab);
-  const [segWidth, setSegWidth] = useState(0);
-  const indicatorX = useRef(new Animated.Value(0)).current;
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Animate tab indicator
-  useEffect(() => {
-    if (segWidth > 0 && activeIndex >= 0) {
-      const segmentWidth = segWidth / tabs.length;
-      Animated.spring(indicatorX, {
-        toValue: activeIndex * segmentWidth,
-        useNativeDriver: true,
-        friction: 10,
-        tension: 90,
-      }).start();
-    }
-  }, [activeIndex, segWidth, indicatorX]);
-  // Folder management state
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-  const [showCreateFolderSheet, setShowCreateFolderSheet] = useState(false);
-  const [showRenameFolderSheet, setShowRenameFolderSheet] = useState(false);
-  const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
-  const [addToFolderVisible, setAddToFolderVisible] = useState(false);
-  const [selectedForFolderRecipeId, setSelectedForFolderRecipeId] = useState<string | null>(null);
-  const [showAddRecipesModal, setShowAddRecipesModal] = useState(false);
-  const [newFolderId, setNewFolderId] = useState<string | null>(null);
-  const [newFolderName, setNewFolderName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [editRecipe, setEditRecipe] = useState<Meal | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Local search and favorites
-  const [localSearchQuery, setLocalSearchQuery] = useState('');
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const isMeaningful = (m: Meal) =>
+    !!m?.name?.trim() && ((m?.ingredients?.length ?? 0) > 0 || (m?.steps?.length ?? 0) > 0);
 
-  // Load favorites from storage on mount
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  const loadFavorites = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('favoriteRecipes');
-      if (stored) {
-        const favoriteArray: string[] = JSON.parse(stored);
-        setFavoriteIds(new Set(favoriteArray));
-      }
-    } catch (error) {
-      console.warn('Failed to load favorites:', error);
+  const filteredMeals = useMemo(() => {
+    let result = meals.filter(isMeaningful);
+    if (selectedCategory !== 'all') result = result.filter(m => m.category === selectedCategory);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        m => m.name.toLowerCase().includes(q) ||
+          m.ingredients?.some(i => i.name.toLowerCase().includes(q))
+      );
     }
-  };
+    return [...result].reverse();
+  }, [meals, selectedCategory, searchQuery]);
 
-  const persistFavorites = useCallback(async (favorites: Set<string>) => {
-    try {
-      await AsyncStorage.setItem('favoriteRecipes', JSON.stringify(Array.from(favorites)));
-    } catch (error) {
-      console.warn('Failed to save favorites:', error);
-    }
-  }, []);
+  const categoryCounts = useMemo(() => {
+    const meaningful = meals.filter(isMeaningful);
+    const counts: Record<string, number> = { all: meaningful.length };
+    MEAL_CATEGORIES.forEach(cat => { counts[cat] = meaningful.filter(m => m.category === cat).length; });
+    return counts;
+  }, [meals]);
 
-  const toggleFavorite = useCallback((recipeId: string) => {
-    setFavoriteIds(prev => {
-      const updated = new Set(prev);
-      if (updated.has(recipeId)) {
-        updated.delete(recipeId);
-      } else {
-        updated.add(recipeId);
-      }
-      persistFavorites(updated);
-      return updated;
-    });
-  }, [persistFavorites]);
+  const handleRecipePress = (recipe: Meal) => { setSelectedMeal(recipe); setShowMealDetail(true); };
 
-  // Hooks
-  const { meals: localRecipes, addMeal, updateMeal, removeMeal } = useMeals();
-  const {
-    folders,
-    createFolder,
-    renameFolder,
-    deleteFolder,
-    toggleRecipeInFolder,
-    addRecipeToFolder
-  } = useRecipeFolders();
-  const { getTrendingRecipes, getRandomRecipes } = useRecipeStore();
+  const handleRecipeMenuPress = (recipe: Meal) =>
+    Alert.alert(recipe.name, '', [
+      { text: 'Edit', onPress: () => { setEditRecipe(recipe); setShowEditModal(true); } },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: () => Alert.alert('Delete Recipe', `Delete "${recipe.name}"?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => removeMeal(recipe.id) },
+        ]),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ], { cancelable: true });
 
-  // Filter local recipes (and folder view) by name or tags and exclude placeholders (no ingredients & no steps)
-  const filteredLocalRecipesRaw = React.useMemo(() => {
-    const q = localSearchQuery.trim().toLowerCase();
-    const isMeaningful = (m: Meal) =>
-      !!m?.name?.trim() && ((m?.ingredients?.length || 0) > 0 || (m?.steps?.length || 0) > 0);
-
-    const baseList: Meal[] = activeFolderId
-      ? (folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [])
-        .map((id: string) => localRecipes.find((r: Meal) => r.id === id))
-        .filter(Boolean) as Meal[]
-      : localRecipes;
-
-    const meaningfulList = baseList.filter(isMeaningful);
-
-    if (!q) return meaningfulList;
-
-    return meaningfulList.filter((item: Meal) => {
-      const nameMatch = item.name?.toLowerCase().includes(q);
-      const tags = item.tags || [];
-      const tagMatch = tags.join(' ').toLowerCase().includes(q);
-      return Boolean(nameMatch || tagMatch);
-    });
-  }, [localSearchQuery, localRecipes, activeFolderId, folders]);
-
-  const filteredLocalRecipes = filteredLocalRecipesRaw;
-
-  // Import handlers removed
-
-  // mapImportedToMeal removed with import feature
-
-  // Import handlers removed
-
-  // Meal planner integration will be reintroduced when local modal returns
-
-  // Note: fetching is handled inside EnhancedRecipeDiscovery after provider initializes
-
-  // Handle refresh
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        getTrendingRecipes(),
-        // Refresh external recipes if discovery tab is active
-        ...(activeTab === 'discovery' ? [getRandomRecipes(['main course', 'healthy'], 10)] : []),
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Handle recipe press (local recipes)
-  const handleRecipePress = (recipe: Meal) => {
-    setSelectedMeal(recipe);
-    setShowMealDetail(true);
-  };
-
-  const handleRecipeMenuPress = (recipe: Meal) => {
-    Alert.alert(
-      recipe.name,
-      '',
-      [
-        {
-          text: 'Add to collection',
-          onPress: () => {
-            setSelectedForFolderRecipeId(recipe.id);
-            setAddToFolderVisible(true);
-          },
-        },
-        {
-          text: 'Edit',
-          onPress: () => {
-            setEditRecipe(recipe);
-            setShowEditModal(true);
-          },
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Delete Recipe',
-              `Are you sure you want to delete "${recipe.name}"?`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => removeMeal(recipe.id),
-                },
-              ]
-            );
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
-  const handleLongPressRecipe = (recipe: Meal) => {
-    if (activeFolderId) {
-      // Quick toggle membership in the active folder
-      toggleRecipeInFolder(activeFolderId, recipe.id);
-      return;
-    }
-    setSelectedForFolderRecipeId(recipe.id);
-    setAddToFolderVisible(true);
-  };
-
-  // Handle external recipe press
-  const handleExternalRecipePress = (recipe: ExternalRecipe) => {
-    // Convert to temporary Meal object for display
-    const estServings = estimateServingsForExternalRecipe(recipe);
-    const computed = computeForExternalRecipe({ ...recipe, servings: estServings });
-
-    // Fallback: map provider nutrients if available
-    const pickNutrient = (names: string[]): number | undefined => {
-      const list = (recipe as any)?.nutrition?.nutrients || [];
-      const found = list.find((n: any) => names.some(name => (n?.name || '').toLowerCase() === name.toLowerCase()));
-      return typeof found?.amount === 'number' ? found.amount : undefined;
-    };
-    const calories = pickNutrient(['Calories', 'Energy']);
-    const protein = pickNutrient(['Protein']);
-    const carbs = pickNutrient(['Carbohydrates', 'Carbs']);
-    const fats = pickNutrient(['Fat', 'Total Fat']);
-
-    const steps = recipe.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step)
-      || (recipe.instructions ? recipe.instructions.split('\n').filter(Boolean) : ['Follow recipe instructions']);
-
-    const tags = [
-      ...(recipe.cuisines || []),
-      ...(recipe.diets || []),
-      ...(recipe.dishTypes || []),
-      recipe.vegetarian ? 'vegetarian' : '',
-      recipe.vegan ? 'vegan' : '',
-      recipe.glutenFree ? 'gluten-free' : '',
-      recipe.dairyFree ? 'dairy-free' : '',
-    ].filter(Boolean) as string[];
-
+  const handleImport = async (recipe: ImportedRecipe) => {
     const meal: Meal = {
-      id: String(recipe.id),
+      id: recipe.id,
       name: recipe.title,
-      description: (recipe.instructions || 'Imported recipe').slice(0, 200),
-      ingredients: (recipe.ingredients || []).map((ing: any) => ({
-        name: ing.name,
-        quantity: ing.amount || 1,
-        unit: ing.unit || 'unit',
-        optional: false,
-      })),
-      steps,
+      description: recipe.description || '',
       image: recipe.image || '',
-      tags,
-      prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
-      cookTime: recipe.cookingMinutes || 0,
-      servings: estServings || recipe.servings || 1,
+      ingredients: recipe.ingredients?.map(ing => ({ name: ing.name, quantity: ing.amount || 0, unit: ing.unit || '' })) || [],
+      steps: recipe.instructions?.map(inst => inst.text) || [],
+      prepTime: recipe.prepTime || 0,
+      cookTime: recipe.cookTime || 0,
+      servings: recipe.servings || 4,
+      tags: recipe.tags || [],
       sourceUrl: recipe.sourceUrl,
-      nutritionPerServing: computed
-        ? {
-          calories: computed.calories,
-          protein: computed.protein,
-          carbs: computed.carbs,
-          fats: computed.fats,
+    };
+    await addMeal(meal);
+    Alert.alert('Success', 'Recipe imported successfully!');
+    setShowImportModal(false);
+  };
+
+  const renderCard = ({ item, index }: { item: Meal; index: number }) => {
+    const totalTime = (item.prepTime || 0) + (item.cookTime || 0);
+    return (
+      <TouchableOpacity
+        style={[styles.card, index % 2 === 0 ? styles.cardLeft : styles.cardRight]}
+        onPress={() => handleRecipePress(item)}
+        onLongPress={() => handleRecipeMenuPress(item)}
+        activeOpacity={0.85}
+      >
+        {item.image
+          ? <Image source={{ uri: item.image }} style={styles.cardImage} />
+          : <View style={styles.cardImagePlaceholder}><RecipePageIcon width={40} height={40} color={Colors.border} /></View>
         }
-        : (calories || protein || carbs || fats)
-          ? {
-            calories: calories ?? 0,
-            protein: protein ?? 0,
-            carbs: carbs ?? 0,
-            fats: fats ?? 0,
-          }
-          : undefined,
-    };
-
-    setSelectedMeal(meal);
-    setShowMealDetail(true);
-  };
-
-  // Handle save external recipe
-  const handleSaveExternalRecipe = (recipe: ExternalRecipe) => {
-    // Prefer computed nutrition based on ingredients to ensure saved recipes have macros
-    const estServings = estimateServingsForExternalRecipe(recipe);
-    const computed = computeForExternalRecipe({ ...recipe, servings: estServings });
-
-    // Fallback: map provider nutrients if available
-    const pickNutrient = (names: string[]): number | undefined => {
-      const list = (recipe as any)?.nutrition?.nutrients || [];
-      const found = list.find((n: any) => names.some(name => (n?.name || '').toLowerCase() === name.toLowerCase()));
-      return typeof found?.amount === 'number' ? found.amount : undefined;
-    };
-    const calories = pickNutrient(['Calories', 'Energy']);
-    const protein = pickNutrient(['Protein']);
-    const carbs = pickNutrient(['Carbohydrates', 'Carbs']);
-    const fats = pickNutrient(['Fat', 'Total Fat']);
-    // Convert ExternalRecipe to Meal format and add to meals (provider-agnostic)
-    const steps = recipe.analyzedInstructions?.[0]?.steps?.map((step: any) => step.step)
-      || (recipe.instructions ? recipe.instructions.split('\n').filter(Boolean) : ['Follow recipe instructions']);
-
-    const tags = [
-      ...(recipe.cuisines || []),
-      ...(recipe.diets || []),
-      ...(recipe.dishTypes || []),
-      recipe.vegetarian ? 'vegetarian' : '',
-      recipe.vegan ? 'vegan' : '',
-      recipe.glutenFree ? 'gluten-free' : '',
-      recipe.dairyFree ? 'dairy-free' : '',
-    ].filter(Boolean) as string[];
-
-    const newMeal: Omit<Meal, 'id'> = {
-      name: recipe.title,
-      description: (recipe.instructions || 'Imported recipe').slice(0, 200),
-      ingredients: (recipe.ingredients || []).map((ing: any) => ({
-        name: ing.name,
-        quantity: ing.amount || 1,
-        unit: ing.unit || 'unit',
-        optional: false,
-      })),
-      steps,
-      image: recipe.image,
-      tags,
-      prepTime: recipe.preparationMinutes || recipe.readyInMinutes || 15,
-      cookTime: recipe.cookingMinutes || 0,
-      servings: estServings || recipe.servings || 1,
-      sourceUrl: recipe.sourceUrl,
-      // First choice: computed macros; fallback to provider nutrients if present
-      nutritionPerServing: computed
-        ? {
-          calories: computed.calories,
-          protein: computed.protein,
-          carbs: computed.carbs,
-          fats: computed.fats,
-        }
-        : (calories || protein || carbs || fats)
-          ? {
-            calories: calories ?? 0,
-            protein: protein ?? 0,
-            carbs: carbs ?? 0,
-            fats: fats ?? 0,
-          }
-          : undefined,
-    };
-
-    const newId = addMeal(newMeal);
-    // If a folder is active, drop it in immediately; else prompt via AddToFolderSheet
-    if (activeFolderId) {
-      addRecipeToFolder(activeFolderId, newId);
-      Alert.alert('Saved', `${recipe.title} was added to your recipes and placed in the selected folder.`);
-    } else {
-      setSelectedForFolderRecipeId(newId);
-      setAddToFolderVisible(true);
-      Alert.alert('Recipe Saved', `${recipe.title} has been added to your recipes. Choose a folder to organize it.`);
-    }
-  };
-
-  // (Optional) Remove-saved-recipe could be implemented in store later
-
-  // Handle add to meal plan (handled within modal if needed)
-
-  // Folder management functions
-  const openCreateFolder = () => {
-    setRenameFolderId(null);
-    setShowCreateFolderSheet(true);
-  };
-
-  const handleCreateFolder = (name: string) => {
-    const folderId = createFolder(name);
-    setNewFolderId(folderId);
-    setNewFolderName(name);
-    setActiveFolderId(folderId);
-    setShowCreateFolderSheet(false);
-    setShowAddRecipesModal(true);
-  };
-
-  const handleAddRecipesToNewFolder = (recipeIds: string[]) => {
-    if (newFolderId) {
-      recipeIds.forEach(recipeId => {
-        addRecipeToFolder(newFolderId, recipeId);
-      });
-    }
-    setShowAddRecipesModal(false);
-  };
-
-  const requestRenameFolder = (id: string) => {
-    setRenameFolderId(id);
-    setShowRenameFolderSheet(true);
-  };
-
-  const requestDeleteFolder = (folderId: string, folderName: string) => {
-    Alert.alert(
-      'Delete Folder',
-      `Delete "${folderName}"? Recipes remain available in All Recipes.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            if (activeFolderId === folderId) {
-              setActiveFolderId(null);
-            }
-            deleteFolder(folderId);
-          }
-        },
-      ]
+        <View style={styles.cardBody}>
+          {item.category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>
+                {MEAL_CATEGORY_LABELS[item.category as MealCategory] ?? item.category}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+          <View style={styles.cardMeta}>
+            {totalTime > 0 && (
+              <View style={styles.metaItem}>
+                <Clock size={12} color={Colors.lightText} />
+                <Text style={styles.metaText}>{totalTime}m</Text>
+              </View>
+            )}
+            {(item.ingredients?.length ?? 0) > 0 && (
+              <Text style={styles.metaText}>{item.ingredients.length} ingr.</Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
+
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <RecipePageIcon width={64} height={64} color={Colors.border} />
+      <Text style={styles.emptyTitle}>No recipes yet</Text>
+      <Text style={styles.emptyBody}>
+        {searchQuery || selectedCategory !== 'all'
+          ? 'No recipes match your search or filter.'
+          : 'Tap + to import your first recipe.'}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: '', headerShown: false }} />
-
       <ScreenHeader
         title="Recipes"
         icon={
@@ -466,465 +150,134 @@ export default function RecipesScreen() {
         }
       />
 
-      {/* Segmented control for Recipes tabs (single track + sliding indicator) */}
-      <View
-        style={styles.segmentedContainer}
-        onLayout={(e) => setSegWidth(e.nativeEvent.layout.width)}
-      >
-        <View style={styles.segmentTrack}>
-          {segWidth > 0 && (
-            <Animated.View
-              style={[
-                styles.segmentIndicator,
-                { width: segWidth / tabs.length, transform: [{ translateX: indicatorX }] },
-              ]}
-            />
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <SearchIcon width={24} height={24} color={Colors.lightText} />
+          <TextInput
+            placeholder="Search recipes or ingredients"
+            placeholderTextColor={Colors.lightText}
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 6 }}>
+              <X size={14} color={Colors.lightText} />
+            </TouchableOpacity>
           )}
-        </View>
-        <View style={styles.segmentsOverlay} pointerEvents="box-none">
-          {tabs.map((t) => {
-            const isActive = t.key === activeTab;
-            return (
-              <TouchableOpacity
-                key={t.key}
-                style={styles.segmentClick}
-                onPress={() => setActiveTab(t.key)}
-                accessibilityRole="button"
-                accessibilityLabel={`Switch to ${t.label}`}
-                activeOpacity={0.9}
-              >
-                <Text style={isActive ? styles.segmentTextActive : styles.segmentText}>{t.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
         </View>
       </View>
 
-      {activeTab === 'discovery' ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ ...Type.h3, fontSize: 18, color: Colors.text, marginBottom: 10, textAlign: 'center' }}>
-            Discover Recipes
+      {/* Category chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }} contentContainerStyle={styles.chipsContent}>
+        <TouchableOpacity
+          style={[styles.chip, selectedCategory === 'all' && styles.chipActive]}
+          onPress={() => setSelectedCategory('all')}
+        >
+          <Text style={[styles.chipText, selectedCategory === 'all' && styles.chipTextActive]}>
+            All{categoryCounts.all > 0 ? ` (${categoryCounts.all})` : ''}
           </Text>
-          <Text style={{ ...Type.body, color: Colors.lightText, textAlign: 'center', lineHeight: 22 }}>
-            Browse and save recipes from around the web, or import directly from TikTok, Instagram, YouTube, and more.
-          </Text>
-          <TouchableOpacity
-            style={{ marginTop: 24, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, gap: 8 }}
-            onPress={() => setShowImportModal(true)}
+        </TouchableOpacity>
+        {MEAL_CATEGORIES.map(cat => (
+          <TouchableOpacity key={cat}
+            style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+            onPress={() => setSelectedCategory(cat)}
           >
-            <Plus size={16} color={Colors.white} />
-            <Text style={{ color: Colors.white, fontSize: 15, fontWeight: '600' }}>Import a Recipe</Text>
+            <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>
+              {MEAL_CATEGORY_LABELS[cat]}{categoryCounts[cat] > 0 ? ` (${categoryCounts[cat]})` : ''}
+            </Text>
           </TouchableOpacity>
-        </View>
-      ) : (
-        <>
-          <View style={styles.searchContainer}>
-            <View style={styles.searchBar}>
-              <SearchIcon width={24} height={24} color={Colors.lightText} />
-              <TextInput
-                placeholder="Search saved recipes"
-                placeholderTextColor={Colors.lightText}
-                style={styles.searchInput}
-                value={localSearchQuery}
-                onChangeText={setLocalSearchQuery}
-                returnKeyType="search"
-                onSubmitEditing={() => { /* no-op for now */ }}
-              />
-              {localSearchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setLocalSearchQuery('')} style={{ padding: 6 }}>
-                  <X size={14} color={Colors.lightText} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+        ))}
+      </ScrollView>
 
-          <View style={styles.folderHeader}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderScrollView}>
-              <TouchableOpacity
-                style={[styles.folderChip, !activeFolderId ? styles.folderChipActive : {}]}
-                onPress={() => setActiveFolderId(null)}
-              >
-                <Text style={!activeFolderId ? styles.folderChipActiveText : styles.folderChipText}>All</Text>
-              </TouchableOpacity>
-              {folders.map((folder: RecipeFolder) => (
-                <TouchableOpacity
-                  key={folder.id}
-                  style={[styles.folderChip, activeFolderId === folder.id ? styles.folderChipActive : {}]}
-                  onPress={() => setActiveFolderId(folder.id)}
-                  onLongPress={() => {
-                    Alert.alert(
-                      'Edit Folder',
-                      '',
-                      [
-                        {
-                          text: 'Rename',
-                          onPress: () => requestRenameFolder(folder.id),
-                        },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: () => requestDeleteFolder(folder.id, folder.name),
-                        },
-                        {
-                          text: 'Cancel',
-                          style: 'cancel',
-                        },
-                      ],
-                      { cancelable: true }
-                    );
-                  }}
-                >
-                  <Text style={activeFolderId === folder.id ? styles.folderChipActiveText : styles.folderChipText}>
-                    {folder.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity style={styles.createFolderBtn} onPress={openCreateFolder}>
-                <Plus size={16} color={Colors.primary} />
-                <Text style={styles.createFolderBtnText}>Add collection</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-
-          {/* Moved Add-to-Folder action to a floating button for cleaner layout */}
-
-          {/* Floating Action Button for Import */}
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => setShowImportModal(true)}
-            activeOpacity={0.8}
-          >
-            <Plus size={24} color={Colors.white} />
-          </TouchableOpacity>
-
-          <FlatList
-            data={filteredLocalRecipes}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.recipeCard} onPress={() => handleRecipePress(item)}>
-                <Image source={{ uri: item.image }} style={styles.recipeImage} />
-                <View style={styles.recipeInfo}>
-                  <Text style={styles.recipeTitle}>{item.name}</Text>
-                  <View style={styles.recipeMeta}>
-                    <View style={styles.metaItem}>
-                      <Clock size={14} color={Colors.lightText} />
-                      <Text style={styles.metaText}>{item.cookTime}m</Text>
-                    </View>
-                    {item.servings ? (
-                      <Text style={styles.metaText}>{item.servings} servings</Text>
-                    ) : null}
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.menuButton} onPress={() => handleRecipeMenuPress(item)}>
-                  <DotsThreeVertical size={20} color={Colors.lightText} />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={[
-              styles.listContentContainer,
-              { paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) },
-            ]}
-          />
-        </>
-      )}
-
-      {/* Import feature removed */}
-
-      <MealDetailModal
-        visible={showMealDetail}
-        meal={selectedMeal as any}
-        onClose={() => setShowMealDetail(false)}
+      {/* 2-column grid */}
+      <FlatList
+        data={filteredMeals}
+        keyExtractor={item => item.id}
+        renderItem={renderCard}
+        numColumns={2}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={[styles.gridContent, { paddingBottom: Math.max(150, (insets?.bottom ?? 0) + 118) }]}
+        columnWrapperStyle={styles.columnWrapper}
       />
 
-      {/* EnhancedRecipeDetailModal removed */}
+      {/* FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: Math.max(20, (insets?.bottom ?? 0) + 90) }]}
+        onPress={() => setShowImportModal(true)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Import a recipe"
+      >
+        <Plus size={24} color={Colors.white} />
+      </TouchableOpacity>
 
-      {/* Folder sheets */}
-      <CreateFolderSheet
-        visible={showCreateFolderSheet}
-        onClose={() => { setShowCreateFolderSheet(false); }}
-        existingNames={folders.map((f: RecipeFolder) => f.name)}
-        onCreate={handleCreateFolder}
-      />
-      <RenameFolderSheet
-        visible={showRenameFolderSheet}
-        defaultName={folders.find((f: RecipeFolder) => f.id === renameFolderId)?.name || ''}
-        existingNames={folders.map((f: RecipeFolder) => f.name)}
-        onClose={() => setShowRenameFolderSheet(false)}
-        onRename={(name) => { if (renameFolderId) renameFolder(renameFolderId, name); setShowRenameFolderSheet(false); }}
-      />
-      <AddToFolderSheet
-        visible={addToFolderVisible}
-        recipeId={selectedForFolderRecipeId}
-        onClose={() => setAddToFolderVisible(false)}
-        onCreateNew={() => { setAddToFolderVisible(false); openCreateFolder(); }}
-      />
-      <ImportRecipeModal
-        visible={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={async (recipe: ImportedRecipe) => {
-          // Convert imported recipe to Meal format
-          const meal: Meal = {
-            id: recipe.id,
-            name: recipe.title,
-            description: recipe.description || '',
-            image: recipe.image || '',
-            ingredients: recipe.ingredients?.map(ing => ({
-              name: ing.name,
-              quantity: ing.amount || 0,
-              unit: ing.unit || '',
-            })) || [],
-            steps: recipe.instructions?.map(inst => inst.text) || [],
-            prepTime: recipe.prepTime || 0,
-            cookTime: recipe.cookTime || 0,
-            servings: recipe.servings || 4,
-            tags: recipe.tags || [],
-            sourceUrl: recipe.sourceUrl,
-          };
-
-          // Add the recipe to local storage
-          await addMeal(meal);
-
-          // Show success message
-          Alert.alert('Success', 'Recipe imported successfully!');
-          setShowImportModal(false);
-        }}
-      />
-
+      <MealDetailModal visible={showMealDetail} meal={selectedMeal as any} onClose={() => setShowMealDetail(false)} />
+      <ImportRecipeModal visible={showImportModal} onClose={() => setShowImportModal(false)} onImport={handleImport} />
       <EditRecipeModal
         visible={showEditModal}
         recipe={editRecipe}
         onClose={() => { setShowEditModal(false); setEditRecipe(null); }}
-        onSave={(updated) => updateMeal(updated)}
+        onSave={updated => updateMeal(updated)}
       />
-
-      <AddRecipesSheet
-        visible={showAddRecipesModal}
-        folderId={newFolderId || ''}
-        folderName={newFolderName}
-        availableRecipes={localRecipes}
-        existingRecipeIds={activeFolderId ? folders.find((f: RecipeFolder) => f.id === activeFolderId)?.recipeIds || [] : []}
-        onClose={() => setShowAddRecipesModal(false)}
-        onAddRecipes={handleAddRecipesToNewFolder}
-      />
-
-      {/* Floating action to add recipes to current folder */}
-      {activeFolderId && (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: Math.max(20, (insets?.bottom ?? 0) + 118 + 20) },
-          ]}
-          onPress={() => {
-            setNewFolderId(activeFolderId);
-            setNewFolderName(
-              folders.find((f: RecipeFolder) => f.id === activeFolderId)?.name || ''
-            );
-            setShowAddRecipesModal(true);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Add recipes to folder"
-          activeOpacity={0.9}
-        >
-          <Plus size={22} color={Colors.white} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
 
+const CARD_GAP = 10;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  // Segmented control (single line + indicator)
-  segmentedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 0,
-    marginTop: 8,
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
-  segmentTrack: {
-    flex: 1,
-    height: 40,
-    backgroundColor: 'transparent',
-    borderRadius: 22,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  segmentIndicator: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: Colors.card,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  segmentsOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-  },
-  segmentClick: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentText: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  segmentTextActive: {
-    ...Type.caption,
-    color: Colors.text,
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+  searchContainer: { paddingHorizontal: 16, paddingVertical: 12 },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.tabBackground, // transparent-like, matches inventory
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.tabBackground, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12,
   },
-  searchInput: {
-    flex: 1,
-    ...Type.body,
-    paddingVertical: 12,
-    marginLeft: 8,
-    color: Colors.text,
+  searchInput: { flex: 1, ...Type.body, paddingVertical: 12, marginLeft: 8, color: Colors.text },
+  chipsContent: { paddingHorizontal: 16, paddingBottom: 8, gap: 8, alignItems: 'center' },
+  chip: {
+    paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20,
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card,
   },
-  folderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  chipText: { ...Type.caption, color: Colors.lightText },
+  chipTextActive: { ...Type.caption, color: Colors.white },
+  gridContent: { paddingHorizontal: 16, paddingTop: 8 },
+  columnWrapper: { gap: CARD_GAP, marginBottom: CARD_GAP },
+  card: {
+    flex: 1, backgroundColor: Colors.card, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
+    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
   },
-  folderScrollView: {
-    flexGrow: 1,
-    alignItems: 'center',
-    gap: 8,
+  cardLeft: { marginRight: CARD_GAP / 2 },
+  cardRight: { marginLeft: CARD_GAP / 2 },
+  cardImage: { width: '100%', height: 120, resizeMode: 'cover' },
+  cardImagePlaceholder: {
+    width: '100%', height: 120, backgroundColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  folderChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+  cardBody: { padding: 10 },
+  categoryBadge: {
+    alignSelf: 'flex-start', backgroundColor: Colors.primary + '22',
+    paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, marginBottom: 6,
   },
-  folderChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  folderChipText: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  folderChipActiveText: {
-    ...Type.caption,
-    color: Colors.white,
-  },
-  createFolderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    marginLeft: 8,
-  },
-  createFolderBtnText: {
-    ...Type.caption,
-    color: Colors.primary,
-    marginLeft: 4,
-  },
-  listContentContainer: {
-    paddingHorizontal: 16,
-  },
-
-  recipeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  recipeImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-  },
-  recipeInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  menuButton: {
-    padding: 8,
-  },
-  recipeTitle: {
-    ...Type.h3,
-    fontSize: 16,
-    color: Colors.text,
-  },
-  recipeMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    ...Type.caption,
-    color: Colors.lightText,
-  },
-  caloriesText: {
-    ...Type.caption,
-    color: Colors.primary,
-  },
-  emptyText: {
-    ...Type.body,
-    color: Colors.lightText,
-    textAlign: 'center',
-  },
+  categoryBadgeText: { ...Type.caption, color: Colors.primary, fontSize: 10 },
+  cardTitle: { ...Type.h3, fontSize: 13, color: Colors.text, lineHeight: 18, marginBottom: 6 },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metaText: { ...Type.caption, color: Colors.lightText, fontSize: 11 },
+  emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 12 },
+  emptyTitle: { ...Type.h3, color: Colors.text, fontSize: 18 },
+  emptyBody: { ...Type.body, color: Colors.lightText, textAlign: 'center', lineHeight: 22 },
   fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 90,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 100,
+    position: 'absolute', right: 20, width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 8, zIndex: 100,
   },
 });
