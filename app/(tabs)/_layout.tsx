@@ -1,7 +1,7 @@
  import React from "react";
 import { Tabs } from "expo-router";
 import { View, StyleSheet } from 'react-native';
-import DashboardIcon from '@/assets/icons/Dashboard.svg';
+import { MessageCircle } from 'lucide-react-native';
 import RecipesIcon from '@/assets/icons/Recipes .svg';
 import CalendarIcon from '@/assets/icons/Calender.svg';
 import ShoppingListIcon from '@/assets/icons/Shopping list .svg';
@@ -47,9 +47,9 @@ export default function TabLayout() {
           const translateY = route.name === 'profile' ? 6 : 9;
           const wrapStyle = [styles.iconWrap, { transform: [{ translateY }] }];
 
-          if (route.name === 'index') return (
+          if (route.name === 'chat') return (
             <View style={wrapStyle}>
-              <DashboardIcon width={size} height={size} color={iconColor} />
+              <MessageCircle size={size * 0.5} color={iconColor} strokeWidth={focused ? 2.5 : 2} />
             </View>
           );
           if (route.name === 'recipes') return (
@@ -76,7 +76,7 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="chat" options={{ title: 'Nosh' }} />
       <Tabs.Screen name="recipes" options={{ title: 'Recipes' }} />
       <Tabs.Screen name="plan" options={{ title: 'Plan' }} />
       <Tabs.Screen name="list" options={{ title: 'Shopping List' }} />
