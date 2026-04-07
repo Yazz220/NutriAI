@@ -1,7 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useMemo, useState } from 'react';
-import { RecipeFolder } from '@/types';
+
+export interface RecipeFolder {
+  id: string;
+  name: string;
+  recipeIds: string[]; // references Meal.id
+  createdAt: string; // ISO datetime
+  updatedAt: string; // ISO datetime
+}
 
 const STORAGE_KEY = 'recipeFolders';
 

@@ -37,11 +37,11 @@ import { EditRecipeModal } from '@/components/EditRecipeModal';
 // Hooks
 import { useMeals } from '@/hooks/useMealsStore';
 import { useRecipeStore } from '@/hooks/useRecipeStore';
-import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
+import { useRecipeFolders, RecipeFolder } from '@/hooks/useRecipeFoldersStore';
 // Types
 import { ExternalRecipe } from '@/types/external';
 import { ImportedRecipe } from '@/types/importedRecipe';
-import { Meal, RecipeFolder } from '@/types';
+import { Meal } from '@/types';
 import { computeForExternalRecipe, estimateServingsForExternalRecipe } from '@/utils/nutrition/compute';
 
 export default function RecipesScreen() {

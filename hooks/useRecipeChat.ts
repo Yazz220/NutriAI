@@ -8,7 +8,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 
 export type RecipeChatMessage = {
   id: string;
-  role: 'user' | 'coach';
+  role: 'user' | 'assistant';
   text?: string;
   actions?: Array<{ label: string; type: 'GENERATE_LIST_FROM_RECIPE' | 'PLAN_RECIPE'; payload?: any }>;
   source?: 'ai' | 'builtin';
@@ -53,8 +53,8 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
     return buildRecipeSystemPrompt(recipe, userContext);
   }, [recipe, profile]);
 
-  function pushCoach(msg: Omit<RecipeChatMessage, 'id' | 'role'>) {
-    setMessages(prev => [...prev, { id: newId(), role: 'coach', source: msg.source || 'ai', ...msg }]);
+  function pushAssistant(msg: Omit<RecipeChatMessage, 'id' | 'role'>) {
+    setMessages(prev => [...prev, { id: newId(), role: 'assistant', source: msg.source || 'ai', ...msg }]);
   }
 
   function pushUser(text: string) {
@@ -87,7 +87,7 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
     try {
       setIsTyping(true);
       const placeholderId = newId();
-      setMessages(prev => [...prev, { id: placeholderId, role: 'coach', text: '…', source: 'ai' }]);
+      setMessages(prev => [...prev, { id: placeholderId, role: 'assistant', text: '…', source: 'ai' }]);
 
       const full = await createChatCompletion([system, user]);
       const parsed = tryExtractJSON(full);
@@ -100,7 +100,7 @@ export function useRecipeChat(recipe: Recipe, availability?: RecipeWithAvailabil
       setIsTyping(false);
     } catch (err: any) {
       console.warn('Recipe AI error', err?.message || err);
-      pushCoach({ text: 'I can help with substitutions, scaling, or guidance. Try: "Substitute missing ingredients".', source: 'builtin' });
+      pushAssistant({ text: 'I can help with substitutions, scaling, or guidance. Try: "Substitute missing ingredients".', source: 'builtin' });
       setIsTyping(false);
     }
   }

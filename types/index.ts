@@ -20,6 +20,31 @@ export interface InventoryItem {
     | "Beverages"
     | "Other";
 
+  export type MealCategory =
+    | 'breakfast'
+    | 'lunch'
+    | 'dinner'
+    | 'snacks'
+    | 'appetizers'
+    | 'desserts'
+    | 'drinks'
+    | 'sides';
+
+  export const MEAL_CATEGORIES: MealCategory[] = [
+    'breakfast', 'lunch', 'dinner', 'snacks', 'appetizers', 'desserts', 'drinks', 'sides',
+  ];
+
+  export const MEAL_CATEGORY_LABELS: Record<MealCategory, string> = {
+    breakfast: 'Breakfast',
+    lunch: 'Lunch',
+    dinner: 'Dinner',
+    snacks: 'Snacks',
+    appetizers: 'Appetizers',
+    desserts: 'Desserts',
+    drinks: 'Drinks',
+    sides: 'Sides',
+  };
+
   export interface Meal {
     id: string;
     name: string;
@@ -32,6 +57,7 @@ export interface InventoryItem {
     cookTime: number; // in minutes
     servings: number;
     sourceUrl?: string;
+    category?: MealCategory;
     nutritionPerServing?: {
       calories: number;
       protein: number; // grams
@@ -174,17 +200,6 @@ export interface InventoryItem {
     availability: RecipeAvailability;
   };
 
-  // Recipe Folders
-  export interface RecipeFolder {
-    id: string;
-    name: string;
-    recipeIds: string[]; // references Meal.id
-    createdAt: string; // ISO datetime
-    updatedAt: string; // ISO datetime
-  }
-
-  export type RecipeFolderMap = Record<string, RecipeFolder>;
-
   // Canonical recipe model used across Discover/Library/AI detail screens
   export type RecipeDetailMode = 'discover' | 'library' | 'ai';
 
@@ -228,6 +243,16 @@ export interface InventoryItem {
     source?: RecipeSource;
     sourceUrl?: string;
     tags?: string[];
+  }
+
+  // Nosh Chat Types
+  export interface NoshChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: number;
+    recipeCard?: Meal;
+    isProcessing?: boolean;
   }
 
   // Re-export onboarding types
