@@ -128,7 +128,7 @@ export function createNavigationGuard(
 
 export function getStepTitle(step: OnboardingStep): string {
   const titles: Record<OnboardingStep, string> = {
-    'welcome': 'Welcome to RecipeBox',
+    'welcome': 'Welcome to Nosh',
     'dietary-preferences': 'Dietary Preferences',
     'allergies': 'Food Allergies',
     'other-restrictions': 'Other Restrictions'
