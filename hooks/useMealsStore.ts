@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState } from 'react';
-import { Meal, MealIngredient } from '@/types';
+import { Meal } from '@/types';
 import { computeFromIngredients, estimateServingsFromIngredients } from '@/utils/nutrition/compute';
 
 // Start with no initial meals; user-added or saved items will populate
@@ -187,57 +187,6 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     }
   };
 
-  // Cook a meal (deduct ingredients from inventory)
-  const cookMeal = (mealId: string) => {
-    const meal = meals.find(m => m.id === mealId);
-    if (!meal) return false;
-    
-    // Note: Ingredient deduction should be handled by the component using both hooks
-    return true;
-  };
-
-  // Check if all ingredients for a meal are available
-  const checkIngredientsAvailability = (mealId: string, inventory: any[] = []) => {
-    const meal = meals.find(m => m.id === mealId);
-    if (!meal) return { available: false, missingIngredients: [] };
-    
-    const missingIngredients: MealIngredient[] = [];
-    
-    meal.ingredients.forEach(ingredient => {
-      if (ingredient.optional) return;
-      
-      const inventoryItem = inventory.find((item: any) => 
-        item.name.toLowerCase() === ingredient.name.toLowerCase() && 
-        item.unit.toLowerCase() === ingredient.unit.toLowerCase()
-      );
-      
-      if (!inventoryItem || inventoryItem.quantity < ingredient.quantity) {
-        missingIngredients.push(ingredient);
-      }
-    });
-    
-    return {
-      available: missingIngredients.length === 0,
-      missingIngredients
-    };
-  };
-
-  // Get recommended meals based on available ingredients
-  const getRecommendedMeals = () => {
-    return meals.map(meal => ({
-      meal,
-      availability: checkIngredientsAvailability(meal.id)
-    }))
-    .sort((a, b) => {
-      // Sort by availability first
-      if (a.availability.available && !b.availability.available) return -1;
-      if (!a.availability.available && b.availability.available) return 1;
-      
-      // Then by number of missing ingredients
-      return a.availability.missingIngredients.length - b.availability.missingIngredients.length;
-    });
-  };
-
   return {
     meals,
     isLoading,
@@ -246,8 +195,6 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
     removeMeal,
     resetMeals,
     setMeals,
-    cookMeal,
-    checkIngredientsAvailability,
-    getRecommendedMeals
+    importSampleRecipes,
   };
 });

@@ -17,7 +17,6 @@ import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/spacing';
 import { Meal, Recipe, RecipeAvailability, RecipeIngredient } from '@/types';
 import { ShoppingBag, ChefHat, Calendar, CheckCircle, AlertTriangle, X, MessageCircle, Send, ExternalLink } from 'lucide-react-native';
-import { useMeals } from '@/hooks/useMealsStore';
 import { useShoppingList } from '@/hooks/useShoppingListStore';
 import { MealPlanModal } from './MealPlanModal';
 import { RecipeChatModal } from '@/components/recipe-detail/RecipeChatModal';
@@ -38,7 +37,6 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
   meal,
   availability
 }) => {
-  const { cookMeal, checkIngredientsAvailability } = useMeals();
   const { addItem: addToShoppingList } = useShoppingList();
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'chat'>('details');
@@ -80,19 +78,8 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
 
   // Memo availability for chat context safely
   const recipeAvailability = useMemo(() => {
-    if (!meal || !('ingredients' in meal)) return availability;
-    const ingredients = meal.ingredients as any[];
-    const { available, missingIngredients } = checkIngredientsAvailability(meal.id);
-    const requiredIngredients = ingredients.filter((ing: any) => !('optional' in ing) || !ing.optional);
-    return {
-      recipeId: meal.id,
-      availableIngredients: ingredients.length - missingIngredients.length,
-      totalIngredients: requiredIngredients.length,
-      availabilityPercentage: available ? 100 : Math.round(((ingredients.length - missingIngredients.length) / Math.max(ingredients.length, 1)) * 100),
-      missingIngredients,
-      expiringIngredients: [] as any[],
-    } as RecipeAvailability;
-  }, [meal, availability, checkIngredientsAvailability]);
+    return availability ?? null;
+  }, [meal, availability]);
 
   // Chat UI is rendered via RecipeChatModal for consistency across Discover and Library
 
@@ -112,10 +99,6 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
   // ingredients/steps computation happens after hooks; that's fine
 
   const handleCook = () => {
-    if ('ingredients' in meal) {
-      cookMeal(meal.id);
-      Alert.alert('Meal Cooked!', 'Ingredients have been deducted from your inventory.');
-    }
     onClose();
   };
 

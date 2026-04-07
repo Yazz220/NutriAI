@@ -19,7 +19,6 @@ import { Typography } from '@/constants/spacing';
 
 import { PlannedMeal, MealType, Recipe, Meal } from '@/types';
 import { useMeals } from '@/hooks/useMealsStore';
-import { useRecipeFolders } from '@/hooks/useRecipeFoldersStore';
 import { trackEvent } from '@/utils/analytics';
 
 interface MealPlanModalProps {
@@ -395,7 +394,6 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   plannedTypes = [],
 }) => {
   const { meals } = useMeals();
-  const { folders } = useRecipeFolders();
   const [mealType, setMealType] = useState<MealType>(selectedMealType || inferMealTypeByTime());
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | Meal | null>(null);
   // Servings and notes removed from UI; we will use defaults on save
@@ -424,13 +422,6 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
         if (initialRecipeId && recipe) {
           setServingsById(prev => ({ ...prev, [initialRecipeId]: (recipe as any)?.servings || 1 }));
         }
-      } else if (initialFolderId) {
-        // If opened scoped to a folder, pre-select the first recipe in that folder if available
-        const folder = folders.find(f => f.id === initialFolderId);
-        if (folder) {
-          const existingMealInFolder = meals.find(m => folder.recipeIds.includes(m.id));
-          if (existingMealInFolder) setSelectedRecipe(existingMealInFolder);
-        }
       } else {
         setMealType(selectedMealType || 'dinner');
         setSelectedRecipe(null);
@@ -450,14 +441,6 @@ export const MealPlanModal: React.FC<MealPlanModalProps> = ({
   };
 
   const filteredRecipes = meals
-    .filter((recipe) => {
-      if (initialFolderId) {
-        const folder = folders.find((f) => f.id === initialFolderId);
-        if (!folder) return false;
-        return folder.recipeIds.includes(recipe.id);
-      }
-      return true;
-    })
     .filter((recipe) =>
       recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))

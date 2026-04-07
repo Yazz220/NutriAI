@@ -15,7 +15,6 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
-import { RecipeFoldersProvider } from "@/hooks/useRecipeFoldersStore";
 import { MealsProvider } from "@/hooks/useMealsStore";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
@@ -156,13 +155,11 @@ export default function RootLayout() {
             <ShoppingListProvider>
               <MealPlannerProvider>
                 <RecipeStoreProvider>
-                  <RecipeFoldersProvider>
-                    <ToastProvider>
-                      <GlobalErrorBoundary>
-                        <RootLayoutNav />
-                      </GlobalErrorBoundary>
-                    </ToastProvider>
-                  </RecipeFoldersProvider>
+                  <ToastProvider>
+                    <GlobalErrorBoundary>
+                      <RootLayoutNav />
+                    </GlobalErrorBoundary>
+                  </ToastProvider>
                 </RecipeStoreProvider>
               </MealPlannerProvider>
             </ShoppingListProvider>
