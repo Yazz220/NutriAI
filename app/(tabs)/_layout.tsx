@@ -47,7 +47,7 @@ export default function TabLayout() {
           const translateY = route.name === 'profile' ? 6 : 9;
           const wrapStyle = [styles.iconWrap, { transform: [{ translateY }] }];
 
-          if (route.name === 'chat') return (
+          if (route.name === 'index') return (
             <View style={wrapStyle}>
               <MessageCircle size={size * 0.5} color={iconColor} strokeWidth={focused ? 2.5 : 2} />
             </View>
@@ -76,7 +76,7 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen name="chat" options={{ title: 'Nosh' }} />
+      <Tabs.Screen name="index" options={{ title: 'Nosh' }} />
       <Tabs.Screen name="recipes" options={{ title: 'Recipes' }} />
       <Tabs.Screen name="plan" options={{ title: 'Plan' }} />
       <Tabs.Screen name="list" options={{ title: 'Shopping List' }} />
