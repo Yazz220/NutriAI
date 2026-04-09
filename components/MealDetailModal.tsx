@@ -146,11 +146,6 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
             recipe={toCanonicalFromMeal(meal as Meal)}
             mode="library"
             onPlan={() => setShowMealPlanModal(true)}
-            onLog={(recipe, mealType, servings) => {
-              // The meal logging is handled internally by RecipeDetail
-              // We can optionally close the modal after logging
-              onClose();
-            }}
             onOpenSource={() => { const url = (meal as Meal).sourceUrl; if (url) Linking.openURL(url); }}
             onAskAI={() => setActiveTab('chat')}
           />

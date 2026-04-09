@@ -15,7 +15,7 @@ import { ChevronLeft, Clock, Bookmark, BookmarkPlus, ExternalLink, Plus, Shoppin
 import * as Haptics from 'expo-haptics';
 import NoshChefIcon from '@/assets/icons/Nosh chef (1).svg';
 import FooterArt from '@/assets/icons/footer.svg';
-import { MealTypeSelector } from './MealTypeSelector';
+
 import { RecipeNutritionCard } from './RecipeNutritionCard';
 import { PlanMealModal } from './PlanMealModal';
 import { ServingSizeChanger } from './ServingSizeChanger';
@@ -77,9 +77,7 @@ export interface RecipeDetailProps {
   onShare?: (r: CanonicalRecipe) => Promise<void> | void;
   onOpenSource?: (r: CanonicalRecipe) => Promise<void> | void;
   onAskAI?: (r: CanonicalRecipe) => void; // let parent switch to AI tab if desired
-  onLog?: (r: CanonicalRecipe, mealType: MealType, servings: number) => void; // Changed from onCook to onLog
   isSaved?: boolean;
-  selectedDate?: string; // Optional date to log meals to (defaults to today)
 }
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({
@@ -93,9 +91,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   onShare,
   onOpenSource,
   onAskAI,
-  onLog,
   isSaved,
-  selectedDate,
 }) => {
   const servings = recipe.servings;
   const insets = useSafeAreaInsets();
@@ -115,7 +111,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   const { meals, addMeal, setMeals } = useMeals();
   const [missingCount, setMissingCount] = useState(0);
   const [missingList, setMissingList] = useState<Array<{ name: string }>>([]);
-  const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
   const [showPlanMealModal, setShowPlanMealModal] = useState(false);
   const [missingIngredientsAdded, setMissingIngredientsAdded] = useState(false);
   const [showAiChat, setShowAiChat] = useState(false);
@@ -185,11 +180,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     }
   }, [hasImage, visible, recipe?.id]);
 
-
-  const handleLogMeal = async (mealType: MealType, logDate?: string) => {
-    // Log meal callback for parent
-    onLog?.(recipe, mealType, desiredServings);
-  };
 
   // Share removed per request
 
@@ -291,14 +281,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 shape="capsule"
                 icon={isSaved ? <Bookmark size={16} color={Colors.white} /> : <BookmarkPlus size={16} color={Colors.white} />}
               />
-              <Button
-                title="Log"
-                onPress={() => setShowMealTypeSelector(true)}
-                size="sm"
-                variant="secondary"
-                shape="capsule"
-                icon={<Plus size={16} color={Colors.primary} />}
-              />
               <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="sm" variant="secondary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
@@ -310,7 +292,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                     let added = 0;
                     for (const m of missingList) {
                       // Check if item already exists in shopping list (case-insensitive)
-                      const exists = shoppingList.some((item: any) => 
+                      const exists = shoppingList.some((item: any) =>
                         item.name.toLowerCase().trim() === m.name.toLowerCase().trim()
                       );
                       if (!exists) {
@@ -345,15 +327,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
           {mode === 'library' && (
             <>
-              <Button
-                title="Log"
-                onPress={() => setShowMealTypeSelector(true)}
-                size="sm"
-                variant="primary"
-                shape="capsule"
-                icon={<Plus size={16} color={Colors.white} />}
-              />
-              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="sm" variant="secondary" shape="capsule" />
+              <Button title="Plan" onPress={() => setShowPlanMealModal(true)} size="sm" variant="primary" shape="capsule" />
 
               {!!missingCount && missingCount > 0 && (
                 <Button
@@ -400,14 +374,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           {mode === 'ai' && (
             <>
               <Button title="Save" onPress={() => onSave?.(recipe)} size="sm" variant="primary" shape="capsule" />
-              <Button
-                title="Log"
-                onPress={() => setShowMealTypeSelector(true)}
-                size="sm"
-                variant="secondary"
-                shape="capsule"
-                icon={<Plus size={16} color={Colors.primary} />}
-              />
             </>
           )}
         </View>
@@ -504,17 +470,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         </View>
       </ScrollView>
 
-      {/* Meal Type Selector Modal */}
-      <MealTypeSelector
-        visible={showMealTypeSelector}
-        onClose={() => setShowMealTypeSelector(false)}
-        onConfirm={handleLogMeal}
-        recipeName={recipe.title}
-        servings={desiredServings}
-        calories={scaledNutrition?.calories}
-        defaultDate={selectedDate}
-      />
-
       <PlanMealModal
         visible={showPlanMealModal}
         onClose={() => setShowPlanMealModal(false)}
@@ -540,7 +495,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         }}
         recipeName={recipe.title}
         servings={desiredServings}
-        defaultDate={selectedDate}
+        defaultDate={new Date().toISOString().split('T')[0]}
       />
 
 

@@ -1,18 +1,22 @@
 import React, { useRef, useCallback } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, FlatList, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
 import { useNoshChat } from '@/hooks/useNoshChat';
 import ChatMessageBubble from '@/components/chat/ChatMessageBubble';
 import ChatInput from '@/components/chat/ChatInput';
 import { NoshChatMessage } from '@/types';
 import { Colors } from '@/constants/colors';
+import { Spacing } from '@/constants/spacing';
 
 export default function ChatScreen() {
   const { messages, sendMessage, isTyping } = useNoshChat();
   const flatListRef = useRef<FlatList<NoshChatMessage>>(null);
+  const insets = useSafeAreaInsets();
 
   const scrollToBottom = useCallback(() => {
     if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
     }
   }, [messages.length]);
 
@@ -23,22 +27,25 @@ export default function ChatScreen() {
   const keyExtractor = useCallback((item: NoshChatMessage) => item.id, []);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContent}
-        onContentSizeChange={scrollToBottom}
-        onLayout={scrollToBottom}
-        showsVerticalScrollIndicator={false}
-      />
-      <ChatInput onSend={sendMessage} disabled={isTyping} />
-    </KeyboardAvoidingView>
+    <View style={styles.container}>
+      <Stack.Screen options={{ title: 'Nosh', headerShown: true }} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContent}
+          onContentSizeChange={scrollToBottom}
+          showsVerticalScrollIndicator={false}
+        />
+        <ChatInput onSend={sendMessage} disabled={isTyping} />
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -47,8 +54,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  flex: {
+    flex: 1,
+  },
   listContent: {
-    paddingVertical: 12,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
     flexGrow: 1,
     justifyContent: 'flex-end',
   },

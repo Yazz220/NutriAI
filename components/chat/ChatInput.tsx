@@ -35,7 +35,7 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
     if (status !== 'granted') return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       base64: true,
       quality: 0.7,
       allowsEditing: false,

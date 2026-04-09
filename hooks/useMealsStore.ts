@@ -45,8 +45,13 @@ export const [MealsProvider, useMeals] = createContextHook(() => {
             const parsed = JSON.parse(storedMeals);
             if (Array.isArray(parsed)) {
               const cleaned = sanitizeMeals(parsed as Meal[]);
+              // Backfill category for meals missing it (default to 'dinner')
+              const withCategories = cleaned.map((m) => {
+                if (m.category) return m;
+                return { ...m, category: 'dinner' as const };
+              });
               // Backfill nutrition for meals missing it (computed from ingredients)
-              const enriched = cleaned.map((m) => {
+              const enriched = withCategories.map((m) => {
                 if ((m as any).nutritionPerServing) return m;
                 const ings = Array.isArray((m as any).ingredients) ? (m as any).ingredients : [];
                 if (!ings.length) return m;
