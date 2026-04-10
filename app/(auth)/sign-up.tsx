@@ -166,7 +166,7 @@ export default function SignUpScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Start planning meals smarter</Text>
+      <Text style={styles.subtitle}>Your AI kitchen buddy awaits</Text>
 
       <View style={styles.field}>
         <Text style={styles.label}>Email</Text>

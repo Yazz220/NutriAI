@@ -251,7 +251,7 @@ export default function SignInScreen() {
             <User size={32} color={Colors.white} />
           </View>
           <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to continue your nutrition journey</Text>
+          <Text style={styles.subtitle}>Sign in to your kitchen buddy</Text>
         </View>
       </ExpoLinearGradient>
 
@@ -288,22 +288,24 @@ export default function SignInScreen() {
           </View>
         </View>
 
+        <Link href="/(auth)/forgot-password" asChild>
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+          </TouchableOpacity>
+        </Link>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity style={styles.button} onPress={onSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
+          {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Sign In</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onMagicLink} disabled={loading}>
-        <Text style={styles.secondaryText}>Send magic link</Text>
+          <Text style={styles.secondaryText}>Send magic link</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.oauthButton} onPress={onOAuthGoogle} disabled={loading}>
-        <Text style={styles.oauthText}>Continue with Google</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.guestButton} onPress={onGuest} disabled={loading}>
-        <Text style={styles.guestText}>Continue as guest (dev)</Text>
+          <Text style={styles.oauthText}>Continue with Google</Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -428,17 +430,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     fontSize: 16,
   },
-  guestButton: {
-    marginTop: Spacing.md,
-    backgroundColor: Colors.lightGray,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  guestText: {
-    color: Colors.text,
-    fontWeight: Typography.weights.semibold,
-  },
   secondaryButton: {
     marginTop: Spacing.md,
     backgroundColor: Colors.card,
@@ -483,6 +474,15 @@ const styles = StyleSheet.create({
   devResetText: {
     color: Colors.lightText,
     textDecorationLine: 'underline',
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  forgotPasswordText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: Typography.weights.medium,
   },
   error: {
     color: Colors.error,
