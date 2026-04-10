@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Radii } from '@/constants/spacing';
+import { Spacing, Radii } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { NoshChatMessage, Meal } from '@/types';
 import RecipeCardInline from './RecipeCardInline';
 

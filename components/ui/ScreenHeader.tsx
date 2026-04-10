@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { Fonts } from '@/utils/fonts';
 
 export type ScreenHeaderProps = {
@@ -121,12 +122,12 @@ const styles = StyleSheet.create({
     top: Spacing.lg + (Platform.OS === 'ios' ? 44 : 24) - 6,
   },
   title: {
-    ...Typography.displayMd,
+    ...Typography.h2,
     fontFamily: Fonts.display.bold,
     color: Colors.text,
   },
   subtitle: {
-    ...Typography.bodySm,
+    ...Typography.bodySmall,
     fontFamily: Fonts.ui.regular,
     color: Colors.lightText,
     marginTop: 2,

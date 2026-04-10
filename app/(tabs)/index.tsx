@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from 'react';
-import { View, FlatList, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useNoshChat } from '@/hooks/useNoshChat';
@@ -8,6 +9,7 @@ import ChatInput from '@/components/chat/ChatInput';
 import { NoshChatMessage } from '@/types';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 
 export default function ChatScreen() {
   const { messages, sendMessage, isTyping } = useNoshChat();
@@ -27,8 +29,9 @@ export default function ChatScreen() {
   const keyExtractor = useCallback((item: NoshChatMessage) => item.id, []);
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Nosh', headerShown: true }} />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <ScreenHeader title="Nosh" showDivider={true} />
+      
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
