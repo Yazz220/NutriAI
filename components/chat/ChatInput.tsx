@@ -7,9 +7,11 @@ import {
   Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, ImagePlus } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Radii, Shadows } from '@/constants/spacing';
+import { Spacing, Radii, Shadows } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 
 interface ChatInputProps {
   onSend: (text: string, imageBase64?: string) => void;
@@ -17,6 +19,7 @@ interface ChatInputProps {
 }
 
 const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const [pendingImage, setPendingImage] = useState<string | undefined>(undefined);
 
@@ -48,8 +51,11 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
 
   const canSend = text.trim().length > 0 && !disabled;
 
+  // Extra bottom padding to clear the tab bar
+  const tabBarPadding = (insets?.bottom ?? 0) + 48;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: tabBarPadding }]}>
       {/* Attach button */}
       <TouchableOpacity
         onPress={handleAttach}
@@ -103,8 +109,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.sm,
+    paddingTop: Spacing.sm,
     gap: Spacing.sm,
     ...Shadows.sm,
   },
