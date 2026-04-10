@@ -76,7 +76,7 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Nosh' }} />
+      <Tabs.Screen name="index" options={{ title: 'Nosh', headerShown: false }} />
       <Tabs.Screen name="recipes" options={{ title: 'Recipes' }} />
       <Tabs.Screen name="plan" options={{ title: 'Plan' }} />
       <Tabs.Screen name="list" options={{ title: 'Shopping List' }} />
