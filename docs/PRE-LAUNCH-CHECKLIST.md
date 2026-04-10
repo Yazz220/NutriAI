@@ -1,6 +1,26 @@
 # Nosh — Pre-Launch Checklist
 
 > Track progress by checking items off. Work through these in order across sessions.
+> Last updated: 2026-04-10
+
+---
+
+## Completed
+
+- [x] Core app transformation — RecipeBox → Nosh (chat tab, branding, personality)
+- [x] Chat tab — Nosh AI assistant with import routing
+- [x] Recipes tab — category-based library with search and filtering
+- [x] Plan tab — cleaned up, intuitive meal planner
+- [x] Content detector — routes links, video URLs, images, text to correct pipeline
+- [x] Import orchestrator — auto-processes and auto-saves recipes
+- [x] Image import Edge Function (parse-image-recipe) — Gemini 2.5 Flash
+- [x] Video import Edge Function (parse-video-recipe) — Gemini 2.5 Flash
+- [x] Branding — app.json, brand constants, onboarding, persona all updated to Nosh
+- [x] Cleanup — removed folders system, vestigial calorie code, dead utils, MealTypeSelector
+- [x] Auth screens — forgot password link, updated copy, removed dev guest button
+- [x] Type system — MealCategory, NoshChatMessage, coach→assistant rename
+- [x] Comprehensive code audit — security review, dead code removal
+- [x] Supabase schema — nutriai schema bootstrapped (profiles, meal_plans, ingredient_icons)
 
 ---
 
@@ -18,6 +38,7 @@
 - [ ] App Store assets — icon, splash screen, screenshots (5.5" + 6.5"), app description
 - [ ] Privacy Policy (required for App Store and Play Store)
 - [ ] Terms of Service (required for app stores)
+- [ ] Apple Sign-In — required by Apple for App Store if offering third-party auth (use expo-apple-authentication)
 
 ## Should Do Before Launch (Important)
 
