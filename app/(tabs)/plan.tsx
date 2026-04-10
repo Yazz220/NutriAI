@@ -60,7 +60,6 @@ export default function PlanScreen() {
   const { meals: savedRecipes } = useMeals();
 
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
-
   const todayISO = toISO(new Date());
 
   const mealsForDate = useMemo(() => {
@@ -115,7 +114,7 @@ export default function PlanScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScreenHeader
-        title="Meal Plan"
+        title="Plan"
         icon={
           <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
             <CalendarIcon width={38} height={38} color={Colors.text} />
@@ -128,7 +127,7 @@ export default function PlanScreen() {
       {/* Week navigation */}
       <View style={styles.weekNav}>
         <TouchableOpacity onPress={() => setWeekOffset((o) => o - 1)} style={styles.navBtn}>
-          <ChevronLeft size={22} color={Colors.text} />
+          <ChevronLeft size={20} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.weekLabel}>
           {weekDates[0] && weekDates[6]
@@ -136,7 +135,7 @@ export default function PlanScreen() {
             : ''}
         </Text>
         <TouchableOpacity onPress={() => setWeekOffset((o) => o + 1)} style={styles.navBtn}>
-          <ChevronRight size={22} color={Colors.text} />
+          <ChevronRight size={20} color={Colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -150,13 +149,21 @@ export default function PlanScreen() {
           return (
             <TouchableOpacity
               key={iso}
-              style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+              style={[
+                styles.dayCell,
+                isSelected && styles.dayCellSelected,
+                isToday && !isSelected && styles.dayCellToday,
+              ]}
               onPress={() => setSelectedDate(iso)}
             >
-              <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
+              <Text style={[styles.dayName, isSelected && styles.dayTextSelected]}>
                 {DAY_LABELS[idx]}
               </Text>
-              <Text style={[styles.dayNum, isSelected && styles.dayNumSelected, isToday && styles.dayNumToday]}>
+              <Text style={[
+                styles.dayNum,
+                isSelected && styles.dayTextSelected,
+                isToday && !isSelected && styles.dayNumToday,
+              ]}>
                 {date.getDate()}
               </Text>
               {hasPlanned && <View style={[styles.dot, isSelected && styles.dotSelected]} />}
@@ -174,32 +181,13 @@ export default function PlanScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.selectedDateLabel}>
-          {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </Text>
-
         {MEAL_TYPES.map((mealType) => {
           const planned = getMealForType(mealType);
           const recipe = planned ? getRecipeForPlannedMeal(planned) : undefined;
 
           return (
             <View key={mealType} style={styles.mealSlot}>
-              <View style={styles.mealSlotHeader}>
-                <Text style={styles.mealTypeLabel}>{MEAL_LABELS[mealType]}</Text>
-                {!planned && (
-                  <TouchableOpacity
-                    style={styles.addMealBtn}
-                    onPress={() => handleAddMeal(mealType)}
-                  >
-                    <Plus size={16} color={Colors.primary} />
-                    <Text style={styles.addMealText}>Add</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              <Text style={styles.mealTypeLabel}>{MEAL_LABELS[mealType]}</Text>
 
               {planned ? (
                 <TouchableOpacity
@@ -210,7 +198,9 @@ export default function PlanScreen() {
                   {recipe?.image ? (
                     <Image source={{ uri: recipe.image }} style={styles.plannedImage} />
                   ) : (
-                    <View style={[styles.plannedImage, styles.plannedImagePlaceholder]} />
+                    <View style={[styles.plannedImage, styles.plannedImagePlaceholder]}>
+                      <Text style={styles.placeholderEmoji}>🍽️</Text>
+                    </View>
                   )}
                   <View style={styles.plannedInfo}>
                     <Text style={styles.plannedName} numberOfLines={2}>
@@ -230,10 +220,11 @@ export default function PlanScreen() {
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  style={styles.emptySlot}
+                  style={styles.emptyCard}
                   onPress={() => handleAddMeal(mealType)}
+                  activeOpacity={0.6}
                 >
-                  <Text style={styles.emptySlotText}>Tap to plan {MEAL_LABELS[mealType].toLowerCase()}</Text>
+                  <Plus size={20} color={Colors.lightText} />
                 </TouchableOpacity>
               )}
             </View>
@@ -271,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   navBtn: {
     padding: 8,
@@ -284,33 +275,37 @@ const styles = StyleSheet.create({
   dayStrip: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingBottom: 16,
     gap: 4,
   },
   dayCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
   dayCellSelected: {
     backgroundColor: Colors.primary,
   },
-  dayName: {
-    ...Type.caption,
-    color: Colors.lightText,
-    marginBottom: 4,
-    fontSize: 11,
+  dayCellToday: {
+    backgroundColor: Colors.primary + '15',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
   },
-  dayNameSelected: {
-    color: Colors.white,
+  dayName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.lightText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   dayNum: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
   },
-  dayNumSelected: {
+  dayTextSelected: {
     color: Colors.white,
   },
   dayNumToday: {
@@ -321,7 +316,7 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 2.5,
     backgroundColor: Colors.primary,
-    marginTop: 3,
+    marginTop: 4,
   },
   dotSelected: {
     backgroundColor: Colors.white,
@@ -331,39 +326,17 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  selectedDateLabel: {
-    ...Type.h3,
-    fontSize: 17,
-    color: Colors.text,
-    marginBottom: 16,
+    paddingTop: 4,
   },
   mealSlot: {
-    marginBottom: 16,
-  },
-  mealSlotHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 14,
   },
   mealTypeLabel: {
     ...Type.body,
     fontWeight: '700',
     color: Colors.text,
     fontSize: 15,
-  },
-  addMealBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    padding: 4,
-  },
-  addMealText: {
-    ...Type.caption,
-    color: Colors.primary,
-    fontWeight: '600',
+    marginBottom: 8,
   },
   plannedCard: {
     flexDirection: 'row',
@@ -380,13 +353,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   plannedImage: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 10,
     marginRight: 12,
   },
   plannedImagePlaceholder: {
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderEmoji: {
+    fontSize: 20,
   },
   plannedInfo: {
     flex: 1,
@@ -405,17 +383,14 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
-  emptySlot: {
+  emptyCard: {
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     borderStyle: 'dashed',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    height: 56,
     alignItems: 'center',
-  },
-  emptySlotText: {
-    ...Type.caption,
-    color: Colors.lightText,
+    justifyContent: 'center',
+    backgroundColor: Colors.card + '60',
   },
 });
