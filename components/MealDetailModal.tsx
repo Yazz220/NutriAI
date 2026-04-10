@@ -154,8 +154,7 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
           <MealPlanModal
             visible={showMealPlanModal}
             selectedDate={new Date().toISOString().split('T')[0]}
-            onSave={(plannedMeal) => {
-              console.log('Planned meal:', plannedMeal);
+            onSave={(_plannedMeal) => {
               setShowMealPlanModal(false);
               Alert.alert('Added to Plan', 'Recipe has been added to your meal plan!');
             }}
