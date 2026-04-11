@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { resetOnboarding } from '@/components/onboarding';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
@@ -9,6 +10,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
 import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
 import { withTimeout, getUserFriendlyErrorMessage } from '@/utils/networkTimeout';
+import { isAppleSignInAvailable, signInWithApple, isAppleCancellation } from '@/utils/appleAuth';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -16,7 +18,12 @@ export default function SignUpScreen() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const { saveProfile } = useUserProfile();
+
+  useEffect(() => {
+    isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
 
   const onSignUp = async () => {
     setError(null);
@@ -151,6 +158,35 @@ export default function SignUpScreen() {
     }
   };
 
+  const onAppleSignUp = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await signInWithApple();
+
+      const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
+      if (onboardingData) {
+        try {
+          const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
+          saveProfile(profileData);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          await OnboardingPersistenceManager.clearOnboardingData();
+          console.log('[SignUp] Apple: onboarding data synced');
+        } catch (syncError) {
+          console.error('[SignUp] Apple: failed to sync onboarding data', syncError);
+        }
+      }
+      // RootLayout will switch to (tabs) automatically
+    } catch (err) {
+      if (isAppleCancellation(err)) return;
+      const msg = err instanceof Error ? err.message : 'Apple sign-up failed';
+      setError(msg);
+      Alert.alert('Apple Sign-In error', msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const devResetEnabled = process.env.EXPO_PUBLIC_DEV_RESET_ONBOARDING === 'true';
 
   const onDevResetOnboarding = async () => {
@@ -210,6 +246,19 @@ export default function SignUpScreen() {
       <TouchableOpacity style={styles.button} onPress={onSignUp} disabled={loading}>
         {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Create Account</Text>}
       </TouchableOpacity>
+
+      {appleAvailable && (
+        <>
+          <Text style={styles.orDivider}>Or sign up with</Text>
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={10}
+            style={styles.appleButton}
+            onPress={onAppleSignUp}
+          />
+        </>
+      )}
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account?</Text>
@@ -294,6 +343,17 @@ const styles = StyleSheet.create({
   devResetText: {
     color: Colors.lightText,
     textDecorationLine: 'underline',
+  },
+  orDivider: {
+    textAlign: 'center',
+    color: Colors.lightText,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    fontSize: 14,
+  },
+  appleButton: {
+    height: 44,
+    width: '100%',
   },
   error: {
     color: Colors.error,
