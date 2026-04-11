@@ -7,11 +7,12 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "simulator": true
-      },
       "env": {
-        "EXPO_PUBLIC_OFFLINE_ONLY": "true"
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_OFFLINE_ONLY": "false"
+      },
+      "ios": {
+        "simulator": false
       }
     },
     "preview": {
