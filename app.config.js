@@ -12,18 +12,22 @@
 
 const IS_DEV = process.env.APP_VARIANT === "development";
 
-// Load static app.json as base
-const config = require("./app.json").expo;
-
-module.exports = () => ({
+module.exports = ({ config }) => ({
   ...config,
-  name: IS_DEV ? "Nosh (Dev)" : config.name,
-  scheme: IS_DEV ? "nosh-dev" : config.scheme,
+  // Keep name as "Nosh" always so the Xcode target stays consistent.
+  // The home-screen display name is overridden via infoPlist for dev builds.
+  name: "Nosh",
+  scheme: IS_DEV ? "nosh-dev" : config.scheme || "nosh",
   ios: {
     ...config.ios,
     bundleIdentifier: IS_DEV
       ? `${config.ios.bundleIdentifier}.dev`
       : config.ios.bundleIdentifier,
+    infoPlist: {
+      ...config.ios?.infoPlist,
+      // Override the display name on the home screen for dev builds
+      ...(IS_DEV ? { CFBundleDisplayName: "Nosh (Dev)" } : {}),
+    },
   },
   android: {
     ...config.android,
