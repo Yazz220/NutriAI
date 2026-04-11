@@ -62,12 +62,7 @@
       "expo-localization",
       "expo-router",
       "expo-asset",
-      "expo-splash-screen",
-      "expo-haptics",
-      "expo-clipboard",
-      "expo-blur",
-      "expo-linear-gradient",
-      "expo-status-bar"
+      "expo-splash-screen"
     ],
     "web": {
       "bundler": "metro"

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Read(//tmp/**)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
