@@ -6,20 +6,20 @@ export function toISODate(date: Date): string {
 
 export function parseISODate(dateISO: string): Date {
   const [year, month, day] = dateISO.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 export function getWeekStartISO(dateISO: string): string {
   const date = parseISODate(dateISO);
-  const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday
+  const dayOfWeek = date.getUTCDay(); // 0 = Sunday, 1 = Monday
   const daysSinceMonday = (dayOfWeek + 6) % 7;
-  date.setDate(date.getDate() - daysSinceMonday);
+  date.setUTCDate(date.getUTCDate() - daysSinceMonday);
   return toISODate(date);
 }
 
 export function shiftDate(dateISO: string, days: number): string {
   const date = parseISODate(dateISO);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return toISODate(date);
 }
 
