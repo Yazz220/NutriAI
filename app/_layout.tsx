@@ -7,6 +7,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ShoppingListProvider } from "@/hooks/useShoppingListStore";
 import { UserPreferencesProvider } from "@/hooks/useUserPreferences";
 import { UserProfileProvider } from "@/hooks/useUserProfile";
@@ -84,12 +85,12 @@ function RootLayoutNav() {
     };
   }, [fontsLoaded, segments]);
 
-  // Hide the splash screen once fonts are loaded.
+  // Hide the splash only after the first renderable app state is ready.
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && onboardingCompleted !== null) {
       SplashScreen.hideAsync().catch(() => { });
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, onboardingCompleted]);
 
   // Handle navigation based on auth state changes
   useEffect(() => {
@@ -119,11 +120,7 @@ function RootLayoutNav() {
     }
   }, [initializing, session, segments, fontsLoaded, onboardingCompleted, devBypass, router]);
 
-  if (!fontsLoaded || onboardingCompleted === null) {
-    return null;
-  }
-
-  if (initializing) {
+  if (!fontsLoaded || onboardingCompleted === null || initializing) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
         <StatusBar style="light" />
@@ -135,13 +132,15 @@ function RootLayoutNav() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-      <OfflineBanner />
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+        <OfflineBanner />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

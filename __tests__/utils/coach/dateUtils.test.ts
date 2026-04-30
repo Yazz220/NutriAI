@@ -8,19 +8,19 @@ import {
 } from '@/utils/coach/dateUtils';
 
 describe('getWeekStartISO', () => {
-  it('returns Monday for a Wednesday', () => {
-    // 2026-03-12 is a Wednesday (local TZ), Monday is 2026-03-10
-    expect(getWeekStartISO('2026-03-12')).toBe('2026-03-10');
+  it('returns Monday for a Thursday', () => {
+    // 2026-03-12 is a Thursday, Monday is 2026-03-09
+    expect(getWeekStartISO('2026-03-12')).toBe('2026-03-09');
   });
 
   it('returns same day for a Monday', () => {
-    // 2026-03-10 is a Monday
-    expect(getWeekStartISO('2026-03-10')).toBe('2026-03-10');
+    // 2026-03-09 is a Monday
+    expect(getWeekStartISO('2026-03-09')).toBe('2026-03-09');
   });
 
   it('returns previous Monday for a Sunday', () => {
-    // 2026-03-16 is a Sunday, previous Monday is 2026-03-10
-    expect(getWeekStartISO('2026-03-16')).toBe('2026-03-10');
+    // 2026-03-15 is a Sunday, previous Monday is 2026-03-09
+    expect(getWeekStartISO('2026-03-15')).toBe('2026-03-09');
   });
 });
 
