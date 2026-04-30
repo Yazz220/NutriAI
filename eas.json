@@ -7,12 +7,11 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": {
-        "APP_VARIANT": "development",
-        "EXPO_PUBLIC_OFFLINE_ONLY": "false"
-      },
       "ios": {
-        "simulator": false
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_OFFLINE_ONLY": "true"
       }
     },
     "preview": {
@@ -28,6 +27,15 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_OFFLINE_ONLY": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "tft.656@gmail.com",
+        "ascAppId": "6762021802",
+        "appleTeamId": "729XHPX947"
       }
     }
   }
