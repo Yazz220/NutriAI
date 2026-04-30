@@ -6,6 +6,9 @@ node_modules/
 dist/
 web-build/
 
+# Local machine sync automation
+.sync/
+
 # Environment variables
 .env
 .env.local
