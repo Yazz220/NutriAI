@@ -4,7 +4,22 @@
       "Bash(npx tsc:*)",
       "Read(//tmp/**)",
       "Bash(npm uninstall:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx expo:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8081)",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill //PID 33656 //F)",
+      "Bash(npx ngrok:*)",
+      "Bash(npm list:*)",
+      "Bash(where ngrok:*)",
+      "Bash(\"C:/Users/Yaz/Desktop/Projects/Transcription Project/mobile/node_modules/.bin/ngrok\" --version)",
+      "Bash(node -e \"const p = require\\('C:/Users/Yaz/Desktop/Projects/Transcription Project/mobile/node_modules/@expo/ngrok/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const ngrok = require\\('@expo/ngrok'\\); ngrok.connect\\({addr: 19000}\\).then\\(url => { console.log\\('OK:', url\\); ngrok.kill\\(\\); }\\).catch\\(err => console.error\\('ERR:', err.message\\)\\)\")",
+      "Bash(node -e \"const ngrok = require\\('@expo/ngrok'\\); ngrok.connect\\({addr: 8081}\\).then\\(url => { console.log\\('OK:', url\\); ngrok.kill\\(\\); }\\).catch\\(err => console.error\\('ERR:', err.message\\)\\)\")",
+      "Bash(npm root:*)",
+      "Bash(node -e \"console.log\\(require.resolve\\('ngrok/bin/ngrok'\\)\\)\")",
+      "Read(//c/Users/Yaz/AppData/Roaming/npm/node_modules/ngrok/bin/**)"
     ]
   }
 }

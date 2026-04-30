@@ -2,7 +2,11 @@
  * Dynamic Expo config — reads APP_VARIANT to create separate dev/production apps.
  *
  * Production:  "Nosh"       com.yaz12.nosh       scheme: nosh
- * Development: "Nosh (Dev)" com.yaz12.nosh.dev   scheme: nosh-dev
+ * Development: "Nosh (Dev)" com.yaz12.nosh.dev   scheme: nosh
+ *
+ * Scheme stays "nosh" for both variants so Metro QR codes (exp+nosh://)
+ * are handled correctly by the dev build. The bundle ID differentiates
+ * the apps for side-by-side install.
  *
  * Build commands:
  *   eas build --profile development   → installs "Nosh (Dev)" on device
@@ -17,7 +21,7 @@ module.exports = ({ config }) => ({
   // Keep name as "Nosh" always so the Xcode target stays consistent.
   // The home-screen display name is overridden via infoPlist for dev builds.
   name: "Nosh",
-  scheme: IS_DEV ? "nosh-dev" : config.scheme || "nosh",
+  scheme: config.scheme || "nosh",
   ios: {
     ...config.ios,
     bundleIdentifier: IS_DEV
