@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yaz12.nosh",
-      "buildNumber": "6",
+      "buildNumber": "8",
       "infoPlist": {
         "NSCameraUsageDescription": "Nosh uses your camera to capture recipe images.",
         "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes.",
