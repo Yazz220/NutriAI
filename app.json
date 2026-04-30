@@ -20,8 +20,6 @@
         "NSCameraUsageDescription": "Nosh uses your camera to capture recipe images.",
         "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes.",
         "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features.",
-        "NSHealthShareUsageDescription": "Nosh reads your health data to track nutrition goals and sync meal information with Apple Health.",
-        "NSHealthUpdateUsageDescription": "Nosh writes nutrition and meal data to Apple Health to help you track your dietary progress.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "usesAppleSignIn": true,
@@ -62,7 +60,9 @@
       ],
       "expo-apple-authentication",
       "expo-localization",
-      "expo-router"
+      "expo-router",
+      "expo-asset",
+      "expo-splash-screen"
     ],
     "web": {
       "bundler": "metro"
