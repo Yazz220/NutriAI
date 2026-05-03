@@ -12,7 +12,7 @@ import { buildCookbookPagePromptPayload } from '@/utils/cookbook/pagePrompt';
 import type { StructuredRecipe } from '@/types/cookbook';
 
 export default function RecipeReviewScreen() {
-  const { cookbook, refresh } = useCookbook();
+  const { cookbook, refresh, upsertPage } = useCookbook();
   const { draft, setDraft } = useCookbookImport();
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -37,7 +37,12 @@ export default function RecipeReviewScreen() {
         recipe,
         promptPayload: buildCookbookPagePromptPayload({ recipe, theme: cookbook.theme }),
       });
-      await refresh();
+      upsertPage(page);
+      try {
+        await refresh();
+      } catch (refreshError) {
+        console.warn('Cookbook refresh failed after page generation', refreshError);
+      }
       router.replace(`/(book)/generation/${page.id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not generate this page.';

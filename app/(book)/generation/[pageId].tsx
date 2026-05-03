@@ -14,7 +14,7 @@ import { shareCookbookPage } from '@/utils/cookbook/share';
 export default function GenerationResultScreen() {
   const { pageId } = useLocalSearchParams<{ pageId?: string | string[] }>();
   const normalizedPageId = Array.isArray(pageId) ? pageId[0] : pageId;
-  const { cookbook, pages, refresh, setSelectedPageId } = useCookbook();
+  const { cookbook, pages, refresh, setSelectedPageId, upsertPage } = useCookbook();
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const page = useMemo(() => {
@@ -41,7 +41,12 @@ export default function GenerationResultScreen() {
         recipe: page.recipe,
         promptPayload: buildCookbookPagePromptPayload({ recipe: page.recipe, theme: cookbook.theme }),
       });
-      await refresh();
+      upsertPage(regeneratedPage);
+      try {
+        await refresh();
+      } catch (refreshError) {
+        console.warn('Cookbook refresh failed after page regeneration', refreshError);
+      }
       setSelectedPageId(regeneratedPage.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not regenerate this page.';

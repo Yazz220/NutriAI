@@ -121,6 +121,76 @@ create table if not exists nutriai.credit_ledger (
   created_at timestamptz not null default now()
 );
 
+create or replace function nutriai.reserve_generation_credit(p_user_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = nutriai, public
+as $$
+declare
+  current_balance integer;
+  spend_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext(p_user_id::text));
+
+  select coalesce(sum(amount), 0)::integer
+    into current_balance
+  from nutriai.credit_ledger
+  where user_id = p_user_id;
+
+  if current_balance < 1 then
+    raise exception 'Not enough credits' using errcode = 'P0001';
+  end if;
+
+  insert into nutriai.credit_ledger (user_id, event_type, amount)
+  values (p_user_id, 'generation_spend', -1)
+  returning id into spend_id;
+
+  return spend_id;
+end;
+$$;
+
+create or replace function nutriai.create_cookbook_page(
+  p_cookbook_id uuid,
+  p_recipe_id uuid,
+  p_section text
+)
+returns nutriai.cookbook_pages
+language plpgsql
+security definer
+set search_path = nutriai, public
+as $$
+declare
+  next_page_number integer;
+  inserted_page nutriai.cookbook_pages;
+begin
+  perform pg_advisory_xact_lock(hashtext(p_cookbook_id::text));
+
+  select coalesce(max(page_number), 0) + 1
+    into next_page_number
+  from nutriai.cookbook_pages
+  where cookbook_id = p_cookbook_id;
+
+  insert into nutriai.cookbook_pages (
+    cookbook_id,
+    recipe_id,
+    page_number,
+    section,
+    sort_order
+  )
+  values (
+    p_cookbook_id,
+    p_recipe_id,
+    next_page_number,
+    coalesce(nullif(p_section, ''), 'favorites'),
+    next_page_number
+  )
+  returning * into inserted_page;
+
+  return inserted_page;
+end;
+$$;
+
 create index if not exists cookbooks_user_idx on nutriai.cookbooks(user_id);
 create index if not exists recipes_user_idx on nutriai.recipes(user_id);
 create index if not exists pages_cookbook_order_idx on nutriai.cookbook_pages(cookbook_id, sort_order);
@@ -200,6 +270,8 @@ create policy credit_ledger_service_all on nutriai.credit_ledger
 grant select, insert, update, delete on all tables in schema nutriai to authenticated;
 grant all privileges on all tables in schema nutriai to service_role;
 grant usage on all sequences in schema nutriai to authenticated, service_role;
+grant execute on function nutriai.reserve_generation_credit(uuid) to service_role;
+grant execute on function nutriai.create_cookbook_page(uuid, uuid, text) to service_role;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

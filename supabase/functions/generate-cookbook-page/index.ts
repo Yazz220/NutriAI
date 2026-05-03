@@ -53,6 +53,8 @@ interface PageRow {
   recipes?: RecipeRow | null;
 }
 
+type SupabaseAdmin = any;
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -131,6 +133,99 @@ async function generateImage(prompt: string): Promise<Uint8Array> {
   return base64ToBytes(b64);
 }
 
+async function reserveCredit(admin: SupabaseAdmin, userId: string): Promise<string> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .rpc('reserve_generation_credit', { p_user_id: userId });
+
+  if (error) throw new Error(error.message);
+  if (typeof data !== 'string') throw new Error('Credit reservation failed.');
+  return data;
+}
+
+async function refundCredit(admin: SupabaseAdmin, userId: string, relatedPageVersionId?: string): Promise<void> {
+  const { error } = await admin
+    .schema('nutriai')
+    .from('credit_ledger')
+    .insert({
+      user_id: userId,
+      event_type: 'adjustment',
+      amount: 1,
+      related_page_version_id: relatedPageVersionId ?? null,
+    });
+
+  if (error) console.error('Credit refund failed', error.message);
+}
+
+async function removeStorageObject(admin: SupabaseAdmin, storagePath?: string): Promise<void> {
+  if (!storagePath) return;
+  const { error } = await admin.storage.from(BUCKET).remove([storagePath]);
+  if (error) console.error('Generated page storage cleanup failed', error.message);
+}
+
+async function deleteCreatedRows(admin: SupabaseAdmin, pageId?: string, recipeId?: string): Promise<void> {
+  if (pageId) {
+    const { error } = await admin.schema('nutriai').from('cookbook_pages').delete().eq('id', pageId);
+    if (error) console.error('Generated page cleanup failed', error.message);
+  }
+
+  if (recipeId) {
+    const { error } = await admin.schema('nutriai').from('recipes').delete().eq('id', recipeId);
+    if (error) console.error('Generated recipe cleanup failed', error.message);
+  }
+}
+
+async function deleteGeneratedVersion(admin: SupabaseAdmin, versionId?: string): Promise<void> {
+  if (!versionId) return;
+  const { error } = await admin.schema('nutriai').from('page_versions').delete().eq('id', versionId);
+  if (error) console.error('Generated page version cleanup failed', error.message);
+}
+
+async function insertRecipe(admin: SupabaseAdmin, userId: string, recipe: RecipeInput): Promise<RecipeRow> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .from('recipes')
+    .insert({
+      user_id: userId,
+      title: recipe.title.trim(),
+      description: recipe.description ?? null,
+      servings: recipe.servings ?? null,
+      prep_time: recipe.prepTime ?? null,
+      cook_time: recipe.cookTime ?? null,
+      ingredients: recipe.ingredients,
+      steps: recipe.steps,
+      source_type: recipe.sourceType ?? 'text',
+      source_url: recipe.sourceUrl ?? null,
+      tags: recipe.tags ?? [],
+      category: recipe.category ?? 'favorites',
+      confidence: recipe.confidence ?? 1,
+    })
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as RecipeRow;
+}
+
+async function insertPageLocked(
+  admin: SupabaseAdmin,
+  cookbookId: string,
+  recipeId: string,
+  section: string,
+): Promise<PageRow> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .rpc('create_cookbook_page', {
+      p_cookbook_id: cookbookId,
+      p_recipe_id: recipeId,
+      p_section: section,
+    });
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Could not create cookbook page.');
+  return data as PageRow;
+}
+
 function toClientPage(page: PageRow, recipe: RecipeRow, versionId: string, imageUrl: string) {
   return {
     id: page.id,
@@ -193,39 +288,10 @@ serve(async (req: Request) => {
 
     if (cookbookError || !cookbookRow) return jsonError('Cookbook not found', 404, req);
 
-    const { data: credits, error: creditsError } = await admin
-      .schema('nutriai')
-      .from('credit_ledger')
-      .select('amount')
-      .eq('user_id', user!.id);
-
-    if (creditsError) return jsonError(creditsError.message, 500, req);
-
-    const balance = (credits ?? []).reduce((sum: number, row: { amount: number | string }) => {
-      return sum + Number(row.amount);
-    }, 0);
-    if (balance < 1) return jsonError('Not enough credits', 402, req);
-
-    let imageBytes: Uint8Array;
-    try {
-      imageBytes = await generateImage(promptFromPayload(promptPayload));
-    } catch (generationError) {
-      const message = generationError instanceof Error ? generationError.message : 'Image generation failed';
-      return jsonError(message, 502, req);
-    }
-
-    const storagePath = `${user!.id}/${cookbookId}/${crypto.randomUUID()}.png`;
-    const upload = await admin.storage.from(BUCKET).upload(storagePath, imageBytes, {
-      contentType: 'image/png',
-      upsert: false,
-    });
-    if (upload.error) return jsonError(upload.error.message, 500, req);
-
-    const { data: publicUrl } = admin.storage.from(BUCKET).getPublicUrl(storagePath);
-    const imageUrl = publicUrl.publicUrl;
-
     let recipeRow: RecipeRow;
     let pageRow: PageRow;
+    let createdRecipeId: string | undefined;
+    let createdPageId: string | undefined;
 
     if (pageId) {
       const { data: existingPage, error: existingPageError } = await admin
@@ -241,95 +307,93 @@ serve(async (req: Request) => {
       if (!pageRow.recipes) return jsonError('Page recipe not found', 404, req);
       recipeRow = pageRow.recipes;
     } else {
-      const { data: insertedRecipe, error: recipeError } = await admin
-        .schema('nutriai')
-        .from('recipes')
-        .insert({
-          user_id: user!.id,
-          title: recipe.title.trim(),
-          description: recipe.description ?? null,
-          servings: recipe.servings ?? null,
-          prep_time: recipe.prepTime ?? null,
-          cook_time: recipe.cookTime ?? null,
-          ingredients: recipe.ingredients,
-          steps: recipe.steps,
-          source_type: recipe.sourceType ?? 'text',
-          source_url: recipe.sourceUrl ?? null,
-          tags: recipe.tags ?? [],
-          category: recipe.category ?? 'favorites',
-          confidence: recipe.confidence ?? 1,
-        })
-        .select('*')
-        .single();
-
-      if (recipeError) return jsonError(recipeError.message, 500, req);
-      recipeRow = insertedRecipe as RecipeRow;
-
-      const { count, error: countError } = await admin
-        .schema('nutriai')
-        .from('cookbook_pages')
-        .select('id', { count: 'exact', head: true })
-        .eq('cookbook_id', cookbookId);
-
-      if (countError) return jsonError(countError.message, 500, req);
-
-      const pageNumber = (count ?? 0) + 1;
-      const { data: insertedPage, error: pageError } = await admin
-        .schema('nutriai')
-        .from('cookbook_pages')
-        .insert({
-          cookbook_id: cookbookId,
-          recipe_id: recipeRow.id,
-          page_number: pageNumber,
-          section: recipe.category ?? 'favorites',
-          sort_order: pageNumber,
-        })
-        .select('*')
-        .single();
-
-      if (pageError) return jsonError(pageError.message, 500, req);
-      pageRow = insertedPage as PageRow;
+      try {
+        recipeRow = await insertRecipe(admin, user!.id, recipe);
+        createdRecipeId = recipeRow.id;
+        pageRow = await insertPageLocked(admin, cookbookId, recipeRow.id, recipe.category ?? 'favorites');
+        createdPageId = pageRow.id;
+      } catch (dbError) {
+        await deleteCreatedRows(admin, createdPageId, createdRecipeId);
+        const message = dbError instanceof Error ? dbError.message : 'Could not create cookbook page.';
+        return jsonError(message, 500, req);
+      }
     }
 
-    const { data: versionRow, error: versionError } = await admin
-      .schema('nutriai')
-      .from('page_versions')
-      .insert({
-        page_id: pageRow.id,
-        image_url: imageUrl,
-        storage_path: storagePath,
-        prompt_payload: promptPayload,
-        model: OPENAI_IMAGE_MODEL,
-        status: 'ready',
-        credit_cost: 1,
-      })
-      .select('id')
-      .single();
+    let spendLedgerId: string;
+    try {
+      spendLedgerId = await reserveCredit(admin, user!.id);
+    } catch (creditError) {
+      if (createdPageId || createdRecipeId) await deleteCreatedRows(admin, createdPageId, createdRecipeId);
+      const message = creditError instanceof Error ? creditError.message : 'Not enough credits';
+      const status = message.toLowerCase().includes('not enough credits') ? 402 : 500;
+      return jsonError(message, status, req);
+    }
 
-    if (versionError) return jsonError(versionError.message, 500, req);
+    let storagePath: string | undefined;
+    let versionId: string | undefined;
 
-    const { error: updateError } = await admin
-      .schema('nutriai')
-      .from('cookbook_pages')
-      .update({ selected_version_id: versionRow.id })
-      .eq('id', pageRow.id)
-      .eq('cookbook_id', cookbookId);
-
-    if (updateError) return jsonError(updateError.message, 500, req);
-
-    const { error: ledgerError } = await admin
-      .schema('nutriai')
-      .from('credit_ledger')
-      .insert({
-        user_id: user!.id,
-        event_type: 'generation_spend',
-        amount: -1,
-        related_page_version_id: versionRow.id,
+    try {
+      const imageBytes = await generateImage(promptFromPayload(promptPayload));
+      storagePath = `${user!.id}/${cookbookId}/${crypto.randomUUID()}.png`;
+      const upload = await admin.storage.from(BUCKET).upload(storagePath, imageBytes, {
+        contentType: 'image/png',
+        upsert: false,
       });
+      if (upload.error) throw new Error(upload.error.message);
 
-    if (ledgerError) return jsonError(ledgerError.message, 500, req);
+      const { data: publicUrl } = admin.storage.from(BUCKET).getPublicUrl(storagePath);
+      const imageUrl = publicUrl.publicUrl;
 
-    return jsonResponse(toClientPage(pageRow, recipeRow, versionRow.id, imageUrl), 200, req);
+      const { data: versionRow, error: versionError } = await admin
+        .schema('nutriai')
+        .from('page_versions')
+        .insert({
+          page_id: pageRow.id,
+          image_url: imageUrl,
+          storage_path: storagePath,
+          prompt_payload: promptPayload,
+          model: OPENAI_IMAGE_MODEL,
+          status: 'ready',
+          credit_cost: 1,
+        })
+        .select('id')
+        .single();
+
+      if (versionError) throw new Error(versionError.message);
+      const readyVersionId = String(versionRow.id);
+      versionId = readyVersionId;
+
+      const { error: ledgerError } = await admin
+        .schema('nutriai')
+        .from('credit_ledger')
+        .update({ related_page_version_id: readyVersionId })
+        .eq('id', spendLedgerId)
+        .eq('user_id', user!.id);
+
+      if (ledgerError) throw new Error(ledgerError.message);
+
+      const { error: updateError } = await admin
+        .schema('nutriai')
+        .from('cookbook_pages')
+        .update({ selected_version_id: readyVersionId })
+        .eq('id', pageRow.id)
+        .eq('cookbook_id', cookbookId);
+
+      if (updateError) throw new Error(updateError.message);
+
+      return jsonResponse(toClientPage(pageRow, recipeRow, readyVersionId, imageUrl), 200, req);
+    } catch (generationError) {
+      await removeStorageObject(admin, storagePath);
+      await refundCredit(admin, user!.id);
+      await deleteGeneratedVersion(admin, versionId);
+      if (createdPageId || createdRecipeId) await deleteCreatedRows(admin, createdPageId, createdRecipeId);
+
+      const message = generationError instanceof Error ? generationError.message : 'Image generation failed';
+      const status = message.toLowerCase().includes('openai') || message.toLowerCase().includes('image generation')
+        ? 502
+        : 500;
+      return jsonError(message, status, req);
+    }
   } catch (err) {
     return jsonError(err instanceof Error ? err.message : 'Generation failed', 500, req);
   }

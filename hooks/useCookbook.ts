@@ -70,6 +70,17 @@ export const [CookbookProvider, useCookbook] = createContextHook(() => {
     },
   });
 
+  function upsertPage(page: CookbookPage) {
+    queryClient.setQueryData<CookbookPage[]>(['cookbook-pages', page.cookbookId], (existing = []) => {
+      const withoutPage = existing.filter((candidate) => candidate.id !== page.id);
+      return [...withoutPage, page].sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.pageNumber - b.pageNumber;
+      });
+    });
+    setSelectedPageId(page.id);
+  }
+
   return {
     cookbook: cookbookQuery.data ?? null,
     pages: pagesQuery.data ?? [],
@@ -80,6 +91,7 @@ export const [CookbookProvider, useCookbook] = createContextHook(() => {
     isLoading: cookbookQuery.isLoading || pagesQuery.isLoading,
     error: cookbookQuery.error ?? pagesQuery.error ?? creditsQuery.error,
     refresh: refresh.mutateAsync,
+    upsertPage,
     loadCachedCookbook: () => loadCachedCookbook(user?.id),
   };
 });
