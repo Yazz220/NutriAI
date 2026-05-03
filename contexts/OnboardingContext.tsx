@@ -9,7 +9,7 @@ import {
 } from '@/types/onboarding';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useAuth } from '@/hooks/useAuth';
-import { OnboardingNavigationManager, OnboardingStep, ONBOARDING_STEPS, STEP_ROUTES } from '@/utils/onboardingNavigation';
+import { getOnboardingStepFromPath, OnboardingNavigationManager, OnboardingStep, ONBOARDING_STEPS } from '@/utils/onboardingNavigation';
 import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
 import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -31,11 +31,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     loadOnboardingData();
   }, []);
   useEffect(() => {
-    const matched = (Object.entries(STEP_ROUTES) as Array<[OnboardingStep, string]>).find(([, route]) => route === pathname);
-    if (!matched) {
+    const step = getOnboardingStepFromPath(pathname);
+    if (!step) {
       return;
     }
-    const [step] = matched;
     if (step !== activeStep) {
       navigationManager.goToStep(step);
       setActiveStep(step);

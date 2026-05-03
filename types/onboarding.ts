@@ -55,6 +55,11 @@ export interface OnboardingNotifications {
   progressUpdates: boolean;
 }
 
+export interface CookbookStylePreference {
+  name: string;
+  prompt: string;
+}
+
 export interface OnboardingData {
   healthGoal: HealthGoal | null;
   customGoal: OnboardingCustomGoal | null;
@@ -65,6 +70,7 @@ export interface OnboardingData {
   notifications: OnboardingNotifications;
   authChoice: 'signup' | 'signin' | 'guest' | null;
   goalPreferences: OnboardingGoalPreferences;
+  cookbookStyle: CookbookStylePreference | null;
   completedAt?: string;
 }
 
@@ -118,7 +124,8 @@ export const defaultOnboardingData: OnboardingData = {
   goalPreferences: {
     goalType: null,
     useCustomCalories: false
-  }
+  },
+  cookbookStyle: null
 };
 
 // Health goal to profile mapping

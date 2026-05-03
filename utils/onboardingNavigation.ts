@@ -5,10 +5,12 @@ export type OnboardingStep =
   | 'welcome'
   | 'dietary-preferences'
   | 'allergies'
-  | 'other-restrictions';
+  | 'other-restrictions'
+  | 'cookbook-style';
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   'welcome',
+  'cookbook-style',
   'dietary-preferences',
   'allergies',
   'other-restrictions'
@@ -18,8 +20,24 @@ export const STEP_ROUTES: Record<OnboardingStep, string> = {
   'welcome': '/(onboarding)/welcome',
   'dietary-preferences': '/(onboarding)/dietary-preferences',
   'allergies': '/(onboarding)/allergies',
-  'other-restrictions': '/(onboarding)/other-restrictions'
+  'other-restrictions': '/(onboarding)/other-restrictions',
+  'cookbook-style': '/(onboarding)/cookbook-style'
 };
+
+export const STEP_PATHS: Record<OnboardingStep, string> = {
+  'welcome': '/welcome',
+  'dietary-preferences': '/dietary-preferences',
+  'allergies': '/allergies',
+  'other-restrictions': '/other-restrictions',
+  'cookbook-style': '/cookbook-style'
+};
+
+export function getOnboardingStepFromPath(pathname: string): OnboardingStep | null {
+  const matched = (Object.entries(STEP_PATHS) as Array<[OnboardingStep, string]>).find(
+    ([step, path]) => path === pathname || STEP_ROUTES[step] === pathname,
+  );
+  return matched?.[0] ?? null;
+}
 
 export class OnboardingNavigationManager {
   private currentStepIndex: number = 0;
@@ -105,7 +123,11 @@ export class OnboardingNavigationManager {
     canProceed: boolean;
     missingFields: string[];
   } {
-    // All steps are optional in recipe-focused flow
+    if (step === 'cookbook-style' && !_data.cookbookStyle) {
+      return { canProceed: false, missingFields: ['cookbook style'] };
+    }
+
+    // Other recipe-focused steps are optional
     return { canProceed: true, missingFields: [] };
   }
 
@@ -131,7 +153,8 @@ export function getStepTitle(step: OnboardingStep): string {
     'welcome': 'Welcome to Nosh',
     'dietary-preferences': 'Dietary Preferences',
     'allergies': 'Food Allergies',
-    'other-restrictions': 'Other Restrictions'
+    'other-restrictions': 'Other Restrictions',
+    'cookbook-style': 'Cookbook Style'
   };
   return titles[step] ?? step;
 }
@@ -141,7 +164,8 @@ export function getStepDescription(step: OnboardingStep): string {
     'welcome': 'Save and organize recipes from anywhere',
     'dietary-preferences': 'Select any dietary styles you follow',
     'allergies': 'Let us know about any food allergies',
-    'other-restrictions': 'Any other foods you avoid'
+    'other-restrictions': 'Any other foods you avoid',
+    'cookbook-style': 'Choose the visual style for your recipe pages'
   };
   return descriptions[step] ?? '';
 }

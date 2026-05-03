@@ -1,17 +1,36 @@
 import React from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { Text } from '@/components/ui/Text';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EmptyBookState } from '@/components/cookbook/EmptyBookState';
+import { TableOfContents } from '@/components/cookbook/TableOfContents';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { useCookbook } from '@/hooks/useCookbook';
 
-export default function TableOfContentsPlaceholder() {
+export default function TableOfContentsScreen() {
+  const insets = useSafeAreaInsets();
+  const { pages, setSelectedPageId, isLoading } = useCookbook();
+
+  const handleSelectPage = (id: string) => {
+    setSelectedPageId(id);
+    router.replace('/(book)');
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (pages.length === 0) {
+    return <EmptyBookState onAddPage={() => router.replace('/(book)/add')} />;
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Table of Contents</Text>
-      <Text style={styles.subtitle}>Recipe sections will appear here once pages exist.</Text>
-      <Button title="Back to cookbook" variant="secondary" onPress={() => router.replace('/(book)')} />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <TableOfContents pages={pages} onSelectPage={handleSelectPage} />
     </View>
   );
 }
@@ -19,22 +38,12 @@ export default function TableOfContentsPlaceholder() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
     backgroundColor: Colors.background,
   },
-  title: {
-    fontSize: Typography.sizes.xxl,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  subtitle: {
-    fontSize: Typography.sizes.md,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
   },
 });

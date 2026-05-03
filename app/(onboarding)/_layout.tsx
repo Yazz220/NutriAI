@@ -53,6 +53,7 @@ export default function OnboardingLayout() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen name="cookbook-style" />
         <Stack.Screen name="dietary-preferences" />
         <Stack.Screen name="allergies" />
         <Stack.Screen name="other-restrictions" />

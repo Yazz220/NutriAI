@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { OnboardingData, defaultOnboardingData, OnboardingGoalPreferences, OnboardingCustomGoal, GoalDirection, MacroBreakdown } from '@/types/onboarding';
+import { OnboardingData, defaultOnboardingData, OnboardingGoalPreferences, OnboardingCustomGoal, GoalDirection, MacroBreakdown, CookbookStylePreference } from '@/types/onboarding';
 
 // Storage keys
 const ONBOARDING_DATA_KEY = 'onboarding_data';
@@ -187,6 +187,7 @@ export class OnboardingPersistenceManager {
 
     validated.customGoal = this.validateCustomGoal(data.customGoal);
     validated.goalPreferences = this.validateGoalPreferences(data.goalPreferences);
+    validated.cookbookStyle = this.validateCookbookStyle(data.cookbookStyle);
 
     // Validate auth choice
     if (data.authChoice && !this.isValidAuthChoice(data.authChoice)) {
@@ -234,6 +235,21 @@ export class OnboardingPersistenceManager {
       shoppingAlerts: Boolean(notifications?.shoppingAlerts),
       progressUpdates: Boolean(notifications?.progressUpdates),
     };
+  }
+
+  private static validateCookbookStyle(style: any): CookbookStylePreference | null {
+    if (!style) {
+      return null;
+    }
+
+    const name = typeof style.name === 'string' ? style.name.trim() : '';
+    const prompt = typeof style.prompt === 'string' ? style.prompt.trim() : '';
+
+    if (!name || !prompt) {
+      return null;
+    }
+
+    return { name, prompt };
   }
 
   private static validateCustomGoal(customGoal: any): OnboardingCustomGoal | null {
