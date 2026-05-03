@@ -1,17 +1,33 @@
 import React from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
+import { Alert, StyleSheet, View } from 'react-native';
+import { AddPageComposer } from '@/components/cookbook/AddPageComposer';
 import { Text } from '@/components/ui/Text';
+import { useCookbookImport } from '@/hooks/useCookbookImport';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 
-export default function AddCookbookPagePlaceholder() {
+export default function AddPageScreen() {
+  const { parseSource, isParsing } = useCookbookImport();
+  const [error, setError] = React.useState<string | null>(null);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Add a recipe page</Text>
-      <Text style={styles.subtitle}>Recipe importing lands here next.</Text>
-      <Button title="Back to cookbook" variant="secondary" onPress={() => router.replace('/(book)')} />
+      <AddPageComposer
+        isSubmitting={isParsing}
+        onSubmit={async (payload) => {
+          setError(null);
+          try {
+            await parseSource(payload);
+            router.push('/(book)/review');
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Could not read that recipe.';
+            setError(message);
+            Alert.alert('Recipe import failed', message);
+          }
+        }}
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
@@ -19,22 +35,12 @@ export default function AddCookbookPagePlaceholder() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
     backgroundColor: Colors.background,
   },
-  title: {
-    fontSize: Typography.sizes.xxl,
-    fontWeight: '700',
-    color: Colors.text,
+  error: {
+    color: Colors.error,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  subtitle: {
-    fontSize: Typography.sizes.md,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
   },
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChefHat } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Shadows } from '@/constants/spacing';
@@ -11,7 +11,14 @@ interface NoshAssistantButtonProps {
 
 export function NoshAssistantButton({ page }: NoshAssistantButtonProps) {
   return (
-    <TouchableOpacity style={styles.button} accessibilityLabel={`Ask Nosh about ${page.title}`}>
+    <TouchableOpacity
+      style={styles.button}
+      accessibilityLabel={`Ask Nosh about ${page.title}`}
+      accessibilityRole="button"
+      onPress={() => {
+        Alert.alert('Nosh is getting ready', `Soon you can ask Nosh about ${page.title}.`);
+      }}
+    >
       <ChefHat size={26} color={Colors.onPrimary} />
     </TouchableOpacity>
   );

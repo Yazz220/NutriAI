@@ -14,6 +14,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { CookbookProvider } from "@/hooks/useCookbook";
+import { CookbookImportProvider } from "@/hooks/useCookbookImport";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -148,11 +149,13 @@ export default function RootLayout() {
       <UserProfileProvider>
         <UserPreferencesProvider>
           <CookbookProvider>
-            <ToastProvider>
-              <GlobalErrorBoundary>
-                <RootLayoutNav />
-              </GlobalErrorBoundary>
-            </ToastProvider>
+            <CookbookImportProvider>
+              <ToastProvider>
+                <GlobalErrorBoundary>
+                  <RootLayoutNav />
+                </GlobalErrorBoundary>
+              </ToastProvider>
+            </CookbookImportProvider>
           </CookbookProvider>
         </UserPreferencesProvider>
       </UserProfileProvider>

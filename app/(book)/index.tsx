@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookReader } from '@/components/cookbook/BookReader';
@@ -12,8 +12,12 @@ export default function BookReaderScreen() {
   const insets = useSafeAreaInsets();
   const { pages, selectedPageId, setSelectedPageId, isLoading } = useCookbook();
 
-  const handleShare = (_page: CookbookPage) => {
-    router.push('/(book)/settings');
+  const handleShare = (page: CookbookPage) => {
+    Share.share({
+      title: page.title,
+      message: page.imageUrl ? `${page.title}\n${page.imageUrl}` : page.title,
+      url: page.imageUrl,
+    }).catch(() => {});
   };
 
   if (isLoading) {

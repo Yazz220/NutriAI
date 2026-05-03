@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
