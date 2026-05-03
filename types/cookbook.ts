@@ -60,6 +60,7 @@ export interface CookbookPage {
   selectedVersionId?: string;
   imageUrl?: string;
   recipe?: StructuredRecipe;
+  isSample?: boolean;
 }
 
 export interface CookbookPageSummary {

@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { BookOpen, Plus, Settings, Share } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { BookOpen, Settings, Share } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -8,51 +8,56 @@ import { Radii, Spacing } from '@/constants/spacing';
 interface PageControlsProps {
   pageLabel: string;
   onToc: () => void;
-  onAdd: () => void;
   onShare: () => void;
   onSettings: () => void;
 }
 
-export function PageControls({ pageLabel, onToc, onAdd, onShare, onSettings }: PageControlsProps) {
+export function PageControls({ pageLabel, onToc, onShare, onSettings }: PageControlsProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.iconButton} onPress={onToc} accessibilityLabel="Open table of contents">
-        <BookOpen size={20} color={Colors.text} />
-      </TouchableOpacity>
+      <Pressable style={styles.iconButton} onPress={onToc} accessibilityLabel="Open table of contents">
+        <BookOpen size={19} color={Colors.text} />
+      </Pressable>
       <Text style={styles.pageLabel}>{pageLabel}</Text>
-      <TouchableOpacity style={styles.iconButton} onPress={onAdd} accessibilityLabel="Add page">
-        <Plus size={20} color={Colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton} onPress={onShare} accessibilityLabel="Share page">
-        <Share size={20} color={Colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.iconButton} onPress={onSettings} accessibilityLabel="Open settings">
-        <Settings size={20} color={Colors.text} />
-      </TouchableOpacity>
+      <Pressable style={styles.iconButton} onPress={onShare} accessibilityLabel="Share page">
+        <Share size={18} color={Colors.text} />
+      </Pressable>
+      <Pressable style={styles.iconButton} onPress={onSettings} accessibilityLabel="Open settings">
+        <Settings size={18} color={Colors.text} />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    alignSelf: 'center',
+    minHeight: 48,
+    maxWidth: 360,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    padding: Spacing.sm,
-    borderRadius: Radii.md,
-    backgroundColor: Colors.surface,
+    padding: 6,
+    borderRadius: Radii.lg,
+    backgroundColor: 'rgba(255, 249, 239, 0.94)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#D8BE8E',
+    boxShadow: '0 8px 18px rgba(54, 36, 18, 0.12)',
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F3E1BF',
   },
   pageLabel: {
-    flex: 1,
+    minWidth: 112,
     color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
 });

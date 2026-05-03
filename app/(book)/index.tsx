@@ -1,16 +1,17 @@
 import React from 'react';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookReader } from '@/components/cookbook/BookReader';
-import { EmptyBookState } from '@/components/cookbook/EmptyBookState';
 import { Colors } from '@/constants/colors';
 import { useCookbook } from '@/hooks/useCookbook';
+import { SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/samplePages';
 import type { CookbookPage } from '@/types/cookbook';
 
 export default function BookReaderScreen() {
   const insets = useSafeAreaInsets();
   const { pages, selectedPageId, setSelectedPageId, isLoading } = useCookbook();
+  const displayPages = pages.length > 0 ? pages : SAMPLE_COOKBOOK_PAGES;
+  const isSampleBook = pages.length === 0;
 
   const handleShare = (page: CookbookPage) => {
     Share.share({
@@ -28,17 +29,14 @@ export default function BookReaderScreen() {
     );
   }
 
-  if (pages.length === 0) {
-    return <EmptyBookState onAddPage={() => router.push('/(book)/add')} />;
-  }
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <BookReader
-        pages={pages}
+        pages={displayPages}
         selectedPageId={selectedPageId}
         onSelectPage={setSelectedPageId}
         onShare={handleShare}
+        isSampleBook={isSampleBook}
       />
     </View>
   );
