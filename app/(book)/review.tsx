@@ -8,9 +8,8 @@ import { Spacing, Typography } from '@/constants/spacing';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbookImport } from '@/hooks/useCookbookImport';
 import { generateCookbookPage } from '@/utils/cookbook/api';
+import { buildCookbookPagePromptPayload } from '@/utils/cookbook/pagePrompt';
 import type { StructuredRecipe } from '@/types/cookbook';
-
-const ENABLE_GENERATION_ENDPOINT = process.env.EXPO_PUBLIC_ENABLE_COOKBOOK_GENERATION === 'true';
 
 export default function RecipeReviewScreen() {
   const { cookbook, refresh } = useCookbook();
@@ -26,12 +25,6 @@ export default function RecipeReviewScreen() {
   async function generateReviewedRecipe(recipe: StructuredRecipe) {
     setDraft(recipe);
 
-    if (!ENABLE_GENERATION_ENDPOINT) {
-      Alert.alert('Ready for generation', 'Page generation will connect here in the next task.');
-      router.push('/(book)/generation/temp');
-      return;
-    }
-
     if (!cookbook) {
       Alert.alert('Cookbook not ready', 'Try again once your cookbook has loaded.');
       return;
@@ -42,6 +35,7 @@ export default function RecipeReviewScreen() {
       const page = await generateCookbookPage({
         cookbookId: cookbook.id,
         recipe,
+        promptPayload: buildCookbookPagePromptPayload({ recipe, theme: cookbook.theme }),
       });
       await refresh();
       router.replace(`/(book)/generation/${page.id}`);
