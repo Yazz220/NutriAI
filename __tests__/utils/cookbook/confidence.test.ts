@@ -27,4 +27,17 @@ describe('scoreParsedRecipeConfidence', () => {
     expect(score.needsReview).toBe(true);
     expect(score.reasons).toContain('Missing directions');
   });
+
+  it('requires review when ingredients are missing even if other fields are present', () => {
+    const score = scoreParsedRecipeConfidence({
+      title: 'Ingredient-Free Guess',
+      ingredients: [],
+      steps: ['Heat the pan.', 'Serve warm.'],
+      servings: 4,
+      sourceType: 'url',
+    });
+
+    expect(score.needsReview).toBe(true);
+    expect(score.reasons).toContain('Too few ingredients');
+  });
 });

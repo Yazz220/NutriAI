@@ -17,7 +17,12 @@ export function scoreParsedRecipeConfidence(recipe: ParsedRecipeDraft): RecipeCo
   else reasons.push('Missing servings');
 
   if (recipe.sourceType === 'url' || recipe.sourceType === 'image') score += 0.1;
-  if (recipe.ingredients.every((ingredient) => ingredient.name.trim().length > 0)) score += 0.1;
+  if (
+    recipe.ingredients.length > 0 &&
+    recipe.ingredients.every((ingredient) => ingredient.name.trim().length > 0)
+  ) {
+    score += 0.1;
+  }
 
   const confidence = Math.min(1, Math.round(score * 100) / 100);
   return {
