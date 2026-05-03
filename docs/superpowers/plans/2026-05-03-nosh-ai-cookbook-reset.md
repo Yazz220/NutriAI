@@ -2390,6 +2390,7 @@ git commit -m "feat: add recipe source parser function"
 - Create: `supabase/functions/generate-cookbook-page/index.ts`
 - Create: `components/cookbook/GenerationResult.tsx`
 - Create: `app/(book)/generation/[pageId].tsx`
+- Create: `utils/cookbook/share.ts`
 - Modify: `utils/cookbook/api.ts`
 - Modify: `app/(book)/review.tsx`
 
@@ -2668,13 +2669,110 @@ In `app/(book)/review.tsx`, call `generateCookbookPage` with `cookbook.id`, edit
 
 - [ ] **Step 4: Create generation result UI**
 
-Create `components/cookbook/GenerationResult.tsx` with the generated image, title, Keep, Regenerate, Export, and Ask Nosh buttons.
+Create `components/cookbook/GenerationResult.tsx` with generated image preview, Keep, Regenerate, Export, and Ask Nosh controls. Regenerate must call the same generation endpoint with `pageId` so it creates a new page version, selects it, and spends one credit only after the new image is generated and uploaded.
 
-- [ ] **Step 5: Create generation route**
+```tsx
+import React from 'react';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { RefreshCw, Share2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/Text';
+import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
+import { Colors } from '@/constants/colors';
+import { Spacing, Radii } from '@/constants/spacing';
+import type { CookbookPage } from '@/types/cookbook';
 
-Create `app/(book)/generation/[pageId].tsx` that finds page from `useCookbook().pages` and renders `GenerationResult`.
+interface GenerationResultProps {
+  page: CookbookPage;
+  cookbookPages: CookbookPage[];
+  isRegenerating?: boolean;
+  onKeep: () => void;
+  onRegenerate: () => void;
+  onExport: () => void;
+}
 
-- [ ] **Step 6: Verify**
+export function GenerationResult({
+  page,
+  cookbookPages,
+  isRegenerating = false,
+  onKeep,
+  onRegenerate,
+  onExport,
+}: GenerationResultProps) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{page.title}</Text>
+      {page.imageUrl ? <Image source={{ uri: page.imageUrl }} style={styles.image} resizeMode="contain" /> : null}
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.primary} onPress={onKeep}>
+          <Text style={styles.primaryText}>Keep page</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondary} onPress={onRegenerate} disabled={isRegenerating}>
+          <RefreshCw size={18} color={Colors.text} />
+          <Text style={styles.secondaryText}>{isRegenerating ? 'Regenerating' : 'Regenerate - 1 credit'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondary} onPress={onExport}>
+          <Share2 size={18} color={Colors.text} />
+          <Text style={styles.secondaryText}>Export image</Text>
+        </TouchableOpacity>
+      </View>
+      <NoshAssistantButton page={page} cookbookPages={cookbookPages} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: Spacing.lg, backgroundColor: Colors.background },
+  title: { color: Colors.text, fontSize: 24, fontWeight: '700', marginBottom: Spacing.md },
+  image: {
+    width: '100%',
+    aspectRatio: 0.72,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.surface,
+    marginBottom: Spacing.lg,
+  },
+  actions: { gap: Spacing.sm },
+  primary: { height: 52, borderRadius: Radii.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: Colors.onPrimary, fontWeight: '700' },
+  secondary: {
+    height: 48,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  secondaryText: { color: Colors.text, fontWeight: '600' },
+});
+```
+
+- [ ] **Step 5: Create share helper**
+
+Create `utils/cookbook/share.ts`:
+
+```ts
+import { Share } from 'react-native';
+import type { CookbookPage } from '@/types/cookbook';
+
+export async function shareCookbookPage(page: CookbookPage): Promise<void> {
+  if (!page.imageUrl) {
+    throw new Error('This page does not have an image to share yet.');
+  }
+
+  await Share.share({
+    title: page.title,
+    message: `${page.title}\n${page.imageUrl}`,
+    url: page.imageUrl,
+  });
+}
+```
+
+- [ ] **Step 6: Create generation route**
+
+Create `app/(book)/generation/[pageId].tsx` that finds page from `useCookbook().pages`, builds a prompt from `page.recipe` and `cookbook.theme`, calls `generateCookbookPage({ cookbookId: cookbook.id, pageId: page.id, recipe: page.recipe, promptPayload })` for regeneration, invalidates cookbook/credit queries, calls `shareCookbookPage(page)` for export, and routes to `/(book)` for Keep.
+
+- [ ] **Step 7: Verify**
 
 Run:
 
@@ -2686,10 +2784,10 @@ npm run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add supabase/functions/credits/index.ts supabase/functions/generate-cookbook-page/index.ts components/cookbook/GenerationResult.tsx app/(book)/generation/[pageId].tsx app/(book)/review.tsx utils/cookbook/api.ts
+git add supabase/functions/credits/index.ts supabase/functions/generate-cookbook-page/index.ts components/cookbook/GenerationResult.tsx app/(book)/generation/[pageId].tsx app/(book)/review.tsx utils/cookbook/api.ts utils/cookbook/share.ts
 git commit -m "feat: add cookbook page generation flow"
 ```
 
@@ -2942,31 +3040,13 @@ git commit -m "feat: add contextual nosh assistant"
 
 **Files:**
 
-- Create: `utils/cookbook/share.ts`
 - Modify: `components/cookbook/BookReader.tsx`
 - Create: `app/(book)/settings.tsx`
 - Modify: `components/profile/EnhancedProfileScreen.tsx` only if reused.
 
-- [ ] **Step 1: Create share helper**
+- [ ] **Step 1: Confirm share helper is available**
 
-Create `utils/cookbook/share.ts`:
-
-```ts
-import { Share } from 'react-native';
-import type { CookbookPage } from '@/types/cookbook';
-
-export async function shareCookbookPage(page: CookbookPage): Promise<void> {
-  if (!page.imageUrl) {
-    throw new Error('This page does not have an image to share yet.');
-  }
-
-  await Share.share({
-    title: page.title,
-    message: `${page.title}\n${page.imageUrl}`,
-    url: page.imageUrl,
-  });
-}
-```
+Confirm `utils/cookbook/share.ts` exists from Task 10 and exports `shareCookbookPage(page)`.
 
 - [ ] **Step 2: Wire reader share action**
 
@@ -3074,7 +3154,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add utils/cookbook/share.ts app/(book)/index.tsx app/(book)/settings.tsx
+git add app/(book)/index.tsx app/(book)/settings.tsx
 git commit -m "feat: add cookbook sharing and settings"
 ```
 

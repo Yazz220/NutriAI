@@ -11,6 +11,7 @@ import { createChatCompletion, ChatMessage } from '@/utils/aiClient';
 import { ContentType, extractUrl, looksLikeRecipe } from '@/utils/contentDetector';
 import { Meal, MealCategory, MealIngredient, MEAL_CATEGORIES } from '@/types/index';
 import { ImportedRecipe, ImportedIngredient } from '@/types/importedRecipe';
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -28,9 +29,6 @@ export interface ImportResult {
 // Shared Edge-Function helper
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
 /**
  * Call a Supabase Edge Function by name.
  * Throws on non-2xx responses.
@@ -39,30 +37,7 @@ export async function callEdgeFunction<T = unknown>(
   functionName: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-      'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.',
-    );
-  }
-
-  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${functionName}`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      apikey: SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Edge function "${functionName}" failed (${res.status}): ${text}`);
-  }
-
-  return res.json() as Promise<T>;
+  return callAuthenticatedFunction<T>(functionName, body);
 }
 
 // ---------------------------------------------------------------------------
@@ -185,88 +160,111 @@ export async function categorizeRecipe(
 }
 
 // ---------------------------------------------------------------------------
-// Image pipeline (via ai-nutrition-scan Edge Function)
+// Image pipeline (via parse-image-recipe Edge Function)
 // ---------------------------------------------------------------------------
 
-interface ImageScanResponse {
-  title?: string;
-  description?: string;
-  ingredients?: Array<{ name: string; amount?: number; unit?: string }>;
-  steps?: string[];
-  prepTime?: number;
-  cookTime?: number;
-  servings?: number;
+interface ParsedRecipeResponse {
+  recipe: {
+    title?: string;
+    description?: string;
+    ingredients?: Array<{ name?: string; quantity?: string; unit?: string }>;
+    steps?: string[];
+    prepTime?: number;
+    cookTime?: number;
+    servings?: number;
+    tags?: string[];
+    category?: string;
+    sourceUrl?: string;
+  };
+}
+
+function parseIngredientAmount(quantity?: string): number | undefined {
+  if (!quantity) return undefined;
+  const trimmed = quantity.trim();
+  if (!trimmed) return undefined;
+
+  const fractionMatch = trimmed.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fractionMatch) {
+    const numerator = Number(fractionMatch[1]);
+    const denominator = Number(fractionMatch[2]);
+    return denominator === 0 ? undefined : numerator / denominator;
+  }
+
+  const mixedFractionMatch = trimmed.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixedFractionMatch) {
+    const whole = Number(mixedFractionMatch[1]);
+    const numerator = Number(mixedFractionMatch[2]);
+    const denominator = Number(mixedFractionMatch[3]);
+    return denominator === 0 ? undefined : whole + numerator / denominator;
+  }
+
+  const numeric = Number(trimmed.match(/\d+(?:\.\d+)?/)?.[0]);
+  return Number.isFinite(numeric) ? numeric : undefined;
 }
 
 async function importFromImage(imageBase64: string): Promise<ImportedRecipe> {
-  const result = await callEdgeFunction<ImageScanResponse>('ai-nutrition-scan', {
-    imageBase64,
-    mode: 'recipe',
+  const result = await callEdgeFunction<ParsedRecipeResponse>('parse-image-recipe', {
+    image: imageBase64,
   });
+  const recipe = result.recipe ?? {};
 
-  const title = result.title || 'Imported Recipe';
-  const ingredients: ImportedIngredient[] = (result.ingredients ?? []).map((ing) => ({
-    name: ing.name,
-    original: ing.name,
-    amount: ing.amount,
+  const title = recipe.title || 'Imported Recipe';
+  const ingredients: ImportedIngredient[] = (recipe.ingredients ?? []).map((ing) => ({
+    name: ing.name ?? '',
+    original: [ing.quantity, ing.unit, ing.name].filter(Boolean).join(' ') || ing.name || '',
+    amount: parseIngredientAmount(ing.quantity),
     unit: ing.unit,
   }));
 
   return {
     id: `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title,
-    description: result.description ?? '',
+    description: recipe.description ?? '',
     source: 'image',
     sourceType: 'image',
     ingredients,
-    instructions: (result.steps ?? []).map((text, i) => ({ step: i + 1, text })),
-    prepTime: result.prepTime,
-    cookTime: result.cookTime,
-    servings: result.servings,
+    instructions: (recipe.steps ?? []).map((text, i) => ({ step: i + 1, text })),
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    servings: recipe.servings,
+    tags: recipe.tags,
+    categories: recipe.category ? [recipe.category] : undefined,
     createdAt: new Date().toISOString(),
   };
 }
 
 // ---------------------------------------------------------------------------
-// Video pipeline (via parse-recipe Edge Function with video mode)
+// Video pipeline (via parse-video-recipe Edge Function)
 // ---------------------------------------------------------------------------
 
-interface VideoParseResponse {
-  title?: string;
-  description?: string;
-  ingredients?: Array<{ name: string; amount?: number; unit?: string }>;
-  instructions?: Array<{ step: number; text: string }>;
-  prepTime?: number;
-  cookTime?: number;
-  servings?: number;
-}
-
 async function importFromVideoUrl(videoUrl: string): Promise<ImportedRecipe> {
-  const result = await callEdgeFunction<VideoParseResponse>('parse-recipe', {
+  const result = await callEdgeFunction<ParsedRecipeResponse>('parse-video-recipe', {
     url: videoUrl,
-    mode: 'video',
   });
+  const recipe = result.recipe ?? {};
 
-  const title = result.title || 'Imported Recipe';
-  const ingredients: ImportedIngredient[] = (result.ingredients ?? []).map((ing) => ({
-    name: ing.name,
-    original: ing.name,
-    amount: ing.amount,
+  const title = recipe.title || 'Imported Recipe';
+  const ingredients: ImportedIngredient[] = (recipe.ingredients ?? []).map((ing) => ({
+    name: ing.name ?? '',
+    original: [ing.quantity, ing.unit, ing.name].filter(Boolean).join(' ') || ing.name || '',
+    amount: parseIngredientAmount(ing.quantity),
     unit: ing.unit,
   }));
 
   return {
     id: `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     title,
-    description: result.description ?? '',
+    description: recipe.description ?? '',
     source: videoUrl,
     sourceType: 'video',
     sourceUrl: videoUrl,
     ingredients,
-    instructions: result.instructions ?? [],
-    prepTime: result.prepTime,
-    cookTime: result.cookTime,
-    servings: result.servings,
+    instructions: (recipe.steps ?? []).map((text, i) => ({ step: i + 1, text })),
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    servings: recipe.servings,
+    tags: recipe.tags,
+    categories: recipe.category ? [recipe.category] : undefined,
     createdAt: new Date().toISOString(),
   };
 }

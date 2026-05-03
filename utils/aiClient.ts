@@ -1,27 +1,12 @@
 // AI client — all requests route through the Supabase ai-chat Edge Function.
 // No provider API keys are ever shipped in the client bundle.
 
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const AI_MODEL = process.env.EXPO_PUBLIC_AI_MODEL || 'openai/gpt-oss-20b:free';
 const AI_VISION_MODEL = process.env.EXPO_PUBLIC_AI_VISION_MODEL || 'openai/gpt-4o-mini';
-
-function edgeFunctionUrl(): string {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-      'AI is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env and restart Expo.',
-    );
-  }
-  return `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/ai-chat`;
-}
-
-function authHeaders(): Record<string, string> {
-  return {
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    apikey: SUPABASE_ANON_KEY!,
-    'Content-Type': 'application/json',
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -97,40 +82,27 @@ export function isAiConfigured(): boolean {
 // Core request helper
 // ---------------------------------------------------------------------------
 
-class RetryableError extends Error {}
-
 async function edgeFunctionRequest(
   payload: Record<string, unknown>,
   maxRetries = 2,
 ): Promise<any> {
-  const url = edgeFunctionUrl();
-  const headers = authHeaders();
-
   let attempt = 0;
   let lastErr: unknown;
 
   while (attempt <= maxRetries) {
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        if (res.status === 429 || res.status >= 500) {
-          throw new RetryableError(`ai-chat failed (${res.status}): ${text}`);
-        }
-        throw new Error(`ai-chat failed (${res.status}): ${text}`);
-      }
-
-      return await res.json();
+      return await callAuthenticatedFunction('ai-chat', payload);
     } catch (err) {
       lastErr = err;
-      if (!(err instanceof RetryableError) || attempt === maxRetries) break;
+      const message = err instanceof Error ? err.message : String(err);
+      const retryable =
+        message.includes('(429)') ||
+        message.includes('(500)') ||
+        message.includes('(502)') ||
+        message.includes('(503)');
+      if (!retryable || attempt === maxRetries) break;
       const delayMs = Math.pow(2, attempt) * 500;
-      await new Promise((r) => setTimeout(r, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
       attempt++;
     }
   }
