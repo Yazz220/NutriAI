@@ -76,20 +76,7 @@ export default function SignInScreen() {
           let lastError: Error | null = null;
           while (retries > 0) {
             try {
-              // Wrap saveProfile in Promise with timeout
-              await new Promise<void>((resolve, reject) => {
-                const timeoutId = setTimeout(() => reject(new Error('Profile save timeout')), 15000);
-                try {
-                  saveProfile(profileData);
-                  setTimeout(() => {
-                    clearTimeout(timeoutId);
-                    resolve();
-                  }, 2000);
-                } catch (err) {
-                  clearTimeout(timeoutId);
-                  reject(err);
-                }
-              });
+              await withTimeout(saveProfile(profileData), 15000);
               await OnboardingPersistenceManager.clearOnboardingData();
               console.log('[SignIn] Onboarding data synced successfully');
               break;
@@ -120,19 +107,7 @@ export default function SignInScreen() {
                   onPress: async () => {
                     try {
                       const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-                      await new Promise<void>((resolveProfile, rejectProfile) => {
-                        const timeoutId = setTimeout(() => rejectProfile(new Error('Profile save timeout')), 15000);
-                        try {
-                          saveProfile(profileData);
-                          setTimeout(() => {
-                            clearTimeout(timeoutId);
-                            resolveProfile();
-                          }, 2000);
-                        } catch (err) {
-                          clearTimeout(timeoutId);
-                          rejectProfile(err);
-                        }
-                      });
+                      await withTimeout(saveProfile(profileData), 15000);
                       await OnboardingPersistenceManager.clearOnboardingData();
                       Alert.alert('Success', 'Your preferences have been saved!');
                     } catch (retryError) {
@@ -152,8 +127,8 @@ export default function SignInScreen() {
         }
       }
       
-      // Force navigation to tabs (especially helpful on web)
-      router.replace('/(tabs)');
+      // Force navigation to the cookbook experience after auth.
+      router.replace('/(book)');
     } catch (err) {
       const msg = getUserFriendlyErrorMessage(err);
       setError(msg);
@@ -238,8 +213,7 @@ export default function SignInScreen() {
       if (onboardingData) {
         try {
           const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-          saveProfile(profileData);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await withTimeout(saveProfile(profileData), 15000);
           await OnboardingPersistenceManager.clearOnboardingData();
           console.log('[SignIn] Apple: onboarding data synced');
         } catch (syncError) {
@@ -247,7 +221,7 @@ export default function SignInScreen() {
         }
       }
 
-      router.replace('/(tabs)');
+      router.replace('/(book)');
     } catch (err) {
       if (isAppleCancellation(err)) return; // user dismissed — no error
       const msg = err instanceof Error ? err.message : 'Apple sign-in failed';

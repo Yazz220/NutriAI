@@ -1,12 +1,6 @@
 import React from 'react';
-import { Stack } from 'expo-router';
-import EnhancedProfileScreen from '@/components/profile/EnhancedProfileScreen';
+import { Redirect } from 'expo-router';
 
-export default function ProfileScreen() {
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <EnhancedProfileScreen />
-    </>
-  );
+export default function LegacyProfileRedirect() {
+  return <Redirect href="/(book)" />;
 }

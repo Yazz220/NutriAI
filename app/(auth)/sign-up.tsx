@@ -68,21 +68,7 @@ export default function SignUpScreen() {
             let lastError: Error | null = null;
             while (retries > 0) {
               try {
-                // saveProfile triggers mutation, wrap in Promise to await completion
-                await new Promise<void>((resolve, reject) => {
-                  const timeoutId = setTimeout(() => reject(new Error('Profile save timeout')), 15000);
-                  try {
-                    saveProfile(profileData);
-                    // Wait a bit for mutation to complete
-                    setTimeout(() => {
-                      clearTimeout(timeoutId);
-                      resolve();
-                    }, 2000);
-                  } catch (err) {
-                    clearTimeout(timeoutId);
-                    reject(err);
-                  }
-                });
+                await withTimeout(saveProfile(profileData), 15000);
                 await OnboardingPersistenceManager.clearOnboardingData();
                 console.log('[SignUp] Onboarding data synced successfully');
                 break;
@@ -118,11 +104,13 @@ export default function SignUpScreen() {
                         await new Promise<void>((resolveProfile, rejectProfile) => {
                           const timeoutId = setTimeout(() => rejectProfile(new Error('Profile save timeout')), 15000);
                           try {
-                            saveProfile(profileData);
-                            setTimeout(() => {
+                            void saveProfile(profileData).then(() => {
                               clearTimeout(timeoutId);
                               resolveProfile();
-                            }, 2000);
+                            }).catch((err) => {
+                              clearTimeout(timeoutId);
+                              rejectProfile(err);
+                            });
                           } catch (err) {
                             clearTimeout(timeoutId);
                             rejectProfile(err);
@@ -147,7 +135,7 @@ export default function SignUpScreen() {
             });
           }
         }
-        // RootLayout will switch to (tabs) automatically
+        // RootLayout will switch to the cookbook automatically
       }
     } catch (err) {
       const msg = getUserFriendlyErrorMessage(err);
@@ -168,15 +156,14 @@ export default function SignUpScreen() {
       if (onboardingData) {
         try {
           const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-          saveProfile(profileData);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await withTimeout(saveProfile(profileData), 15000);
           await OnboardingPersistenceManager.clearOnboardingData();
           console.log('[SignUp] Apple: onboarding data synced');
         } catch (syncError) {
           console.error('[SignUp] Apple: failed to sync onboarding data', syncError);
         }
       }
-      // RootLayout will switch to (tabs) automatically
+      // RootLayout will switch to the cookbook automatically
     } catch (err) {
       if (isAppleCancellation(err)) return;
       const msg = err instanceof Error ? err.message : 'Apple sign-up failed';
