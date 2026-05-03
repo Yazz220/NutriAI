@@ -7,7 +7,7 @@ export type CookbookSection =
   | 'sides'
   | 'favorites';
 
-export type RecipeSourceType = 'url' | 'text' | 'image';
+export type RecipeSourceType = 'url' | 'text' | 'image' | 'video';
 
 export type PageVersionStatus = 'pending' | 'generating' | 'ready' | 'failed';
 
