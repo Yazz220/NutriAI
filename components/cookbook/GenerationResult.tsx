@@ -59,7 +59,7 @@ export function GenerationResult({
           </View>
         </View>
       </ScrollView>
-      <NoshAssistantButton page={page} />
+      <NoshAssistantButton page={page} cookbookPages={[page]} />
     </View>
   );
 }

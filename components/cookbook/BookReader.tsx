@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { FlatList, ListRenderItemInfo, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Sparkles } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { PageControls } from '@/components/cookbook/PageControls';
@@ -57,12 +57,6 @@ export function BookReader({ pages, selectedPageId, onSelectPage, onShare, isSam
           <Text style={styles.chapterLabel} numberOfLines={1}>
             {selectedSection} recipes
           </Text>
-          {isSampleBook ? (
-            <View style={styles.samplePill}>
-              <Sparkles size={12} color="#6A4527" />
-              <Text style={styles.samplePillText}>Try the book</Text>
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.bookStage}>
@@ -99,7 +93,7 @@ export function BookReader({ pages, selectedPageId, onSelectPage, onShare, isSam
           />
         </View>
 
-        {selectedPage ? <NoshAssistantButton page={selectedPage} /> : null}
+        {selectedPage ? <NoshAssistantButton page={selectedPage} cookbookPages={pages} /> : null}
       </View>
     </LinearGradient>
   );
@@ -167,20 +161,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'capitalize',
-  },
-  samplePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#F5D8A6',
-  },
-  samplePillText: {
-    color: '#6A4527',
-    fontSize: 11,
-    fontWeight: '800',
   },
   bookStage: {
     flex: 1,

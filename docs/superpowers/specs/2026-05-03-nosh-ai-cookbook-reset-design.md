@@ -30,7 +30,7 @@ Recipe import, parsing, and organization are enabling features, not the main bra
 The primary user loop:
 
 1. User chooses a default cookbook visual style during onboarding.
-2. User imports a recipe from a link, pasted text, image, or screenshot.
+2. User imports a recipe from a link, pasted text, image, screenshot, or video link.
 3. The app parses the source into structured recipe data.
 4. The app computes extraction confidence.
 5. If confidence is high, generation can proceed automatically.
@@ -94,7 +94,7 @@ The main app surface is the cookbook reader.
 
 Navigation should feel like an e-book:
 
-- Swipe horizontally or tap page edges to move between recipe pages.
+- Swipe horizontally to move between recipe pages.
 - Use a page-turn animation if feasible; a slide transition is acceptable for V1 if it keeps the reading feeling.
 - Show subtle controls for page number, section, table of contents, add page, export, and Nosh.
 - Keep Nosh as a floating chef assistant button available from recipe pages.
@@ -153,8 +153,9 @@ Accepts recipe sources for the first implementation plan:
 - URL
 - Pasted recipe text
 - Image or screenshot
+- Video URL
 
-Video URL import remains part of the product direction, but it should be implemented after the first cookbook-page loop is working end to end. This keeps the first reset focused on the new e-book experience while avoiding the extra extraction risk of TikTok/YouTube/Instagram video handling.
+The parser uses OpenRouter as the primary recipe-processing provider across text, links, images, and video URLs. Dedicated legacy media parsers can remain as fallbacks when a provider rejects a specific image or video payload.
 
 Frames the action as preparing a new cookbook page.
 
@@ -183,7 +184,7 @@ Shows the generated page with actions:
 
 ### Nosh Assistant Sheet
 
-Contextual chat sheet opened from the floating Nosh button.
+Contextual chat sheet opened from the floating Nosh button. The button opens the assistant directly and passes the current page plus the cookbook index so Nosh can answer about the visible recipe and the rest of the book.
 
 ### Settings/Profile
 
@@ -337,7 +338,7 @@ Target backend functions:
 
 ### `parse-recipe-source`
 
-Input for the first implementation plan: URL, pasted text, image, or screenshot.  
+Input for the first implementation plan: URL, pasted text, image, screenshot, or video URL.
 Output: structured recipe data plus confidence metadata.
 
 ### `generate-cookbook-page`
@@ -345,7 +346,7 @@ Output: structured recipe data plus confidence metadata.
 Input: recipe data, cookbook style, layout constraints, user ID.  
 Output: stored image URL and page version record.
 
-### `nosh-chat`
+### `ai-chat`
 
 Input: messages plus current page/book context.  
 Output: assistant response and optional structured actions.
@@ -396,7 +397,7 @@ In scope:
 
 - New onboarding step for cookbook style
 - One primary cookbook per user
-- Import from URL, pasted text, image, and screenshot
+- Import from URL, pasted text, image, screenshot, and video URL
 - Structured recipe parsing with confidence score
 - Light editor before generation when needed
 - One fixed generated recipe page image
@@ -421,7 +422,7 @@ Out of scope for V1:
 - Nutrition tracking
 - Full subscription purchase implementation unless required for launch
 - Multi-page recipe spreads
-- Video URL import
+- Multi-source audio file import
 
 ## 14. Success Criteria
 

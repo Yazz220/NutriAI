@@ -1,27 +1,37 @@
-import React from 'react';
-import { Alert, Pressable, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { ChefHat } from 'lucide-react-native';
+import { NoshAssistantSheet } from '@/components/cookbook/NoshAssistantSheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import type { CookbookPage } from '@/types/cookbook';
 
 interface NoshAssistantButtonProps {
   page: CookbookPage;
+  cookbookPages: CookbookPage[];
 }
 
-export function NoshAssistantButton({ page }: NoshAssistantButtonProps) {
+export function NoshAssistantButton({ page, cookbookPages }: NoshAssistantButtonProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <Pressable
-      style={styles.button}
-      accessibilityLabel={`Ask Nosh about ${page.title}`}
-      accessibilityRole="button"
-      onPress={() => {
-        Alert.alert('Nosh is getting ready', `Soon you can ask Nosh about ${page.title}.`);
-      }}
-    >
-      <ChefHat size={20} color={Colors.onPrimary} />
-      <Text style={styles.label}>Nosh</Text>
-    </Pressable>
+    <>
+      <Pressable
+        style={styles.button}
+        accessibilityLabel={`Ask Nosh about ${page.title}`}
+        accessibilityRole="button"
+        onPress={() => setIsOpen(true)}
+      >
+        <ChefHat size={20} color={Colors.onPrimary} />
+        <Text style={styles.label}>Nosh</Text>
+      </Pressable>
+      <NoshAssistantSheet
+        visible={isOpen}
+        page={page}
+        cookbookPages={cookbookPages}
+        onClose={() => setIsOpen(false)}
+      />
+    </>
   );
 }
 

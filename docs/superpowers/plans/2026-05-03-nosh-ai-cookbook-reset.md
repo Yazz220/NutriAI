@@ -4,7 +4,7 @@
 
 **Goal:** Rebuild Nosh into a personal recipe e-book with an AI chef assistant who understands every generated cookbook page.
 
-**Architecture:** Keep the existing Expo Router, Supabase auth, EAS, and brand foundation, but replace the current tab/meal-planner centered product with a cookbook domain. Supabase becomes the source of truth for cookbooks, structured recipes, generated page versions, credits, and assistant context; AsyncStorage is only a cache. The first implementation builds URL/text/image/screenshot import, light review, fixed generated page images, book reader navigation, TOC, Nosh assistant sheet, credits, and image export.
+**Architecture:** Keep the existing Expo Router, Supabase auth, EAS, and brand foundation, but replace the current tab/meal-planner centered product with a cookbook domain. Supabase becomes the source of truth for cookbooks, structured recipes, generated page versions, credits, and assistant context; AsyncStorage is only a cache. The first implementation builds URL/text/image/screenshot/video import, light review, fixed generated page images, book reader navigation, TOC, Nosh assistant sheet, credits, and image export.
 
 **Tech Stack:** Expo SDK 54, Expo Router, React Native, TypeScript strict mode, Supabase, Supabase Edge Functions, TanStack React Query, AsyncStorage cache, Jest.
 
@@ -22,13 +22,13 @@ Included:
 - Book-first navigation shell.
 - Onboarding cookbook style selection.
 - Book reader, table of contents, add page/import, review, generation result, Nosh sheet, settings.
-- URL, pasted text, image, and screenshot import.
+- URL, pasted text, image, screenshot, and video URL import.
+- OpenRouter as the primary recipe-processing provider, with OpenAI kept available for image-page generation and future provider changes.
 - One-credit-per-successful-generation ledger.
 - Native image export/share.
 
 Excluded from this first plan:
 
-- Video URL import.
 - Public gallery.
 - Multiple cookbooks.
 - Full PDF export.
@@ -54,9 +54,9 @@ Excluded from this first plan:
 - Modify `supabase/functions/_shared/cors.ts`: restore request-aware helpers.
 - Modify `supabase/functions/_shared/auth.ts`: compile cleanly with shared helpers.
 - Create `utils/supabaseEdge.ts`: client helper that sends the signed-in access token.
-- Create `supabase/functions/parse-recipe-source/index.ts`: unified parser wrapper for URL/text/image.
+- Create `supabase/functions/parse-recipe-source/index.ts`: unified OpenRouter-backed parser wrapper for URL/text/image/video with legacy media fallbacks.
 - Create `supabase/functions/generate-cookbook-page/index.ts`: generation endpoint with storage upload and ledger spend.
-- Create `supabase/functions/nosh-chat/index.ts`: contextual assistant endpoint.
+- Use the existing authenticated `ai-chat` Edge Function for the contextual assistant sheet.
 - Create `supabase/functions/credits/index.ts`: credit balance endpoint.
 
 ### Client Data Layer
@@ -242,7 +242,7 @@ async function edgeFunctionRequest(
 
   while (attempt <= maxRetries) {
     try {
-      return await callAuthenticatedFunction('nosh-chat', payload);
+      return await callAuthenticatedFunction('ai-chat', payload);
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : String(err);
@@ -1763,7 +1763,7 @@ export function BookReader({ pages, selectedPageId, onSelectPage, onShare }: Boo
           onSettings={() => router.push('/(book)/settings')}
         />
       </View>
-      {selectedPage ? <NoshAssistantButton page={selectedPage} /> : null}
+      {selectedPage ? <NoshAssistantButton page={selectedPage} cookbookPages={pages} /> : null}
     </View>
   );
 }
@@ -2361,7 +2361,7 @@ serve(async (req: Request) => {
 });
 ```
 
-This first version supports URL, text, and image sources. URL import fetches server-side HTML and extracts text before heuristic parsing. Image import delegates to the existing authenticated `parse-image-recipe` Gemini function with the caller's JWT.
+This first version supports URL, text, image, and video sources. URL import fetches server-side HTML and sends the page text to OpenRouter for structured parsing. Image and video imports use OpenRouter multimodal content first, then fall back to the existing authenticated dedicated media parsers if a provider rejects the payload.
 
 - [ ] **Step 2: Deno check**
 
@@ -2800,11 +2800,11 @@ git commit -m "feat: add cookbook page generation flow"
 - Create: `hooks/useNoshAssistant.ts`
 - Create: `components/cookbook/NoshAssistantSheet.tsx`
 - Modify: `components/cookbook/NoshAssistantButton.tsx`
-- Create: `supabase/functions/nosh-chat/index.ts`
+- Use: `supabase/functions/ai-chat/index.ts`
 
-- [ ] **Step 1: Create assistant function**
+- [ ] **Step 1: Use the existing assistant function**
 
-Create `supabase/functions/nosh-chat/index.ts` by copying the current `supabase/functions/ai-chat/index.ts` structure, keeping JWT verification, and changing system context wording to:
+Use the existing authenticated `supabase/functions/ai-chat/index.ts` function. The client hook should provide cookbook-specific system context so Nosh answers as the chef assistant inside the user's book:
 
 ```ts
 const ASSISTANT_SYSTEM_PROMPT = `
@@ -2834,7 +2834,7 @@ The endpoint should accept:
 Run:
 
 ```bash
-deno check supabase/functions/nosh-chat/index.ts
+deno check supabase/functions/ai-chat/index.ts
 ```
 
 Expected: PASS.
@@ -2845,7 +2845,7 @@ Create `hooks/useNoshAssistant.ts`:
 
 ```ts
 import { useState } from 'react';
-import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+import { createChatCompletion } from '@/utils/aiClient';
 import type { CookbookPage } from '@/types/cookbook';
 
 interface AssistantMessage {
@@ -2863,14 +2863,10 @@ export function useNoshAssistant(page: CookbookPage | null, cookbookPages: Cookb
     setMessages((prev) => [...prev, userMessage]);
     setIsSending(true);
     try {
-      const response = await callAuthenticatedFunction<any>('nosh-chat', {
-        messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
-        context: {
-          currentPage: page,
-          cookbookPages: cookbookPages.map((p) => ({ title: p.title, section: p.section })),
-        },
-      });
-      const reply = response?.output?.summary ?? response?.reply ?? response?.choices?.[0]?.message?.content ?? 'I can help with this recipe.';
+      const reply = await createChatCompletion([
+        { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
+        { role: 'user', content: JSON.stringify({ question: content, currentPage: page, cookbookPages }) },
+      ]);
       setMessages((prev) => [...prev, { id: `${Date.now()}-a`, role: 'assistant', content: reply }]);
     } finally {
       setIsSending(false);
@@ -3030,7 +3026,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add hooks/useNoshAssistant.ts components/cookbook/NoshAssistantSheet.tsx components/cookbook/NoshAssistantButton.tsx supabase/functions/nosh-chat/index.ts
+git add hooks/useNoshAssistant.ts components/cookbook/NoshAssistantSheet.tsx components/cookbook/NoshAssistantButton.tsx
 git commit -m "feat: add contextual nosh assistant"
 ```
 
@@ -3184,7 +3180,7 @@ Modify `docs/PRE-LAUNCH-CHECKLIST.md` to add cookbook reset blockers:
 
 ```md
 - [ ] Test cookbook style onboarding
-- [ ] Test URL/text/image import into generated cookbook page
+- [ ] Test URL/text/image/video import into generated cookbook page
 - [ ] Test credit spend for generation and regeneration
 - [ ] Test Nosh assistant on current page context
 - [ ] Test export/share generated image
@@ -3270,7 +3266,7 @@ npm test -- --runInBand
 npx expo-doctor
 deno check supabase/functions/parse-recipe-source/index.ts
 deno check supabase/functions/generate-cookbook-page/index.ts
-deno check supabase/functions/nosh-chat/index.ts
+deno check supabase/functions/ai-chat/index.ts
 deno check supabase/functions/credits/index.ts
 ```
 
@@ -3290,7 +3286,7 @@ git commit -m "docs: record cookbook reset verification"
 ## Self-Review Checklist
 
 - Spec coverage: The plan covers product positioning, cookbook style onboarding, generated fixed image pages, structured recipe data, e-book reader navigation, table of contents, Nosh assistant context, Supabase data model, credits, export/share, and the clean reset inside the existing repo.
-- Scope control: Video URL import, public platform features, multiple cookbooks, PDF export, subscription purchase flow, and multi-page spreads are excluded from this first implementation.
+- Scope control: Public platform features, multiple cookbooks, PDF export, subscription purchase flow, audio-file import, and multi-page spreads are excluded from this first implementation.
 - Type consistency: Client types use `Cookbook`, `StructuredRecipe`, `CookbookPage`, `PageVersion`, `CreditBalance`, and `ParsedRecipeDraft` consistently across tasks.
 - Verification: Each implementation task includes `npm run typecheck`, Jest, Deno checks, Expo Doctor, or manual browser/native verification.
 - Commit cadence: Each task ends with a focused commit.
