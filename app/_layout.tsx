@@ -8,15 +8,13 @@ import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, Text as RNText } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ShoppingListProvider } from "@/hooks/useShoppingListStore";
 import { UserPreferencesProvider } from "@/hooks/useUserPreferences";
 import { UserProfileProvider } from "@/hooks/useUserProfile";
-import { MealPlannerProvider } from "@/hooks/useMealPlanner";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
-import { RecipeStoreProvider } from "@/hooks/useRecipeStore";
-import { MealsProvider } from "@/hooks/useMealsStore";
+import { CookbookProvider } from "@/hooks/useCookbook";
+import { CookbookImportProvider } from "@/hooks/useCookbookImport";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -99,7 +97,7 @@ function RootLayoutNav() {
     const isAuthenticated = devBypass || !!session;
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    const inBookGroup = segments[0] === '(book)';
 
     // Redirect to onboarding if not completed
     if (!onboardingCompleted && !inOnboardingGroup) {
@@ -113,9 +111,9 @@ function RootLayoutNav() {
       return;
     }
 
-    // Redirect to tabs if authenticated but not in tabs
-    if (onboardingCompleted && isAuthenticated && !inTabsGroup) {
-      router.replace('/(tabs)');
+    // Redirect to book if authenticated but not in book
+    if (onboardingCompleted && isAuthenticated && !inBookGroup) {
+      router.replace('/(book)');
       return;
     }
   }, [initializing, session, segments, fontsLoaded, onboardingCompleted, devBypass, router]);
@@ -137,7 +135,7 @@ function RootLayoutNav() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(book)" options={{ headerShown: false }} />
         </Stack>
         <OfflineBanner />
       </SafeAreaProvider>
@@ -150,19 +148,15 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <UserProfileProvider>
         <UserPreferencesProvider>
-          <MealsProvider>
-            <ShoppingListProvider>
-              <MealPlannerProvider>
-                <RecipeStoreProvider>
-                  <ToastProvider>
-                    <GlobalErrorBoundary>
-                      <RootLayoutNav />
-                    </GlobalErrorBoundary>
-                  </ToastProvider>
-                </RecipeStoreProvider>
-              </MealPlannerProvider>
-            </ShoppingListProvider>
-          </MealsProvider>
+          <CookbookProvider>
+            <CookbookImportProvider>
+              <ToastProvider>
+                <GlobalErrorBoundary>
+                  <RootLayoutNav />
+                </GlobalErrorBoundary>
+              </ToastProvider>
+            </CookbookImportProvider>
+          </CookbookProvider>
         </UserPreferencesProvider>
       </UserProfileProvider>
     </QueryClientProvider>

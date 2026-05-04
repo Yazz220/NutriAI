@@ -257,3 +257,4 @@ export interface InventoryItem {
 
   // Re-export onboarding types
   export * from './onboarding';
+  export * from './cookbook';

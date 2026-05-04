@@ -104,8 +104,8 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
   }, [profile, isLoading]);
 
   // React Query: fetch profile from Supabase when authenticated
-  const fetchProfile = async (): Promise<UserProfileState | undefined> => {
-    if (!user) return undefined;
+  const fetchProfile = async (): Promise<UserProfileState> => {
+    if (!user) return profile;
     // Use nutriai schema per MCP discovery
     const { data, error } = await supabase
       .schema('nutriai')
@@ -115,7 +115,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       .maybeSingle();
     if (error) {
       console.warn('[Profile] Fetch error', error.message);
-      return undefined;
+      return queryClient.getQueryData<UserProfileState>(QUERY_KEY) ?? profile;
     }
 
     // If no row yet, check if onboarding data exists before creating default
@@ -130,7 +130,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
           // Onboarding data exists - sign-up/sign-in will create the profile
           // Don't create default profile to avoid duplicate writes
           console.log('[Profile] Onboarding data exists, skipping default profile creation');
-          return undefined;
+          return queryClient.getQueryData<UserProfileState>(QUERY_KEY) ?? profile;
         }
       } catch (err) {
         console.warn('[Profile] Error checking onboarding data:', err);
@@ -153,7 +153,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
         .single();
       if (insertErr) {
         console.warn('[Profile] Insert default error', insertErr.message);
-        return undefined;
+        return queryClient.getQueryData<UserProfileState>(QUERY_KEY) ?? profile;
       }
       row = created as any;
     }
@@ -205,7 +205,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     return mapped;
   };
 
-  const { data } = useQuery<UserProfileState | undefined>({
+  const { data } = useQuery<UserProfileState>({
     queryKey: QUERY_KEY,
     queryFn: fetchProfile,
     enabled: !!session && !!user, // only when signed in
@@ -398,7 +398,7 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
     },
   });
 
-  const saveProfile = useCallback((patch: SaveInput) => saveMutation.mutate(patch), [saveMutation]);
+  const saveProfile = useCallback((patch: SaveInput) => saveMutation.mutateAsync(patch), [saveMutation]);
   const savePartial = useCallback(
     (path: 'basics' | 'goals' | 'preferences' | 'metrics', value: any) => {
       saveMutation.mutate({ [path]: value } as SaveInput);
