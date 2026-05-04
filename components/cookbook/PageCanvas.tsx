@@ -124,7 +124,7 @@ export function PageCanvas({ page }: PageCanvasProps) {
 
 const styles = StyleSheet.create({
   frame: {
-    aspectRatio: 0.72,
+    aspectRatio: 2 / 3,
     borderRadius: Radii.lg,
     backgroundColor: '#F5E5C6',
     borderWidth: 1,

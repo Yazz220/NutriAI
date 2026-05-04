@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     width: '100%',
-    aspectRatio: 0.72,
+    aspectRatio: 2 / 3,
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,

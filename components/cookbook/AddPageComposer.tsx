@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ImagePlus, Link, Send, Sparkles } from 'lucide-react-native';
+import { ImagePlus, Link, Send, Sparkles, Video } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -10,6 +10,7 @@ import { Fonts } from '@/utils/fonts';
 export type AddPageSubmitPayload =
   | { type: 'url'; input: string }
   | { type: 'text'; input: string }
+  | { type: 'video'; input: string }
   | { type: 'image'; imageBase64: string; input?: string };
 
 interface AddPageComposerProps {
@@ -19,6 +20,12 @@ interface AddPageComposerProps {
 
 function looksLikeUrl(value: string) {
   return /^https?:\/\//i.test(value.trim());
+}
+
+function looksLikeVideoUrl(value: string) {
+  const trimmed = value.trim();
+  if (!looksLikeUrl(trimmed)) return false;
+  return /(?:youtube\.com|youtu\.be|tiktok\.com|instagram\.com|\/reel\/|\/shorts\/|\.(?:mp4|mov|m4v|webm)(?:$|\?))/i.test(trimmed);
 }
 
 export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageComposerProps) {
@@ -50,11 +57,16 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
     }
 
     if (!trimmed) return;
-    await onSubmit({ type: looksLikeUrl(trimmed) ? 'url' : 'text', input: trimmed });
+    await onSubmit({
+      type: looksLikeVideoUrl(trimmed) ? 'video' : looksLikeUrl(trimmed) ? 'url' : 'text',
+      input: trimmed,
+    });
   }
 
   const canSubmit = Boolean(imageBase64 || input.trim()) && !isSubmitting;
-  const submitIcon = looksLikeUrl(input) && !imageBase64 ? (
+  const submitIcon = looksLikeVideoUrl(input) && !imageBase64 ? (
+    <Video size={18} color="#FFF9EF" />
+  ) : looksLikeUrl(input) && !imageBase64 ? (
     <Link size={18} color="#FFF9EF" />
   ) : (
     <Send size={18} color="#FFF9EF" />
@@ -73,7 +85,7 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
       </View>
 
       <Text style={styles.description}>
-        Paste a recipe link, drop in copied recipe text, or attach a screenshot. Nosh will turn it into a reviewed recipe before page generation.
+        Paste a recipe link, video link, copied recipe text, or attach a screenshot. Nosh will turn it into a reviewed recipe before page generation.
       </Text>
 
       <TextInput
@@ -81,7 +93,7 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
         onChangeText={setInput}
         multiline
         style={styles.input}
-        placeholder="Paste a recipe link or recipe text"
+        placeholder="Paste a recipe link, video link, or recipe text"
         placeholderTextColor="#9B835A"
         editable={!isSubmitting}
         textAlignVertical="top"

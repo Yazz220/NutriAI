@@ -3,6 +3,9 @@ import { verifyAuth } from '../_shared/auth.ts';
 import { corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
+const AI_API_BASE = (Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+const AI_MODEL = Deno.env.get('AI_MODEL') || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
 const MAX_URL_BYTES = 1_000_000;
 const MAX_IMAGE_BASE64_BYTES = 8_000_000;
 const FETCH_TIMEOUT_MS = 10_000;
@@ -26,12 +29,42 @@ const ALLOWED_URL_HOST_SUFFIXES = [
   'thekitchn.com',
 ];
 
-type SourceType = 'url' | 'text' | 'image';
+const RECIPE_JSON_PROMPT = `Extract one complete recipe from the user's source.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "title": "Recipe name",
+  "description": "Short useful description",
+  "servings": 4,
+  "prepTime": 15,
+  "cookTime": 30,
+  "ingredients": [
+    { "name": "ingredient name", "quantity": "1", "unit": "cup", "isOptional": false }
+  ],
+  "steps": ["Step 1", "Step 2"],
+  "tags": ["quick", "family"],
+  "category": "dinner"
+}
+
+Rules:
+- If the source is a recipe link, use the page text and metadata in the prompt.
+- If the source is an image or video, read visible text, captions, narration, and cooking actions.
+- Keep quantities as strings so fractions and ranges survive.
+- prepTime and cookTime are minutes. Use 0 if unknown.
+- category must be one of: breakfast, lunch, dinner, healthy, desserts, sides, favorites.
+- If this is not a recipe, return { "error": "No recipe found" }.`;
+
+type SourceType = 'url' | 'text' | 'image' | 'video';
+type OpenRouterContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+  | { type: 'video_url'; video_url: { url: string } };
 
 interface RequestBody {
   type: SourceType;
   input?: string;
   imageBase64?: string;
+  videoUrl?: string;
 }
 
 interface ParsedRecipe {
@@ -46,6 +79,24 @@ interface ParsedRecipe {
   sourceUrl?: string;
   tags?: unknown[];
   category?: string;
+}
+
+interface RawRecipe {
+  title?: unknown;
+  description?: unknown;
+  servings?: unknown;
+  prepTime?: unknown;
+  prep_time?: unknown;
+  cookTime?: unknown;
+  cook_time?: unknown;
+  ingredients?: unknown;
+  steps?: unknown;
+  instructions?: unknown;
+  tags?: unknown;
+  category?: unknown;
+  sourceUrl?: unknown;
+  source_url?: unknown;
+  error?: unknown;
 }
 
 function basicTextRecipe(input: string, sourceType: SourceType, sourceUrl?: string): ParsedRecipe {
@@ -141,7 +192,7 @@ async function assertPublicDnsHostname(hostname: string): Promise<void> {
   }
 }
 
-function validatePublicHttpUrl(value: string): URL {
+function validatePublicHttpUrl(value: string, options: { requireKnownRecipeHost?: boolean } = {}): URL {
   let parsed: URL;
   try {
     parsed = new URL(value);
@@ -155,12 +206,14 @@ function validatePublicHttpUrl(value: string): URL {
   if (isBlockedHostname(parsed.hostname)) {
     throw new Error('This URL cannot be imported');
   }
-  const hostname = parsed.hostname.toLowerCase();
-  const isAllowedHost = ALLOWED_URL_HOST_SUFFIXES.some(
-    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
-  );
-  if (!isAllowedHost) {
-    throw new Error('This recipe site is not supported yet. Paste the recipe text or send a screenshot instead.');
+  if (options.requireKnownRecipeHost) {
+    const hostname = parsed.hostname.toLowerCase();
+    const isAllowedHost = ALLOWED_URL_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+    );
+    if (!isAllowedHost) {
+      throw new Error('This recipe site is not supported yet. Paste the recipe text or send a screenshot instead.');
+    }
   }
   return parsed;
 }
@@ -251,6 +304,144 @@ function normalizeImageBase64(value: string): string {
   return compact;
 }
 
+function extractJsonObject(value: string): RawRecipe {
+  const trimmed = value.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  const jsonText = start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed;
+
+  try {
+    return JSON.parse(jsonText) as RawRecipe;
+  } catch {
+    throw new Error('AI parser returned invalid JSON');
+  }
+}
+
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : fallback;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean);
+}
+
+function normalizeIngredients(value: unknown): Array<{ name: string; quantity?: string; unit?: string; isOptional?: boolean }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return { name: item.trim() };
+      if (!item || typeof item !== 'object') return { name: '' };
+      const record = item as Record<string, unknown>;
+      return {
+        name: asString(record.name),
+        quantity: asString(record.quantity) || undefined,
+        unit: asString(record.unit) || undefined,
+        isOptional: typeof record.isOptional === 'boolean' ? record.isOptional : undefined,
+      };
+    })
+    .filter((ingredient) => ingredient.name);
+}
+
+function normalizeCategory(value: unknown): string {
+  const category = asString(value).toLowerCase();
+  return ['breakfast', 'lunch', 'dinner', 'healthy', 'desserts', 'sides', 'favorites'].includes(category)
+    ? category
+    : 'favorites';
+}
+
+function normalizeAiRecipe(raw: RawRecipe, sourceType: SourceType, sourceUrl?: string): ParsedRecipe {
+  if (typeof raw.error === 'string' && raw.error.trim()) {
+    throw new Error(raw.error.trim());
+  }
+
+  const steps = asStringArray(raw.steps).length ? asStringArray(raw.steps) : asStringArray(raw.instructions);
+  const recipe: ParsedRecipe = {
+    title: asString(raw.title, 'Imported Recipe'),
+    description: asString(raw.description),
+    servings: asNumber(raw.servings, 4) || 4,
+    prepTime: asNumber(raw.prepTime ?? raw.prep_time),
+    cookTime: asNumber(raw.cookTime ?? raw.cook_time),
+    ingredients: normalizeIngredients(raw.ingredients),
+    steps,
+    sourceType,
+    sourceUrl: (sourceUrl ?? asString(raw.sourceUrl ?? raw.source_url)) || undefined,
+    tags: asStringArray(raw.tags),
+    category: normalizeCategory(raw.category),
+  };
+
+  return recipe;
+}
+
+async function callOpenRouter(content: string | OpenRouterContentPart[]): Promise<RawRecipe> {
+  if (!AI_API_KEY) {
+    throw new Error('OpenRouter is not configured');
+  }
+
+  const res = await fetch(`${AI_API_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${AI_API_KEY}`,
+      'content-type': 'application/json',
+      'http-referer': 'https://nosh.app',
+      'x-title': 'Nosh Cookbook',
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      messages: [
+        { role: 'system', content: RECIPE_JSON_PROMPT },
+        { role: 'user', content },
+      ],
+      temperature: 0.1,
+      max_tokens: 2500,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = typeof data?.error?.message === 'string'
+      ? data.error.message
+      : typeof data?.error === 'string'
+        ? data.error
+        : `OpenRouter parser failed (${res.status})`;
+    throw new Error(message);
+  }
+
+  const contentValue = data?.choices?.[0]?.message?.content;
+  const text = Array.isArray(contentValue)
+    ? contentValue.map((part) => part?.text ?? '').join('\n')
+    : String(contentValue ?? '');
+  if (!text.trim()) throw new Error('OpenRouter parser returned no content');
+  return extractJsonObject(text);
+}
+
+function imageContent(imageBase64: string, prompt = 'Extract the recipe from this image.'): OpenRouterContentPart[] {
+  const url = `data:image/jpeg;base64,${imageBase64}`;
+  return [
+    { type: 'text', text: prompt },
+    { type: 'image_url', image_url: { url } },
+  ];
+}
+
+function videoContent(videoUrl: string): OpenRouterContentPart[] {
+  return [
+    {
+      type: 'text',
+      text: 'Extract the complete recipe from this cooking video. Use narration, captions, visible ingredients, and on-screen instructions.',
+    },
+    { type: 'video_url', video_url: { url: videoUrl } },
+  ];
+}
+
 async function parseImageRecipe(req: Request, imageBase64: string): Promise<ParsedRecipe> {
   const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/parse-image-recipe`, {
     method: 'POST',
@@ -282,6 +473,38 @@ async function parseImageRecipe(req: Request, imageBase64: string): Promise<Pars
   };
 }
 
+async function parseVideoRecipe(req: Request, videoUrl: string): Promise<ParsedRecipe> {
+  const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/parse-video-recipe`, {
+    method: 'POST',
+    headers: {
+      authorization: req.headers.get('authorization') ?? '',
+      apikey: req.headers.get('apikey') ?? '',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ url: videoUrl }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : `Video parser failed (${res.status})`);
+  }
+
+  const recipe = data.recipe ?? {};
+  return {
+    title: recipe.title ?? 'Imported Video Recipe',
+    description: recipe.description ?? '',
+    servings: Number(recipe.servings) || 4,
+    prepTime: Number(recipe.prepTime) || 0,
+    cookTime: Number(recipe.cookTime) || 0,
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+    steps: Array.isArray(recipe.steps) ? recipe.steps : [],
+    sourceType: 'video',
+    sourceUrl: recipe.sourceUrl ?? videoUrl,
+    tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+    category: recipe.category ?? 'favorites',
+  };
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsResponse(req);
 
@@ -297,13 +520,35 @@ serve(async (req: Request) => {
     }
 
     if (!body.type) return jsonError('Missing source type', 400, req);
-    if (body.type !== 'url' && body.type !== 'text' && body.type !== 'image') {
+    if (body.type !== 'url' && body.type !== 'text' && body.type !== 'image' && body.type !== 'video') {
       return jsonError('Unsupported source type', 400, req);
     }
 
     if (body.type === 'image') {
       if (!body.imageBase64) return jsonError('Missing imageBase64', 400, req);
-      const parsed = await parseImageRecipe(req, normalizeImageBase64(body.imageBase64));
+      const imageBase64 = normalizeImageBase64(body.imageBase64);
+      let parsed: ParsedRecipe;
+      try {
+        parsed = normalizeAiRecipe(await callOpenRouter(imageContent(imageBase64)), 'image');
+      } catch {
+        parsed = await parseImageRecipe(req, imageBase64);
+      }
+      const confidence = confidenceFor(parsed);
+      return jsonResponse({ recipe: parsed, ...confidence }, 200, req);
+    }
+
+    if (body.type === 'video') {
+      const videoUrl = (body.videoUrl ?? body.input ?? '').trim();
+      if (!videoUrl) return jsonError('Missing video URL', 400, req);
+      const parsedVideoUrl = validatePublicHttpUrl(videoUrl);
+      await assertPublicDnsHostname(parsedVideoUrl.hostname);
+
+      let parsed: ParsedRecipe;
+      try {
+        parsed = normalizeAiRecipe(await callOpenRouter(videoContent(parsedVideoUrl.toString())), 'video', parsedVideoUrl.toString());
+      } catch {
+        parsed = await parseVideoRecipe(req, parsedVideoUrl.toString());
+      }
       const confidence = confidenceFor(parsed);
       return jsonResponse({ recipe: parsed, ...confidence }, 200, req);
     }
@@ -311,7 +556,19 @@ serve(async (req: Request) => {
     if (!body.input?.trim()) return jsonError('Missing input', 400, req);
 
     const sourceText = body.type === 'url' ? await textFromUrl(body.input) : body.input;
-    const parsed = basicTextRecipe(sourceText, body.type, body.type === 'url' ? body.input : undefined);
+    let parsed: ParsedRecipe;
+    try {
+      const prompt = body.type === 'url'
+        ? `Source URL: ${body.input}\n\nPage text:\n${sourceText}`
+        : sourceText;
+      parsed = normalizeAiRecipe(
+        await callOpenRouter(prompt),
+        body.type,
+        body.type === 'url' ? body.input : undefined,
+      );
+    } catch {
+      parsed = basicTextRecipe(sourceText, body.type, body.type === 'url' ? body.input : undefined);
+    }
     const confidence = confidenceFor(parsed);
 
     return jsonResponse({

@@ -27,7 +27,7 @@ function localDraftFromPayload(payload: Record<string, unknown>): ParseResult {
       ingredients: [],
       steps: [],
       sourceType: type as RecipeSourceType,
-      sourceUrl: type === 'url' ? input : undefined,
+      sourceUrl: type === 'url' || type === 'video' ? input : undefined,
       tags: [],
       category: 'favorites',
       confidence: 0.2,
