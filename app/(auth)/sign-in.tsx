@@ -1,36 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
-import { Link, router, useLocalSearchParams } from 'expo-router';
+import { Link, router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { resetOnboarding } from '@/components/onboarding';
 import { supabase } from '@/lib/supabase';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { User, EnvelopeSimple, Lock, SignIn } from 'phosphor-react-native';
+import { User, EnvelopeSimple, Lock } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { OnboardingPersistenceManager } from '@/utils/onboardingPersistence';
-import { OnboardingProfileIntegration } from '@/utils/onboardingProfileIntegration';
 import { withTimeout, getUserFriendlyErrorMessage } from '@/utils/networkTimeout';
 import { isAppleSignInAvailable, signInWithApple, isAppleCancellation } from '@/utils/appleAuth';
 
 export default function SignInScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
   const { session } = useAuth();
-  const { saveProfile } = useUserProfile();
-
-  // Prefill email if provided via navigation params (e.g., after sign-up)
-  useEffect(() => {
-    if (typeof params.email === 'string' && params.email) {
-      setEmail(params.email);
-    }
-  }, [params.email]);
 
   useEffect(() => {
     isAppleSignInAvailable().then(setAppleAvailable);
@@ -57,77 +44,10 @@ export default function SignInScreen() {
         throw authError;
       }
       if (!data?.session) {
-        console.warn('[Auth] signInWithPassword returned no session', data);
         setError('Sign-in did not return a session. Please try again or use Magic Link.');
         Alert.alert('Sign-in issue', 'We could not establish a session. Try again or use Magic Link.');
         return;
       }
-      console.log('[Auth] Signed in, session received');
-      
-      // Check if we have onboarding data to sync (for users who completed onboarding then signed in)
-      const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
-      if (onboardingData) {
-        try {
-          console.log('[SignIn] Syncing onboarding data to profile...');
-          const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-          
-          // Retry logic for profile save (network failures)
-          let retries = 3;
-          let lastError: Error | null = null;
-          while (retries > 0) {
-            try {
-              await withTimeout(saveProfile(profileData), 15000);
-              await OnboardingPersistenceManager.clearOnboardingData();
-              console.log('[SignIn] Onboarding data synced successfully');
-              break;
-            } catch (retryError) {
-              lastError = retryError as Error;
-              retries--;
-              if (retries > 0) {
-                console.log(`[SignIn] Retry ${3 - retries}/3 after error:`, retryError);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
-              }
-            }
-          }
-          
-          if (retries === 0 && lastError) {
-            throw lastError;
-          }
-        } catch (syncError) {
-          console.error('[SignIn] Failed to sync onboarding data after retries:', syncError);
-          
-          // Offer retry option
-          return new Promise<void>((resolve) => {
-            Alert.alert(
-              'Profile Sync Issue',
-              'We couldn\'t save your health preferences. Would you like to retry?',
-              [
-                {
-                  text: 'Retry',
-                  onPress: async () => {
-                    try {
-                      const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-                      await withTimeout(saveProfile(profileData), 15000);
-                      await OnboardingPersistenceManager.clearOnboardingData();
-                      Alert.alert('Success', 'Your preferences have been saved!');
-                    } catch (retryError) {
-                      Alert.alert('Still having issues?', 'You can update preferences later in Settings.');
-                    } finally {
-                      resolve();
-                    }
-                  }
-                },
-                {
-                  text: 'Continue',
-                  onPress: () => resolve()
-                }
-              ]
-            );
-          });
-        }
-      }
-      
-      // Force navigation to the cookbook experience after auth.
       router.replace('/(book)');
     } catch (err) {
       const msg = getUserFriendlyErrorMessage(err);
@@ -135,18 +55,6 @@ export default function SignInScreen() {
       Alert.alert('Sign in failed', msg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const devResetEnabled = process.env.EXPO_PUBLIC_DEV_RESET_ONBOARDING === 'true';
-
-  const onDevResetOnboarding = async () => {
-    try {
-      await resetOnboarding();
-      Alert.alert('Onboarding Reset', 'Onboarding data cleared. Launching onboarding…');
-      router.replace('/(onboarding)');
-    } catch (e) {
-      Alert.alert('Reset Failed', 'Could not reset onboarding. Check logs.');
     }
   };
 
@@ -207,42 +115,12 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       await signInWithApple();
-
-      // Sync onboarding data if present (same pattern as email sign-in)
-      const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
-      if (onboardingData) {
-        try {
-          const profileData = OnboardingProfileIntegration.mapOnboardingToProfile(onboardingData);
-          await withTimeout(saveProfile(profileData), 15000);
-          await OnboardingPersistenceManager.clearOnboardingData();
-          console.log('[SignIn] Apple: onboarding data synced');
-        } catch (syncError) {
-          console.error('[SignIn] Apple: failed to sync onboarding data', syncError);
-        }
-      }
-
       router.replace('/(book)');
     } catch (err) {
-      if (isAppleCancellation(err)) return; // user dismissed — no error
+      if (isAppleCancellation(err)) return;
       const msg = err instanceof Error ? err.message : 'Apple sign-in failed';
       setError(msg);
       Alert.alert('Apple Sign-In error', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onGuest = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      // Requires Anonymous provider to be enabled in Supabase Auth settings
-      const { error: authError } = await supabase.auth.signInAnonymously();
-      if (authError) throw authError;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to sign in as guest';
-      setError(msg);
-      Alert.alert('Guest sign-in failed', msg);
     } finally {
       setLoading(false);
     }
@@ -339,11 +217,6 @@ export default function SignInScreen() {
           </Link>
         </View>
 
-        {devResetEnabled && (
-          <TouchableOpacity style={styles.devResetLink} onPress={onDevResetOnboarding} accessibilityRole="button" accessibilityLabel="Reset onboarding (developer)">
-            <Text style={styles.devResetText}>Reset onboarding (dev)</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
@@ -493,14 +366,6 @@ const styles = StyleSheet.create({
   link: {
     color: Colors.primary,
     fontWeight: Typography.weights.semibold,
-  },
-  devResetLink: {
-    marginTop: Spacing.md,
-    alignItems: 'center',
-  },
-  devResetText: {
-    color: Colors.lightText,
-    textDecorationLine: 'underline',
   },
   forgotPassword: {
     alignSelf: 'flex-end',

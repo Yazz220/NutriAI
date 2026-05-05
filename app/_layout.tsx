@@ -18,10 +18,8 @@ import { CookbookImportProvider } from "@/hooks/useCookbookImport";
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
-import { isOnboardingCompleted } from '@/contexts/OnboardingContext';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
@@ -30,16 +28,13 @@ function RootLayoutNav() {
   const { initializing, session } = useAuth();
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const router = useRouter();
   const segments = useSegments();
 
-  // Load fonts and check onboarding status
   useEffect(() => {
     async function prepare() {
       try {
         await loadFonts();
-        // Set global default font family to Manrope (UI) for all RN <Text />
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (RNText as any).defaultProps = {
           ...(RNText as any).defaultProps,
@@ -48,12 +43,8 @@ function RootLayoutNav() {
             (RNText as any).defaultProps && (RNText as any).defaultProps.style,
           ],
         };
-
-        const completed = await isOnboardingCompleted();
-        setOnboardingCompleted(completed);
       } catch (e) {
         console.warn('Error loading fonts:', e);
-        setOnboardingCompleted(false);
       } finally {
         setFontsLoaded(true);
       }
@@ -62,63 +53,30 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    if (!fontsLoaded) return;
-
-    let cancelled = false;
-
-    isOnboardingCompleted()
-      .then((completed) => {
-        if (!cancelled) {
-          setOnboardingCompleted(completed);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOnboardingCompleted(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fontsLoaded, segments]);
-
-  // Hide the splash only after the first renderable app state is ready.
-  useEffect(() => {
-    if (fontsLoaded && onboardingCompleted !== null) {
-      SplashScreen.hideAsync().catch(() => { });
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded, onboardingCompleted]);
+  }, [fontsLoaded]);
 
-  // Handle navigation based on auth state changes
   useEffect(() => {
-    if (initializing || !fontsLoaded || onboardingCompleted === null) return;
+    if (initializing || !fontsLoaded) return;
 
     const isAuthenticated = devBypass || !!session;
     const inAuthGroup = segments[0] === '(auth)';
-    const inOnboardingGroup = segments[0] === '(onboarding)';
     const inBookGroup = segments[0] === '(book)';
 
-    // Redirect to onboarding if not completed
-    if (!onboardingCompleted && !inOnboardingGroup) {
-      router.replace('/(onboarding)/welcome');
-      return;
-    }
-
-    // Redirect to auth if onboarding complete but not authenticated
-    if (onboardingCompleted && !isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
       return;
     }
 
-    // Redirect to book if authenticated but not in book
-    if (onboardingCompleted && isAuthenticated && !inBookGroup) {
+    if (isAuthenticated && !inBookGroup) {
       router.replace('/(book)');
       return;
     }
-  }, [initializing, session, segments, fontsLoaded, onboardingCompleted, devBypass, router]);
+  }, [initializing, session, segments, fontsLoaded, devBypass, router]);
 
-  if (!fontsLoaded || onboardingCompleted === null || initializing) {
+  if (!fontsLoaded || initializing) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
         <StatusBar style="light" />
@@ -133,7 +91,6 @@ function RootLayoutNav() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(book)" options={{ headerShown: false }} />
         </Stack>
