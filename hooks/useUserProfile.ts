@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { HealthGoal } from '@/types/onboarding';
+type HealthGoal = string;
 
 export type GoalType = 'maintain' | 'lose' | 'gain';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'athlete';
@@ -118,26 +118,8 @@ export const [UserProfileProvider, useUserProfile] = createContextHook(() => {
       return queryClient.getQueryData<UserProfileState>(QUERY_KEY) ?? profile;
     }
 
-    // If no row yet, check if onboarding data exists before creating default
     let row = data as any | null;
     if (!row) {
-      // Check if onboarding data exists (sign-up/sign-in will handle profile creation)
-      try {
-        const { OnboardingPersistenceManager } = await import('@/utils/onboardingPersistence');
-        const onboardingData = await OnboardingPersistenceManager.loadOnboardingData();
-        
-        if (onboardingData) {
-          // Onboarding data exists - sign-up/sign-in will create the profile
-          // Don't create default profile to avoid duplicate writes
-          console.log('[Profile] Onboarding data exists, skipping default profile creation');
-          return queryClient.getQueryData<UserProfileState>(QUERY_KEY) ?? profile;
-        }
-      } catch (err) {
-        console.warn('[Profile] Error checking onboarding data:', err);
-        // Continue with default profile creation if check fails
-      }
-      
-      // Only create default profile if NO onboarding data exists
       const insertDefault = {
         user_id: user.id,
         display_name: null,

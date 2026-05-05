@@ -255,6 +255,4 @@ export interface InventoryItem {
     isProcessing?: boolean;
   }
 
-  // Re-export onboarding types
-  export * from './onboarding';
   export * from './cookbook';
