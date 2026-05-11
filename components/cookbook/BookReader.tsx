@@ -1,99 +1,239 @@
-import React, { useEffect, useRef } from 'react';
-import { FlatList, ListRenderItemInfo, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  ListRenderItemInfo,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft, Plus, Share2 } from 'lucide-react-native';
+import { AddPageSheet } from '@/components/cookbook/AddPageSheet';
+import { BookCoverReaderPage } from '@/components/cookbook/BookCoverReaderPage';
+import { BookTableOfContentsPage } from '@/components/cookbook/BookTableOfContentsPage';
 import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
+import { OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
-import { PageControls } from '@/components/cookbook/PageControls';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { CookbookPage } from '@/types/cookbook';
+import type { Cookbook, CookbookPage, RecipeSourceType } from '@/types/cookbook';
+
+type ReaderItem =
+  | { id: 'cover'; type: 'cover' }
+  | { id: 'toc'; type: 'toc' }
+  | { id: string; type: 'recipe'; page: CookbookPage };
 
 interface BookReaderProps {
+  cookbook: Cookbook | null;
   pages: CookbookPage[];
-  selectedPageId: string | null;
   onSelectPage: (id: string) => void;
   onShare: (page: CookbookPage) => void;
-  isSampleBook?: boolean;
 }
 
-export function BookReader({ pages, selectedPageId, onSelectPage, onShare, isSampleBook = false }: BookReaderProps) {
-  const listRef = useRef<FlatList<CookbookPage>>(null);
+const COVER_INDEX = 0;
+const PAGE_TURN_DISTANCE = 44;
+
+export function BookReader({
+  cookbook,
+  pages,
+  onSelectPage,
+  onShare,
+}: BookReaderProps) {
+  const listRef = useRef<FlatList<ReaderItem>>(null);
   const { width } = useWindowDimensions();
-  const selectedIndex = Math.max(0, pages.findIndex((page) => page.id === selectedPageId));
-  const selectedPage = pages[selectedIndex] ?? pages[0];
-  const selectedSection = selectedPage?.section ?? 'favorites';
+  const insets = useSafeAreaInsets();
+  const [activeIndex, setActiveIndex] = useState(COVER_INDEX);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const horizontalPadding = width < 390 ? Spacing.sm : Spacing.md;
 
+  const cookbookId = cookbook?.id;
+  const cookbookTitle = cookbook?.title ?? 'My Cookbook';
+
+  const readerItems = useMemo<ReaderItem[]>(() => {
+    const items: ReaderItem[] = [{ id: 'cover', type: 'cover' }];
+    if (pages.length > 0) {
+      items.push({ id: 'toc', type: 'toc' });
+      pages.forEach((page) => items.push({ id: page.id, type: 'recipe', page }));
+    }
+    return items;
+  }, [pages]);
+
+  const tocIndex = readerItems.findIndex((item) => item.type === 'toc');
+  const firstRecipeIndex = readerItems.findIndex((item) => item.type === 'recipe');
+  const activeItem = readerItems[activeIndex] ?? readerItems[0];
+  const selectedPage = activeItem?.type === 'recipe' ? activeItem.page : null;
+
   useEffect(() => {
-    if (!selectedPage || width <= 0) return;
-    listRef.current?.scrollToIndex({ index: selectedIndex, animated: false });
-  }, [selectedIndex, selectedPage, width]);
+    if (activeIndex <= readerItems.length - 1) return;
+    setActiveIndex(Math.max(0, readerItems.length - 1));
+  }, [activeIndex, readerItems.length]);
+
+  const scrollToReaderIndex = useCallback((index: number) => {
+    const safeIndex = Math.max(0, Math.min(readerItems.length - 1, index));
+    setActiveIndex(safeIndex);
+    listRef.current?.scrollToIndex({ index: safeIndex, animated: true });
+
+    const item = readerItems[safeIndex];
+    if (item?.type === 'recipe') {
+      onSelectPage(item.page.id);
+    }
+  }, [onSelectPage, readerItems]);
+
+  function openAddPageSheet() {
+    if (!cookbookId) return;
+    setAddSheetOpen(true);
+  }
+
+  function openAddPageSource(sourceType: RecipeSourceType) {
+    if (!cookbookId) return;
+    setAddSheetOpen(false);
+    router.push(`/(book)/${cookbookId}/add?source=${sourceType}`);
+  }
+
+  function handleMomentumEnd(offsetX: number, pageWidth: number) {
+    const index = Math.max(0, Math.min(readerItems.length - 1, Math.round(offsetX / pageWidth)));
+    setActiveIndex(index);
+
+    const item = readerItems[index];
+    if (item?.type === 'recipe') {
+      onSelectPage(item.page.id);
+    }
+  }
+
+  const pageTurnResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const horizontalMove = Math.abs(gestureState.dx);
+        const verticalMove = Math.abs(gestureState.dy);
+        return horizontalMove > 18 && horizontalMove > verticalMove * 1.2;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx <= -PAGE_TURN_DISTANCE) {
+          scrollToReaderIndex(activeIndex + 1);
+        } else if (gestureState.dx >= PAGE_TURN_DISTANCE) {
+          scrollToReaderIndex(activeIndex - 1);
+        }
+      },
+      onPanResponderTerminationRequest: () => true,
+    }),
+    [activeIndex, scrollToReaderIndex],
+  );
 
   return (
-    <LinearGradient colors={['#4A3220', '#7E5631', '#D7B982']} style={styles.container}>
+    <LinearGradient colors={Colors.book.readerGradient} style={styles.container}>
       <View style={styles.backgroundTexture}>
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/(book)')}
+            accessibilityLabel="Back to my collection"
+          >
+            <ChevronLeft size={23} color={Colors.text} />
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
           <View style={styles.titleBlock}>
-            <Text style={styles.eyebrow}>{isSampleBook ? 'Preview cookbook' : 'Personal cookbook'}</Text>
             <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
-              My Nosh Cookbook
+              {cookbookTitle}
             </Text>
           </View>
-          <Pressable
-            style={styles.addButton}
-            onPress={() => router.push('/(book)/add')}
-            accessibilityRole="button"
-            accessibilityLabel="Add recipe page"
-          >
-            <Plus size={20} color="#FFF9EF" />
-          </Pressable>
+          {selectedPage ? (
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => onShare(selectedPage)}
+              accessibilityRole="button"
+              accessibilityLabel={`Share ${selectedPage.title}`}
+            >
+              <Share2 size={20} color={Colors.text} />
+            </Pressable>
+          ) : (
+            <View style={styles.topBarSpacer} />
+          )}
         </View>
 
-        <View style={styles.chapterStrip}>
-          <Text style={styles.chapterLabel} numberOfLines={1}>
-            {selectedSection} recipes
-          </Text>
-        </View>
-
-        <View style={styles.bookStage}>
-          <View style={styles.bookSpine} />
+        <View style={styles.bookStage} {...pageTurnResponder.panHandlers}>
           <FlatList
             ref={listRef}
-            data={pages}
+            data={readerItems}
             horizontal
             pagingEnabled
             contentInsetAdjustmentBehavior="automatic"
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(page) => page.id}
+            keyExtractor={(item) => item.id}
             getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-            renderItem={({ item }: ListRenderItemInfo<CookbookPage>) => (
+            onScrollToIndexFailed={({ index }) => {
+              setTimeout(() => scrollToReaderIndex(index), 80);
+            }}
+            renderItem={({ item }: ListRenderItemInfo<ReaderItem>) => (
               <View style={[styles.pageSlot, { width, paddingHorizontal: horizontalPadding }]}>
-                <PageCanvas page={item} />
+                {item.type === 'cover' ? (
+                  <BookCoverReaderPage
+                    cookbook={cookbook}
+                    pageCount={pages.length}
+                    onStartReading={() =>
+                      scrollToReaderIndex(tocIndex >= 0 ? tocIndex : firstRecipeIndex)
+                    }
+                    onAddPage={openAddPageSheet}
+                  />
+                ) : item.type === 'toc' ? (
+                  <OpenBookSpread>
+                    <BookTableOfContentsPage
+                      cookbook={cookbook}
+                      pages={pages}
+                      bookMode
+                      onSelectPage={(page) => {
+                        const index = readerItems.findIndex(
+                          (candidate) => candidate.type === 'recipe' && candidate.id === page.id,
+                        );
+                        if (index >= 0) scrollToReaderIndex(index);
+                      }}
+                    />
+                  </OpenBookSpread>
+                ) : (
+                  <OpenBookSpread>
+                    <PageCanvas page={item.page} bookMode />
+                  </OpenBookSpread>
+                )}
               </View>
             )}
             onMomentumScrollEnd={(event) => {
               const pageWidth = event.nativeEvent.layoutMeasurement.width;
-              const index = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
-              const page = pages[index];
-              if (page) onSelectPage(page.id);
+              handleMomentumEnd(event.nativeEvent.contentOffset.x, pageWidth);
             }}
           />
         </View>
 
-        <View style={styles.controls}>
-          <PageControls
-            pageLabel={`Page ${selectedIndex + 1} of ${pages.length}`}
-            onToc={() => router.push('/(book)/toc')}
-            onShare={() => selectedPage && onShare(selectedPage)}
-            onSettings={() => router.push('/(book)/settings')}
-          />
-        </View>
+        {cookbookId ? (
+          <Pressable
+            style={styles.floatingAddButton}
+            onPress={openAddPageSheet}
+            accessibilityRole="button"
+            accessibilityLabel={`Add a page to ${cookbookTitle}`}
+          >
+            <Plus size={23} color={Colors.onPrimary} />
+          </Pressable>
+        ) : null}
 
-        {selectedPage ? <NoshAssistantButton page={selectedPage} cookbookPages={pages} /> : null}
+        {selectedPage ? (
+          <NoshAssistantButton
+            page={selectedPage}
+            pageNumber={selectedPage.pageNumber}
+            cookbookPages={pages}
+            cookbookTitle={cookbookTitle}
+          />
+        ) : null}
+
+        <AddPageSheet
+          visible={addSheetOpen}
+          cookbookTitle={cookbookTitle}
+          onClose={() => setAddSheetOpen(false)}
+          onSelectSource={openAddPageSource}
+        />
       </View>
     </LinearGradient>
   );
@@ -105,85 +245,77 @@ const styles = StyleSheet.create({
   },
   backgroundTexture: {
     flex: 1,
-    backgroundColor: 'rgba(255, 247, 232, 0.12)',
+    backgroundColor: Colors.alpha.white[20],
   },
   topBar: {
     minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+  },
+  backButton: {
+    minWidth: 82,
+    height: 42,
+    borderRadius: 21,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 6,
+  },
+  backText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontFamily: Fonts.ui.medium,
   },
   titleBlock: {
     flex: 1,
-  },
-  eyebrow: {
-    color: '#F7E6C8',
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    alignItems: 'center',
   },
   title: {
-    color: '#FFF9EF',
+    color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: 0,
   },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  topBarSpacer: {
+    width: 42,
+    height: 42,
+  },
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3F6D2A',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 249, 239, 0.55)',
-    boxShadow: '0 8px 16px rgba(34, 21, 10, 0.24)',
-  },
-  chapterStrip: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginHorizontal: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radii.md,
-    backgroundColor: 'rgba(255, 249, 239, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 249, 239, 0.24)',
-  },
-  chapterLabel: {
-    flex: 1,
-    color: '#FFF9EF',
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'capitalize',
+    borderColor: Colors.border,
   },
   bookStage: {
     flex: 1,
     justifyContent: 'center',
     marginTop: Spacing.sm,
   },
-  bookSpine: {
-    position: 'absolute',
-    left: 18,
-    top: 26,
-    bottom: 26,
-    width: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(56, 31, 14, 0.28)',
-  },
   pageSlot: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-  },
-  controls: {
-    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+    paddingBottom: 88,
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    right: 22,
+    bottom: 30,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    boxShadow: Colors.book.liftedShadow,
   },
 });

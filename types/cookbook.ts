@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 export type CookbookSection =
   | 'breakfast'
   | 'lunch'
@@ -11,17 +13,35 @@ export type RecipeSourceType = 'url' | 'text' | 'image' | 'video';
 
 export type PageVersionStatus = 'pending' | 'generating' | 'ready' | 'failed';
 
+export type CookbookStyleId =
+  | 'vintage-garden'
+  | 'handwritten'
+  | 'editorial'
+  | 'watercolor'
+  | 'rustic'
+  | 'minimal';
+
 export interface CookbookTheme {
   name: string;
   prompt: string;
+}
+
+export interface CookbookSectionEntry {
+  id: CookbookSection;
+  label: string;
+  order: number;
 }
 
 export interface Cookbook {
   id: string;
   userId: string;
   title: string;
+  coverImageAsset?: ImageSourcePropType;
   theme: CookbookTheme;
   sectionOrder: CookbookSection[];
+  coverStyle: CookbookStyleId;
+  sections: CookbookSectionEntry[];
+  pageCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,9 +78,9 @@ export interface CookbookPage {
   pageNumber: number;
   sortOrder: number;
   selectedVersionId?: string;
+  imageAsset?: ImageSourcePropType;
   imageUrl?: string;
   recipe?: StructuredRecipe;
-  isSample?: boolean;
 }
 
 export interface CookbookPageSummary {

@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from 'react';
-import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Radii } from '@/constants/spacing';
 
@@ -8,13 +8,13 @@ export type IconButtonSquareProps = PropsWithChildren<{
   radius?: number; // default Radii.md
   onPress?: () => void;
   disabled?: boolean;
-  style?: ViewStyle | ViewStyle[];
+  style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }>;
 
 export const IconButtonSquare: React.FC<IconButtonSquareProps> = ({
   size = 36,
-  radius = Radii.md,
+  radius = Radii.sm,
   onPress,
   disabled,
   style,
@@ -31,7 +31,7 @@ export const IconButtonSquare: React.FC<IconButtonSquareProps> = ({
       style={[
         styles.base,
         { width: size, height: size, borderRadius: radius, opacity: disabled ? 0.5 : 1 },
-        style as any,
+        style,
       ]}
     >
       {children}
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.surface,
   },
 });
 

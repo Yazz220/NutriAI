@@ -1,36 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
-import type { ParsedRecipeDraft, StructuredIngredient, StructuredRecipe } from '@/types/cookbook';
+import { Fonts } from '@/utils/fonts';
+import {
+  ingredientToLine,
+  structuredRecipeFromDraft,
+} from '@/utils/cookbook/draft';
+import type { ParsedRecipeDraft, StructuredRecipe } from '@/types/cookbook';
 
 interface RecipeReviewFormProps {
   draft: ParsedRecipeDraft;
   isGenerating?: boolean;
   onGenerate: (recipe: StructuredRecipe) => Promise<void> | void;
-}
-
-function ingredientToLine(ingredient: StructuredIngredient) {
-  return [ingredient.quantity, ingredient.unit, ingredient.name].filter(Boolean).join(' ');
-}
-
-function linesFromText(value: string) {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-function ingredientsFromText(value: string, originalIngredients: StructuredIngredient[]) {
-  const originalLines = originalIngredients.map(ingredientToLine);
-  return linesFromText(value).map((line, index) => {
-    const original = originalIngredients[index];
-    if (original && line === originalLines[index]) {
-      return original;
-    }
-    return { name: line };
-  });
 }
 
 export function RecipeReviewForm({ draft, isGenerating = false, onGenerate }: RecipeReviewFormProps) {
@@ -47,16 +30,7 @@ export function RecipeReviewForm({ draft, isGenerating = false, onGenerate }: Re
   async function submit() {
     if (!canGenerate) return;
 
-    await onGenerate({
-      ...draft,
-      id: draft.id ?? `draft-${Date.now()}`,
-      title: title.trim(),
-      servings: Number(servings) || 4,
-      ingredients: ingredientsFromText(ingredients, draft.ingredients),
-      steps: linesFromText(steps),
-      tags: draft.tags ?? [],
-      category: draft.category ?? 'dinner',
-    });
+    await onGenerate(structuredRecipeFromDraft(draft, { title, servings, ingredients, steps }));
   }
 
   return (
@@ -65,7 +39,19 @@ export function RecipeReviewForm({ draft, isGenerating = false, onGenerate }: Re
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Review before spending a credit</Text>
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>Review recipe</Text>
+        <Text style={styles.title}>Make sure this recipe reads the way you want.</Text>
+        <Text style={styles.helper}>
+          Nosh will turn this into a cookbook page after you confirm it.
+        </Text>
+      </View>
+
+      {typeof draft.confidence === 'number' ? (
+        <Text style={styles.confidence}>
+          Import confidence: {Math.round(draft.confidence * 100)}%
+        </Text>
+      ) : null}
 
       <TextInput
         style={styles.input}
@@ -104,7 +90,7 @@ export function RecipeReviewForm({ draft, isGenerating = false, onGenerate }: Re
       />
 
       <TouchableOpacity style={[styles.button, !canGenerate && styles.disabled]} disabled={!canGenerate} onPress={submit}>
-        <Text style={styles.buttonText}>{isGenerating ? 'Generating' : 'Generate page - 1 credit'}</Text>
+        <Text style={styles.buttonText}>{isGenerating ? 'Creating page' : 'Create cookbook page - 1 credit'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -119,12 +105,36 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.md,
   },
+  header: {
+    gap: Spacing.xs,
+  },
+  eyebrow: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontFamily: Fonts.ui.medium,
+    letterSpacing: 0,
+  },
   title: {
     ...Typography.h2,
     color: Colors.text,
   },
+  helper: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  confidence: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: Colors.cardSecondary,
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    fontSize: 12,
+    fontFamily: Fonts.ui.medium,
+  },
   input: {
-    borderRadius: Radii.md,
+    borderRadius: Radii.sm,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
@@ -137,14 +147,14 @@ const styles = StyleSheet.create({
   },
   button: {
     height: 52,
-    borderRadius: Radii.md,
+    borderRadius: Radii.sm,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
     color: Colors.onPrimary,
-    fontWeight: '700',
+    fontFamily: Fonts.ui.medium,
   },
   disabled: {
     opacity: 0.45,

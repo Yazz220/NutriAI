@@ -17,6 +17,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
+import { normalizeBase64Payload } from '../_shared/base64.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -24,6 +25,7 @@ import { verifyAuth } from '../_shared/auth.ts';
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const GEMINI_API_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const MAX_IMAGE_BASE64_BYTES = 8_000_000;
 
 // ---------------------------------------------------------------------------
 // CORS
@@ -173,8 +175,13 @@ serve(async (req: Request) => {
       return jsonError('Missing required field: image (base64-encoded string)', 400);
     }
 
-    // Strip data-URI prefix if present (e.g. "data:image/jpeg;base64,...")
-    const base64Data = image.includes(',') ? image.split(',')[1] : image;
+    let base64Data: string;
+    try {
+      base64Data = normalizeBase64Payload(image, MAX_IMAGE_BASE64_BYTES, 'image');
+    } catch (validationErr) {
+      const message = validationErr instanceof Error ? validationErr.message : 'Invalid image';
+      return jsonError(message, 400);
+    }
 
     // 4. Build Gemini request
     const parts: GeminiPart[] = [

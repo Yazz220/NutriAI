@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { supabase } from '@/lib/supabase';
+import { LockKeyhole, Mail } from 'lucide-react-native';
+import { AuthScaffold } from '@/components/auth/AuthScaffold';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Spacing } from '@/constants/spacing';
-import { withTimeout, getUserFriendlyErrorMessage } from '@/utils/networkTimeout';
-import { isAppleSignInAvailable, signInWithApple, isAppleCancellation } from '@/utils/appleAuth';
+import { Radii, Spacing } from '@/constants/spacing';
+import { supabase } from '@/lib/supabase';
+import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
+import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -23,30 +28,29 @@ export default function SignUpScreen() {
   const onSignUp = async () => {
     setError(null);
     if (!email || !password) {
-      setError('Please enter email and password');
+      setError('Please enter your email and password.');
       return;
     }
     if (password !== confirm) {
-      setError('Passwords do not match');
+      setError('Passwords do not match.');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password must be at least 6 characters.');
       return;
     }
     setLoading(true);
     try {
       const { data, error: authError } = await withTimeout(
         supabase.auth.signUp({ email, password }),
-        30000
+        30000,
       );
       if (authError) throw authError;
 
       if (data?.user && !data.session) {
-        Alert.alert('Verify your email', 'We sent you a confirmation link. Please verify, then sign in.');
+        Alert.alert('Verify your email', 'We sent you a confirmation link. Verify it, then sign in.');
         router.replace({ pathname: '/(auth)/sign-in', params: { email } });
       }
-      // If session created, RootLayout guard will navigate to /(book)
     } catch (err) {
       const msg = getUserFriendlyErrorMessage(err);
       setError(msg);
@@ -61,10 +65,9 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       await signInWithApple();
-      // RootLayout guard will navigate to /(book)
     } catch (err) {
       if (isAppleCancellation(err)) return;
-      const msg = err instanceof Error ? err.message : 'Apple sign-up failed';
+      const msg = err instanceof Error ? err.message : 'Apple sign-up failed.';
       setError(msg);
       Alert.alert('Apple Sign-In error', msg);
     } finally {
@@ -73,149 +76,89 @@ export default function SignUpScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Your AI kitchen buddy awaits</Text>
+    <AuthScaffold
+      title="Start your personal cookbook"
+      subtitle="Create a calm place for recipes, notes, and Nosh's help inside each page."
+      footer={
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account?</Text>
+          <Link href="/(auth)/sign-in" asChild>
+            <Pressable>
+              <Text style={styles.link}>Sign in</Text>
+            </Pressable>
+          </Link>
+        </View>
+      }
+    >
+      <Input
+        label="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="you@example.com"
+        leftIcon={<Mail size={18} color={Colors.textMuted} />}
+      />
+      <Input
+        label="Password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        leftIcon={<LockKeyhole size={18} color={Colors.textMuted} />}
+      />
+      <Input
+        label="Confirm password"
+        secureTextEntry
+        value={confirm}
+        onChangeText={setConfirm}
+        placeholder="Confirm password"
+        leftIcon={<LockKeyhole size={18} color={Colors.textMuted} />}
+      />
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          placeholderTextColor={Colors.lightText}
-        />
-      </View>
+      {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor={Colors.lightText}
-        />
-      </View>
+      <Button title="Create account" onPress={onSignUp} loading={loading} disabled={loading} />
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Confirm Password</Text>
-        <TextInput
-          style={styles.input}
-          secureTextEntry
-          value={confirm}
-          onChangeText={setConfirm}
-          placeholder="••••••••"
-          placeholderTextColor={Colors.lightText}
-        />
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <TouchableOpacity style={styles.button} onPress={onSignUp} disabled={loading}>
-        {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Create Account</Text>}
-      </TouchableOpacity>
-
-      {appleAvailable && (
-        <>
-          <Text style={styles.orDivider}>Or sign up with</Text>
+      {appleAvailable ? (
+        loading ? (
+          <ActivityIndicator color={Colors.primary} />
+        ) : (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={10}
+            cornerRadius={8}
             style={styles.appleButton}
             onPress={onAppleSignUp}
           />
-        </>
-      )}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account?</Text>
-        <Link href="/(auth)/sign-in" asChild>
-          <TouchableOpacity>
-            <Text style={styles.link}>Sign In</Text>
-          </TouchableOpacity>
-        </Link>
-      </View>
-    </View>
+        )
+      ) : null}
+    </AuthScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: Spacing.lg,
-    justifyContent: 'center',
-    backgroundColor: Colors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  subtitle: {
-    marginTop: 4,
-    marginBottom: Spacing.lg,
-    color: Colors.lightText,
-  },
-  field: {
-    marginBottom: Spacing.md,
-  },
-  label: {
-    marginBottom: 6,
-    color: Colors.text,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-    color: Colors.text,
-    backgroundColor: Colors.card,
-  },
-  button: {
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: Colors.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: Spacing.lg,
-    alignItems: 'center',
-  },
-  footerText: {
-    color: Colors.lightText,
-  },
-  link: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  orDivider: {
-    textAlign: 'center',
-    color: Colors.lightText,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-    fontSize: 14,
-  },
   appleButton: {
     height: 44,
     width: '100%',
+    borderRadius: Radii.sm,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'center',
+  },
+  footerText: {
+    color: Colors.textMuted,
+  },
+  link: {
+    color: Colors.text,
+    fontWeight: '500',
   },
   error: {
     color: Colors.error,
-    marginTop: 6,
+    backgroundColor: Colors.errorLight,
+    borderRadius: Radii.sm,
+    padding: Spacing.sm,
   },
 });

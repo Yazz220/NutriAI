@@ -24,6 +24,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
+import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -244,6 +245,12 @@ function parseRecipeJson(raw: string): RawRecipe {
   }
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer as ArrayBuffer;
+}
+
 // ---------------------------------------------------------------------------
 // Strategy A: YouTube native (file_data with YouTube URI)
 // ---------------------------------------------------------------------------
@@ -278,7 +285,7 @@ async function uploadToGeminiFilesApi(
       'X-Goog-Upload-Header-Content-Length': String(videoBytes.byteLength),
       'X-Goog-Upload-Header-Content-Type': mimeType,
     },
-    body: videoBytes,
+    body: toArrayBuffer(videoBytes),
   });
 
   if (!res.ok) {
@@ -405,7 +412,15 @@ serve(async (req: Request) => {
       return jsonError('Missing required field: url', 400);
     }
 
-    const videoUrl = url.trim();
+    let videoUrl: string;
+    try {
+      const parsedVideoUrl = validatePublicHttpUrl(url.trim());
+      await assertPublicDnsHostname(parsedVideoUrl.hostname);
+      videoUrl = parsedVideoUrl.toString();
+    } catch (validationErr) {
+      const message = validationErr instanceof Error ? validationErr.message : 'Invalid URL';
+      return jsonError(message, 400);
+    }
     console.log('[parse-video-recipe] processing url:', videoUrl);
 
     // 4. Attempt extraction with fallback chain

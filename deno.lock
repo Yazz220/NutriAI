@@ -105,7 +105,11 @@
         "npm:ts-node@^10.9.2",
         "npm:typescript@~5.9.2",
         "npm:victory-native@^41.18.0"
-      ]
+      ],
+      "overrides": {
+        "@expo/fingerprint": "0.15.0",
+        "expo-image-loader": "6.0.0"
+      }
     }
   }
 }

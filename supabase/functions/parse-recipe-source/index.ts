@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
+import { normalizeBase64Payload } from '../_shared/base64.ts';
 import { corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
+import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
@@ -9,25 +11,6 @@ const AI_MODEL = Deno.env.get('AI_MODEL') || 'nvidia/nemotron-3-nano-omni-30b-a3
 const MAX_URL_BYTES = 1_000_000;
 const MAX_IMAGE_BASE64_BYTES = 8_000_000;
 const FETCH_TIMEOUT_MS = 10_000;
-const ALLOWED_URL_HOST_SUFFIXES = [
-  'allrecipes.com',
-  'bonappetit.com',
-  'delish.com',
-  'eatingwell.com',
-  'epicurious.com',
-  'food.com',
-  'food52.com',
-  'foodnetwork.com',
-  'kingarthurbaking.com',
-  'nytimes.com',
-  'recipetineats.com',
-  'sallysbakingaddiction.com',
-  'seriouseats.com',
-  'simplyrecipes.com',
-  'spendwithpennies.com',
-  'tasteofhome.com',
-  'thekitchn.com',
-];
 
 const RECIPE_JSON_PROMPT = `Extract one complete recipe from the user's source.
 
@@ -132,92 +115,6 @@ function confidenceFor(recipe: { title: string; ingredients: unknown[]; steps: u
   return { confidence, needsReview: confidence < 0.75, reasons };
 }
 
-function isBlockedHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
-  if (normalized === 'localhost' || normalized.endsWith('.localhost')) return true;
-  if (normalized.includes(':')) return true;
-
-  const parts = normalized.split('.').map((part) => Number(part));
-  if (parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)) {
-    return true;
-  }
-
-  return false;
-}
-
-function isBlockedIpAddress(address: string): boolean {
-  const normalized = address.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
-
-  const ipv4 = normalized.split('.').map((part) => Number(part));
-  if (ipv4.length === 4 && ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)) {
-    const [a, b] = ipv4;
-    if (a === 0) return true;
-    if (a === 10) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true;
-    if (a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a >= 224) return true;
-    return false;
-  }
-
-  if (normalized === '::1' || normalized === '::') return true;
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
-  if (normalized.startsWith('fe80')) return true;
-  if (normalized.startsWith('ff')) return true;
-  if (normalized.startsWith('::ffff:')) {
-    return isBlockedIpAddress(normalized.replace('::ffff:', ''));
-  }
-  return false;
-}
-
-async function assertPublicDnsHostname(hostname: string): Promise<void> {
-  if (isBlockedHostname(hostname)) {
-    throw new Error('This URL cannot be imported');
-  }
-
-  const [aRecords, aaaaRecords] = await Promise.all([
-    Deno.resolveDns(hostname, 'A').catch(() => [] as string[]),
-    Deno.resolveDns(hostname, 'AAAA').catch(() => [] as string[]),
-  ]);
-
-  const addresses = [...aRecords, ...aaaaRecords];
-  if (addresses.length === 0) {
-    throw new Error('Could not resolve URL host');
-  }
-
-  if (addresses.some(isBlockedIpAddress)) {
-    throw new Error('This URL cannot be imported');
-  }
-}
-
-function validatePublicHttpUrl(value: string, options: { requireKnownRecipeHost?: boolean } = {}): URL {
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new Error('Invalid URL');
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Only http and https URLs are supported');
-  }
-  if (isBlockedHostname(parsed.hostname)) {
-    throw new Error('This URL cannot be imported');
-  }
-  if (options.requireKnownRecipeHost) {
-    const hostname = parsed.hostname.toLowerCase();
-    const isAllowedHost = ALLOWED_URL_HOST_SUFFIXES.some(
-      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
-    );
-    if (!isAllowedHost) {
-      throw new Error('This recipe site is not supported yet. Paste the recipe text or send a screenshot instead.');
-    }
-  }
-  return parsed;
-}
-
 async function textFromUrl(url: string): Promise<string> {
   const parsedUrl = validatePublicHttpUrl(url);
   await assertPublicDnsHostname(parsedUrl.hostname);
@@ -292,16 +189,7 @@ async function readLimitedText(res: Response, maxBytes: number): Promise<string>
 }
 
 function normalizeImageBase64(value: string): string {
-  const base64 = value.includes(',') ? value.split(',').pop() ?? '' : value;
-  if (!/^[A-Za-z0-9+/=\s]+$/.test(base64)) {
-    throw new Error('Invalid imageBase64');
-  }
-  const compact = base64.replace(/\s/g, '');
-  const estimatedBytes = Math.ceil((compact.length * 3) / 4);
-  if (estimatedBytes > MAX_IMAGE_BASE64_BYTES) {
-    throw new Error('Image is too large');
-  }
-  return compact;
+  return normalizeBase64Payload(value, MAX_IMAGE_BASE64_BYTES, 'image');
 }
 
 function extractJsonObject(value: string): RawRecipe {
@@ -526,7 +414,13 @@ serve(async (req: Request) => {
 
     if (body.type === 'image') {
       if (!body.imageBase64) return jsonError('Missing imageBase64', 400, req);
-      const imageBase64 = normalizeImageBase64(body.imageBase64);
+      let imageBase64: string;
+      try {
+        imageBase64 = normalizeImageBase64(body.imageBase64);
+      } catch (validationErr) {
+        const message = validationErr instanceof Error ? validationErr.message : 'Invalid image';
+        return jsonError(message, 400, req);
+      }
       let parsed: ParsedRecipe;
       try {
         parsed = normalizeAiRecipe(await callOpenRouter(imageContent(imageBase64)), 'image');
@@ -540,8 +434,14 @@ serve(async (req: Request) => {
     if (body.type === 'video') {
       const videoUrl = (body.videoUrl ?? body.input ?? '').trim();
       if (!videoUrl) return jsonError('Missing video URL', 400, req);
-      const parsedVideoUrl = validatePublicHttpUrl(videoUrl);
-      await assertPublicDnsHostname(parsedVideoUrl.hostname);
+      let parsedVideoUrl: URL;
+      try {
+        parsedVideoUrl = validatePublicHttpUrl(videoUrl);
+        await assertPublicDnsHostname(parsedVideoUrl.hostname);
+      } catch (validationErr) {
+        const message = validationErr instanceof Error ? validationErr.message : 'Invalid URL';
+        return jsonError(message, 400, req);
+      }
 
       let parsed: ParsedRecipe;
       try {
@@ -555,7 +455,13 @@ serve(async (req: Request) => {
 
     if (!body.input?.trim()) return jsonError('Missing input', 400, req);
 
-    const sourceText = body.type === 'url' ? await textFromUrl(body.input) : body.input;
+    let sourceText: string;
+    try {
+      sourceText = body.type === 'url' ? await textFromUrl(body.input) : body.input;
+    } catch (validationErr) {
+      const message = validationErr instanceof Error ? validationErr.message : 'Could not import URL';
+      return jsonError(message, 400, req);
+    }
     let parsed: ParsedRecipe;
     try {
       const prompt = body.type === 'url'

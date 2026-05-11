@@ -2,178 +2,203 @@
 
 ## Project Overview
 
-**Nosh** is a React Native mobile app (Expo) — an AI kitchen buddy that helps users collect, organize, and cook recipes. Users send recipes to Nosh via chat (links, text, images, video) and the AI auto-processes, categorizes, and saves them to a personal recipe library.
+**Nosh** is a React Native mobile app built with Expo. It is a book-first personal cookbook: users create styled cookbooks, import recipes from links/text/images/video, review the extracted recipe, and generate a rendered page inside the selected book. The Nosh assistant is an in-book chef assistant that answers from the active page and the rest of the current cookbook.
 
-**Tech Stack:**
-- React Native with Expo ~54.0.0
-- Expo Router for file-based navigation
-- TypeScript with strict mode
-- Supabase backend (`nutriai` schema with RLS)
-- Google Gemini 2.5 Flash for image/video recipe extraction
-- OpenRouter AI via Edge Functions for chat
-- AsyncStorage for local persistence
-- TanStack React Query for server state
+Do not frame the app as a legacy non-cookbook product or a chat-first recipe manager. The active product is the cookbook shelf and reader.
 
-**Node Version:** v20.19.4. Install dependencies with `npm install --legacy-peer-deps`.
+## Tech Stack
+
+- React Native with Expo SDK 54.
+- Expo Router for file-based navigation.
+- TypeScript strict mode.
+- Supabase backend in the private `nutriai` schema with RLS.
+- Supabase Edge Functions for AI, import, generation, credits, and account deletion.
+- TanStack React Query for server state.
+- AsyncStorage for shelf and per-book page cache.
+- `@nkzw/create-context-hook` for shared context hooks.
+
+Node version: `20.19.4`. Install dependencies with `npm install --legacy-peer-deps`.
 
 ## Commands
 
 ### Development
+
 ```bash
-# Start dev server (connects to Nosh (Dev) app on device)
 npx expo start
-
-# Web preview
 npx expo start --web --port 8081
-
-# LAN mode (scan QR on same network)
 npx expo start --lan
 ```
 
-### Building & Deployment
-```bash
-# Development build → "Nosh (Dev)" on device (com.yaz12.nosh.dev)
-npx eas-cli build --profile development --platform ios
-
-# Preview/TestFlight → "Nosh" (com.yaz12.nosh)
-npx eas-cli build --profile preview --platform ios
-
-# Production → App Store submission
-npx eas-cli build --profile production --platform ios
-
-# Submit to App Store
-npx eas-cli submit --platform ios
-```
-
 ### Testing
+
 ```bash
 npm test
 npm run test:watch
+npm run typecheck
+npm run lint
+```
+
+### Builds
+
+```bash
+npx eas-cli build --profile development --platform ios
+npx eas-cli build --profile preview --platform ios
+npx eas-cli build --profile production --platform ios
+npx eas-cli submit --platform ios
 ```
 
 ### Supabase Edge Functions
+
 ```bash
 supabase functions deploy <function-name> --project-ref <PROJECT_REF>
+supabase functions logs <function-name> --project-ref <PROJECT_REF>
 ```
 
-## Architecture
+## Expo Router Shape
 
-### Navigation (5 tabs)
-```
+```text
 app/
-  _layout.tsx              # Root layout with providers + auth/onboarding guards
-  (auth)/                  # sign-in, sign-up, forgot-password
-  (onboarding)/            # welcome → dietary-preferences → allergies → restrictions
-  (tabs)/
-    index.tsx             # Nosh Chat tab (default — AI assistant)
-    recipes.tsx           # Recipe library (category-based, searchable)
-    plan.tsx              # Weekly meal planner
-    list.tsx              # Shopping list
-    profile.tsx           # User profile & preferences
+  _layout.tsx
+  (auth)/
+    _layout.tsx
+    index.tsx
+    sign-in.tsx
+    sign-up.tsx
+    forgot-password.tsx
+  (book)/
+    _layout.tsx
+    index.tsx
+    library.tsx
+    settings.tsx
+    [cookbookId]/
+      _layout.tsx
+      index.tsx
+      add.tsx
+      review.tsx
+      generation/
+        [pageId].tsx
 ```
 
-### State Management
-Context-based pattern with `@nkzw/create-context-hook`:
-- `useMeals` — Saved recipes (AsyncStorage + category field)
-- `useShoppingList` — Shopping list items
-- `useMealPlanner` — Meal plans by date (AsyncStorage + Supabase sync)
-- `useUserProfile` — User profile and onboarding data
-- `useAuth` — Supabase authentication state
-- `useNoshChat` — Chat messages, import routing, AI conversations
+Key route behavior:
 
-**Provider Hierarchy:** See `app/_layout.tsx` — auth/profile providers wrap everything. Order matters.
+- `app/_layout.tsx`: root providers, auth guard, font/splash loading, root stack, offline banner.
+- `app/(book)/index.tsx`: authenticated shelf.
+- `app/(book)/library.tsx`: style picker and cookbook creation.
+- `app/(book)/settings.tsx`: account, library stats, sign out.
+- `app/(book)/[cookbookId]/index.tsx`: book reader.
+- `app/(book)/[cookbookId]/add.tsx`: add source for a new recipe page.
+- `app/(book)/[cookbookId]/review.tsx`: proof extracted recipe before generation.
+- `app/(book)/[cookbookId]/generation/[pageId].tsx`: generated-page result.
 
-### AI Chat Flow
+There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in this branch. The selected page is reader state inside `[cookbookId]/index.tsx`. The table of contents is rendered inside the reader by `components/cookbook/BookTableOfContentsPage.tsx`; it is not a route.
+
+## Provider Tree
+
+Current `app/_layout.tsx` provider order:
+
+```text
+QueryClientProvider
+  CookbooksProvider
+    CookbookImportProvider
+      ToastProvider
+        GlobalErrorBoundary
+          RootLayoutNav
+            GestureHandlerRootView
+              SafeAreaProvider
+                Stack
+                OfflineBanner
 ```
-User sends content in Chat tab
-  → contentDetector.ts detects type (URL, video URL, image, text)
-  → importOrchestrator.ts routes to correct pipeline:
-      - URL → recipeImport.ts (existing HTML parser)
-      - Text → recipeImport.ts (AI text parser)
-      - Image → parse-image-recipe Edge Function (Gemini vision)
-      - Video → parse-video-recipe Edge Function (Gemini video)
-  → AI auto-categorizes recipe (breakfast/lunch/dinner/snacks/etc.)
-  → useMeals.addMeal() saves to AsyncStorage
-  → Nosh confirms in chat with recipe card
+
+Current provider/hook reality:
+
+- `useAuth`: Supabase auth state; no `AuthProvider` exists.
+- `CookbooksProvider` / `useCookbooks`: shelf state, cookbook creation/deletion, credit balance.
+- `useCookbook(cookbookId)`: per-book data; no `CookbookProvider` exists.
+- `CookbookImportProvider` / `useCookbookImport`: import draft and review state.
+- `useNoshAssistant`: assistant state inside `NoshAssistantSheet`; no `NoshAssistantProvider` exists.
+
+## AI And Import Architecture
+
+```text
+User adds source in a book
+  -> AddPageComposer
+  -> useCookbookImport.parseSource
+  -> parse-recipe-source Edge Function
+  -> RecipeReviewForm
+  -> generate-cookbook-page Edge Function
+  -> returned CookbookPage is upserted into React Query
 ```
 
-### Edge Functions
-- `ai-chat` — Secure AI chat proxy (JWT verified)
-- `parse-image-recipe` — Image → Gemini 2.5 Flash → structured recipe
-- `parse-video-recipe` — Video URL → Gemini 2.5 Flash → structured recipe
-- `parse-recipe` — URL/text recipe parsing
-- `delete-account` — Account deletion (JWT + service role)
+Active functions:
 
-### Dual-Build Setup
-Two separate apps on device via `app.config.js` + `APP_VARIANT` env var:
+- `ai-chat`: OpenRouter-compatible chat proxy for the Nosh assistant.
+- `parse-recipe-source`: URL/text/image/video import orchestrator using OpenRouter-compatible extraction, with image/video fallback paths.
+- `parse-image-recipe`: Gemini 2.5 Flash direct image extraction fallback.
+- `parse-video-recipe`: Gemini 2.5 Flash direct video extraction fallback.
+- `generate-cookbook-page`: OpenAI image generation for rendered cookbook pages.
+- `credits`: credit balance.
+- `delete-account`: account deletion.
 
-| Profile | App Name | Bundle ID | Scheme |
-|---------|----------|-----------|--------|
-| development | Nosh (Dev) | com.yaz12.nosh.dev | nosh-dev:// |
-| preview/production | Nosh | com.yaz12.nosh | nosh:// |
+## Environment Variables
 
-### Authentication
-- Email/password sign-up and sign-in (Supabase Auth)
-- Apple Sign-In (`expo-apple-authentication` + `utils/appleAuth.ts`)
-- Google OAuth
-- Magic link sign-in
-- Password reset flow
+Client-safe `.env` keys:
+
+```text
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
+EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
+EXPO_PUBLIC_DEV_BYPASS_AUTH=false
+EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
+```
+
+Edge Function secrets in Supabase:
+
+```text
+AI_API_KEY, AI_API_BASE, AI_MODEL          ai-chat and parse-recipe-source
+GEMINI_API_KEY                            parse-image-recipe and parse-video-recipe fallbacks
+OPENAI_API_KEY, OPENAI_IMAGE_MODEL         generate-cookbook-page
+COOKBOOK_PAGE_BUCKET                       optional generated-page storage bucket override
+```
+
+Never expose provider API keys through `EXPO_PUBLIC_*`.
 
 ## Key Files
 
 | File | Purpose |
-|------|---------|
-| `hooks/useNoshChat.ts` | Chat state, persistence, import routing, AI calls |
-| `utils/contentDetector.ts` | Detect input type (URL, video, image, text) |
-| `utils/importOrchestrator.ts` | Route imports, auto-categorize, auto-save |
-| `constants/brand.ts` | Nosh personality, system prompts, copy strings |
-| `constants/colors.ts` | Design system colors |
-| `constants/spacing.ts` | Spacing, typography, radii, shadows |
-| `types/index.ts` | Core types (Meal, MealCategory, NoshChatMessage) |
-| `app.config.js` | Dynamic config for dev/prod bundle IDs |
-
-## Component Organization
-```
-components/
-  ui/              # Design system (Button, Card, Input, Modal, ScreenHeader)
-  chat/            # Chat UI (ChatMessageBubble, RecipeCardInline, ChatInput)
-  recipe-detail/   # Recipe detail view, serving size, nutrition
-  onboarding/      # Onboarding flow components
-  common/          # Shared (IngredientIcon, GlassSurface)
-```
+|---|---|
+| `hooks/useAuth.ts` | Supabase auth state |
+| `hooks/useCookbooks.ts` | shelf provider |
+| `hooks/useCookbook.ts` | one-book hook |
+| `hooks/useCookbookImport.ts` | import/review state |
+| `hooks/useNoshAssistant.ts` | in-book assistant |
+| `components/cookbook/BookReader.tsx` | swipeable reader |
+| `components/cookbook/BookTableOfContentsPage.tsx` | in-reader contents page |
+| `components/cookbook/AddPageComposer.tsx` | recipe source composer |
+| `components/cookbook/RecipeReviewForm.tsx` | review/proof form |
+| `components/cookbook/GenerationResult.tsx` | generated-page result |
+| `utils/cookbook/api.ts` | Supabase and Edge Function API calls |
+| `utils/cookbook/cache.ts` | AsyncStorage shelf/page cache |
+| `utils/cookbook/pagePrompt.ts` | page-generation prompt payload |
+| `utils/cookbook/sampleCookbook.ts` | offline sample book fixtures |
+| `constants/cookbookStyles.ts` | six style presets |
 
 ## Development Guidelines
 
-- **Use `@/` path alias** — not relative imports
-- **Use Edge Functions** — never expose API keys client-side
-- **Use `React.memo`** for performance-critical components
-- **Use `constants/colors.ts`** and `constants/spacing.ts` for styling
-- **Always `--legacy-peer-deps`** when installing packages
-- **Only modules with config plugins** go in `app.json` plugins array — check for `app.plugin.js` in `node_modules/<pkg>/` before adding
-
-## Environment Variables
-
-**Required (.env):**
-- `EXPO_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key
-
-**Edge Function Secrets (Supabase dashboard):**
-- `AI_API_KEY`, `AI_API_BASE`, `AI_MODEL` — For ai-chat
-- `GEMINI_API_KEY` — For parse-image-recipe and parse-video-recipe
-
-## Common Pitfalls
-
-1. **Missing `--legacy-peer-deps`** — Always use for npm install
-2. **Plugin without config plugin** — Only add to `app.json` plugins if the package has `app.plugin.js`. Others are auto-linked.
-3. **Exposing secrets client-side** — Never put API keys in `EXPO_PUBLIC_*`; use Edge Functions
-4. **Provider order** — The hierarchy in `_layout.tsx` is critical; don't reorder
-5. **RLS policies** — All Supabase tables require authenticated user
-6. **Date handling** — Use ISO strings (`YYYY-MM-DD`)
-7. **Category on meals** — New meals get auto-categorized; existing meals backfill to 'dinner'
+- Use `@/` path aliases for cross-folder imports.
+- Use Edge Functions for provider calls and service-role work.
+- Use `constants/colors.ts`, `constants/spacing.ts`, and `constants/cookbookStyles.ts` for styling.
+- Keep generated page prompts tied to the active cookbook style.
+- Keep provider order in `app/_layout.tsx` stable unless all consumers are checked.
+- Only packages with config plugins belong in `app.json` plugins.
+- Do not edit another worker's unrelated files on the shared cleanup branch.
+- Do not commit unless the user explicitly asks.
 
 ## Documentation
 
-- **Pre-Launch Checklist:** `docs/PRE-LAUNCH-CHECKLIST.md`
-- **Design Spec:** `docs/superpowers/specs/2026-04-07-nosh-ai-chef-assistant-design.md`
-- **Implementation Plan:** `docs/superpowers/plans/2026-04-07-nosh-ai-chef-assistant.md`
-- **Supabase SQL:** `supabase/sql/00_bootstrap.sql`
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DATABASE.md`
+- `docs/DEVELOPMENT.md`
+- `docs/superpowers/specs/`
+- `docs/superpowers/plans/`

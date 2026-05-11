@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Text, StyleProp } from 'react-native';
-import { Colors } from '@/constants/colors';
-import { Spacing, Shadows, Radii } from '@/constants/spacing';
+import { Spacing, Shadows } from '@/constants/spacing';
 import { Tokens } from '@/constants/tokens';
 
 interface CardProps {
@@ -9,7 +8,6 @@ interface CardProps {
   style?: StyleProp<ViewStyle>;
   padding?: keyof typeof Spacing;
   shadow?: 'none' | 'sm' | 'md' | 'lg';
-  onPress?: () => void;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -61,10 +59,9 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Tokens.component.card.base.bg,
-    borderRadius: Tokens.component.card.base.radius, // shape.radius.card per token
-    marginBottom: Spacing.lg,
+    borderRadius: Tokens.component.card.base.radius,
     borderWidth: 1,
-    borderColor: Tokens.component.card.base.borderColor, // divider
+    borderColor: Tokens.component.card.base.borderColor,
     position: 'relative',
   },
 });

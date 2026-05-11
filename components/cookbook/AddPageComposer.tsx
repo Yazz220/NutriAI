@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import type { RecipeSourceType } from '@/types/cookbook';
 
 export type AddPageSubmitPayload =
   | { type: 'url'; input: string }
@@ -15,6 +16,7 @@ export type AddPageSubmitPayload =
 
 interface AddPageComposerProps {
   isSubmitting?: boolean;
+  sourceHint?: RecipeSourceType;
   onSubmit: (payload: AddPageSubmitPayload) => Promise<void> | void;
 }
 
@@ -28,7 +30,27 @@ function looksLikeVideoUrl(value: string) {
   return /(?:youtube\.com|youtu\.be|tiktok\.com|instagram\.com|\/reel\/|\/shorts\/|\.(?:mp4|mov|m4v|webm)(?:$|\?))/i.test(trimmed);
 }
 
-export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageComposerProps) {
+function sourceTitle(sourceHint?: RecipeSourceType) {
+  if (sourceHint === 'url') return 'From URL or link';
+  if (sourceHint === 'text') return 'Paste text';
+  if (sourceHint === 'image') return 'Upload image or screenshot';
+  if (sourceHint === 'video') return 'From video link';
+  return 'Choose a recipe source';
+}
+
+function sourcePlaceholder(sourceHint?: RecipeSourceType) {
+  if (sourceHint === 'url') return 'Paste a recipe URL';
+  if (sourceHint === 'text') return 'Paste the recipe text';
+  if (sourceHint === 'image') return 'Attach an image, then add optional notes here';
+  if (sourceHint === 'video') return 'Paste a YouTube, TikTok, Instagram, or video link';
+  return 'Paste a recipe link, video link, or recipe text';
+}
+
+export function AddPageComposer({
+  isSubmitting = false,
+  sourceHint,
+  onSubmit,
+}: AddPageComposerProps) {
   const [input, setInput] = useState('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
 
@@ -57,6 +79,18 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
     }
 
     if (!trimmed) return;
+    if (sourceHint === 'url') {
+      await onSubmit({ type: 'url', input: trimmed });
+      return;
+    }
+    if (sourceHint === 'text') {
+      await onSubmit({ type: 'text', input: trimmed });
+      return;
+    }
+    if (sourceHint === 'video') {
+      await onSubmit({ type: 'video', input: trimmed });
+      return;
+    }
     await onSubmit({
       type: looksLikeVideoUrl(trimmed) ? 'video' : looksLikeUrl(trimmed) ? 'url' : 'text',
       input: trimmed,
@@ -65,27 +99,27 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
 
   const canSubmit = Boolean(imageBase64 || input.trim()) && !isSubmitting;
   const submitIcon = looksLikeVideoUrl(input) && !imageBase64 ? (
-    <Video size={18} color="#FFF9EF" />
+    <Video size={18} color={Colors.onPrimary} />
   ) : looksLikeUrl(input) && !imageBase64 ? (
-    <Link size={18} color="#FFF9EF" />
+    <Link size={18} color={Colors.onPrimary} />
   ) : (
-    <Send size={18} color="#FFF9EF" />
+    <Send size={18} color={Colors.onPrimary} />
   );
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconBadge}>
-          <Sparkles size={18} color="#6A4527" />
+          <Sparkles size={18} color={Colors.text} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>New cookbook page</Text>
-          <Text style={styles.title}>Import a recipe</Text>
+          <Text style={styles.eyebrow}>Add page</Text>
+          <Text style={styles.title}>{sourceTitle(sourceHint)}</Text>
         </View>
       </View>
 
       <Text style={styles.description}>
-        Paste a recipe link, video link, copied recipe text, or attach a screenshot. Nosh will turn it into a reviewed recipe before page generation.
+        Give Nosh the source for this page. It will extract the recipe, let you review it, then generate a cookbook page for this book.
       </Text>
 
       <TextInput
@@ -93,8 +127,8 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
         onChangeText={setInput}
         multiline
         style={styles.input}
-        placeholder="Paste a recipe link, video link, or recipe text"
-        placeholderTextColor="#9B835A"
+        placeholder={sourcePlaceholder(sourceHint)}
+        placeholderTextColor={Colors.textMuted}
         editable={!isSubmitting}
         textAlignVertical="top"
       />
@@ -111,8 +145,8 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
 
       <View style={styles.actions}>
         <Pressable style={styles.secondaryButton} onPress={pickImage} disabled={isSubmitting}>
-          <ImagePlus size={19} color="#3E2C1B" />
-          <Text style={styles.secondaryText}>Attach image</Text>
+          <ImagePlus size={19} color={Colors.text} />
+          <Text style={styles.secondaryText}>Upload image / screenshot</Text>
         </Pressable>
 
         <Pressable
@@ -121,28 +155,23 @@ export function AddPageComposer({ isSubmitting = false, onSubmit }: AddPageCompo
           disabled={!canSubmit}
         >
           {submitIcon}
-          <Text style={styles.primaryText}>{isSubmitting ? 'Reading recipe' : 'Review recipe'}</Text>
+          <Text style={styles.primaryText}>{isSubmitting ? 'Reading page' : 'Review page'}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.tip}>
-        <Text style={styles.tipText}>
-          Testing without image generation? Use the sample pages already inside the book, then come back here when you want to try a real import.
-        </Text>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: '#D8BE8E',
-    backgroundColor: '#FFF9EF',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     padding: Spacing.lg,
     gap: Spacing.md,
-    boxShadow: '0 16px 34px rgba(54, 36, 18, 0.16)',
+    boxShadow: Colors.book.cardShadow,
   },
   header: {
     flexDirection: 'row',
@@ -155,35 +184,34 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5D8A6',
+    backgroundColor: Colors.book.accentSoft,
   },
   headerText: {
     flex: 1,
   },
   eyebrow: {
-    color: '#806A46',
+    color: Colors.textMuted,
     fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontFamily: Fonts.ui.medium,
   },
   title: {
-    color: '#3E2C1B',
+    color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 28,
     lineHeight: 34,
   },
   description: {
-    color: '#6D5738',
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
   },
   input: {
     minHeight: 180,
-    borderRadius: Radii.lg,
+    borderRadius: Radii.sm,
     borderWidth: 1,
-    borderColor: '#D8BE8E',
-    backgroundColor: '#FFF3DB',
-    color: '#3E2C1B',
+    borderColor: Colors.border,
+    backgroundColor: Colors.book.page,
+    color: Colors.text,
     padding: Spacing.md,
     fontSize: 15,
     lineHeight: 22,
@@ -194,61 +222,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     borderRadius: Radii.md,
-    backgroundColor: '#EEF4DE',
+    backgroundColor: Colors.cardSecondary,
     paddingHorizontal: Spacing.md,
   },
   attachmentText: {
     flex: 1,
-    color: Colors.primaryDark,
-    fontWeight: '700',
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
   },
   removeText: {
-    color: '#9A5148',
-    fontWeight: '800',
+    color: Colors.error,
+    fontFamily: Fonts.ui.medium,
   },
   actions: {
     gap: Spacing.md,
   },
   secondaryButton: {
     height: 48,
-    borderRadius: Radii.lg,
+    borderRadius: Radii.sm,
     borderWidth: 1,
-    borderColor: '#D8BE8E',
-    backgroundColor: '#F7E6C8',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
   },
   secondaryText: {
-    color: '#3E2C1B',
-    fontWeight: '800',
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
   },
   primaryButton: {
     height: 54,
-    borderRadius: Radii.lg,
+    borderRadius: Radii.sm,
     backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    boxShadow: '0 8px 16px rgba(63, 109, 42, 0.22)',
   },
   primaryText: {
-    color: '#FFF9EF',
-    fontWeight: '800',
+    color: Colors.onPrimary,
+    fontFamily: Fonts.ui.medium,
   },
   disabled: {
     opacity: 0.45,
-  },
-  tip: {
-    borderRadius: Radii.md,
-    backgroundColor: '#F4E1BE',
-    padding: Spacing.md,
-  },
-  tipText: {
-    color: '#806A46',
-    fontSize: 12,
-    lineHeight: 17,
   },
 });

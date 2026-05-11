@@ -8,9 +8,11 @@ export interface NoshAssistantMessage {
   text: string;
 }
 
-function recipeContext(page: CookbookPage | null): string {
+function recipeContext(page: CookbookPage | null, pageNumber?: number): string {
   if (!page?.recipe) {
-    return page ? `Current page: ${page.title}` : 'No current recipe page is selected.';
+    return page
+      ? [`Current page: ${page.title}`, pageNumber ? `Page number: ${pageNumber}` : ''].filter(Boolean).join('\n')
+      : 'No current recipe page is selected.';
   }
 
   const recipe = page.recipe;
@@ -24,6 +26,7 @@ function recipeContext(page: CookbookPage | null): string {
 
   return [
     `Current page: ${page.title}`,
+    pageNumber ? `Page number: ${pageNumber}` : '',
     `Section: ${page.section}`,
     `Servings: ${recipe.servings ?? 'unknown'}`,
     `Prep time: ${recipe.prepTime ?? 0} minutes`,
@@ -40,14 +43,21 @@ function recipeContext(page: CookbookPage | null): string {
     .join('\n');
 }
 
-function cookbookContext(pages: CookbookPage[]): string {
-  if (pages.length === 0) return 'The cookbook is empty.';
-  return pages
+function cookbookContext(pages: CookbookPage[], cookbookTitle?: string): string {
+  const header = cookbookTitle ? `Active cookbook: ${cookbookTitle}` : 'Active cookbook: (untitled)';
+  if (pages.length === 0) return `${header}\nThis cookbook is empty.`;
+  const list = pages
     .map((page, index) => `${index + 1}. ${page.title} (${page.section})`)
     .join('\n');
+  return `${header}\n${list}`;
 }
 
-export function useNoshAssistant(page: CookbookPage | null, cookbookPages: CookbookPage[]) {
+export function useNoshAssistant(
+  page: CookbookPage | null,
+  cookbookPages: CookbookPage[],
+  cookbookTitle?: string,
+  pageNumber?: number,
+) {
   const [messages, setMessages] = useState<NoshAssistantMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const idSeq = useRef(0);
@@ -55,10 +65,11 @@ export function useNoshAssistant(page: CookbookPage | null, cookbookPages: Cookb
 
   const quickPrompts = useMemo(
     () => [
-      'Walk me through this recipe',
-      'Scale this to 2 servings',
-      'What can I substitute?',
+      'Scale servings',
+      'Substitute ingredient',
       'Make a shopping list',
+      'Walk me through cooking',
+      'Make it healthier',
     ],
     [],
   );
@@ -81,7 +92,7 @@ export function useNoshAssistant(page: CookbookPage | null, cookbookPages: Cookb
         {
           role: 'system',
           content:
-            'You are Nosh, a warm, practical AI chef assistant inside a personal cookbook. Answer cooking questions using the current recipe first, then the rest of the cookbook when useful. Be concise, specific, and safe.',
+            'You are Nosh, a warm, practical AI chef assistant embedded inside a personal digital cookbook. Answer cooking questions using the current recipe page first, then the rest of the book when useful. Be concise, specific, and safe. Speak like you are looking at the same cookbook page as the user.',
         },
         {
           role: 'user',
@@ -89,10 +100,10 @@ export function useNoshAssistant(page: CookbookPage | null, cookbookPages: Cookb
             `User question: ${trimmed}`,
             '',
             'Current recipe context:',
-            recipeContext(page),
+            recipeContext(page, pageNumber),
             '',
             'Cookbook index:',
-            cookbookContext(cookbookPages),
+            cookbookContext(cookbookPages, cookbookTitle),
           ].join('\n'),
         },
       ]);

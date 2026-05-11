@@ -1,77 +1,102 @@
-import createContextHook from '@nkzw/create-context-hook';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { fetchCookbookPages, fetchCreditBalance, getOrCreateCookbook } from '@/utils/cookbook/api';
-import { loadCachedCookbook, saveCachedCookbook } from '@/utils/cookbook/cache';
-import type { CookbookPage, CookbookTheme } from '@/types/cookbook';
+import { fetchCookbookPages, getCookbook } from '@/utils/cookbook/api';
+import { loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
+import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
-export const DEFAULT_THEME: CookbookTheme = {
-  name: 'Warm handwritten',
-  prompt: 'warm handwritten family cookbook, cream paper, soft watercolor food illustration',
-};
+export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
+export const COOKBOOK_PAGES_QUERY_KEY = (id?: string | null) => ['cookbook-pages', id];
 
-export const [CookbookProvider, useCookbook] = createContextHook(() => {
-  const { user } = useAuth();
+export interface UseCookbookResult {
+  cookbook: Cookbook | null;
+  pages: CookbookPage[];
+  selectedPage: CookbookPage | null;
+  selectedPageId: string | null;
+  setSelectedPageId: (id: string | null) => void;
+  isLoading: boolean;
+  error: unknown;
+  refresh: () => Promise<void>;
+  upsertPage: (page: CookbookPage) => void;
+}
+
+export function useCookbook(cookbookId: string | null | undefined): UseCookbookResult {
   const queryClient = useQueryClient();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
 
   const cookbookQuery = useQuery({
-    queryKey: ['cookbook', user?.id],
-    enabled: !!user,
-    queryFn: () => getOrCreateCookbook(user!.id, DEFAULT_THEME),
+    queryKey: COOKBOOK_QUERY_KEY(cookbookId),
+    enabled: !!cookbookId,
+    queryFn: () => getCookbook(cookbookId!),
   });
 
   const pagesQuery = useQuery({
-    queryKey: ['cookbook-pages', cookbookQuery.data?.id],
-    enabled: !!cookbookQuery.data?.id,
-    queryFn: () => fetchCookbookPages(cookbookQuery.data!.id),
+    queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId),
+    enabled: !!cookbookId,
+    queryFn: () => fetchCookbookPages(cookbookId!),
   });
 
-  const creditsQuery = useQuery({
-    queryKey: ['credits', user?.id],
-    enabled: !!user,
-    queryFn: fetchCreditBalance,
-  });
+  // Hydrate pages from cache before network responds.
+  useEffect(() => {
+    if (!cookbookId) return;
+    if (pagesQuery.data !== undefined) return;
+    let cancelled = false;
+    loadCachedPages(cookbookId)
+      .then((cached) => {
+        if (cancelled || !cached) return;
+        queryClient.setQueryData(COOKBOOK_PAGES_QUERY_KEY(cookbookId), cached);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cookbookId, queryClient, pagesQuery.data]);
 
   useEffect(() => {
-    if (cookbookQuery.data && pagesQuery.data) {
-      saveCachedCookbook({ cookbook: cookbookQuery.data, pages: pagesQuery.data }, user?.id).catch(() => {});
-    }
-  }, [cookbookQuery.data, pagesQuery.data, user?.id]);
+    if (!cookbookId || !pagesQuery.data) return;
+    saveCachedPages(cookbookId, pagesQuery.data).catch(() => {});
+  }, [cookbookId, pagesQuery.data]);
 
+  const effectivePages = useMemo<CookbookPage[]>(() => {
+    return pagesQuery.data ?? [];
+  }, [pagesQuery.data]);
+
+  const effectiveCookbook = useMemo<Cookbook | null>(() => {
+    return cookbookQuery.data ?? null;
+  }, [cookbookQuery.data]);
+
+  // Keep selectedPageId in sync with the active book's pages.
   useEffect(() => {
-    if (!pagesQuery.data?.length) {
+    if (!effectivePages.length) {
       if (selectedPageId) setSelectedPageId(null);
       return;
     }
-
-    const selectedStillExists = pagesQuery.data.some((page) => page.id === selectedPageId);
-    if (!selectedPageId || !selectedStillExists) {
-      setSelectedPageId(pagesQuery.data[0].id);
+    const stillExists = effectivePages.some((page) => page.id === selectedPageId);
+    if (!selectedPageId || !stillExists) {
+      setSelectedPageId(effectivePages[0].id);
     }
-  }, [pagesQuery.data, selectedPageId]);
+  }, [effectivePages, selectedPageId]);
 
+  // Reset selection whenever the active book changes.
   useEffect(() => {
     setSelectedPageId(null);
-  }, [user?.id]);
+  }, [cookbookId]);
 
   const selectedPage = useMemo<CookbookPage | null>(() => {
-    return pagesQuery.data?.find((page) => page.id === selectedPageId) ?? pagesQuery.data?.[0] ?? null;
-  }, [pagesQuery.data, selectedPageId]);
+    return effectivePages.find((page) => page.id === selectedPageId) ?? effectivePages[0] ?? null;
+  }, [effectivePages, selectedPageId]);
 
-  const refresh = useMutation({
+  const refreshMutation = useMutation({
     mutationFn: async () => {
+      if (!cookbookId) return;
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['cookbook', user?.id] }),
-        queryClient.invalidateQueries({ queryKey: ['cookbook-pages', cookbookQuery.data?.id] }),
-        queryClient.invalidateQueries({ queryKey: ['credits', user?.id] }),
+        queryClient.invalidateQueries({ queryKey: COOKBOOK_QUERY_KEY(cookbookId) }),
+        queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId) }),
       ]);
     },
   });
 
   function upsertPage(page: CookbookPage) {
-    queryClient.setQueryData<CookbookPage[]>(['cookbook-pages', page.cookbookId], (existing = []) => {
+    queryClient.setQueryData<CookbookPage[]>(COOKBOOK_PAGES_QUERY_KEY(page.cookbookId), (existing = []) => {
       const withoutPage = existing.filter((candidate) => candidate.id !== page.id);
       return [...withoutPage, page].sort((a, b) => {
         if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
@@ -82,16 +107,14 @@ export const [CookbookProvider, useCookbook] = createContextHook(() => {
   }
 
   return {
-    cookbook: cookbookQuery.data ?? null,
-    pages: pagesQuery.data ?? [],
+    cookbook: effectiveCookbook,
+    pages: effectivePages,
     selectedPage,
     selectedPageId,
     setSelectedPageId,
-    creditBalance: creditsQuery.data?.balance ?? 0,
     isLoading: cookbookQuery.isLoading || pagesQuery.isLoading,
-    error: cookbookQuery.error ?? pagesQuery.error ?? creditsQuery.error,
-    refresh: refresh.mutateAsync,
+    error: cookbookQuery.error ?? pagesQuery.error,
+    refresh: refreshMutation.mutateAsync,
     upsertPage,
-    loadCachedCookbook: () => loadCachedCookbook(user?.id),
   };
-});
+}

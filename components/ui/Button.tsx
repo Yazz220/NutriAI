@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, Animated } from 'react-native';
+import { Animated, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { Spacing, Radii } from '@/constants/spacing';
+import { Tokens } from '@/constants/tokens';
 import { Fonts } from '@/utils/fonts';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -27,7 +28,7 @@ export const Button: React.FC<ButtonProps> = ({
   onPress,
   variant = 'primary',
   size = 'md',
-  shape = 'capsule',
+  shape = 'rect',
   disabled = false,
   loading = false,
   fullWidth = false,
@@ -44,10 +45,10 @@ export const Button: React.FC<ButtonProps> = ({
   const handlePressIn = () => {
     if (!isDisabled) {
       Animated.spring(scaleAnim, {
-        toValue: 0.95,
+        toValue: 0.98,
         useNativeDriver: true,
-        tension: 300,
-        friction: 10,
+        tension: 260,
+        friction: 16,
       }).start();
     }
   };
@@ -57,8 +58,8 @@ export const Button: React.FC<ButtonProps> = ({
       Animated.spring(scaleAnim, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 300,
-        friction: 10,
+        tension: 260,
+        friction: 16,
       }).start();
     }
   };
@@ -81,8 +82,11 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
   ];
 
+  const spinnerColor =
+    variant === 'primary' || variant === 'danger' ? Colors.onPrimary : Colors.text;
+
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={[fullWidth && styles.fullWidth, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         style={buttonStyle}
         onPress={onPress}
@@ -97,22 +101,9 @@ export const Button: React.FC<ButtonProps> = ({
         accessibilityState={{ disabled: isDisabled }}
       >
         {loading ? (
-          <LoadingSpinner
-            size="small"
-            color={
-              variant === 'primary'
-                ? Colors.onPrimary
-                : variant === 'danger'
-                ? Colors.onError
-                : Colors.primary
-            }
-          />
+          <LoadingSpinner size="small" color={spinnerColor} />
         ) : (
-          icon && (typeof icon === 'string' ? (
-            <Text style={textStyles}>{icon}</Text>
-          ) : (
-            <>{icon}</>
-          ))
+          icon && (typeof icon === 'string' ? <Text style={textStyles}>{icon}</Text> : <>{icon}</>)
         )}
         {!loading && <Text style={textStyles}>{title}</Text>}
       </TouchableOpacity>
@@ -125,85 +116,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6, // more rectangular corners per new spec
+    borderRadius: Radii.sm,
+    borderCurve: 'continuous',
   },
   capsule: {
-    borderRadius: 999,
+    borderRadius: Radii.full,
   },
-  
-  // Variants
   primary: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Tokens.component.button.primary.container.bg,
   },
   secondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.lightGray, // stroke.hard
+    backgroundColor: Tokens.component.button.secondary.container.bg,
+    borderWidth: Tokens.component.button.secondary.border.width,
+    borderColor: Tokens.component.button.secondary.border.color,
   },
   outline: {
     backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   danger: {
-    backgroundColor: Colors.error,
+    backgroundColor: Tokens.component.button.danger.container.bg,
   },
-  
-  // Sizes
   xs: {
+    minHeight: 30,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
-    minHeight: 28,
     gap: Spacing.xs,
   },
   sm: {
+    minHeight: 36,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    minHeight: 40,
     gap: Spacing.xs,
   },
   md: {
-    paddingHorizontal: 24, // spec paddingH
+    minHeight: 44,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    minHeight: 48, // rectangular height
     gap: Spacing.sm,
   },
   lg: {
+    minHeight: 52,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     gap: Spacing.md,
   },
-  
-  // States
   disabled: {
-    opacity: 0.4,
+    opacity: Colors.state.disabledOpacity,
   },
   fullWidth: {
     width: '100%',
   },
-  
-  // Text styles
   text: {
-    fontFamily: Fonts.ui?.semibold ?? undefined,
-    fontWeight: Typography.weights.medium, // 500 per JSON subtitle weight
+    fontFamily: Fonts.ui.medium,
+    fontWeight: '500',
     textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   primaryText: {
     color: Colors.onPrimary,
   },
   secondaryText: {
-    color: Colors.primary, // fg brand on surface
+    color: Colors.text,
   },
   outlineText: {
-    color: Colors.primary,
+    color: Colors.text,
   },
   ghostText: {
-    color: Colors.primary,
+    color: Colors.text,
   },
   dangerText: {
     color: Colors.onError,
@@ -211,18 +195,20 @@ const styles = StyleSheet.create({
   disabledText: {
     opacity: 0.7,
   },
-  
-  // Size text
   xsText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: 12,
+    lineHeight: 16,
   },
   smText: {
-    fontSize: Typography.sizes.sm,
+    fontSize: 13,
+    lineHeight: 18,
   },
   mdText: {
-    fontSize: Typography.sizes.lg, // subtitle per JSON labelStyle
+    fontSize: 14,
+    lineHeight: 20,
   },
   lgText: {
-    fontSize: Typography.sizes.lg,
+    fontSize: 16,
+    lineHeight: 24,
   },
 });

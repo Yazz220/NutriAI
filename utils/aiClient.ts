@@ -1,4 +1,4 @@
-// AI client — all requests route through the Supabase ai-chat Edge Function.
+// AI client: all requests route through the Supabase ai-chat Edge Function.
 // No provider API keys are ever shipped in the client bundle.
 
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
@@ -85,7 +85,7 @@ export function isAiConfigured(): boolean {
 async function edgeFunctionRequest(
   payload: Record<string, unknown>,
   maxRetries = 2,
-): Promise<any> {
+): Promise<unknown> {
   let attempt = 0;
   let lastErr: unknown;
 
@@ -111,7 +111,7 @@ async function edgeFunctionRequest(
 }
 
 // ---------------------------------------------------------------------------
-// Public API — simple chat completions (OpenAI-compatible response shape)
+// Public API: simple chat completions (OpenAI-compatible response shape)
 // ---------------------------------------------------------------------------
 
 export async function createChatCompletion(messages: ChatMessage[]): Promise<string> {
@@ -153,7 +153,7 @@ export async function createChatCompletionStream(
 }
 
 // ---------------------------------------------------------------------------
-// Public API — structured chat (rich response with blocks/suggestions)
+// Public API: structured chat (rich response with blocks/suggestions)
 // ---------------------------------------------------------------------------
 
 export async function aiChat(
@@ -161,25 +161,29 @@ export async function aiChat(
   context?: AiContext,
 ): Promise<ChatStructuredResponse> {
   const json = await edgeFunctionRequest({ messages, context, model: AI_MODEL });
+  const response = asRecord(json);
 
   // Support both structured and legacy { reply } shapes
-  if (json && json.type === 'chat') return json as ChatStructuredResponse;
-  if (json && typeof json.reply === 'string') {
+  if (response?.type === 'chat') return json as ChatStructuredResponse;
+  if (typeof response?.reply === 'string') {
     return {
       type: 'chat',
       output: {
-        summary: json.reply,
-        blocks: [{ kind: 'text', title: 'Coach', content: json.reply }],
+        summary: response.reply,
+        blocks: [{ kind: 'text', title: 'Coach', content: response.reply }],
       },
     };
   }
 
   // Fallback: wrap raw OpenAI-compatible response
-  const content = json?.choices?.[0]?.message?.content;
+  const choices = Array.isArray(response?.choices) ? response.choices : [];
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice?.message);
+  const content = message?.content;
   if (typeof content === 'string') {
     return {
       type: 'chat',
-      model: json.model,
+      model: typeof response?.model === 'string' ? response.model : undefined,
       output: {
         summary: content,
         blocks: [{ kind: 'text', title: 'Coach', content }],
@@ -194,12 +198,24 @@ export async function aiChat(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function extractContent(json: any): string {
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function extractContent(json: unknown): string {
+  const response = asRecord(json);
+
   // Structured edge function response
-  if (json?.output?.summary) return json.output.summary;
-  if (json?.reply) return json.reply;
+  const output = asRecord(response?.output);
+  if (typeof output?.summary === 'string') return output.summary;
+  if (typeof response?.reply === 'string') return response.reply;
+
   // OpenAI-compatible response forwarded by edge function
-  const content = json?.choices?.[0]?.message?.content;
+  const choices = Array.isArray(response?.choices) ? response.choices : [];
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice?.message);
+  const content = message?.content;
   if (typeof content === 'string') return content.trim();
+
   throw new Error('AI response missing content');
 }
