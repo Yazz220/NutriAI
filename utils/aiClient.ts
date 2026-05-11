@@ -1,27 +1,12 @@
-// AI client — all requests route through the Supabase ai-chat Edge Function.
+// AI client: all requests route through the Supabase ai-chat Edge Function.
 // No provider API keys are ever shipped in the client bundle.
+
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const AI_MODEL = process.env.EXPO_PUBLIC_AI_MODEL || 'openai/gpt-oss-20b:free';
 const AI_VISION_MODEL = process.env.EXPO_PUBLIC_AI_VISION_MODEL || 'openai/gpt-4o-mini';
-
-function edgeFunctionUrl(): string {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-      'AI is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env and restart Expo.',
-    );
-  }
-  return `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/ai-chat`;
-}
-
-function authHeaders(): Record<string, string> {
-  return {
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    apikey: SUPABASE_ANON_KEY!,
-    'Content-Type': 'application/json',
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -97,40 +82,27 @@ export function isAiConfigured(): boolean {
 // Core request helper
 // ---------------------------------------------------------------------------
 
-class RetryableError extends Error {}
-
 async function edgeFunctionRequest(
   payload: Record<string, unknown>,
   maxRetries = 2,
-): Promise<any> {
-  const url = edgeFunctionUrl();
-  const headers = authHeaders();
-
+): Promise<unknown> {
   let attempt = 0;
   let lastErr: unknown;
 
   while (attempt <= maxRetries) {
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        if (res.status === 429 || res.status >= 500) {
-          throw new RetryableError(`ai-chat failed (${res.status}): ${text}`);
-        }
-        throw new Error(`ai-chat failed (${res.status}): ${text}`);
-      }
-
-      return await res.json();
+      return await callAuthenticatedFunction('ai-chat', payload);
     } catch (err) {
       lastErr = err;
-      if (!(err instanceof RetryableError) || attempt === maxRetries) break;
+      const message = err instanceof Error ? err.message : String(err);
+      const retryable =
+        message.includes('(429)') ||
+        message.includes('(500)') ||
+        message.includes('(502)') ||
+        message.includes('(503)');
+      if (!retryable || attempt === maxRetries) break;
       const delayMs = Math.pow(2, attempt) * 500;
-      await new Promise((r) => setTimeout(r, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
       attempt++;
     }
   }
@@ -139,7 +111,7 @@ async function edgeFunctionRequest(
 }
 
 // ---------------------------------------------------------------------------
-// Public API — simple chat completions (OpenAI-compatible response shape)
+// Public API: simple chat completions (OpenAI-compatible response shape)
 // ---------------------------------------------------------------------------
 
 export async function createChatCompletion(messages: ChatMessage[]): Promise<string> {
@@ -181,7 +153,7 @@ export async function createChatCompletionStream(
 }
 
 // ---------------------------------------------------------------------------
-// Public API — structured chat (rich response with blocks/suggestions)
+// Public API: structured chat (rich response with blocks/suggestions)
 // ---------------------------------------------------------------------------
 
 export async function aiChat(
@@ -189,25 +161,29 @@ export async function aiChat(
   context?: AiContext,
 ): Promise<ChatStructuredResponse> {
   const json = await edgeFunctionRequest({ messages, context, model: AI_MODEL });
+  const response = asRecord(json);
 
   // Support both structured and legacy { reply } shapes
-  if (json && json.type === 'chat') return json as ChatStructuredResponse;
-  if (json && typeof json.reply === 'string') {
+  if (response?.type === 'chat') return json as ChatStructuredResponse;
+  if (typeof response?.reply === 'string') {
     return {
       type: 'chat',
       output: {
-        summary: json.reply,
-        blocks: [{ kind: 'text', title: 'Coach', content: json.reply }],
+        summary: response.reply,
+        blocks: [{ kind: 'text', title: 'Coach', content: response.reply }],
       },
     };
   }
 
   // Fallback: wrap raw OpenAI-compatible response
-  const content = json?.choices?.[0]?.message?.content;
+  const choices = Array.isArray(response?.choices) ? response.choices : [];
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice?.message);
+  const content = message?.content;
   if (typeof content === 'string') {
     return {
       type: 'chat',
-      model: json.model,
+      model: typeof response?.model === 'string' ? response.model : undefined,
       output: {
         summary: content,
         blocks: [{ kind: 'text', title: 'Coach', content }],
@@ -222,12 +198,24 @@ export async function aiChat(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function extractContent(json: any): string {
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function extractContent(json: unknown): string {
+  const response = asRecord(json);
+
   // Structured edge function response
-  if (json?.output?.summary) return json.output.summary;
-  if (json?.reply) return json.reply;
+  const output = asRecord(response?.output);
+  if (typeof output?.summary === 'string') return output.summary;
+  if (typeof response?.reply === 'string') return response.reply;
+
   // OpenAI-compatible response forwarded by edge function
-  const content = json?.choices?.[0]?.message?.content;
+  const choices = Array.isArray(response?.choices) ? response.choices : [];
+  const firstChoice = asRecord(choices[0]);
+  const message = asRecord(firstChoice?.message);
+  const content = message?.content;
   if (typeof content === 'string') return content.trim();
+
   throw new Error('AI response missing content');
 }

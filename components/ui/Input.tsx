@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography as LegacyType, Shadows } from '@/constants/spacing';
+import { Radii, Spacing } from '@/constants/spacing';
 import { Typography as Type } from '@/constants/typography';
 
 interface InputProps extends TextInputProps {
@@ -105,12 +105,12 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
   label: {
     ...Type.caption,
     color: Colors.text,
-    marginBottom: Spacing.sm,
+    fontFamily: Type.caption.fontFamily,
   },
   required: {
     color: Colors.error,
@@ -119,12 +119,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border, // divider
-    borderRadius: 8, // shape.radius.sm from JSON (8)
-    backgroundColor: Colors.background, // field default bg = surface
+    borderColor: Colors.border,
+    borderRadius: Radii.sm,
+    backgroundColor: Colors.surface,
   },
   inputContainerFocused: {
-    borderColor: Colors.primary,
+    borderColor: Colors.book.accent,
   },
   inputContainerError: {
     borderColor: Colors.error,

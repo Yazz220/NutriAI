@@ -1,15 +1,15 @@
 import React from 'react';
-import { Text as RNText, TextProps as RNTextProps, StyleSheet } from 'react-native';
+import { Text as RNText, TextProps as RNTextProps, StyleProp, StyleSheet, TextStyle } from 'react-native';
 import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
 
-type TextVariant = keyof typeof Typography;
+type TextVariant = Exclude<keyof typeof Typography, 'applyFont'>;
 
 type TextProps = RNTextProps & {
   variant?: TextVariant;
   color?: string;
   children?: React.ReactNode;
-  style?: any;
+  style?: StyleProp<TextStyle>;
 };
 
 export const Text = ({

@@ -7,11 +7,12 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "simulator": true
-      },
       "env": {
-        "EXPO_PUBLIC_OFFLINE_ONLY": "true"
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_OFFLINE_ONLY": "false"
+      },
+      "ios": {
+        "simulator": false
       }
     },
     "preview": {
@@ -27,19 +28,6 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_OFFLINE_ONLY": "false"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
-      },
-      "android": {
-        "serviceAccountKeyPath": "",
-        "track": "internal"
       }
     }
   }
