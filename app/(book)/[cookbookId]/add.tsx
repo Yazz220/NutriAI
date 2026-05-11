@@ -9,7 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbookImport } from '@/hooks/useCookbookImport';
 import { Colors } from '@/constants/colors';
-import { Spacing } from '@/constants/spacing';
+import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeSourceType } from '@/types/cookbook';
 
@@ -96,26 +96,28 @@ const styles = StyleSheet.create({
   backButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.ash,
   },
   heading: {
     flex: 1,
   },
   eyebrow: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts.ui.medium,
+    letterSpacing: 1,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: 0.6,
   },
   error: {
     color: Colors.onError,

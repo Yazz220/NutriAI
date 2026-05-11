@@ -28,7 +28,7 @@ export const Button: React.FC<ButtonProps> = ({
   onPress,
   variant = 'primary',
   size = 'md',
-  shape = 'rect',
+  shape = 'capsule',
   disabled = false,
   loading = false,
   fullWidth = false,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.borderStrong,
+    borderColor: Colors.butterscotch,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -142,27 +142,27 @@ const styles = StyleSheet.create({
     backgroundColor: Tokens.component.button.danger.container.bg,
   },
   xs: {
-    minHeight: 30,
+    minHeight: 28,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     gap: Spacing.xs,
   },
   sm: {
-    minHeight: 36,
+    minHeight: 34,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 6,
     gap: Spacing.xs,
   },
   md: {
-    minHeight: 44,
+    minHeight: 40,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: 8,
     gap: Spacing.sm,
   },
   lg: {
-    minHeight: 52,
+    minHeight: 48,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingVertical: 10,
     gap: Spacing.md,
   },
   disabled: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     color: Colors.onPrimary,
   },
   secondaryText: {
-    color: Colors.text,
+    color: Colors.fadedStone,
   },
   outlineText: {
     color: Colors.text,
@@ -200,11 +200,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   smText: {
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 18,
   },
   mdText: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 20,
   },
   lgText: {

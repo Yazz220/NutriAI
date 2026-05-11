@@ -1,210 +1,234 @@
 /**
  * Nosh visual foundation.
  *
- * The palette follows the attached design system: paper cream surfaces,
- * ink-first controls, charcoal text, warm gray UI, and blush accents.
- * Legacy aliases stay in place so older components can migrate without
- * breaking imports.
+ * This branch applies the Boords-style reference to Nosh: creamy Alabaster
+ * pages, Charcoal text, compact structure, Butterscotch interaction accents,
+ * and quiet workshop-like surfaces. Compatibility aliases remain so older
+ * cookbook components can keep importing stable color names.
  */
 
-const paperCream = '#FEF8F2';
-const inkBlack = '#111111';
-const charcoal = '#333333';
-const warmGray = '#9A9488';
-const blush = '#F6E6E2';
-const parchment = '#F6EFE6';
-const parchmentDeep = '#E8DCCD';
-const bookAccent = '#C7A46B';
+const carbon = '#000000';
+const charcoal = '#121212';
+const alabaster = '#fafaf5';
+const white = '#ffffff';
+const parchment = '#e9e9e7';
+const slate = '#4d4d4d';
+const ash = '#cecdca';
+const duskGrey = '#7d7d7d';
+const fadedStone = '#898989';
+const peach = '#eb6c00';
+const butterscotch = '#e8aa42';
+const honeyBronze = '#b77a10';
+const skyMist = '#daeef8';
+const deepOcean = '#214c70';
+const burnishedBronze = '#453d37';
+const warmUmber = '#2d2824';
 
 export const Colors = {
-  // Reference palette
-  paperCream,
-  inkBlack,
+  // Boords reference palette
+  carbon,
   charcoal,
-  warmGray,
-  blush,
-  bookAccent,
+  alabaster,
+  white,
+  parchment,
+  slate,
+  ash,
+  duskGrey,
+  fadedStone,
+  peach,
+  butterscotch,
+  honeyBronze,
+  skyMist,
+  deepOcean,
+  burnishedBronze,
+  warmUmber,
+
+  // Legacy Nosh palette aliases
+  paperCream: alabaster,
+  inkBlack: charcoal,
+  warmGray: duskGrey,
+  blush: skyMist,
+  bookAccent: butterscotch,
 
   // Brand and controls
-  primary: inkBlack,
-  primaryLight: charcoal,
-  primaryDark: '#000000',
-  onPrimary: paperCream,
+  primary: charcoal,
+  primaryLight: slate,
+  primaryDark: carbon,
+  onPrimary: white,
 
-  secondary: warmGray,
-  secondaryLight: '#CFC8BD',
-  secondaryDark: '#6F6961',
-  onSecondary: inkBlack,
+  secondary: duskGrey,
+  secondaryLight: ash,
+  secondaryDark: slate,
+  onSecondary: charcoal,
 
-  accent: blush,
-  accentStrong: bookAccent,
-  onAccent: inkBlack,
+  accent: butterscotch,
+  accentStrong: butterscotch,
+  onAccent: charcoal,
 
   // Surfaces
-  background: paperCream,
+  background: alabaster,
   backgroundSecondary: parchment,
-  card: '#FFFDFC',
+  card: white,
   cardSecondary: parchment,
-  surface: '#FFFDF8',
-  surfaceElevated: '#FFFFFF',
-  surfaceMuted: parchmentDeep,
-  surfaceTile: '#F4EBDD',
-  tabBackground: '#FFFDFC',
+  surface: alabaster,
+  surfaceElevated: white,
+  surfaceMuted: ash,
+  surfaceTile: parchment,
+  tabBackground: alabaster,
 
   // Text
-  text: inkBlack,
-  textSecondary: charcoal,
-  textTertiary: '#625C54',
-  textMuted: warmGray,
-  textInverse: paperCream,
-  textOnPrimary: paperCream,
-  textOnSecondary: inkBlack,
+  text: charcoal,
+  textSecondary: slate,
+  textTertiary: duskGrey,
+  textMuted: fadedStone,
+  textInverse: white,
+  textOnPrimary: white,
+  textOnSecondary: charcoal,
   onSurface: {
-    high: inkBlack,
-    medium: charcoal,
-    inverse: paperCream,
+    high: charcoal,
+    medium: slate,
+    inverse: white,
   },
 
-  // Semantic feedback tuned to the quiet paper palette
-  success: '#5D7A56',
-  successLight: '#E8F0E3',
-  successDark: '#314B2F',
-  onSuccess: paperCream,
+  // Semantic feedback kept inside the Boords palette.
+  success: deepOcean,
+  successLight: skyMist,
+  successDark: deepOcean,
+  onSuccess: white,
 
-  warning: '#B8874A',
-  warningLight: '#F8E8D0',
-  warningDark: '#7D562D',
-  onWarning: inkBlack,
+  warning: honeyBronze,
+  warningLight: parchment,
+  warningDark: honeyBronze,
+  onWarning: charcoal,
 
-  error: '#A9544A',
-  errorLight: '#F5DDD9',
-  errorDark: '#7E342F',
-  onError: paperCream,
-  onDanger: paperCream,
+  error: peach,
+  errorLight: parchment,
+  errorDark: peach,
+  onError: white,
+  onDanger: white,
 
-  info: '#6F7F88',
-  infoLight: '#E7ECEF',
-  infoDark: '#394B55',
-  onInfo: paperCream,
+  info: deepOcean,
+  infoLight: skyMist,
+  infoDark: deepOcean,
+  onInfo: white,
 
   // Borders and dividers
-  border: '#DDD2C4',
-  borderLight: '#EEE6DC',
-  borderMuted: '#CFC4B6',
-  borderStrong: '#B7AA98',
-  divider: '#E7DED3',
-  separator: '#D8CDBE',
+  border: ash,
+  borderLight: parchment,
+  borderMuted: ash,
+  borderStrong: duskGrey,
+  divider: ash,
+  separator: ash,
 
   // Shadows and overlays
-  shadow: 'rgba(17, 17, 17, 0.10)',
+  shadow: 'rgba(0, 0, 0, 0.10)',
   shadows: {
-    light: 'rgba(17, 17, 17, 0.06)',
-    medium: 'rgba(17, 17, 17, 0.10)',
-    strong: 'rgba(17, 17, 17, 0.16)',
-    colored: 'rgba(199, 164, 107, 0.20)',
+    light: 'rgba(0, 0, 0, 0.10)',
+    medium: 'rgba(0, 0, 0, 0.10)',
+    strong: 'rgba(0, 0, 0, 0.14)',
+    colored: 'rgba(108, 188, 244, 0.50)',
   },
   overlay: {
-    light: 'rgba(17, 17, 17, 0.22)',
-    medium: 'rgba(17, 17, 17, 0.42)',
-    strong: 'rgba(17, 17, 17, 0.64)',
-    colored: 'rgba(199, 164, 107, 0.28)',
+    light: 'rgba(18, 18, 18, 0.18)',
+    medium: 'rgba(18, 18, 18, 0.38)',
+    strong: 'rgba(18, 18, 18, 0.58)',
+    colored: 'rgba(232, 170, 66, 0.28)',
   },
 
   // Book-specific tokens
   book: {
-    page: '#FFFDF8',
-    pageAlt: '#FEF8F2',
-    pageWarm: '#F6EFE6',
-    edge: '#D9CDBE',
-    edgeStrong: '#BFAF9A',
-    ink: inkBlack,
+    page: alabaster,
+    pageAlt: white,
+    pageWarm: parchment,
+    edge: ash,
+    edgeStrong: duskGrey,
+    ink: charcoal,
     charcoal,
-    mutedInk: '#625C54',
-    caption: warmGray,
-    accent: bookAccent,
-    accentSoft: '#EFE1CB',
-    blush,
-    coverSpine: '#9E9587',
-    shelfGradient: ['#FEF8F2', '#F7F1EA', '#EEE4D8'] as const,
-    readerGradient: ['#FDF7F1', '#F4ECE2', '#E9DED0'] as const,
-    darkGradient: ['#3A352E', '#6F675D', '#D6CAB9'] as const,
-    paperShadow: '0 18px 34px rgba(17, 17, 17, 0.14)',
-    cardShadow: '0 10px 24px rgba(17, 17, 17, 0.08)',
-    liftedShadow: '0 18px 36px rgba(17, 17, 17, 0.12)',
+    mutedInk: slate,
+    caption: fadedStone,
+    accent: butterscotch,
+    accentSoft: parchment,
+    blush: skyMist,
+    coverSpine: duskGrey,
+    shelfGradient: [alabaster, alabaster, parchment] as const,
+    readerGradient: [alabaster, alabaster, parchment] as const,
+    darkGradient: [burnishedBronze, warmUmber, '#120e0b'] as const,
+    paperShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
+    cardShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
+    liftedShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
   },
 
   // Interactive states
   interactive: {
-    buttonPrimary: inkBlack,
-    buttonPrimaryHover: charcoal,
-    buttonPrimaryPressed: '#000000',
-    buttonPrimaryDisabled: '#C7BFB4',
-    buttonSecondary: paperCream,
-    buttonSecondaryHover: '#F6EFE6',
-    buttonSecondaryPressed: '#E8DCCD',
-    buttonSecondaryDisabled: '#F2EAE0',
-    link: inkBlack,
+    buttonPrimary: charcoal,
+    buttonPrimaryHover: carbon,
+    buttonPrimaryPressed: carbon,
+    buttonPrimaryDisabled: ash,
+    buttonSecondary: alabaster,
+    buttonSecondaryHover: parchment,
+    buttonSecondaryPressed: ash,
+    buttonSecondaryDisabled: parchment,
+    link: deepOcean,
     linkHover: charcoal,
-    linkPressed: '#000000',
-    linkVisited: charcoal,
-    focus: bookAccent,
-    selection: '#EFE1CB',
-    highlight: blush,
+    linkPressed: carbon,
+    linkVisited: slate,
+    focus: deepOcean,
+    selection: skyMist,
+    highlight: skyMist,
   },
 
   chart: {
-    primary: inkBlack,
-    secondary: bookAccent,
-    tertiary: warmGray,
-    quaternary: blush,
-    quinary: '#D8CDBE',
-    senary: '#F1E6DA',
+    primary: charcoal,
+    secondary: butterscotch,
+    tertiary: duskGrey,
+    quaternary: peach,
+    quinary: ash,
+    senary: parchment,
     gradients: {
-      primary: ['#111111', '#333333'] as const,
-      secondary: ['#C7A46B', '#E3CFAD'] as const,
-      success: ['#5D7A56', '#8CA486'] as const,
-      info: ['#6F7F88', '#A9B2B8'] as const,
+      primary: [charcoal, slate] as const,
+      secondary: [butterscotch, honeyBronze] as const,
+      success: [deepOcean, skyMist] as const,
+      info: [deepOcean, skyMist] as const,
     },
   },
 
   // Compatibility aliases
-  white: '#FFFFFF',
-  black: '#000000',
-  lightText: warmGray,
-  lightGray: '#D8CDBE',
-  brandPrimary: inkBlack,
-  accentPrimary: bookAccent,
-  fresh: '#5D7A56',
-  aging: '#B8874A',
-  expiring: '#A9544A',
-  danger: '#A9544A',
+  black: carbon,
+  lightText: fadedStone,
+  lightGray: ash,
+  brandPrimary: charcoal,
+  accentPrimary: butterscotch,
+  fresh: deepOcean,
+  aging: honeyBronze,
+  expiring: peach,
+  danger: peach,
   tints: {
-    brandTintSoft: '#F3E8D8',
-    brandTintStrong: '#E4CDA8',
+    brandTintSoft: skyMist,
+    brandTintStrong: butterscotch,
   },
 
   gray: {
-    50: '#FEF8F2',
-    100: '#F6EFE6',
-    200: '#E8DCCD',
-    300: '#D8CDBE',
-    400: '#BFB4A6',
-    500: '#9A9488',
-    600: '#756F66',
-    700: '#625C54',
-    800: '#333333',
-    900: '#111111',
+    50: alabaster,
+    100: parchment,
+    200: ash,
+    300: ash,
+    400: duskGrey,
+    500: fadedStone,
+    600: slate,
+    700: slate,
+    800: charcoal,
+    900: carbon,
   },
 
   accessibility: {
     highContrast: {
-      text: '#000000',
-      background: '#FFFFFF',
-      primary: '#000000',
-      secondary: '#333333',
+      text: carbon,
+      background: white,
+      primary: carbon,
+      secondary: charcoal,
     },
     focus: {
-      ring: bookAccent,
+      ring: deepOcean,
       width: 2,
       offset: 2,
     },
@@ -217,37 +241,37 @@ export const Colors = {
     focusOpacity: 0.16,
     disabledOpacity: 0.42,
     selectedOpacity: 0.12,
-    focusRing: { color: bookAccent, width: 2, offset: 2, radius: 8 },
+    focusRing: { color: deepOcean, width: 2, offset: 2, radius: 6 },
   },
 
   alpha: {
     primary: {
-      5: 'rgba(17, 17, 17, 0.05)',
-      10: 'rgba(17, 17, 17, 0.10)',
-      20: 'rgba(17, 17, 17, 0.20)',
-      30: 'rgba(17, 17, 17, 0.30)',
-      50: 'rgba(17, 17, 17, 0.50)',
+      5: 'rgba(18, 18, 18, 0.05)',
+      10: 'rgba(18, 18, 18, 0.10)',
+      20: 'rgba(18, 18, 18, 0.20)',
+      30: 'rgba(18, 18, 18, 0.30)',
+      50: 'rgba(18, 18, 18, 0.50)',
     },
     secondary: {
-      5: 'rgba(199, 164, 107, 0.05)',
-      10: 'rgba(199, 164, 107, 0.10)',
-      20: 'rgba(199, 164, 107, 0.20)',
-      30: 'rgba(199, 164, 107, 0.30)',
-      50: 'rgba(199, 164, 107, 0.50)',
+      5: 'rgba(232, 170, 66, 0.05)',
+      10: 'rgba(232, 170, 66, 0.10)',
+      20: 'rgba(232, 170, 66, 0.20)',
+      30: 'rgba(232, 170, 66, 0.30)',
+      50: 'rgba(232, 170, 66, 0.50)',
     },
     black: {
-      5: 'rgba(17, 17, 17, 0.05)',
-      10: 'rgba(17, 17, 17, 0.10)',
-      20: 'rgba(17, 17, 17, 0.20)',
-      30: 'rgba(17, 17, 17, 0.30)',
-      50: 'rgba(17, 17, 17, 0.50)',
+      5: 'rgba(18, 18, 18, 0.05)',
+      10: 'rgba(18, 18, 18, 0.10)',
+      20: 'rgba(18, 18, 18, 0.20)',
+      30: 'rgba(18, 18, 18, 0.30)',
+      50: 'rgba(18, 18, 18, 0.50)',
     },
     white: {
-      5: 'rgba(254, 248, 242, 0.05)',
-      10: 'rgba(254, 248, 242, 0.10)',
-      20: 'rgba(254, 248, 242, 0.20)',
-      30: 'rgba(254, 248, 242, 0.30)',
-      50: 'rgba(254, 248, 242, 0.50)',
+      5: 'rgba(255, 255, 255, 0.05)',
+      10: 'rgba(255, 255, 255, 0.10)',
+      20: 'rgba(255, 255, 255, 0.20)',
+      30: 'rgba(255, 255, 255, 0.30)',
+      50: 'rgba(255, 255, 255, 0.50)',
     },
   },
 };

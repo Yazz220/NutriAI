@@ -6,7 +6,7 @@ export const Tokens = {
     brand: {
       primary: Colors.primary,
       onPrimary: Colors.onPrimary,
-      accent: Colors.book.accent,
+      accent: Colors.butterscotch,
       onAccent: Colors.onAccent,
     },
     surface: {
@@ -57,9 +57,9 @@ export const Tokens = {
   component: {
     button: {
       sizes: {
-        sm: { height: 36, px: 12, gap: 8, radius: Radii.sm },
-        md: { height: 44, px: 16, gap: 8, radius: Radii.sm },
-        lg: { height: 52, px: 20, gap: 12, radius: Radii.md },
+        sm: { height: 32, px: 12, gap: 8, radius: Radii.full },
+        md: { height: 40, px: 16, gap: 8, radius: Radii.full },
+        lg: { height: 48, px: 20, gap: 12, radius: Radii.full },
       },
       focusRing: {
         color: Colors.state.focusRing.color,
@@ -69,7 +69,7 @@ export const Tokens = {
       primary: {
         container: {
           bg: Colors.primary,
-          disabledBg: Colors.borderMuted,
+          disabledBg: Colors.ash,
         },
         content: {
           fg: Colors.onPrimary,
@@ -80,15 +80,15 @@ export const Tokens = {
       },
       secondary: {
         container: {
-          bg: Colors.surface,
-          disabledBg: Colors.surfaceMuted,
+          bg: 'transparent',
+          disabledBg: 'transparent',
         },
         content: {
-          fg: Colors.text,
+          fg: Colors.fadedStone,
           disabledFg: Colors.textMuted,
           disabledOpacity: Colors.state.disabledOpacity,
         },
-        border: { width: 1, color: Colors.borderStrong, disabledColor: Colors.border },
+        border: { width: 1, color: Colors.duskGrey, disabledColor: Colors.ash },
       },
       ghost: {
         container: {
@@ -99,7 +99,7 @@ export const Tokens = {
       },
       danger: {
         container: {
-          bg: Colors.error,
+          bg: Colors.peach,
           disabledBg: Colors.surfaceMuted,
         },
         content: {
@@ -112,28 +112,28 @@ export const Tokens = {
     },
     card: {
       base: {
-        bg: Colors.surface,
-        radius: Radii.sm,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        innerEdgeOpacity: 0.04,
-        shadow: Colors.book.cardShadow,
-      },
-      elevated: {
-        bg: Colors.surfaceElevated,
+        bg: Colors.alabaster,
         radius: Radii.md,
         borderWidth: 1,
-        borderColor: Colors.border,
-        shadow: Colors.book.liftedShadow,
+        borderColor: Colors.ash,
+        innerEdgeOpacity: 0,
+        shadow: 'none',
+      },
+      elevated: {
+        bg: Colors.white,
+        radius: Radii.md,
+        borderWidth: 1,
+        borderColor: Colors.ash,
+        shadow: '0 0 0 1px rgba(108, 188, 244, 0.50)',
       },
       header: { fg: Colors.text },
       meta: { fg: Colors.textMuted },
     },
     sheet: {
-      bg: Colors.book.page,
-      handle: Colors.borderStrong,
-      border: Colors.border,
-      shadow: '0 -10px 28px rgba(17, 17, 17, 0.12)',
+      bg: Colors.alabaster,
+      handle: Colors.duskGrey,
+      border: Colors.ash,
+      shadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
     },
     page: {
       bg: Colors.book.page,

@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: Typography.sizes.md,
-    color: Colors.textSecondary,
+    color: Colors.slate,
     textAlign: 'center',
     marginBottom: Spacing.xl,
   },

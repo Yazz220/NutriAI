@@ -156,15 +156,15 @@ export function NoshAssistantSheet({
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: Colors.book.page,
+    backgroundColor: Colors.alabaster,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.ash,
     gap: Spacing.sm,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
   },
   handle: {
-    backgroundColor: Colors.borderStrong,
+    backgroundColor: Colors.duskGrey,
   },
   iconBadge: {
     width: 42,
@@ -173,6 +173,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.butterscotch,
   },
   headerText: {
     flex: 1,
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xl,
   },
   closeButton: {
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: Colors.white,
   },
   messages: {
     minHeight: 96,
@@ -199,8 +201,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   welcome: {
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.cardSecondary,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.skyMist,
     padding: Spacing.sm,
   },
   welcomeTitle: {
@@ -211,8 +213,8 @@ const styles = StyleSheet.create({
   contextText: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
   messageRow: {
     flexDirection: 'row',
@@ -222,12 +224,12 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '86%',
-    borderRadius: Radii.sm,
+    borderRadius: Radii.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   assistantBubble: {
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: Colors.parchment,
   },
   userBubble: {
     backgroundColor: Colors.primary,
@@ -244,10 +246,10 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.lg,
   },
   chip: {
-    borderRadius: 999,
-    backgroundColor: Colors.surface,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.butterscotch,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
@@ -267,20 +269,22 @@ const styles = StyleSheet.create({
     maxHeight: 76,
     borderRadius: Radii.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
     color: Colors.text,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    fontSize: 15,
+    fontSize: 14,
   },
   sendButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.butterscotch,
   },
   disabled: {
     opacity: 0.45,

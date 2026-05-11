@@ -13,7 +13,7 @@ interface CardProps {
 export const Card: React.FC<CardProps> = ({
   children,
   style,
-  padding = 'lg',
+  padding = 'sm',
   shadow = 'none',
 }) => {
   const cardStyle = [

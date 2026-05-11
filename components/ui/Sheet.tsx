@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: Radii.lg,
-    borderTopRightRadius: Radii.lg,
+    borderTopLeftRadius: Radii.md,
+    borderTopRightRadius: Radii.md,
     backgroundColor: Tokens.component.sheet.bg,
     padding: Spacing.lg,
     gap: Spacing.md,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.cardSecondary,

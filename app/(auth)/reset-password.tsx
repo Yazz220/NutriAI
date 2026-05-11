@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   link: {
-    color: Colors.text,
+    color: Colors.deepOcean,
     fontWeight: '500',
   },
   error: {

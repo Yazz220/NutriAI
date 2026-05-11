@@ -29,15 +29,15 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
       paper: Colors.book.page,
       ink: Colors.inkBlack,
       accent: Colors.book.accent,
-      spine: '#B8AD9E',
+      spine: Colors.duskGrey,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
-      'warm minimal cookbook page, paper cream background, black ink line drawing, subtle vintage border, generous white space, Playfair-style serif heading',
+      'warm minimal cookbook page, alabaster paper background, black ink line drawing, subtle vintage border, generous white space, Matter-style heading',
     theme: {
       name: 'Vintage Kitchen',
       prompt:
-        'paper cream cookbook page with black ink line illustration, subtle vintage border, warm minimal editorial style',
+        'alabaster cookbook page with black ink line illustration, subtle vintage border, warm minimal editorial style',
     },
   },
   handwritten: {
@@ -45,18 +45,18 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     name: 'Garden Table',
     tagline: 'Botanical linework with soft margins',
     palette: {
-      paper: '#FFFDF8',
+      paper: Colors.white,
       ink: Colors.inkBlack,
-      accent: '#B8A884',
-      spine: '#D7CCB9',
+      accent: Colors.butterscotch,
+      spine: Colors.ash,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
-      'garden table cookbook page, black ink botanical line art, paper cream surface, airy layout, calm handmade cookbook feel',
+      'garden table cookbook page, black ink botanical line art, alabaster surface, airy layout, calm handmade cookbook feel',
     theme: {
       name: 'Garden Table',
       prompt:
-        'paper cream cookbook page with botanical black ink line art, airy layout, calm handmade cookbook style',
+        'alabaster cookbook page with botanical black ink line art, airy layout, calm handmade cookbook style',
     },
   },
   editorial: {
@@ -64,18 +64,18 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     name: 'Sunday Suppers',
     tagline: 'Classic family pages with soft ornament',
     palette: {
-      paper: '#FEF8F2',
+      paper: Colors.alabaster,
       ink: Colors.inkBlack,
-      accent: '#9A9488',
-      spine: '#C9BFAE',
+      accent: Colors.duskGrey,
+      spine: Colors.ash,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
-      'classic family cookbook page, black ink food illustration, subtle decorative rule, paper cream background, spacious editorial layout',
+      'classic family cookbook page, black ink food illustration, subtle decorative rule, alabaster background, spacious editorial layout',
     theme: {
       name: 'Sunday Suppers',
       prompt:
-        'classic family cookbook page with black ink food illustration, subtle ornaments, warm paper cream background',
+        'classic family cookbook page with black ink food illustration, subtle ornaments, warm alabaster background',
     },
   },
   watercolor: {
@@ -83,10 +83,10 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     name: 'Family Favorites',
     tagline: 'A beloved book with simple ink marks',
     palette: {
-      paper: '#FFFDF8',
+      paper: Colors.white,
       ink: Colors.inkBlack,
-      accent: '#C7A46B',
-      spine: '#8B8379',
+      accent: Colors.butterscotch,
+      spine: Colors.slate,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
@@ -102,18 +102,18 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     name: 'Notes & Recipes',
     tagline: 'Notebook binding and small kitchen notes',
     palette: {
-      paper: '#FEF8F2',
+      paper: Colors.alabaster,
       ink: Colors.inkBlack,
-      accent: '#9A9488',
-      spine: '#111111',
+      accent: Colors.duskGrey,
+      spine: Colors.charcoal,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
-      'minimal notes and recipes journal page, black ink line illustration, notebook-inspired margin, paper cream background, handwritten warmth',
+      'minimal notes and recipes journal page, black ink line illustration, notebook-inspired margin, alabaster background, handwritten warmth',
     theme: {
       name: 'Notes & Recipes',
       prompt:
-        'minimal notes and recipes journal page with black ink line illustration, notebook-inspired margin, paper cream background',
+        'minimal notes and recipes journal page with black ink line illustration, notebook-inspired margin, alabaster background',
     },
   },
   minimal: {
@@ -121,18 +121,18 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     name: 'Citrus Journal',
     tagline: 'Clean cream pages with citrus line art',
     palette: {
-      paper: '#FFFDF8',
+      paper: Colors.white,
       ink: Colors.inkBlack,
-      accent: Colors.blush,
-      spine: '#D9CBB6',
+      accent: Colors.skyMist,
+      spine: Colors.ash,
       shelfBackground: calmShelf,
     },
     pagePromptDescriptor:
-      'clean citrus cookbook journal page, black ink citrus illustration, paper cream background, refined minimal cookbook layout',
+      'clean citrus cookbook journal page, black ink citrus illustration, alabaster background, refined minimal cookbook layout',
     theme: {
       name: 'Citrus Journal',
       prompt:
-        'clean citrus cookbook journal page with black ink citrus illustration, refined minimal layout, paper cream background',
+        'clean citrus cookbook journal page with black ink citrus illustration, refined minimal layout, alabaster background',
     },
   },
 };

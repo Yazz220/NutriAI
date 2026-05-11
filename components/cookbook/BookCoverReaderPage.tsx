@@ -4,7 +4,7 @@ import { ArrowRight, BookOpen, Plus } from 'lucide-react-native';
 import { BookCover } from '@/components/cookbook/BookCover';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Spacing } from '@/constants/spacing';
+import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 
@@ -88,38 +88,42 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 48,
-    lineHeight: 55,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: 0.8,
     textAlign: 'center',
   },
   divider: {
     width: 72,
     height: 1,
-    backgroundColor: Colors.borderStrong,
+    backgroundColor: Colors.duskGrey,
   },
   subtitle: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.display.semibold,
-    fontSize: 21,
-    fontStyle: 'italic',
-    lineHeight: 28,
+    color: Colors.slate,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 14,
+    lineHeight: 24,
     textAlign: 'center',
   },
   pageCount: {
     color: Colors.textMuted,
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 15,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   primaryButton: {
-    minHeight: 64,
-    minWidth: 260,
-    borderRadius: 12,
+    minHeight: 44,
+    minWidth: 220,
+    borderRadius: Radii.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.md,
     backgroundColor: Colors.primary,
+    borderWidth: 1,
+    borderColor: Colors.butterscotch,
     boxShadow: Colors.book.cardShadow,
   },
   secondaryPrimary: {
@@ -127,8 +131,9 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: Colors.onPrimary,
-    fontFamily: Fonts.display.semibold,
-    fontSize: 25,
-    lineHeight: 31,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0.35,
   },
 });
