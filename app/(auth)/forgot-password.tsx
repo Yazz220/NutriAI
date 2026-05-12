@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   sentText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: Colors.slate,
     lineHeight: 24,
   },
   sentEmail: {
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   link: {
-    color: Colors.text,
+    color: Colors.deepOcean,
     fontWeight: '500',
   },
   error: {

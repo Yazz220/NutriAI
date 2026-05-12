@@ -94,13 +94,13 @@ export function AddPageSheet({
 
 const styles = StyleSheet.create({
   sheet: {
-    backgroundColor: Colors.book.page,
+    backgroundColor: Colors.alabaster,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.ash,
     paddingBottom: Spacing.xl,
   },
   handle: {
-    backgroundColor: Colors.borderStrong,
+    backgroundColor: Colors.duskGrey,
   },
   headerText: {
     flex: 1,
@@ -114,20 +114,21 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
-    lineHeight: 29,
+    lineHeight: 30,
+    letterSpacing: 0.6,
   },
   closeButton: {
-    backgroundColor: Colors.cardSecondary,
+    backgroundColor: Colors.white,
   },
   options: {
     gap: Spacing.sm,
   },
   option: {
     minHeight: 62,
-    borderRadius: Radii.sm,
+    borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
     paddingHorizontal: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.book.accentSoft,
+    backgroundColor: Colors.skyMist,
   },
   optionText: {
     flex: 1,
@@ -147,11 +148,11 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: Fonts.ui.medium,
   },
   optionSubtitle: {
-    color: Colors.textSecondary,
+    color: Colors.slate,
     fontSize: 12,
     lineHeight: 16,
   },

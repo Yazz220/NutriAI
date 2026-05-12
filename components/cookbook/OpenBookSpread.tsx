@@ -27,9 +27,9 @@ const styles = StyleSheet.create({
   page: {
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: Colors.book.page,
+    backgroundColor: Colors.alabaster,
     borderWidth: 1,
-    borderColor: Colors.book.edge,
+    borderColor: Colors.ash,
     boxShadow: Colors.book.paperShadow,
   },
 });

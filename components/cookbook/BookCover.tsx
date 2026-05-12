@@ -136,7 +136,7 @@ function CoverDecoration({
   accent: string;
   width: number;
 }) {
-  const iconColor = accent === Colors.blush ? Colors.inkBlack : accent;
+  const iconColor = accent === Colors.skyMist || accent === Colors.parchment ? Colors.inkBlack : accent;
   const iconSize = Math.max(38, Math.min(62, Math.round(width * 0.28)));
   const iconProps = { size: iconSize, color: iconColor, strokeWidth: 1.25 };
   const wrapStyle = [
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: 12,
     overflow: 'visible',
-    boxShadow: '0 14px 24px rgba(17, 17, 17, 0.16)',
+    boxShadow: Colors.book.paperShadow,
   },
   generatedCover: {
     width: '100%',
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     bottom: 9,
     width: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(254, 248, 242, 0.44)',
+    backgroundColor: Colors.alpha.white[50],
   },
   spineGroove: {
     position: 'absolute',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     bottom: 11,
     width: 2,
     borderRadius: 1,
-    backgroundColor: 'rgba(17, 17, 17, 0.12)',
+    backgroundColor: Colors.alpha.primary[10],
   },
   coverShine: {
     position: 'absolute',
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     left: 22,
     right: -18,
     height: '45%',
-    backgroundColor: 'rgba(254, 248, 242, 0.18)',
+    backgroundColor: Colors.alpha.white[20],
     transform: [{ skewY: '-10deg' }],
   },
   crossHatch: {

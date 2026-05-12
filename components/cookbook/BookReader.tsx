@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   backgroundTexture: {
     flex: 1,
-    backgroundColor: Colors.alpha.white[20],
+    backgroundColor: Colors.alpha.white[10],
   },
   topBar: {
     minHeight: 74,
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     minWidth: 82,
-    height: 42,
-    borderRadius: 21,
+    height: 40,
+    borderRadius: 9999,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: Fonts.ui.medium,
   },
   titleBlock: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0,
+    letterSpacing: 0.6,
   },
   topBarSpacer: {
     width: 42,
@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.ash,
   },
   bookStage: {
     flex: 1,
@@ -308,14 +308,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 22,
     bottom: 30,
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     borderWidth: 1,
-    borderColor: Colors.borderStrong,
+    borderColor: Colors.butterscotch,
     boxShadow: Colors.book.liftedShadow,
   },
 });

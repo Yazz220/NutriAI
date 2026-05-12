@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   link: {
-    color: Colors.text,
+    color: Colors.deepOcean,
     fontWeight: '500',
   },
   error: {

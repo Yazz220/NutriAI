@@ -31,7 +31,7 @@ export function CookbookShelf({
 }: CookbookShelfProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const gap = Spacing.xl;
+  const gap = Spacing.lg;
   const horizontal = Spacing.xl;
   const cardWidth = Math.floor((width - horizontal * 2 - gap) / 2);
   const coverWidth = Math.max(130, Math.min(178, cardWidth - 18));
@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   logo: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 33,
-    lineHeight: 38,
-    letterSpacing: 0,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: 0.6,
   },
   iconButton: {
     width: 44,
@@ -147,14 +147,14 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 39,
-    lineHeight: 46,
-    letterSpacing: 0,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: 0.8,
   },
   subtitle: {
-    color: Colors.textSecondary,
-    fontSize: 17,
-    lineHeight: 23,
+    color: Colors.slate,
+    fontSize: 14,
+    lineHeight: 24,
     fontFamily: Fonts.ui.regular,
   },
   grid: {
@@ -172,27 +172,27 @@ const styles = StyleSheet.create({
   },
   bookTitle: {
     color: Colors.text,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 20,
     fontFamily: Fonts.display.semibold,
   },
   bookSub: {
     color: Colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 10,
+    lineHeight: 15,
     fontFamily: Fonts.ui.medium,
   },
   fabButton: {
     position: 'absolute',
     alignSelf: 'center',
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     borderWidth: 1,
-    borderColor: Colors.borderStrong,
+    borderColor: Colors.butterscotch,
     boxShadow: Colors.book.liftedShadow,
   },
 });

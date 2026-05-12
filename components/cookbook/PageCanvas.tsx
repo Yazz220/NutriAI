@@ -47,10 +47,10 @@ export function PageCanvas({ page, bookMode = false }: PageCanvasProps) {
 const styles = StyleSheet.create({
   frame: {
     aspectRatio: 2 / 3,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.book.pageWarm,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.parchment,
     borderWidth: 1,
-    borderColor: Colors.book.edge,
+    borderColor: Colors.ash,
     overflow: 'hidden',
     boxShadow: Colors.book.paperShadow,
   },
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   },
   skeleton: {
     flex: 1,
-    backgroundColor: Colors.book.page,
+    backgroundColor: Colors.alabaster,
     padding: Spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -79,21 +79,22 @@ const styles = StyleSheet.create({
   },
   skeletonEyebrow: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: 1,
   },
   skeletonTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: 0.6,
     textAlign: 'center',
   },
   skeletonRule: {
     width: 64,
     height: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.ash,
   },
   skeletonHint: {
     color: Colors.textMuted,

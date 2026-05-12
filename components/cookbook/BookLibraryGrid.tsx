@@ -18,9 +18,9 @@ export function BookLibraryGrid({ selectedStyle, onSelectStyle }: BookLibraryGri
   const { width } = useWindowDimensions();
   const styles_arr = listCookbookStyles();
   const horizontalPadding = Spacing.lg * 2;
-  const gap = Spacing.lg;
+  const gap = Spacing.md;
   const colWidth = Math.floor((width - horizontalPadding - gap) / 2);
-  const coverWidth = Math.min(colWidth - Spacing.md * 2, 150);
+  const coverWidth = Math.min(colWidth - Spacing.sm * 2, 150);
 
   return (
     <View style={styles.grid}>
@@ -75,21 +75,21 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   card: {
-    borderRadius: Radii.sm,
+    borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
     alignItems: 'center',
     boxShadow: Colors.book.cardShadow,
   },
   cardSelected: {
-    borderColor: Colors.book.accent,
-    backgroundColor: Colors.surface,
+    borderColor: Colors.butterscotch,
+    backgroundColor: Colors.white,
   },
   coverWrap: {
     position: 'relative',
@@ -102,17 +102,17 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.book.accent,
+    backgroundColor: Colors.butterscotch,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.surface,
+    borderColor: Colors.white,
   },
   cardTitle: {
     fontFamily: Fonts.display.semibold,
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.text,
-    marginTop: Spacing.xs,
   },
   cardActions: {
     alignSelf: 'stretch',
@@ -128,22 +128,23 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   previewText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
+    color: Colors.slate,
+    fontSize: 10,
+    lineHeight: 15,
   },
   useButton: {
     minHeight: 28,
-    borderRadius: Radii.sm,
+    borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: Colors.borderStrong,
-    paddingHorizontal: 6,
+    borderColor: Colors.butterscotch,
+    paddingHorizontal: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   useButtonText: {
     color: Colors.text,
-    fontSize: 11,
+    fontSize: 10,
     lineHeight: 16,
+    fontFamily: Fonts.ui.medium,
   },
 });
