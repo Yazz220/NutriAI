@@ -8,6 +8,7 @@ export interface Cookbook3DSceneProps {
   spreads: CookbookSpread[];
   spreadIndex: number;
   isOpen: boolean;
+  readingView?: 'tilted' | 'topdown';
   onOpen: () => void;
   onNext: () => void;
   onPrevious: () => void;
