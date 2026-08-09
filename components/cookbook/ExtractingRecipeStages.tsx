@@ -96,7 +96,7 @@ export function ExtractingRecipeStages({ running }: ExtractingRecipeStagesProps)
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -111,14 +111,14 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   subtitle: {
     color: Colors.slate,
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   dotDone: {
     backgroundColor: Colors.primary,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.primary,
   },
   rowLabel: {
     color: Colors.text,
@@ -159,11 +159,11 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderRadius: Radii.md,
-    backgroundColor: Colors.skyMist,
+    backgroundColor: Colors.parchment,
     padding: Spacing.md,
   },
   footerText: {
-    color: Colors.deepOcean,
+    color: Colors.text,
     fontSize: 12,
     lineHeight: 17,
     textAlign: 'center',

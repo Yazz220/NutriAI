@@ -3,6 +3,7 @@ import { verifyAuth } from '../_shared/auth.ts';
 import { normalizeBase64Payload } from '../_shared/base64.ts';
 import { corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
 import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
+import { buildUrlRecipePrompt } from '../_shared/urlRecipeEvidence.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
@@ -115,7 +116,7 @@ function confidenceFor(recipe: { title: string; ingredients: unknown[]; steps: u
   return { confidence, needsReview: confidence < 0.75, reasons };
 }
 
-async function textFromUrl(url: string): Promise<string> {
+async function recipeEvidenceFromUrl(url: string): Promise<{ pageText: string; prompt: string }> {
   const parsedUrl = validatePublicHttpUrl(url);
   await assertPublicDnsHostname(parsedUrl.hostname);
   const controller = new AbortController();
@@ -133,7 +134,7 @@ async function textFromUrl(url: string): Promise<string> {
       if (!location) throw new Error('URL redirect missing location');
       const redirected = new URL(location, parsedUrl);
       validatePublicHttpUrl(redirected.toString());
-      return textFromUrl(redirected.toString());
+      return recipeEvidenceFromUrl(redirected.toString());
     }
 
     const contentLength = Number(res.headers.get('content-length') ?? 0);
@@ -143,15 +144,8 @@ async function textFromUrl(url: string): Promise<string> {
 
     if (!res.ok) throw new Error(`URL fetch failed (${res.status})`);
 
-    const limited = await readLimitedText(res, MAX_URL_BYTES);
-    return limited
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, '\n')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    const html = await readLimitedText(res, MAX_URL_BYTES);
+    return buildUrlRecipePrompt(parsedUrl.toString(), html);
   } finally {
     clearTimeout(timeout);
   }
@@ -356,8 +350,8 @@ async function parseImageRecipe(req: Request, imageBase64: string): Promise<Pars
     ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
     steps: Array.isArray(recipe.steps) ? recipe.steps : [],
     sourceType: 'image',
-    tags: Array.isArray(recipe.tags) ? recipe.tags : [],
-    category: recipe.category ?? 'favorites',
+    tags: asStringArray(recipe.tags),
+    category: normalizeCategory(recipe.category),
   };
 }
 
@@ -388,8 +382,8 @@ async function parseVideoRecipe(req: Request, videoUrl: string): Promise<ParsedR
     steps: Array.isArray(recipe.steps) ? recipe.steps : [],
     sourceType: 'video',
     sourceUrl: recipe.sourceUrl ?? videoUrl,
-    tags: Array.isArray(recipe.tags) ? recipe.tags : [],
-    category: recipe.category ?? 'favorites',
+    tags: asStringArray(recipe.tags),
+    category: normalizeCategory(recipe.category),
   };
 }
 
@@ -456,19 +450,24 @@ serve(async (req: Request) => {
     if (!body.input?.trim()) return jsonError('Missing input', 400, req);
 
     let sourceText: string;
+    let sourcePrompt: string;
     try {
-      sourceText = body.type === 'url' ? await textFromUrl(body.input) : body.input;
+      if (body.type === 'url') {
+        const evidence = await recipeEvidenceFromUrl(body.input);
+        sourceText = evidence.pageText;
+        sourcePrompt = evidence.prompt;
+      } else {
+        sourceText = body.input;
+        sourcePrompt = body.input;
+      }
     } catch (validationErr) {
       const message = validationErr instanceof Error ? validationErr.message : 'Could not import URL';
       return jsonError(message, 400, req);
     }
     let parsed: ParsedRecipe;
     try {
-      const prompt = body.type === 'url'
-        ? `Source URL: ${body.input}\n\nPage text:\n${sourceText}`
-        : sourceText;
       parsed = normalizeAiRecipe(
-        await callOpenRouter(prompt),
+        await callOpenRouter(sourcePrompt),
         body.type,
         body.type === 'url' ? body.input : undefined,
       );
@@ -478,12 +477,7 @@ serve(async (req: Request) => {
     const confidence = confidenceFor(parsed);
 
     return jsonResponse({
-      recipe: {
-        ...parsed,
-        sourceType: body.type,
-        tags: [],
-        category: 'favorites',
-      },
+      recipe: { ...parsed, sourceType: body.type },
       ...confidence,
     }, 200, req);
   } catch (err) {

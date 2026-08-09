@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, Settings as SettingsIcon } from 'lucide-react-native';
 import { BookCover } from '@/components/cookbook/BookCover';
+import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -21,6 +22,9 @@ interface CookbookShelfProps {
   onSelectCookbook: (cookbook: Cookbook) => void;
   onAddCookbook: () => void;
   onOpenSettings?: () => void;
+  bottomInset?: number;
+  isStale?: boolean;
+  onRefresh?: () => void;
 }
 
 export function CookbookShelf({
@@ -28,6 +32,9 @@ export function CookbookShelf({
   onSelectCookbook,
   onAddCookbook,
   onOpenSettings,
+  bottomInset = 0,
+  isStale = false,
+  onRefresh,
 }: CookbookShelfProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -54,12 +61,14 @@ export function CookbookShelf({
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 124 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 124 + bottomInset }]}
       >
         <View style={styles.heading}>
           <Text style={styles.title}>My Cookbooks</Text>
           <Text style={styles.subtitle}>Your collection of recipes and memories.</Text>
         </View>
+
+        {isStale && onRefresh ? <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} /> : null}
 
         <View style={styles.grid}>
           {cookbooks.map((book) => (
@@ -92,7 +101,7 @@ export function CookbookShelf({
       </ScrollView>
 
       <Pressable
-        style={[styles.fabButton, { bottom: insets.bottom + 28 }]}
+        style={[styles.fabButton, { bottom: insets.bottom + 28 + bottomInset }]}
         onPress={onAddCookbook}
         accessibilityRole="button"
         accessibilityLabel="Add a new cookbook"
@@ -125,7 +134,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   iconButton: {
     width: 44,
@@ -149,7 +158,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 32,
     lineHeight: 38,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
   },
   subtitle: {
     color: Colors.slate,
@@ -191,8 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
     boxShadow: Colors.book.liftedShadow,
   },
 });

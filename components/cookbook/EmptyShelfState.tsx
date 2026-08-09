@@ -10,11 +10,12 @@ import { Fonts } from '@/utils/fonts';
 
 interface EmptyShelfStateProps {
   onAddCookbook: () => void;
+  bottomInset?: number;
 }
 
 const noshReading = require('../../assets/illustrations/nosh-reading-cookbook.png');
 
-export function EmptyShelfState({ onAddCookbook }: EmptyShelfStateProps) {
+export function EmptyShelfState({ onAddCookbook, bottomInset = 0 }: EmptyShelfStateProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -22,14 +23,17 @@ export function EmptyShelfState({ onAddCookbook }: EmptyShelfStateProps) {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + Spacing.xxl, paddingBottom: insets.bottom + Spacing.xxl },
+          {
+            paddingTop: insets.top + Spacing.xxl,
+            paddingBottom: insets.bottom + Spacing.xxl + bottomInset,
+          },
         ]}
       >
         <Image source={noshReading} style={styles.illustration} resizeMode="contain" />
         <Text style={styles.title}>Your shelf is ready</Text>
         <Text style={styles.subtitle}>
-          Start a personal cookbook. Pick a style you love, then fill it with recipes from anywhere: links,
-          photos, videos, or just your own words.
+          Start a personal cookbook. Pick a cover, add it to your collection, then choose page templates as
+          you bring in recipes.
         </Text>
 
         <Pressable
@@ -68,7 +72,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 32,
     lineHeight: 38,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
     color: Colors.text,
     textAlign: 'center',
   },
@@ -89,14 +93,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
     boxShadow: Colors.book.cardShadow,
   },
   ctaText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
     fontSize: 16,
-    letterSpacing: 0.35,
+    letterSpacing: 0,
   },
 });

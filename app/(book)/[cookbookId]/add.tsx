@@ -1,9 +1,9 @@
 import React from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft } from 'lucide-react-native';
-import { AddPageComposer } from '@/components/cookbook/AddPageComposer';
+import { AddPageComposer, type AddPageSubmitPayload } from '@/components/cookbook/AddPageComposer';
 import { ExtractingRecipeStages } from '@/components/cookbook/ExtractingRecipeStages';
 import { Text } from '@/components/ui/Text';
 import { useCookbook } from '@/hooks/useCookbook';
@@ -23,11 +23,46 @@ function normalizeSourceParam(value: string | string[] | undefined): RecipeSourc
 export default function AddPageScreen() {
   const { cookbookId, source } = useLocalSearchParams<{ cookbookId: string; source?: string | string[] }>();
   const { cookbook } = useCookbook(cookbookId);
-  const { parseSource, isParsing } = useCookbookImport();
+  const {
+    parseSource,
+    isParsing,
+    sourceInput,
+    setSourceInput,
+    sourceImageBase64,
+    setSourceImageBase64,
+    selectedTemplateId,
+    favoriteTemplateIds,
+  } = useCookbookImport();
   const [error, setError] = React.useState<string | null>(null);
+  const [failedPayload, setFailedPayload] = React.useState<AddPageSubmitPayload | null>(null);
 
   const sourceHint = normalizeSourceParam(source);
   const cookbookTitle = cookbook?.title ?? 'Cookbook';
+
+  async function submitSource(payload: AddPageSubmitPayload) {
+    setError(null);
+    setFailedPayload(null);
+    try {
+      await parseSource(payload);
+      router.push(`/(book)/${cookbookId}/review`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not read that recipe.';
+      setError(message);
+      setFailedPayload(payload);
+    }
+  }
+
+  function updateSourceInput(value: string) {
+    setError(null);
+    setFailedPayload(null);
+    setSourceInput(value);
+  }
+
+  function updateSourceImageBase64(value: string | null) {
+    setError(null);
+    setFailedPayload(null);
+    setSourceImageBase64(value);
+  }
 
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
@@ -52,26 +87,21 @@ export default function AddPageScreen() {
           </View>
         </View>
 
-        {isParsing ? (
-          <ExtractingRecipeStages running={isParsing} />
-        ) : (
-          <AddPageComposer
-            isSubmitting={isParsing}
-            sourceHint={sourceHint}
-            onSubmit={async (payload) => {
-              setError(null);
-              try {
-                await parseSource(payload);
-                router.push(`/(book)/${cookbookId}/review`);
-              } catch (err) {
-                const message = err instanceof Error ? err.message : 'Could not read that recipe.';
-                setError(message);
-                Alert.alert('Recipe import failed', message);
-              }
-            }}
-          />
-        )}
-        {error ? <Text style={styles.error} selectable>{error}</Text> : null}
+        {isParsing ? <ExtractingRecipeStages running /> : null}
+        <AddPageComposer
+          isSubmitting={isParsing}
+          sourceHint={sourceHint}
+          input={sourceInput}
+          imageBase64={sourceImageBase64}
+          error={error}
+          onInputChange={updateSourceInput}
+          onImageBase64Change={updateSourceImageBase64}
+          selectedTemplateId={selectedTemplateId}
+          favoriteTemplateIds={favoriteTemplateIds}
+          onOpenTemplateLibrary={() => router.push(`/(book)/${cookbookId}/templates`)}
+          onRetry={failedPayload ? () => submitSource(failedPayload) : undefined}
+          onSubmit={submitSource}
+        />
       </ScrollView>
     </LinearGradient>
   );
@@ -83,6 +113,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     padding: Spacing.lg,
     paddingBottom: Spacing.xxxl,
     gap: Spacing.lg,
@@ -110,20 +143,13 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
-  },
-  error: {
-    color: Colors.onError,
-    backgroundColor: Colors.error,
-    borderRadius: 8,
-    padding: Spacing.md,
-    overflow: 'hidden',
+    letterSpacing: 0,
   },
 });

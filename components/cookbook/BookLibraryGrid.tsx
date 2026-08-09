@@ -6,7 +6,7 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { listCookbookStyles } from '@/constants/cookbookStyles';
+import { listCookbookCreationStyles } from '@/constants/cookbookStyles';
 import type { CookbookStyleId } from '@/types/cookbook';
 
 interface BookLibraryGridProps {
@@ -16,7 +16,7 @@ interface BookLibraryGridProps {
 
 export function BookLibraryGrid({ selectedStyle, onSelectStyle }: BookLibraryGridProps) {
   const { width } = useWindowDimensions();
-  const styles_arr = listCookbookStyles();
+  const styles_arr = listCookbookCreationStyles();
   const horizontalPadding = Spacing.lg * 2;
   const gap = Spacing.md;
   const colWidth = Math.floor((width - horizontalPadding - gap) / 2);
@@ -58,7 +58,7 @@ export function BookLibraryGrid({ selectedStyle, onSelectStyle }: BookLibraryGri
             <View style={styles.cardActions}>
               <View style={styles.preview}>
                 <Eye size={15} color={Colors.text} strokeWidth={1.8} />
-                <Text style={styles.previewText}>Preview</Text>
+                <Text style={styles.previewText}>Cover</Text>
               </View>
               <View style={styles.useButton}>
                 <Text style={styles.useButtonText}>Use This Book</Text>
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   card: {
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
     boxShadow: Colors.book.cardShadow,
   },
   cardSelected: {
-    borderColor: Colors.butterscotch,
-    backgroundColor: Colors.white,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.alabaster,
   },
   coverWrap: {
     position: 'relative',
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.butterscotch,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     minHeight: 28,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.charcoal,
     paddingHorizontal: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',

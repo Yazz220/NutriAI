@@ -1,9 +1,11 @@
 import { getCookbookStyle } from '@/constants/cookbookStyles';
+import { getRecipeTemplate } from '@/constants/recipeTemplates';
 import type {
   Cookbook,
   CookbookPagePromptPayload,
   CookbookStyleId,
   CookbookTheme,
+  RecipeTemplateId,
   StructuredRecipe,
 } from '@/types/cookbook';
 
@@ -16,6 +18,7 @@ interface BuildPromptInput {
   cookbook?: Cookbook | null;
   coverStyle?: CookbookStyleId;
   theme?: CookbookTheme;
+  recipeTemplateId?: RecipeTemplateId | string | null;
 }
 
 export function buildCookbookPagePromptPayload({
@@ -23,13 +26,21 @@ export function buildCookbookPagePromptPayload({
   cookbook,
   coverStyle,
   theme,
+  recipeTemplateId,
 }: BuildPromptInput): CookbookPagePromptPayload {
   const preset = getCookbookStyle(cookbook?.coverStyle ?? coverStyle ?? null);
   const resolvedTheme: CookbookTheme = theme ?? cookbook?.theme ?? preset.theme;
+  const template = getRecipeTemplate(recipeTemplateId);
 
   return {
     layout: 'single-page-cookbook',
     theme: resolvedTheme,
+    template: {
+      id: template.id,
+      name: template.name,
+      styleDescriptor: template.styleDescriptor,
+      promptDescriptor: template.promptDescriptor,
+    },
     recipe: {
       title: recipe.title,
       servings: recipe.servings,
@@ -45,8 +56,11 @@ export function buildCookbookPagePromptPayload({
       'Readable recipe text is required.',
       'Use the supplied title, ingredients, directions, servings, and timing exactly.',
       'Keep the structure consistent: title, timing/servings, ingredients, directions, food visual.',
-      'Apply the cookbook visual style without changing the recipe facts.',
-      `Cookbook style: ${preset.pagePromptDescriptor}`,
+      'Use the selected page template as the primary visual reference for layout and style.',
+      'Apply the template without changing the recipe facts.',
+      `Selected page template: ${template.name}.`,
+      `Template style: ${template.promptDescriptor}.`,
+      `Cookbook cover identity for subtle continuity only: ${preset.pagePromptDescriptor}`,
     ].join(' '),
   };
 }

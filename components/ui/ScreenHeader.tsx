@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   containerGlassy: {
     backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.ash,
   },
   statusBarSpacer: {
     height: Platform.OS === 'ios' ? 44 : 24,

@@ -6,6 +6,7 @@ export default function BookLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="library" options={{ presentation: 'card' }} />
+      <Stack.Screen name="templates" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="[cookbookId]" />
     </Stack>

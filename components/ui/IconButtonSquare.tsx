@@ -4,8 +4,8 @@ import { Colors } from '@/constants/colors';
 import { Radii } from '@/constants/spacing';
 
 export type IconButtonSquareProps = PropsWithChildren<{
-  size?: number; // default 36
-  radius?: number; // default Radii.md
+  size?: number; // default 42
+  radius?: number; // default capsule/circle
   onPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -13,8 +13,8 @@ export type IconButtonSquareProps = PropsWithChildren<{
 }>;
 
 export const IconButtonSquare: React.FC<IconButtonSquareProps> = ({
-  size = 36,
-  radius = Radii.sm,
+  size = 42,
+  radius = Radii.full,
   onPress,
   disabled,
   style,
@@ -25,7 +25,7 @@ export const IconButtonSquare: React.FC<IconButtonSquareProps> = ({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      activeOpacity={0.7}
+      activeOpacity={0.82}
       onPress={onPress}
       disabled={disabled}
       style={[
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
   },
 });
 

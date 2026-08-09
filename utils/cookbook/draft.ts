@@ -28,6 +28,27 @@ export function ingredientsFromText(
     if (original && line === originalLines[index]) {
       return original;
     }
+
+    if (original) {
+      const originalPrefix = [original.quantity, original.unit].filter(Boolean).join(' ');
+      if (originalPrefix && line.startsWith(`${originalPrefix} `)) {
+        return { ...original, name: line.slice(originalPrefix.length + 1).trim() };
+      }
+
+      const lowerLine = line.toLowerCase();
+      const lowerName = original.name.toLowerCase();
+      if (lowerLine.endsWith(lowerName)) {
+        const prefix = line.slice(0, line.length - original.name.length).trim();
+        if (prefix) {
+          if (original.unit && prefix.toLowerCase().endsWith(original.unit.toLowerCase())) {
+            const quantity = prefix.slice(0, prefix.length - original.unit.length).trim();
+            return { ...original, quantity: quantity || undefined };
+          }
+          if (!original.unit) return { ...original, quantity: prefix };
+        }
+      }
+    }
+
     return { name: line };
   });
 }

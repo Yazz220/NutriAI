@@ -17,7 +17,7 @@ export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
-  const [selectedStyle, setSelectedStyle] = useState<CookbookStyleId | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<CookbookStyleId | null>('handwritten');
   const [sheetOpen, setSheetOpen] = useState(false);
 
   function pickStyle(styleId: CookbookStyleId) {
@@ -44,11 +44,7 @@ export default function BookLibraryScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.back()}
-          accessibilityLabel="Back to my cookbooks"
-        >
+        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Back to my cookbooks">
           <ChevronLeft size={20} color={Colors.text} />
         </Pressable>
         <View style={styles.heading}>
@@ -62,13 +58,13 @@ export default function BookLibraryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Book Library</Text>
-        <Text style={styles.subtitle}>Choose a design for your cookbook.</Text>
+        <Text style={styles.title}>Create your cookbook</Text>
+        <Text style={styles.subtitle}>
+          Start with the signature Nosh book. Personal cover details will return after its reading experience is
+          perfected.
+        </Text>
 
-        <BookLibraryGrid
-          selectedStyle={selectedStyle}
-          onSelectStyle={pickStyle}
-        />
+        <BookLibraryGrid selectedStyle={selectedStyle} onSelectStyle={pickStyle} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -131,14 +127,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     color: Colors.text,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   title: {
     fontFamily: Fonts.display.bold,
     fontSize: 32,
     lineHeight: 38,
     color: Colors.text,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
   },
   scroll: {
     flex: 1,
@@ -165,7 +161,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.charcoal,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -176,6 +172,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: 16,
-    letterSpacing: 0.35,
+    letterSpacing: 0,
   },
 });

@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.xl,
   },
   header: {
     alignItems: 'center',
@@ -70,10 +70,10 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: Fonts.display.bold,
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 34,
+    lineHeight: 40,
     color: Colors.text,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
   },
   illustration: {
     width: '100%',
@@ -83,10 +83,10 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.display.bold,
     color: Colors.text,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 28,
+    lineHeight: 34,
     textAlign: 'center',
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   subtitle: {
     color: Colors.slate,
@@ -97,11 +97,11 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: Spacing.md,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     boxShadow: Colors.book.cardShadow,
   },
   footer: {

@@ -11,7 +11,7 @@ import { useCookbook } from '@/hooks/useCookbook';
 export default function PageAddedScreen() {
   const { cookbookId, pageId } = useLocalSearchParams<{ cookbookId: string; pageId?: string | string[] }>();
   const normalizedPageId = Array.isArray(pageId) ? pageId[0] : pageId;
-  const { cookbook, pages, setSelectedPageId } = useCookbook(cookbookId);
+  const { cookbook, pages } = useCookbook(cookbookId);
 
   const page = useMemo(() => {
     if (!normalizedPageId || normalizedPageId === 'temp') return undefined;
@@ -19,8 +19,8 @@ export default function PageAddedScreen() {
   }, [normalizedPageId, pages]);
 
   function viewInBook() {
-    if (page) setSelectedPageId(page.id);
-    router.replace(`/(book)/${cookbookId}`);
+    if (!page) return;
+    router.replace(`/(book)/${cookbookId}?pageId=${encodeURIComponent(page.id)}`);
   }
 
   function addAnotherPage() {

@@ -23,8 +23,8 @@ const calmShelf = Colors.book.shelfGradient;
 export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset> = {
   'vintage-garden': {
     id: 'vintage-garden',
-    name: 'Vintage Kitchen',
-    tagline: 'Ink borders and a quiet kitchen sketch',
+    name: 'Classic Kitchen',
+    tagline: 'A warm cookbook cover with timeless kitchen character',
     palette: {
       paper: Colors.book.page,
       ink: Colors.inkBlack,
@@ -35,7 +35,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     pagePromptDescriptor:
       'warm minimal cookbook page, alabaster paper background, black ink line drawing, subtle vintage border, generous white space, Matter-style heading',
     theme: {
-      name: 'Vintage Kitchen',
+      name: 'Classic Kitchen',
       prompt:
         'alabaster cookbook page with black ink line illustration, subtle vintage border, warm minimal editorial style',
     },
@@ -55,8 +55,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
       'garden table cookbook page, black ink botanical line art, alabaster surface, airy layout, calm handmade cookbook feel',
     theme: {
       name: 'Garden Table',
-      prompt:
-        'alabaster cookbook page with botanical black ink line art, airy layout, calm handmade cookbook style',
+      prompt: 'alabaster cookbook page with botanical black ink line art, airy layout, calm handmade cookbook style',
     },
   },
   editorial: {
@@ -93,8 +92,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
       'beloved family cookbook page, black ink line art, soft blush detail, simple centered composition, calm paper texture',
     theme: {
       name: 'Family Favorites',
-      prompt:
-        'beloved family cookbook page with black ink line art, soft blush accent, calm paper texture',
+      prompt: 'beloved family cookbook page with black ink line art, soft blush accent, calm paper texture',
     },
   },
   rustic: {
@@ -118,8 +116,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   minimal: {
     id: 'minimal',
-    name: 'Citrus Journal',
-    tagline: 'Clean cream pages with citrus line art',
+    name: 'Modern Journal',
+    tagline: 'A clean cover for a simple contemporary collection',
     palette: {
       paper: Colors.white,
       ink: Colors.inkBlack,
@@ -130,7 +128,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     pagePromptDescriptor:
       'clean citrus cookbook journal page, black ink citrus illustration, alabaster background, refined minimal cookbook layout',
     theme: {
-      name: 'Citrus Journal',
+      name: 'Modern Journal',
       prompt:
         'clean citrus cookbook journal page with black ink citrus illustration, refined minimal layout, alabaster background',
     },
@@ -146,6 +144,8 @@ export const COOKBOOK_STYLE_ORDER: CookbookStyleId[] = [
   'minimal',
 ];
 
+export const COOKBOOK_CREATION_STYLE_ORDER: CookbookStyleId[] = ['handwritten'];
+
 export const DEFAULT_COOKBOOK_STYLE: CookbookStyleId = 'vintage-garden';
 
 export function getCookbookStyle(id?: CookbookStyleId | string | null): CookbookStylePreset {
@@ -157,4 +157,8 @@ export function getCookbookStyle(id?: CookbookStyleId | string | null): Cookbook
 
 export function listCookbookStyles(): CookbookStylePreset[] {
   return COOKBOOK_STYLE_ORDER.map((id) => COOKBOOK_STYLE_PRESETS[id]);
+}
+
+export function listCookbookCreationStyles(): CookbookStylePreset[] {
+  return COOKBOOK_CREATION_STYLE_ORDER.map((id) => COOKBOOK_STYLE_PRESETS[id]);
 }

@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 32,
     lineHeight: 38,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
     textAlign: 'center',
   },
   divider: {
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     lineHeight: 15,
-    letterSpacing: 1,
+    letterSpacing: 0,
     textTransform: 'uppercase',
   },
   primaryButton: {
@@ -122,8 +122,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.md,
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
     boxShadow: Colors.book.cardShadow,
   },
   secondaryPrimary: {
@@ -134,6 +133,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.medium,
     fontSize: 16,
     lineHeight: 20,
-    letterSpacing: 0.35,
+    letterSpacing: 0,
   },
 });

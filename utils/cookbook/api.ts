@@ -13,6 +13,7 @@ import type {
   StructuredIngredient,
   StructuredRecipe,
 } from '@/types/cookbook';
+import type { CookbookGenerationResult } from '@/utils/cookbook/generationPolling';
 
 type JsonRecord = Record<string, unknown>;
 type CookbookInsertPayload = {
@@ -347,18 +348,27 @@ export async function parseRecipeSource(payload: Record<string, unknown>): Promi
   return callAuthenticatedFunction('parse-recipe-source', payload);
 }
 
-export async function generateCookbookPage(payload: Record<string, unknown>): Promise<CookbookPage> {
-  const response = await callAuthenticatedFunction<CookbookPage | CookbookPageRow | { page: CookbookPage | CookbookPageRow }>(
-    'generate-cookbook-page',
-    payload,
-  );
+export async function generateCookbookPage(
+  payload: Record<string, unknown>,
+): Promise<CookbookGenerationResult> {
+  const response = await callAuthenticatedFunction<
+    CookbookPage |
+    CookbookPageRow |
+    { page: CookbookPage | CookbookPageRow } |
+    { status: 'processing'; requestId: string }
+  >('generate-cookbook-page', payload, { timeoutMs: 20_000 });
+
+  if ('status' in response && response.status === 'processing') {
+    return response;
+  }
+
   const page = (response as { page?: CookbookPage | CookbookPageRow }).page ?? response;
 
   if ('cookbook_id' in (page as JsonRecord)) {
-    return mapPage(page as CookbookPageRow);
+    return { status: 'ready', page: mapPage(page as CookbookPageRow) };
   }
 
-  return page as CookbookPage;
+  return { status: 'ready', page: page as CookbookPage };
 }
 
 export async function fetchCreditBalance(): Promise<CreditBalance> {

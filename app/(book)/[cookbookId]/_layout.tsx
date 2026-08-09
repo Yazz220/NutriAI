@@ -6,6 +6,7 @@ export default function BookByIdLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="add" />
+      <Stack.Screen name="templates" />
       <Stack.Screen name="review" />
       <Stack.Screen name="generation/[pageId]" />
     </Stack>

@@ -18,7 +18,7 @@
  *   1. YouTube URLs → pass directly via file_data (Gemini supports natively)
  *      Fallback: download bytes + upload to Files API
  *   2. TikTok / Instagram / other → fetch bytes + upload to Files API
- *      Fallback: text-only reasoning from URL context
+ *      No URL-only inference is attempted when video content is inaccessible
  *   3. All-else failure → descriptive user-facing error
  */
 
@@ -91,33 +91,10 @@ Rules:
 - "prep_time" and "cook_time" are in minutes (integers); use 0 if not specified
 - "quantity" should be a string (e.g. "1", "1/2", "2-3")
 - "unit" can be empty string if not applicable (e.g. for "2 eggs")
-- "category" must be exactly one of: breakfast, lunch, dinner, snacks, appetizers, desserts, drinks, sides
+- "category" must be exactly one of: breakfast, lunch, dinner, healthy, desserts, sides, favorites
 - "tags" should be 2-5 relevant tags (cuisine type, dietary info, cooking method, etc.)
 - If a field cannot be determined from the video, use sensible defaults
 - If this is not a cooking/recipe video, return { "error": "No recipe found in video" }`;
-
-const TEXT_FALLBACK_PROMPT = (url: string) =>
-  `A user shared this video URL: ${url}
-
-The video could not be downloaded directly. Based solely on the URL, platform, and any contextual clues you have, try to identify or infer what recipe might be in this video.
-
-If you can make a reasonable guess, return a JSON recipe object:
-{
-  "title": "Recipe name",
-  "description": "Brief description",
-  "servings": 4,
-  "prep_time": 0,
-  "cook_time": 0,
-  "ingredients": [],
-  "steps": [],
-  "tags": [],
-  "category": "dinner",
-  "source_url": "${url}"
-}
-
-If you cannot determine a recipe from the URL alone, return: { "error": "Could not identify recipe from URL" }
-
-Return ONLY valid JSON.`;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -370,16 +347,6 @@ async function extractViaDownloadAndUpload(url: string): Promise<RawRecipe> {
 }
 
 // ---------------------------------------------------------------------------
-// Strategy C: Text-only fallback (URL reasoning)
-// ---------------------------------------------------------------------------
-async function extractViaTextFallback(url: string): Promise<RawRecipe> {
-  console.log('[parse-video-recipe] Strategy: text-only URL fallback');
-  const parts: GeminiPart[] = [{ text: TEXT_FALLBACK_PROMPT(url) }];
-  const geminiJson = await callGemini(parts);
-  return parseRecipeJson(extractText(geminiJson));
-}
-
-// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 serve(async (req: Request) => {
@@ -447,17 +414,7 @@ serve(async (req: Request) => {
         rawRecipe = await extractViaDownloadAndUpload(videoUrl);
       } catch (e) {
         lastError = String(e);
-        console.warn('[parse-video-recipe] Download failed, trying text fallback:', lastError);
-      }
-    }
-
-    // Text-only fallback (applies to all platforms when video access failed)
-    if (!rawRecipe) {
-      try {
-        rawRecipe = await extractViaTextFallback(videoUrl);
-      } catch (e) {
-        lastError = String(e);
-        console.warn('[parse-video-recipe] Text fallback failed:', lastError);
+        console.warn('[parse-video-recipe] Download failed:', lastError);
       }
     }
 

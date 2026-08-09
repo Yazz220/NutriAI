@@ -42,6 +42,7 @@ app/
       _layout.tsx
       index.tsx
       add.tsx
+      templates.tsx
       review.tsx
       generation/
         [pageId].tsx
@@ -57,10 +58,11 @@ Route responsibilities:
 | `app/(auth)/sign-up.tsx` | Account creation |
 | `app/(auth)/forgot-password.tsx` | Password reset email request |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
-| `app/(book)/library.tsx` | Cookbook style picker and cookbook creation |
+| `app/(book)/library.tsx` | Two-cover cookbook picker and cookbook creation |
 | `app/(book)/settings.tsx` | Account, library stats, sign out |
 | `app/(book)/[cookbookId]/index.tsx` | Swipeable reader for a single cookbook |
 | `app/(book)/[cookbookId]/add.tsx` | Source composer for URL, text, image, or video import |
+| `app/(book)/[cookbookId]/templates.tsx` | Template library for selecting and favoriting page styles |
 | `app/(book)/[cookbookId]/review.tsx` | Review extracted recipe before spending a page credit |
 | `app/(book)/[cookbookId]/generation/[pageId].tsx` | Generated-page result screen |
 
@@ -171,9 +173,9 @@ OPENAI_IMAGE_MODEL
 COOKBOOK_PAGE_BUCKET
 ```
 
-## Cookbook Style System
+## Cookbook Covers And Page Templates
 
-`constants/cookbookStyles.ts` defines the six supported style IDs:
+`constants/cookbookStyles.ts` still defines the six persisted style IDs so existing cookbooks render safely:
 
 ```text
 vintage-garden
@@ -184,7 +186,9 @@ rustic
 minimal
 ```
 
-Each style owns its cover palette, shelf background, and `pagePromptDescriptor`. `cover_style` is stored on `nutriai.cookbooks`, and generated pages use that descriptor so pages stay visually consistent within one book.
+The creation flow only exposes two covers: Classic Kitchen (`vintage-garden`) and Modern Journal (`minimal`). `cover_style` remains stored on `nutriai.cookbooks`.
+
+Recipe page styling is now selected per import from `constants/recipeTemplates.ts`. The selected template is held in `useCookbookImport`, favorites persist locally in `nosh:favorite-page-templates:v1`, and `utils/cookbook/pagePrompt.ts` sends the template descriptor in the generation prompt payload.
 
 ## Offline Sample Book
 

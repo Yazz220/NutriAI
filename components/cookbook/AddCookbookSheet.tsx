@@ -69,7 +69,7 @@ export function AddCookbookSheet({
       header={
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>Name your book</Text>
-          <Text style={styles.title}>Almost there</Text>
+          <Text style={styles.title}>Add to collection</Text>
         </View>
       }
     >
@@ -131,13 +131,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 11,
     fontFamily: Fonts.ui.medium,
+    letterSpacing: 0,
   },
   title: {
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
     color: Colors.text,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   previewWrap: {
     alignItems: 'center',
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 44,
-    borderRadius: Radii.sm,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -164,8 +165,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: Radii.full,
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -176,22 +176,24 @@ const styles = StyleSheet.create({
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
     fontSize: 16,
-    letterSpacing: 0.35,
+    letterSpacing: 0,
   },
   error: {
-    color: Colors.onError,
-    backgroundColor: Colors.errorDark,
-    borderRadius: Radii.sm,
+    color: Colors.error,
+    backgroundColor: Colors.errorLight,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.error,
     padding: Spacing.sm,
     fontSize: 13,
     lineHeight: 18,
   },
   note: {
     color: Colors.textSecondary,
-    backgroundColor: Colors.skyMist,
-    borderRadius: Radii.sm,
+    backgroundColor: Colors.parchment,
+    borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: Colors.deepOcean,
+    borderColor: Colors.ash,
     padding: Spacing.sm,
     fontSize: 13,
     lineHeight: 18,

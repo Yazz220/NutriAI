@@ -5,7 +5,7 @@
 - Node `20.19.4` from `.nvmrc`.
 - npm. Use `npm install --legacy-peer-deps`.
 - Expo CLI through `npx expo`.
-- Supabase project with SQL from `supabase/sql/` applied in order.
+- Supabase project with the base SQL from `supabase/sql/` applied in order, followed by tracked files in `supabase/migrations/`.
 - EAS CLI for device builds and App Store/TestFlight builds.
 
 ## Daily Commands

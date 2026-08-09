@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.primary,
   },
   headerText: {
     flex: 1,
@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 11,
     fontFamily: Fonts.ui.medium,
+    letterSpacing: 0,
   },
   title: {
     color: Colors.text,
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   },
   welcome: {
     borderRadius: Radii.md,
-    backgroundColor: Colors.skyMist,
+    backgroundColor: Colors.parchment,
     padding: Spacing.sm,
   },
   welcomeTitle: {
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.charcoal,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 76,
-    borderRadius: Radii.sm,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -283,8 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
   },
   disabled: {
     opacity: 0.45,

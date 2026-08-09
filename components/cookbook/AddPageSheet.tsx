@@ -14,18 +14,24 @@ interface AddPageSheetProps {
   onSelectSource: (sourceType: RecipeSourceType) => void;
 }
 
-const OPTIONS: Array<{
+const PRIMARY_OPTION: {
+  type: RecipeSourceType;
+  title: string;
+  subtitle: string;
+  Icon: typeof Link;
+} = {
+  type: 'url',
+  title: 'Paste a recipe link',
+  subtitle: 'Fastest path from a recipe page to your book',
+  Icon: Link,
+};
+
+const SECONDARY_OPTIONS: Array<{
   type: RecipeSourceType;
   title: string;
   subtitle: string;
   Icon: typeof Link;
 }> = [
-  {
-    type: 'url',
-    title: 'From URL or link',
-    subtitle: 'Import from a recipe page',
-    Icon: Link,
-  },
   {
     type: 'text',
     title: 'Paste text',
@@ -69,8 +75,24 @@ export function AddPageSheet({
         </View>
       }
     >
+      <Pressable
+        style={styles.primaryOption}
+        onPress={() => onSelectSource(PRIMARY_OPTION.type)}
+        accessibilityRole="button"
+        accessibilityLabel={PRIMARY_OPTION.title}
+      >
+        <View style={styles.primaryIcon}>
+          <PRIMARY_OPTION.Icon size={22} color={Colors.onPrimary} />
+        </View>
+        <View style={styles.optionText}>
+          <Text style={styles.primaryTitle}>{PRIMARY_OPTION.title}</Text>
+          <Text style={styles.optionSubtitle}>{PRIMARY_OPTION.subtitle}</Text>
+        </View>
+      </Pressable>
+
+      <Text style={styles.secondaryLabel}>Other ways to add a recipe</Text>
       <View style={styles.options}>
-        {OPTIONS.map(({ type, title, subtitle, Icon }) => (
+        {SECONDARY_OPTIONS.map(({ type, title, subtitle, Icon }) => (
           <Pressable
             key={type}
             style={styles.option}
@@ -115,7 +137,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   closeButton: {
     backgroundColor: Colors.white,
@@ -123,9 +145,42 @@ const styles = StyleSheet.create({
   options: {
     gap: Spacing.sm,
   },
+  primaryOption: {
+    minHeight: 76,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    boxShadow: Colors.book.cardShadow,
+  },
+  primaryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  primaryTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: Fonts.display.semibold,
+  },
+  secondaryLabel: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: Fonts.ui.medium,
+    marginTop: Spacing.sm,
+  },
   option: {
     minHeight: 62,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -140,7 +195,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.skyMist,
+    backgroundColor: Colors.parchment,
   },
   optionText: {
     flex: 1,

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Font from 'expo-font';
 import type { FontSource } from 'expo-font';
 
@@ -50,6 +51,13 @@ export const loadFonts = async () => {
   return true;
 };
 
+const editorialSerif = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  web: 'Georgia',
+  default: 'serif',
+}) ?? 'serif';
+
 // Central place to reference font families used across the app
 export const Fonts = {
   ui: {
@@ -59,9 +67,9 @@ export const Fonts = {
     bold: 'Inter-Bold',
   },
   display: {
-    regular: 'Inter',
-    semibold: 'Inter-SemiBold',
-    bold: 'Inter-Bold',
+    regular: editorialSerif,
+    semibold: editorialSerif,
+    bold: editorialSerif,
   },
   regular: 'Inter',
   bold: 'Inter-Bold',

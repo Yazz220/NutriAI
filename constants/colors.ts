@@ -1,28 +1,31 @@
 /**
  * Nosh visual foundation.
  *
- * This branch applies the Boords-style reference to Nosh: creamy Alabaster
- * pages, Charcoal text, compact structure, Butterscotch interaction accents,
- * and quiet workshop-like surfaces. Compatibility aliases remain so older
+ * Nosh editorial visual foundation.
+ *
+ * The global system follows the attached reference: warm ivory pages, charcoal
+ * ink, soft limestone controls, hairline borders, restrained butterscotch
+ * accents, and quiet semantic states. Compatibility aliases remain so older
  * cookbook components can keep importing stable color names.
  */
 
 const carbon = '#000000';
-const charcoal = '#121212';
-const alabaster = '#fafaf5';
+const charcoal = '#171614';
+const alabaster = '#fbfaf6';
 const white = '#ffffff';
-const parchment = '#e9e9e7';
-const slate = '#4d4d4d';
-const ash = '#cecdca';
-const duskGrey = '#7d7d7d';
-const fadedStone = '#898989';
-const peach = '#eb6c00';
+const parchment = '#f0ede7';
+const slate = '#4b4842';
+const ash = '#d9d3c8';
+const duskGrey = '#8c857a';
+const fadedStone = '#9d9588';
+const peach = '#a7422b';
 const butterscotch = '#e8aa42';
 const honeyBronze = '#b77a10';
-const skyMist = '#daeef8';
-const deepOcean = '#214c70';
+const skyMist = '#ecefe7';
+const deepOcean = '#435744';
 const burnishedBronze = '#453d37';
 const warmUmber = '#2d2824';
+const blushMist = '#f4ded9';
 
 export const Colors = {
   // Boords reference palette
@@ -72,7 +75,7 @@ export const Colors = {
   cardSecondary: parchment,
   surface: alabaster,
   surfaceElevated: white,
-  surfaceMuted: ash,
+  surfaceMuted: parchment,
   surfaceTile: parchment,
   tabBackground: alabaster,
 
@@ -102,7 +105,7 @@ export const Colors = {
   onWarning: charcoal,
 
   error: peach,
-  errorLight: parchment,
+  errorLight: blushMist,
   errorDark: peach,
   onError: white,
   onDanger: white,
@@ -126,7 +129,7 @@ export const Colors = {
     light: 'rgba(0, 0, 0, 0.10)',
     medium: 'rgba(0, 0, 0, 0.10)',
     strong: 'rgba(0, 0, 0, 0.14)',
-    colored: 'rgba(108, 188, 244, 0.50)',
+    colored: 'rgba(232, 170, 66, 0.22)',
   },
   overlay: {
     light: 'rgba(18, 18, 18, 0.18)',
@@ -153,9 +156,9 @@ export const Colors = {
     shelfGradient: [alabaster, alabaster, parchment] as const,
     readerGradient: [alabaster, alabaster, parchment] as const,
     darkGradient: [burnishedBronze, warmUmber, '#120e0b'] as const,
-    paperShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
-    cardShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
-    liftedShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
+    paperShadow: '0 12px 34px rgba(23, 22, 20, 0.08)',
+    cardShadow: '0 10px 28px rgba(23, 22, 20, 0.06)',
+    liftedShadow: '0 16px 38px rgba(23, 22, 20, 0.14)',
   },
 
   // Interactive states
@@ -172,7 +175,7 @@ export const Colors = {
     linkHover: charcoal,
     linkPressed: carbon,
     linkVisited: slate,
-    focus: deepOcean,
+    focus: charcoal,
     selection: skyMist,
     highlight: skyMist,
   },
@@ -246,11 +249,11 @@ export const Colors = {
 
   alpha: {
     primary: {
-      5: 'rgba(18, 18, 18, 0.05)',
-      10: 'rgba(18, 18, 18, 0.10)',
-      20: 'rgba(18, 18, 18, 0.20)',
-      30: 'rgba(18, 18, 18, 0.30)',
-      50: 'rgba(18, 18, 18, 0.50)',
+      5: 'rgba(23, 22, 20, 0.05)',
+      10: 'rgba(23, 22, 20, 0.10)',
+      20: 'rgba(23, 22, 20, 0.20)',
+      30: 'rgba(23, 22, 20, 0.30)',
+      50: 'rgba(23, 22, 20, 0.50)',
     },
     secondary: {
       5: 'rgba(232, 170, 66, 0.05)',

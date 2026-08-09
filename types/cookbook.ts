@@ -21,6 +21,11 @@ export type CookbookStyleId =
   | 'rustic'
   | 'minimal';
 
+export type RecipeTemplateId =
+  | 'clean-cream'
+  | 'ink-sketch'
+  | 'modern-editorial';
+
 export interface CookbookTheme {
   name: string;
   prompt: string;
@@ -123,6 +128,12 @@ export interface RecipeConfidenceResult {
 export interface CookbookPagePromptPayload {
   layout: 'single-page-cookbook';
   theme: CookbookTheme;
+  template?: {
+    id: RecipeTemplateId;
+    name: string;
+    styleDescriptor: string;
+    promptDescriptor: string;
+  };
   recipe: {
     title: string;
     servings?: number;

@@ -120,11 +120,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    backgroundColor: Colors.white,
+    minHeight: 48,
   },
   inputContainerFocused: {
-    borderColor: Colors.book.accent,
+    borderColor: Colors.charcoal,
   },
   inputContainerError: {
     borderColor: Colors.error,
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     ...Type.body,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     color: Colors.text,
   },

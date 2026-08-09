@@ -4,7 +4,6 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
   ChevronRight,
   Coins,
   LogOut,
@@ -12,6 +11,10 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react-native';
+import {
+  TOP_LEVEL_BOTTOM_NAV_HEIGHT,
+  TopLevelBottomNav,
+} from '@/components/navigation/TopLevelBottomNav';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -96,19 +99,16 @@ export default function CookbookSettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.replace('/(book)')}
-          accessibilityLabel="Back to my cookbooks"
-        >
-          <ChevronLeft size={20} color={Colors.text} />
-        </Pressable>
+        <Text style={styles.wordmark}>Nosh</Text>
         <Text style={styles.title}>Settings</Text>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Spacing.xxxl + TOP_LEVEL_BOTTOM_NAV_HEIGHT },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Account */}
@@ -149,6 +149,8 @@ export default function CookbookSettingsScreen() {
 
         <Text style={styles.footer}>Nosh | Personal cookbook | v0.1</Text>
       </ScrollView>
+
+      <TopLevelBottomNav active="settings" />
     </View>
   );
 }
@@ -215,28 +217,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
+    gap: Spacing.xs,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.alabaster,
-    borderWidth: 1,
-    borderColor: Colors.ash,
+  wordmark: {
+    fontFamily: Fonts.display.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: 0,
+    color: Colors.textMuted,
   },
   title: {
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0.6,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: 0,
     color: Colors.text,
   },
   scroll: {
@@ -253,12 +250,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 1,
+    letterSpacing: 0,
     color: Colors.textMuted,
     paddingHorizontal: Spacing.sm,
   },
   sectionCard: {
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.ash,
@@ -285,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.skyMist,
+    backgroundColor: Colors.parchment,
   },
   rowLabel: {
     flex: 1,

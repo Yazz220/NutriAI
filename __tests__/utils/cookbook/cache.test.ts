@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadCachedShelf, saveCachedShelf, loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
+import {
+  loadCachedCookbook,
+  loadCachedShelf,
+  saveCachedShelf,
+  loadCachedPages,
+  saveCachedPages,
+} from '@/utils/cookbook/cache';
 import type { Cookbook } from '@/types/cookbook';
 
 const sampleCookbook: Cookbook = {
@@ -31,6 +37,13 @@ describe('cookbook cache', () => {
 
     const cached = await loadCachedShelf('u2');
     expect(cached).toBeNull();
+  });
+
+  it('finds a cached cookbook by its user-scoped shelf entry', async () => {
+    await saveCachedShelf('u1', [sampleCookbook]);
+
+    expect(await loadCachedCookbook('u1', 'c1')).toEqual(sampleCookbook);
+    expect(await loadCachedCookbook('u1', 'missing')).toBeNull();
   });
 
   it('round-trips per-cookbook pages', async () => {

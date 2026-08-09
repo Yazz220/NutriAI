@@ -57,9 +57,9 @@ export const Tokens = {
   component: {
     button: {
       sizes: {
-        sm: { height: 32, px: 12, gap: 8, radius: Radii.full },
-        md: { height: 40, px: 16, gap: 8, radius: Radii.full },
-        lg: { height: 48, px: 20, gap: 12, radius: Radii.full },
+        sm: { height: 34, px: 14, gap: 8, radius: Radii.full },
+        md: { height: 44, px: 20, gap: 10, radius: Radii.full },
+        lg: { height: 52, px: 24, gap: 12, radius: Radii.full },
       },
       focusRing: {
         color: Colors.state.focusRing.color,
@@ -80,15 +80,22 @@ export const Tokens = {
       },
       secondary: {
         container: {
-          bg: 'transparent',
+          bg: Colors.white,
           disabledBg: 'transparent',
         },
         content: {
-          fg: Colors.fadedStone,
+          fg: Colors.text,
           disabledFg: Colors.textMuted,
           disabledOpacity: Colors.state.disabledOpacity,
         },
-        border: { width: 1, color: Colors.duskGrey, disabledColor: Colors.ash },
+        border: { width: 1, color: Colors.charcoal, disabledColor: Colors.ash },
+      },
+      tertiary: {
+        container: {
+          bg: Colors.parchment,
+        },
+        content: { fg: Colors.text },
+        border: { width: 0 },
       },
       ghost: {
         container: {
@@ -112,8 +119,8 @@ export const Tokens = {
     },
     card: {
       base: {
-        bg: Colors.alabaster,
-        radius: Radii.md,
+        bg: Colors.white,
+        radius: Radii.lg,
         borderWidth: 1,
         borderColor: Colors.ash,
         innerEdgeOpacity: 0,
@@ -121,10 +128,10 @@ export const Tokens = {
       },
       elevated: {
         bg: Colors.white,
-        radius: Radii.md,
+        radius: Radii.lg,
         borderWidth: 1,
         borderColor: Colors.ash,
-        shadow: '0 0 0 1px rgba(108, 188, 244, 0.50)',
+        shadow: Colors.book.cardShadow,
       },
       header: { fg: Colors.text },
       meta: { fg: Colors.textMuted },
@@ -133,7 +140,7 @@ export const Tokens = {
       bg: Colors.alabaster,
       handle: Colors.duskGrey,
       border: Colors.ash,
-      shadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
+      shadow: Colors.book.liftedShadow,
     },
     page: {
       bg: Colors.book.page,

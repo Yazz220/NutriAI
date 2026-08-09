@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -20,36 +20,40 @@ export function BookTableOfContentsPage({
   onSelectPage,
   bookMode = false,
 }: BookTableOfContentsPageProps) {
+  const { width } = useWindowDimensions();
+  const compactBook = bookMode && width < 600;
   const sectionEntries = resolveCookbookSections(cookbook, pages);
   const sections = groupPagesBySection(pages, sectionEntries);
 
   return (
     <View style={[styles.page, bookMode && styles.bookPage]}>
-      <View style={[styles.inner, bookMode && styles.bookInner]}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>{cookbook?.title ?? 'Cookbook'}</Text>
-          <Text style={styles.title}>Table of Contents</Text>
-          <Text style={styles.subtitle}>
+      <View style={[styles.inner, bookMode && styles.bookInner, compactBook && styles.compactInner]}>
+        <View style={[styles.header, compactBook && styles.compactHeader]}>
+          <Text style={[styles.eyebrow, compactBook && styles.compactEyebrow]}>{cookbook?.title ?? 'Cookbook'}</Text>
+          <Text style={[styles.title, compactBook && styles.compactTitle]}>Table of Contents</Text>
+          <Text style={[styles.subtitle, compactBook && styles.compactSubtitle]}>
             {pages.length === 1 ? '1 page' : `${pages.length} pages`} organized from recipes in this book.
           </Text>
         </View>
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, compactBook && styles.compactScrollContent]}
           showsVerticalScrollIndicator={false}
         >
           {sections.length > 0 ? (
             sections.map((section) => (
-              <View key={section.id} style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{section.label}</Text>
-                  <Text style={styles.sectionCount}>{section.pages.length}</Text>
+              <View key={section.id} style={[styles.section, compactBook && styles.compactSection]}>
+                <View style={[styles.sectionHeader, compactBook && styles.compactSectionHeader]}>
+                  <Text style={[styles.sectionTitle, compactBook && styles.compactSectionTitle]}>{section.label}</Text>
+                  <Text style={[styles.sectionCount, compactBook && styles.compactSectionCount]}>
+                    {section.pages.length}
+                  </Text>
                 </View>
                 {section.pages.map((page) => (
                   <Pressable
                     key={page.id}
-                    style={styles.row}
+                    style={[styles.row, compactBook && styles.compactRow]}
                     onPress={() => {
                       const fullPage = pages.find((candidate) => candidate.id === page.id);
                       if (fullPage) onSelectPage(fullPage);
@@ -57,8 +61,8 @@ export function BookTableOfContentsPage({
                     accessibilityRole="button"
                     accessibilityLabel={`Go to page ${page.pageNumber}, ${page.title}`}
                   >
-                    <Text style={styles.pageNumber}>{page.pageNumber}</Text>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
+                    <Text style={[styles.pageNumber, compactBook && styles.compactPageNumber]}>{page.pageNumber}</Text>
+                    <Text style={[styles.rowTitle, compactBook && styles.compactRowTitle]} numberOfLines={1}>
                       {page.title}
                     </Text>
                     <View style={styles.dots} />
@@ -74,9 +78,11 @@ export function BookTableOfContentsPage({
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Contents</Text>
-          <Text style={styles.footerText}>{pages.length ? 'Swipe to begin' : 'Add a page'}</Text>
+        <View style={[styles.footer, compactBook && styles.compactFooter]}>
+          <Text style={[styles.footerText, compactBook && styles.compactFooterText]}>Contents</Text>
+          <Text style={[styles.footerText, compactBook && styles.compactFooterText]}>
+            {pages.length ? 'Turn to begin' : 'Add a page'}
+          </Text>
         </View>
       </View>
     </View>
@@ -125,14 +131,14 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   subtitle: {
     color: Colors.slate,
@@ -225,5 +231,58 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontWeight: '700',
+  },
+  compactInner: {
+    padding: 8,
+    gap: 5,
+  },
+  compactHeader: {
+    gap: 1,
+  },
+  compactEyebrow: {
+    fontSize: 6,
+  },
+  compactTitle: {
+    fontSize: 14,
+    lineHeight: 17,
+  },
+  compactSubtitle: {
+    fontSize: 7,
+    lineHeight: 9,
+  },
+  compactScrollContent: {
+    gap: 4,
+    paddingBottom: 3,
+  },
+  compactSection: {
+    gap: 1,
+  },
+  compactSectionHeader: {
+    minHeight: 17,
+  },
+  compactSectionTitle: {
+    fontSize: 8,
+    lineHeight: 10,
+  },
+  compactSectionCount: {
+    minWidth: 14,
+    fontSize: 7,
+  },
+  compactRow: {
+    minHeight: 16,
+    gap: 3,
+  },
+  compactPageNumber: {
+    width: 12,
+    fontSize: 7,
+  },
+  compactRowTitle: {
+    fontSize: 7,
+  },
+  compactFooter: {
+    minHeight: 13,
+  },
+  compactFooterText: {
+    fontSize: 6,
   },
 });

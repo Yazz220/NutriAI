@@ -19,12 +19,15 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 GRANT USAGE ON SCHEMA nutriai TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION nutriai.set_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 2. Cookbooks
@@ -125,7 +128,10 @@ CREATE TABLE IF NOT EXISTS nutriai.cookbook_pages (
 );
 
 CREATE OR REPLACE FUNCTION nutriai.enforce_cookbook_page_recipe_owner()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
   cookbook_owner UUID;
   recipe_owner UUID;
@@ -144,7 +150,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS cookbook_pages_recipe_owner_check ON nutriai.cookbook_pages;
 CREATE TRIGGER cookbook_pages_recipe_owner_check
@@ -208,7 +214,7 @@ CREATE OR REPLACE FUNCTION nutriai.reserve_generation_credit(p_user_id UUID)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = nutriai, public
+SET search_path = ''
 AS $$
 DECLARE
   current_balance INTEGER;
@@ -241,7 +247,7 @@ CREATE OR REPLACE FUNCTION nutriai.create_cookbook_page(
 RETURNS nutriai.cookbook_pages
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = nutriai, public
+SET search_path = ''
 AS $$
 DECLARE
   next_page_number INTEGER;
@@ -285,51 +291,55 @@ ALTER TABLE nutriai.credit_ledger ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS cookbooks_owner_select ON nutriai.cookbooks;
 CREATE POLICY cookbooks_owner_select ON nutriai.cookbooks
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS cookbooks_owner_insert ON nutriai.cookbooks;
 CREATE POLICY cookbooks_owner_insert ON nutriai.cookbooks
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS cookbooks_owner_update ON nutriai.cookbooks;
 CREATE POLICY cookbooks_owner_update ON nutriai.cookbooks
-  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  FOR UPDATE TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS cookbooks_owner_delete ON nutriai.cookbooks;
 CREATE POLICY cookbooks_owner_delete ON nutriai.cookbooks
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE TO authenticated USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS recipes_owner_all ON nutriai.recipes;
 CREATE POLICY recipes_owner_all ON nutriai.recipes
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS pages_owner_all ON nutriai.cookbook_pages;
 CREATE POLICY pages_owner_all ON nutriai.cookbook_pages
-  FOR ALL USING (
+  FOR ALL TO authenticated USING (
     EXISTS (
       SELECT 1
       FROM nutriai.cookbooks
       WHERE cookbooks.id = cookbook_pages.cookbook_id
-        AND cookbooks.user_id = auth.uid()
+        AND cookbooks.user_id = (SELECT auth.uid())
     )
   ) WITH CHECK (
     EXISTS (
       SELECT 1
       FROM nutriai.cookbooks
       WHERE cookbooks.id = cookbook_pages.cookbook_id
-        AND cookbooks.user_id = auth.uid()
+        AND cookbooks.user_id = (SELECT auth.uid())
     )
   );
 
 DROP POLICY IF EXISTS page_versions_owner_all ON nutriai.page_versions;
 CREATE POLICY page_versions_owner_all ON nutriai.page_versions
-  FOR ALL USING (
+  FOR ALL TO authenticated USING (
     EXISTS (
       SELECT 1
       FROM nutriai.cookbook_pages p
       JOIN nutriai.cookbooks c ON c.id = p.cookbook_id
       WHERE p.id = page_versions.page_id
-        AND c.user_id = auth.uid()
+        AND c.user_id = (SELECT auth.uid())
     )
   ) WITH CHECK (
     EXISTS (
@@ -337,17 +347,15 @@ CREATE POLICY page_versions_owner_all ON nutriai.page_versions
       FROM nutriai.cookbook_pages p
       JOIN nutriai.cookbooks c ON c.id = p.cookbook_id
       WHERE p.id = page_versions.page_id
-        AND c.user_id = auth.uid()
+        AND c.user_id = (SELECT auth.uid())
     )
   );
 
 DROP POLICY IF EXISTS credit_ledger_owner_select ON nutriai.credit_ledger;
 CREATE POLICY credit_ledger_owner_select ON nutriai.credit_ledger
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS credit_ledger_service_all ON nutriai.credit_ledger;
-CREATE POLICY credit_ledger_service_all ON nutriai.credit_ledger
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- ---------------------------------------------------------------------------
 -- 8. Grants
@@ -358,6 +366,8 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA nutriai TO authenticated, service_role;
 
 REVOKE ALL ON FUNCTION nutriai.reserve_generation_credit(UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION nutriai.create_cookbook_page(UUID, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION nutriai.set_updated_at() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION nutriai.enforce_cookbook_page_recipe_owner() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION nutriai.reserve_generation_credit(UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION nutriai.create_cookbook_page(UUID, UUID, TEXT) TO service_role;
 

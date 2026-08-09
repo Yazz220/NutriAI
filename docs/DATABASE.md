@@ -70,7 +70,14 @@ Each cookbook page image generation pass produces a version. Used to keep histor
 | `error_message` | text | |
 
 ### `nutriai.credit_ledger`
-Append-only generation credit ledger. Sum of `amount` per `user_id` is the current balance. The `reserve_generation_credit` SECURITY DEFINER function takes an advisory lock and inserts a `-1` row atomically before the Edge Function spends a credit on page image generation.
+Append-only generation credit ledger. Sum of `amount` per `user_id` is the current balance. Generation spend and refund rows reference a generation request and are protected by partial unique indexes, so one request can spend and refund at most once.
+
+### `nutriai.generation_requests`
+Server-owned idempotency records for cookbook page generation. A row stores the user-scoped request key, original payload, processing state, created recipe/page/version references, storage path, and cached successful response.
+
+The Edge Function claims a request, returns a processing response, and completes image generation as a background task. The client polls with the same idempotency key until it receives the cached page or terminal failure. Repeated calls do not start another generation. Requests that remain processing for more than ten minutes are expired and refunded on the next lookup.
+
+`supabase/tests/generation_idempotency.sql` is a rollback-only live proof that duplicate claims spend once and duplicate failures refund once.
 
 ## Removed tables (legacy cleanup, 2026-05-05)
 
@@ -91,10 +98,11 @@ Run in numeric order against a fresh project. All are idempotent (`IF NOT EXISTS
 | `supabase/sql/00_bootstrap.sql` | `profiles`, helper functions, RLS, base triggers |
 | `supabase/sql/20260503_ai_cookbook_reset.sql` | `cookbooks`, `recipes`, `cookbook_pages`, `page_versions`, `credit_ledger` + `reserve_generation_credit` |
 | `supabase/sql/20260505_multi_cookbook.sql` | Drops one-cookbook-per-user index, adds `cover_style` + `sections`, drops legacy tables |
+| `supabase/migrations/20260803132008_generation_request_idempotency.sql` | Generation request claims, request-scoped spend/refund uniqueness, completion caching, and stale-request recovery |
 
 ## RLS posture
 
-Every table follows the same pattern:
+User-editable product tables follow the same ownership pattern:
 
 ```sql
 CREATE POLICY <table>_select ON nutriai.<table> FOR SELECT USING (auth.uid() = user_id);
@@ -104,6 +112,8 @@ CREATE POLICY <table>_delete ON nutriai.<table> FOR DELETE USING (auth.uid() = u
 ```
 
 `cookbook_pages` has an additional `BEFORE INSERT/UPDATE` trigger that errors if the cookbook owner and recipe owner don't match, so you can't smuggle another user's recipe onto your page.
+
+`generation_requests` is RLS-enabled without client policies. It is only accessed by the authenticated `generate-cookbook-page` Edge Function through the service role. Its SECURITY DEFINER functions set an empty search path, use fully qualified relations, revoke execution from `PUBLIC`, `anon`, and `authenticated`, and grant execution only to `service_role`.
 
 ## Cache keys
 

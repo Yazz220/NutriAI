@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCookbookPages, getCookbook } from '@/utils/cookbook/api';
-import { loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
+import { loadCachedCookbook, loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
+import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
 export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
@@ -15,25 +18,46 @@ export interface UseCookbookResult {
   setSelectedPageId: (id: string | null) => void;
   isLoading: boolean;
   error: unknown;
+  cookbookError: unknown;
+  pagesError: unknown;
+  hasPageData: boolean;
+  isStale: boolean;
   refresh: () => Promise<void>;
   upsertPage: (page: CookbookPage) => void;
 }
 
 export function useCookbook(cookbookId: string | null | undefined): UseCookbookResult {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const isSampleCookbook = shouldShowSampleCookbook(cookbookId);
 
   const cookbookQuery = useQuery({
     queryKey: COOKBOOK_QUERY_KEY(cookbookId),
-    enabled: !!cookbookId,
+    enabled: !!cookbookId && !isSampleCookbook,
     queryFn: () => getCookbook(cookbookId!),
   });
 
   const pagesQuery = useQuery({
     queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId),
-    enabled: !!cookbookId,
+    enabled: !!cookbookId && !isSampleCookbook,
     queryFn: () => fetchCookbookPages(cookbookId!),
   });
+
+  // Restore the book metadata from the user's shelf so cached pages remain readable after a restart.
+  useEffect(() => {
+    if (!cookbookId || !user?.id || cookbookQuery.data !== undefined) return;
+    let cancelled = false;
+    loadCachedCookbook(user.id, cookbookId)
+      .then((cachedCookbook) => {
+        if (cancelled || !cachedCookbook) return;
+        queryClient.setQueryData(COOKBOOK_QUERY_KEY(cookbookId), cachedCookbook);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cookbookId, cookbookQuery.data, queryClient, user?.id]);
 
   // Hydrate pages from cache before network responds.
   useEffect(() => {
@@ -57,12 +81,17 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
   }, [cookbookId, pagesQuery.data]);
 
   const effectivePages = useMemo<CookbookPage[]>(() => {
-    return pagesQuery.data ?? [];
-  }, [pagesQuery.data]);
+    return isSampleCookbook ? SAMPLE_COOKBOOK_PAGES : (pagesQuery.data ?? []);
+  }, [isSampleCookbook, pagesQuery.data]);
 
   const effectiveCookbook = useMemo<Cookbook | null>(() => {
-    return cookbookQuery.data ?? null;
-  }, [cookbookQuery.data]);
+    return isSampleCookbook ? SAMPLE_COOKBOOK : (cookbookQuery.data ?? null);
+  }, [cookbookQuery.data, isSampleCookbook]);
+  const hasPageData = isSampleCookbook || pagesQuery.data !== undefined;
+  const isStale =
+    !isSampleCookbook &&
+    (isStaleCachedData(cookbookQuery.error, cookbookQuery.data) ||
+      isStaleCachedData(pagesQuery.error, pagesQuery.data));
 
   // Keep selectedPageId in sync with the active book's pages.
   useEffect(() => {
@@ -87,7 +116,7 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      if (!cookbookId) return;
+      if (!cookbookId || isSampleCookbook) return;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: COOKBOOK_QUERY_KEY(cookbookId) }),
         queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId) }),
@@ -112,8 +141,12 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
     selectedPage,
     selectedPageId,
     setSelectedPageId,
-    isLoading: cookbookQuery.isLoading || pagesQuery.isLoading,
+    isLoading: !isSampleCookbook && (cookbookQuery.isLoading || pagesQuery.isLoading),
     error: cookbookQuery.error ?? pagesQuery.error,
+    cookbookError: cookbookQuery.error,
+    pagesError: pagesQuery.error,
+    hasPageData,
+    isStale,
     refresh: refreshMutation.mutateAsync,
     upsertPage,
   };

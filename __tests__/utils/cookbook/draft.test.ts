@@ -40,6 +40,20 @@ describe('cookbook draft helpers', () => {
     ]);
   });
 
+  it('preserves quantity and unit when only an ingredient name is edited', () => {
+    expect(ingredientsFromText('2 slices sourdough\n1 tomato', draft.ingredients)).toEqual([
+      { quantity: '2', unit: 'slices', name: 'sourdough' },
+      draft.ingredients[1],
+    ]);
+  });
+
+  it('preserves ingredient metadata when only a quantity is edited', () => {
+    expect(ingredientsFromText('4 slices bread\n2 tomato', draft.ingredients)).toEqual([
+      { quantity: '4', unit: 'slices', name: 'bread' },
+      { quantity: '2', name: 'tomato' },
+    ]);
+  });
+
   it('builds a structured recipe from reviewed fields', () => {
     expect(
       structuredRecipeFromDraft(

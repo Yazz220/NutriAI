@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.surface,
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.border,
     maxHeight: '95%',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes.xl,
-    fontFamily: Fonts.display.semibold,
+    fontFamily: Fonts.display.bold,
     color: Colors.text,
     flex: 1,
   },

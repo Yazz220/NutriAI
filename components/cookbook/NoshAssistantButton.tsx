@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     gap: 7,
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.charcoal,
     boxShadow: Colors.book.cardShadow,
   },
   label: {

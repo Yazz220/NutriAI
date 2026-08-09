@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Link, Send, Sparkles, Video } from 'lucide-react-native';
+import { SelectedRecipeTemplateCard } from '@/components/cookbook/SelectedRecipeTemplateCard';
+import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { RecipeSourceType } from '@/types/cookbook';
+import type { RecipeSourceType, RecipeTemplateId } from '@/types/cookbook';
 
 export type AddPageSubmitPayload =
   | { type: 'url'; input: string }
@@ -17,6 +19,15 @@ export type AddPageSubmitPayload =
 interface AddPageComposerProps {
   isSubmitting?: boolean;
   sourceHint?: RecipeSourceType;
+  input: string;
+  imageBase64: string | null;
+  error?: string | null;
+  onInputChange: (value: string) => void;
+  onImageBase64Change: (value: string | null) => void;
+  selectedTemplateId: RecipeTemplateId;
+  favoriteTemplateIds: RecipeTemplateId[];
+  onOpenTemplateLibrary: () => void;
+  onRetry?: () => Promise<void> | void;
   onSubmit: (payload: AddPageSubmitPayload) => Promise<void> | void;
 }
 
@@ -31,11 +42,11 @@ function looksLikeVideoUrl(value: string) {
 }
 
 function sourceTitle(sourceHint?: RecipeSourceType) {
-  if (sourceHint === 'url') return 'From URL or link';
+  if (sourceHint === 'url') return 'Paste recipe link';
   if (sourceHint === 'text') return 'Paste text';
   if (sourceHint === 'image') return 'Upload image or screenshot';
   if (sourceHint === 'video') return 'From video link';
-  return 'Choose a recipe source';
+  return 'Paste recipe link';
 }
 
 function sourcePlaceholder(sourceHint?: RecipeSourceType) {
@@ -43,17 +54,23 @@ function sourcePlaceholder(sourceHint?: RecipeSourceType) {
   if (sourceHint === 'text') return 'Paste the recipe text';
   if (sourceHint === 'image') return 'Attach an image, then add optional notes here';
   if (sourceHint === 'video') return 'Paste a YouTube, TikTok, Instagram, or video link';
-  return 'Paste a recipe link, video link, or recipe text';
+  return 'Paste a recipe URL';
 }
 
 export function AddPageComposer({
   isSubmitting = false,
   sourceHint,
+  input,
+  imageBase64,
+  error = null,
+  onInputChange,
+  onImageBase64Change,
+  selectedTemplateId,
+  favoriteTemplateIds,
+  onOpenTemplateLibrary,
+  onRetry,
   onSubmit,
 }: AddPageComposerProps) {
-  const [input, setInput] = useState('');
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
-
   async function pickImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== ImagePicker.PermissionStatus.GRANTED) return;
@@ -66,7 +83,7 @@ export function AddPageComposer({
     });
 
     const base64 = result.canceled ? null : result.assets?.[0]?.base64 ?? null;
-    if (base64) setImageBase64(base64);
+    if (base64) onImageBase64Change(base64);
   }
 
   async function submit() {
@@ -119,14 +136,14 @@ export function AddPageComposer({
       </View>
 
       <Text style={styles.description}>
-        Give Nosh the source for this page. It will extract the recipe, let you review it, then generate a cookbook page for this book.
+        Paste a recipe link, choose a template, then review the extracted recipe before Nosh turns it into a cookbook page.
       </Text>
 
       <TextInput
         value={input}
-        onChangeText={setInput}
+        onChangeText={onInputChange}
         multiline
-        style={styles.input}
+        style={[styles.input, sourceHint === 'text' || sourceHint === 'image' ? styles.inputTall : styles.inputShort]}
         placeholder={sourcePlaceholder(sourceHint)}
         placeholderTextColor={Colors.textMuted}
         editable={!isSubmitting}
@@ -137,9 +154,32 @@ export function AddPageComposer({
         <View style={styles.attachment}>
           <ImagePlus size={16} color={Colors.primary} />
           <Text style={styles.attachmentText}>Recipe image attached</Text>
-          <Pressable onPress={() => setImageBase64(null)}>
+          <Pressable onPress={() => onImageBase64Change(null)}>
             <Text style={styles.removeText}>Remove</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      <SelectedRecipeTemplateCard
+        selectedTemplateId={selectedTemplateId}
+        favoriteTemplateIds={favoriteTemplateIds}
+        onOpenTemplateLibrary={onOpenTemplateLibrary}
+        label="Selected template"
+      />
+
+      {error ? (
+        <View style={styles.errorNotice} accessibilityRole="alert">
+          <Text style={styles.errorTitle}>Couldn’t read this recipe</Text>
+          <Text style={styles.errorBody} selectable>{error}</Text>
+          {onRetry ? (
+            <Button
+              title="Try again"
+              variant="outline"
+              onPress={onRetry}
+              fullWidth
+              accessibilityLabel="Try importing recipe again"
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -155,7 +195,7 @@ export function AddPageComposer({
           disabled={!canSubmit}
         >
           {submitIcon}
-          <Text style={styles.primaryText}>{isSubmitting ? 'Reading page' : 'Review page'}</Text>
+          <Text style={styles.primaryText}>{isSubmitting ? 'Reading page' : 'Review recipe'}</Text>
         </Pressable>
       </View>
 
@@ -165,7 +205,7 @@ export function AddPageComposer({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Radii.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -184,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.skyMist,
+    backgroundColor: Colors.parchment,
   },
   headerText: {
     flex: 1,
@@ -193,13 +233,14 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 11,
     fontFamily: Fonts.ui.medium,
+    letterSpacing: 0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
   },
   description: {
     color: Colors.slate,
@@ -207,8 +248,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   input: {
-    minHeight: 180,
-    borderRadius: Radii.sm,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.alabaster,
@@ -217,13 +257,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 24,
   },
+  inputShort: {
+    minHeight: 108,
+  },
+  inputTall: {
+    minHeight: 180,
+  },
   attachment: {
     minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    borderRadius: Radii.md,
-    backgroundColor: Colors.skyMist,
+    borderRadius: Radii.lg,
+    backgroundColor: Colors.parchment,
     paddingHorizontal: Spacing.md,
   },
   attachmentText: {
@@ -242,7 +288,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: Colors.duskGrey,
+    borderColor: Colors.charcoal,
     backgroundColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
@@ -257,12 +303,29 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: Radii.full,
     backgroundColor: Colors.primary,
-    borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+  },
+  errorNotice: {
+    gap: Spacing.sm,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    backgroundColor: Colors.errorLight,
+    padding: Spacing.md,
+  },
+  errorTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 14,
+  },
+  errorBody: {
+    color: Colors.slate,
+    fontSize: 13,
+    lineHeight: 18,
   },
   primaryText: {
     color: Colors.onPrimary,

@@ -81,14 +81,14 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   skeletonTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
     fontSize: 24,
     lineHeight: 30,
-    letterSpacing: 0.6,
+    letterSpacing: 0,
     textAlign: 'center',
   },
   skeletonRule: {

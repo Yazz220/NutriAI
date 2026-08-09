@@ -85,9 +85,9 @@ export const Typography = {
 
 export const Radii = {
   xs: 4,
-  sm: 6,
-  md: 12,
-  lg: 16,
+  sm: 8,
+  md: 14,
+  lg: 22,
   xl: 24,
   full: 9999,
 } as const;
@@ -97,12 +97,12 @@ export const Shadows = {
     boxShadow: 'none',
   },
   sm: {
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.10)',
+    boxShadow: '0 10px 28px rgba(23, 22, 20, 0.06)',
   },
   md: {
-    boxShadow: '0 0 0 1px rgba(108, 188, 244, 0.50)',
+    boxShadow: '0 12px 34px rgba(23, 22, 20, 0.08)',
   },
   lg: {
-    boxShadow: '0 0 24px rgba(255, 255, 255, 0.03)',
+    boxShadow: '0 16px 38px rgba(23, 22, 20, 0.14)',
   },
 } as const;

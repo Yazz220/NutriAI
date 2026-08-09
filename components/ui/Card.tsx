@@ -13,7 +13,7 @@ interface CardProps {
 export const Card: React.FC<CardProps> = ({
   children,
   style,
-  padding = 'sm',
+  padding = 'lg',
   shadow = 'none',
 }) => {
   const cardStyle = [
@@ -46,7 +46,7 @@ export const Card: React.FC<CardProps> = ({
           right: 0,
           bottom: 0,
           left: 0,
-          borderRadius: Tokens.component.card.base.radius,
+        borderRadius: Tokens.component.card.base.radius,
           borderWidth: 1,
           borderColor: `rgba(0,0,0,${Tokens.component.card.base.innerEdgeOpacity})`,
         }}

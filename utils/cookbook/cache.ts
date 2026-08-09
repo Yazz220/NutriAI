@@ -44,6 +44,11 @@ export async function loadCachedShelf(userId?: string | null): Promise<CachedShe
   }
 }
 
+export async function loadCachedCookbook(userId: string, cookbookId: string): Promise<Cookbook | null> {
+  const shelf = await loadCachedShelf(userId);
+  return shelf?.cookbooks.find((cookbook) => cookbook.id === cookbookId) ?? null;
+}
+
 export async function saveCachedPages(cookbookId: string, pages: CookbookPage[]): Promise<void> {
   const payload: CachedBookPages = { cookbookId, pages };
   await AsyncStorage.setItem(pagesKey(cookbookId), JSON.stringify(payload));

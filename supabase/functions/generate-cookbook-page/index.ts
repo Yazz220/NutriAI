@@ -2,12 +2,18 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyAuth } from '../_shared/auth.ts';
 import { corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
+import { compensateGenerationFailure } from '../_shared/generationFailure.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 const OPENAI_IMAGE_MODEL = Deno.env.get('OPENAI_IMAGE_MODEL') || 'gpt-image-2';
 const BUCKET = Deno.env.get('COOKBOOK_PAGE_BUCKET') || 'cookbook-pages';
+const IMAGE_GENERATION_TIMEOUT_MS = 120_000;
+
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<unknown>): void;
+};
 
 type JsonRecord = Record<string, unknown>;
 
@@ -53,6 +59,19 @@ interface PageRow {
   recipes?: RecipeRow | null;
 }
 
+interface GenerationRequestState {
+  id: string;
+  status: 'processing' | 'ready' | 'failed';
+  claimed: boolean;
+  response?: unknown;
+  error?: string | null;
+  recipeId?: string | null;
+  pageId?: string | null;
+  versionId?: string | null;
+  storagePath?: string | null;
+  createdPage?: boolean;
+}
+
 type SupabaseAdmin = any;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -78,11 +97,15 @@ function base64ToBytes(base64: string): Uint8Array {
 
 function promptFromPayload(promptPayload: JsonRecord): string {
   const recipe = isRecord(promptPayload.recipe) ? promptPayload.recipe : {};
+  const template = isRecord(promptPayload.template) ? promptPayload.template : {};
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
   const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
 
   return [
     typeof promptPayload.instructions === 'string' ? promptPayload.instructions : '',
+    '',
+    `Page template: ${typeof template.name === 'string' ? template.name : 'not specified'}`,
+    `Template style reference: ${typeof template.promptDescriptor === 'string' ? template.promptDescriptor : 'not specified'}`,
     '',
     `Title: ${typeof recipe.title === 'string' ? recipe.title : 'Untitled recipe'}`,
     `Servings: ${recipe.servings ?? 'not specified'}`,
@@ -100,22 +123,35 @@ function promptFromPayload(promptPayload: JsonRecord): string {
 async function generateImage(prompt: string): Promise<Uint8Array> {
   if (!OPENAI_API_KEY) throw new Error('OpenAI image generation is not configured.');
 
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${OPENAI_API_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: OPENAI_IMAGE_MODEL,
-      prompt,
-      size: '1024x1536',
-      quality: 'medium',
-      output_format: 'png',
-      moderation: 'auto',
-      n: 1,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), IMAGE_GENERATION_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${OPENAI_API_KEY}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENAI_IMAGE_MODEL,
+        prompt,
+        size: '1024x1536',
+        quality: 'medium',
+        output_format: 'png',
+        moderation: 'auto',
+        n: 1,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('OpenAI image generation timed out.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -133,28 +169,102 @@ async function generateImage(prompt: string): Promise<Uint8Array> {
   return base64ToBytes(b64);
 }
 
-async function reserveCredit(admin: SupabaseAdmin, userId: string): Promise<string> {
+async function beginGenerationRequest(
+  admin: SupabaseAdmin,
+  userId: string,
+  cookbookId: string,
+  idempotencyKey: string,
+  requestPayload: JsonRecord,
+): Promise<GenerationRequestState> {
   const { data, error } = await admin
     .schema('nutriai')
-    .rpc('reserve_generation_credit', { p_user_id: userId });
+    .rpc('begin_generation_request', {
+      p_user_id: userId,
+      p_cookbook_id: cookbookId,
+      p_idempotency_key: idempotencyKey,
+      p_request_payload: requestPayload,
+    });
+
+  if (error) throw new Error(error.message);
+  if (!isRecord(data) || typeof data.id !== 'string' || typeof data.status !== 'string') {
+    throw new Error('Could not start page generation.');
+  }
+  return data as unknown as GenerationRequestState;
+}
+
+async function updateGenerationRequest(
+  admin: SupabaseAdmin,
+  requestId: string,
+  userId: string,
+  values: JsonRecord,
+): Promise<void> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .from('generation_requests')
+    .update(values)
+    .eq('id', requestId)
+    .eq('user_id', userId)
+    .select('id')
+    .single();
+
+  if (error || !data) throw new Error(error?.message ?? 'Generation request not found.');
+}
+
+async function reserveCredit(
+  admin: SupabaseAdmin,
+  userId: string,
+  generationRequestId: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .rpc('reserve_generation_credit', {
+      p_user_id: userId,
+      p_generation_request_id: generationRequestId,
+    });
 
   if (error) throw new Error(error.message);
   if (typeof data !== 'string') throw new Error('Credit reservation failed.');
   return data;
 }
 
-async function refundCredit(admin: SupabaseAdmin, userId: string, relatedPageVersionId?: string): Promise<void> {
+async function completeGenerationRequest(
+  admin: SupabaseAdmin,
+  userId: string,
+  generationRequestId: string,
+  versionId: string,
+  responsePayload: JsonRecord,
+): Promise<void> {
   const { error } = await admin
     .schema('nutriai')
-    .from('credit_ledger')
-    .insert({
-      user_id: userId,
-      event_type: 'adjustment',
-      amount: 1,
-      related_page_version_id: relatedPageVersionId ?? null,
+    .rpc('complete_generation_request', {
+      p_user_id: userId,
+      p_generation_request_id: generationRequestId,
+      p_version_id: versionId,
+      p_response_payload: responsePayload,
     });
 
-  if (error) console.error('Credit refund failed', error.message);
+  if (error) throw new Error(error.message);
+}
+
+async function failGenerationRequest(
+  admin: SupabaseAdmin,
+  userId: string,
+  generationRequestId: string,
+  message: string,
+): Promise<boolean | null> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .rpc('fail_generation_request', {
+      p_user_id: userId,
+      p_generation_request_id: generationRequestId,
+      p_error_message: message,
+    });
+
+  if (error) {
+    console.error('Generation request failure cleanup could not be recorded', error.message);
+    return null;
+  }
+  return data === true;
 }
 
 async function removeStorageObject(admin: SupabaseAdmin, storagePath?: string): Promise<void> {
@@ -269,9 +379,16 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     if (!isRecord(body)) return jsonError('Invalid JSON body', 400, req);
 
-    const { cookbookId, pageId, recipe, promptPayload } = body;
-    if (typeof cookbookId !== 'string' || cookbookId.length === 0 || !isValidRecipe(recipe) || !isRecord(promptPayload)) {
-      return jsonError('Missing or invalid cookbookId, recipe, or promptPayload', 400, req);
+    const { cookbookId, pageId, recipe, promptPayload, idempotencyKey } = body;
+    if (
+      typeof cookbookId !== 'string' ||
+      cookbookId.length === 0 ||
+      !isValidRecipe(recipe) ||
+      !isRecord(promptPayload) ||
+      typeof idempotencyKey !== 'string' ||
+      !/^[A-Za-z0-9._:-]{16,160}$/.test(idempotencyKey)
+    ) {
+      return jsonError('Missing or invalid cookbookId, recipe, promptPayload, or idempotencyKey', 400, req);
     }
     if (pageId !== undefined && typeof pageId !== 'string') {
       return jsonError('Invalid pageId', 400, req);
@@ -288,43 +405,90 @@ serve(async (req: Request) => {
 
     if (cookbookError || !cookbookRow) return jsonError('Cookbook not found', 404, req);
 
+    let generationRequest: GenerationRequestState;
+    try {
+      generationRequest = await beginGenerationRequest(
+        admin,
+        user!.id,
+        cookbookId,
+        idempotencyKey,
+        body,
+      );
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Could not start page generation.';
+      const status = message.toLowerCase().includes('reused') ? 409 : 500;
+      return jsonError(message, status, req);
+    }
+
+    if (!generationRequest.claimed) {
+      if (generationRequest.status === 'ready' && isRecord(generationRequest.response)) {
+        return jsonResponse(generationRequest.response, 200, req);
+      }
+      if (generationRequest.status === 'processing') {
+        return jsonResponse({ status: 'processing', requestId: generationRequest.id }, 202, req);
+      }
+      await removeStorageObject(admin, generationRequest.storagePath ?? undefined);
+      await deleteGeneratedVersion(admin, generationRequest.versionId ?? undefined);
+      if (generationRequest.createdPage) {
+        await deleteCreatedRows(
+          admin,
+          generationRequest.pageId ?? undefined,
+          generationRequest.recipeId ?? undefined,
+        );
+      }
+      return jsonError(generationRequest.error ?? 'This generation attempt failed.', 409, req);
+    }
+
+    const generationRequestId = generationRequest.id;
+    const generationTask = (async () => {
+
     let recipeRow: RecipeRow;
     let pageRow: PageRow;
     let createdRecipeId: string | undefined;
     let createdPageId: string | undefined;
 
-    if (pageId) {
-      const { data: existingPage, error: existingPageError } = await admin
-        .schema('nutriai')
-        .from('cookbook_pages')
-        .select('*, recipes(*)')
-        .eq('id', pageId)
-        .eq('cookbook_id', cookbookId)
-        .single();
+    try {
+      if (pageId) {
+        const { data: existingPage, error: existingPageError } = await admin
+          .schema('nutriai')
+          .from('cookbook_pages')
+          .select('*, recipes(*)')
+          .eq('id', pageId)
+          .eq('cookbook_id', cookbookId)
+          .single();
 
-      if (existingPageError || !existingPage) return jsonError('Page not found', 404, req);
-      pageRow = existingPage as PageRow;
-      if (!pageRow.recipes) return jsonError('Page recipe not found', 404, req);
-      recipeRow = pageRow.recipes;
-    } else {
-      try {
+        if (existingPageError || !existingPage) throw new Error('Page not found');
+        pageRow = existingPage as PageRow;
+        if (!pageRow.recipes) throw new Error('Page recipe not found');
+        recipeRow = pageRow.recipes;
+      } else {
         recipeRow = await insertRecipe(admin, user!.id, recipe);
         createdRecipeId = recipeRow.id;
         pageRow = await insertPageLocked(admin, cookbookId, recipeRow.id, recipe.category ?? 'favorites');
         createdPageId = pageRow.id;
-      } catch (dbError) {
-        await deleteCreatedRows(admin, createdPageId, createdRecipeId);
-        const message = dbError instanceof Error ? dbError.message : 'Could not create cookbook page.';
-        return jsonError(message, 500, req);
       }
+
+      await updateGenerationRequest(admin, generationRequestId, user!.id, {
+        recipe_id: recipeRow.id,
+        page_id: pageRow.id,
+      });
+    } catch (dbError) {
+      const message = dbError instanceof Error ? dbError.message : 'Could not create cookbook page.';
+      const failed = await failGenerationRequest(admin, user!.id, generationRequestId, message);
+      if (failed === true) {
+        await deleteCreatedRows(admin, createdPageId, createdRecipeId);
+      }
+      return jsonError(message, message.toLowerCase().includes('not found') ? 404 : 500, req);
     }
 
-    let spendLedgerId: string;
     try {
-      spendLedgerId = await reserveCredit(admin, user!.id);
+      await reserveCredit(admin, user!.id, generationRequestId);
     } catch (creditError) {
-      if (createdPageId || createdRecipeId) await deleteCreatedRows(admin, createdPageId, createdRecipeId);
       const message = creditError instanceof Error ? creditError.message : 'Not enough credits';
+      const failed = await failGenerationRequest(admin, user!.id, generationRequestId, message);
+      if (failed === true && (createdPageId || createdRecipeId)) {
+        await deleteCreatedRows(admin, createdPageId, createdRecipeId);
+      }
       const status = message.toLowerCase().includes('not enough credits') ? 402 : 500;
       return jsonError(message, status, req);
     }
@@ -340,6 +504,9 @@ serve(async (req: Request) => {
         upsert: false,
       });
       if (upload.error) throw new Error(upload.error.message);
+      await updateGenerationRequest(admin, generationRequestId, user!.id, {
+        storage_path: storagePath,
+      });
 
       const { data: publicUrl } = admin.storage.from(BUCKET).getPublicUrl(storagePath);
       const imageUrl = publicUrl.publicUrl;
@@ -362,38 +529,59 @@ serve(async (req: Request) => {
       if (versionError) throw new Error(versionError.message);
       const readyVersionId = String(versionRow.id);
       versionId = readyVersionId;
+      await updateGenerationRequest(admin, generationRequestId, user!.id, {
+        version_id: readyVersionId,
+      });
+      const responsePayload = toClientPage(pageRow, recipeRow, readyVersionId, imageUrl);
+      await completeGenerationRequest(
+        admin,
+        user!.id,
+        generationRequestId,
+        readyVersionId,
+        responsePayload,
+      );
 
-      const { error: ledgerError } = await admin
-        .schema('nutriai')
-        .from('credit_ledger')
-        .update({ related_page_version_id: readyVersionId })
-        .eq('id', spendLedgerId)
-        .eq('user_id', user!.id);
-
-      if (ledgerError) throw new Error(ledgerError.message);
-
-      const { error: updateError } = await admin
-        .schema('nutriai')
-        .from('cookbook_pages')
-        .update({ selected_version_id: readyVersionId })
-        .eq('id', pageRow.id)
-        .eq('cookbook_id', cookbookId);
-
-      if (updateError) throw new Error(updateError.message);
-
-      return jsonResponse(toClientPage(pageRow, recipeRow, readyVersionId, imageUrl), 200, req);
+      return jsonResponse(responsePayload, 200, req);
     } catch (generationError) {
-      await removeStorageObject(admin, storagePath);
-      await refundCredit(admin, user!.id);
-      await deleteGeneratedVersion(admin, versionId);
-      if (createdPageId || createdRecipeId) await deleteCreatedRows(admin, createdPageId, createdRecipeId);
-
       const message = generationError instanceof Error ? generationError.message : 'Image generation failed';
-      const status = message.toLowerCase().includes('openai') || message.toLowerCase().includes('image generation')
+      await compensateGenerationFailure(
+        message,
+        {
+          storagePath,
+          versionId,
+          pageId: createdPageId,
+          recipeId: createdRecipeId,
+        },
+        {
+          recordFailure: () => failGenerationRequest(admin, user!.id, generationRequestId, message),
+          recoverCompleted: async () => {
+            try {
+              const recovered = await beginGenerationRequest(
+                admin,
+                user!.id,
+                cookbookId,
+                idempotencyKey,
+                body,
+              );
+              return recovered.status === 'ready' && isRecord(recovered.response);
+            } catch (recoveryError) {
+              console.error('Completed generation response recovery failed', recoveryError);
+              return false;
+            }
+          },
+          removeStorage: (path) => removeStorageObject(admin, path),
+          removeVersion: (id) => deleteGeneratedVersion(admin, id),
+          removeCreatedRows: (pageId, recipeId) => deleteCreatedRows(admin, pageId, recipeId),
+        },
+      );
+      return jsonError(message, message.toLowerCase().includes('openai') || message.toLowerCase().includes('image generation')
         ? 502
-        : 500;
-      return jsonError(message, status, req);
+        : 500, req);
     }
+    })();
+
+    EdgeRuntime.waitUntil(generationTask);
+    return jsonResponse({ status: 'processing', requestId: generationRequestId }, 202, req);
   } catch (err) {
     return jsonError(err instanceof Error ? err.message : 'Generation failed', 500, req);
   }

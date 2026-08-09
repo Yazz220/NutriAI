@@ -9,7 +9,7 @@ import { LoadingSpinner } from './LoadingSpinner';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'outline' | 'ghost' | 'text' | 'danger';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   shape?: 'rect' | 'capsule';
   disabled?: boolean;
@@ -66,7 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const buttonStyle = [
     styles.base,
-    styles[variant],
+    variant === 'text' ? styles.textButton : styles[variant],
     styles[size],
     shape === 'capsule' && styles.capsule,
     fullWidth && styles.fullWidth,
@@ -82,8 +82,7 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
   ];
 
-  const spinnerColor =
-    variant === 'primary' || variant === 'danger' ? Colors.onPrimary : Colors.text;
+  const spinnerColor = variant === 'primary' ? Colors.onPrimary : Colors.text;
 
   return (
     <Animated.View style={[fullWidth && styles.fullWidth, { transform: [{ scale: scaleAnim }] }]}>
@@ -116,7 +115,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radii.sm,
+    borderRadius: Radii.full,
     borderCurve: 'continuous',
   },
   capsule: {
@@ -130,38 +129,48 @@ const styles = StyleSheet.create({
     borderWidth: Tokens.component.button.secondary.border.width,
     borderColor: Tokens.component.button.secondary.border.color,
   },
+  tertiary: {
+    backgroundColor: Tokens.component.button.tertiary.container.bg,
+  },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.butterscotch,
+    borderColor: Colors.charcoal,
   },
   ghost: {
     backgroundColor: 'transparent',
+  },
+  textButton: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.charcoal,
+    borderRadius: 0,
+    paddingHorizontal: 0,
   },
   danger: {
     backgroundColor: Tokens.component.button.danger.container.bg,
   },
   xs: {
-    minHeight: 28,
-    paddingHorizontal: Spacing.sm,
+    minHeight: 30,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     gap: Spacing.xs,
   },
   sm: {
-    minHeight: 34,
-    paddingHorizontal: Spacing.md,
+    minHeight: 36,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 6,
     gap: Spacing.xs,
   },
   md: {
-    minHeight: 40,
-    paddingHorizontal: Spacing.lg,
+    minHeight: 44,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: 8,
     gap: Spacing.sm,
   },
   lg: {
-    minHeight: 48,
-    paddingHorizontal: Spacing.xl,
+    minHeight: 52,
+    paddingHorizontal: Spacing.xxl,
     paddingVertical: 10,
     gap: Spacing.md,
   },
@@ -181,12 +190,18 @@ const styles = StyleSheet.create({
     color: Colors.onPrimary,
   },
   secondaryText: {
-    color: Colors.fadedStone,
+    color: Colors.text,
+  },
+  tertiaryText: {
+    color: Colors.text,
   },
   outlineText: {
     color: Colors.text,
   },
   ghostText: {
+    color: Colors.text,
+  },
+  textText: {
     color: Colors.text,
   },
   dangerText: {

@@ -10,7 +10,9 @@ import {
   type CreateCookbookInput,
 } from '@/utils/cookbook/api';
 import { loadCachedShelf, saveCachedShelf } from '@/utils/cookbook/cache';
+import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 import type { Cookbook } from '@/types/cookbook';
+import { SAMPLE_COOKBOOK, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
 
 export const SHELF_QUERY_KEY = (userId: string | undefined) => ['cookbook-shelf', userId];
 
@@ -76,11 +78,15 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     },
   });
 
-  const cookbooks = shelfQuery.data ?? [];
+  const cookbooks = shouldShowSampleCookbook() ? [SAMPLE_COOKBOOK] : (shelfQuery.data ?? []);
+  const isShelfStale = isStaleCachedData(shelfQuery.error, shelfQuery.data);
 
   return {
     cookbooks,
     isLoading: shelfQuery.isLoading,
+    isShelfStale,
+    shelfError: shelfQuery.error,
+    creditsError: creditsQuery.error,
     error: shelfQuery.error ?? creditsQuery.error,
     creditBalance: creditsQuery.data?.balance ?? 0,
     refresh: () => queryClient.invalidateQueries({ queryKey: SHELF_QUERY_KEY(user?.id) }),

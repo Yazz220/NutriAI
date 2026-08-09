@@ -6,7 +6,7 @@ import {
   Animated,
   TouchableOpacity,
 } from 'react-native';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react-native';
+import { AlertCircle, Check, Info, X } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Fonts } from '@/utils/fonts';
 import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
@@ -77,22 +77,22 @@ export const Toast: React.FC<ToastProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle size={20} color={Colors.onPrimary} />;
+        return <Check size={18} color={Colors.text} />;
       case 'error':
-        return <AlertCircle size={20} color={Colors.onPrimary} />;
+        return <AlertCircle size={18} color={Colors.error} />;
       default:
-        return <Info size={20} color={Colors.onPrimary} />;
+        return <Info size={18} color={Colors.text} />;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return Colors.primary;
+        return Colors.successLight;
       case 'error':
-        return Colors.error;
+        return Colors.errorLight;
       default:
-        return Colors.text;
+        return Colors.white;
     }
   };
 
@@ -134,7 +134,7 @@ export const Toast: React.FC<ToastProps> = ({
             onPress={hideToast}
             accessibilityLabel="Close notification"
           >
-            <X size={16} color={Colors.onPrimary} />
+            <X size={16} color={Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -153,9 +153,11 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: Radii.sm,
+    borderRadius: Radii.lg,
     padding: Spacing.lg,
-    ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    ...Shadows.sm,
   },
   content: {
     flex: 1,
@@ -163,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   message: {
-    color: Colors.onPrimary,
+    color: Colors.text,
     fontFamily: Fonts.ui.regular,
     fontSize: Typography.sizes.md,
     marginLeft: Spacing.md,
@@ -175,14 +177,14 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
   },
   actionButton: {
-    backgroundColor: Colors.alpha.white[20],
+    backgroundColor: Colors.parchment,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radii.xs,
     marginRight: Spacing.sm,
   },
   actionText: {
-    color: Colors.onPrimary,
+    color: Colors.text,
     fontSize: Typography.sizes.sm,
     fontFamily: Fonts.ui.medium,
   },
