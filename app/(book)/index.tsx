@@ -2,12 +2,7 @@ import React from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { CookbookShelf } from '@/components/cookbook/CookbookShelf';
-import { EmptyShelfState } from '@/components/cookbook/EmptyShelfState';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
-import {
-  TOP_LEVEL_BOTTOM_NAV_HEIGHT,
-  TopLevelBottomNav,
-} from '@/components/navigation/TopLevelBottomNav';
 import { Colors } from '@/constants/colors';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import type { Cookbook } from '@/types/cookbook';
@@ -17,6 +12,14 @@ export default function MyCookbooksScreen() {
 
   function openLibrary() {
     router.push('/(book)/library');
+  }
+
+  function openTemplates() {
+    router.push('/(book)/templates');
+  }
+
+  function openSettings() {
+    router.push('/(book)/settings');
   }
 
   function openCookbook(cookbook: Cookbook) {
@@ -43,31 +46,19 @@ export default function MyCookbooksScreen() {
     );
   }
 
-  if (cookbooks.length === 0) {
-    return (
-      <View style={styles.container}>
-        <EmptyShelfState
-          onAddCookbook={openLibrary}
-          bottomInset={TOP_LEVEL_BOTTOM_NAV_HEIGHT}
-        />
-        <TopLevelBottomNav active="cookbooks" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <CookbookShelf
         cookbooks={cookbooks}
         onSelectCookbook={openCookbook}
         onAddCookbook={openLibrary}
-        bottomInset={TOP_LEVEL_BOTTOM_NAV_HEIGHT}
+        onOpenTemplates={openTemplates}
+        onOpenSettings={openSettings}
         isStale={isShelfStale}
         onRefresh={() => {
           void refresh();
         }}
       />
-      <TopLevelBottomNav active="cookbooks" />
     </View>
   );
 }

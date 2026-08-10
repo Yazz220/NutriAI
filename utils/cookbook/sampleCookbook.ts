@@ -6,7 +6,7 @@ export const SAMPLE_COOKBOOK: Cookbook = {
   id: SAMPLE_COOKBOOK_ID,
   userId: 'demo-user',
   title: 'The Weeknight Table',
-  coverImageAsset: require('../../assets/cookbook/generated/weeknight-table-cover.png'),
+  coverImageAsset: require('../../assets/cookbook/generated/garden-table-cover-texture.png'),
   theme: {
     name: 'Garden Table',
     prompt: 'Warm editorial recipe journal with hand-drawn botanical details.',
@@ -18,9 +18,9 @@ export const SAMPLE_COOKBOOK: Cookbook = {
     { id: 'healthy', label: 'Fresh & Healthy', order: 1 },
     { id: 'sides', label: 'Sides', order: 2 },
   ],
-  pageCount: 3,
+  pageCount: 6,
   createdAt: '2026-08-01T12:00:00.000Z',
-  updatedAt: '2026-08-09T12:00:00.000Z',
+  updatedAt: '2026-08-10T12:00:00.000Z',
 };
 
 export const SAMPLE_COOKBOOK_PAGES: CookbookPage[] = [
@@ -53,6 +53,36 @@ export const SAMPLE_COOKBOOK_PAGES: CookbookPage[] = [
     pageNumber: 3,
     sortOrder: 2,
     imageAsset: require('../../assets/cookbook/generated/garlicky-broccolini-lemon-crumbs.png'),
+  },
+  {
+    id: 'demo-harissa-chicken',
+    cookbookId: SAMPLE_COOKBOOK_ID,
+    recipeId: 'recipe-harissa-chicken',
+    title: 'Sheet-Pan Harissa Chicken',
+    section: 'dinner',
+    pageNumber: 4,
+    sortOrder: 3,
+    imageAsset: require('../../assets/cookbook/generated/sheet-pan-harissa-chicken.png'),
+  },
+  {
+    id: 'demo-tuscan-white-beans',
+    cookbookId: SAMPLE_COOKBOOK_ID,
+    recipeId: 'recipe-tuscan-white-beans',
+    title: 'Creamy Tuscan White Beans',
+    section: 'healthy',
+    pageNumber: 5,
+    sortOrder: 4,
+    imageAsset: require('../../assets/cookbook/generated/creamy-tuscan-white-beans.png'),
+  },
+  {
+    id: 'demo-mushroom-orzo',
+    cookbookId: SAMPLE_COOKBOOK_ID,
+    recipeId: 'recipe-mushroom-orzo',
+    title: 'Lemony Mushroom Orzo',
+    section: 'dinner',
+    pageNumber: 6,
+    sortOrder: 5,
+    imageAsset: require('../../assets/cookbook/generated/lemony-mushroom-orzo.png'),
   },
 ];
 

@@ -11,10 +11,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react-native';
-import {
-  TOP_LEVEL_BOTTOM_NAV_HEIGHT,
-  TopLevelBottomNav,
-} from '@/components/navigation/TopLevelBottomNav';
+import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -99,7 +96,7 @@ export default function CookbookSettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Text style={styles.wordmark}>Nosh</Text>
+        <LibraryBackButton />
         <Text style={styles.title}>Settings</Text>
       </View>
 
@@ -107,7 +104,7 @@ export default function CookbookSettingsScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Spacing.xxxl + TOP_LEVEL_BOTTOM_NAV_HEIGHT },
+          { paddingBottom: insets.bottom + Spacing.xxxl },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -149,8 +146,6 @@ export default function CookbookSettingsScreen() {
 
         <Text style={styles.footer}>Nosh | Personal cookbook | v0.1</Text>
       </ScrollView>
-
-      <TopLevelBottomNav active="settings" />
     </View>
   );
 }
@@ -221,13 +216,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
     gap: Spacing.xs,
-  },
-  wordmark: {
-    fontFamily: Fonts.display.bold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: 0,
-    color: Colors.textMuted,
   },
   title: {
     fontFamily: Fonts.display.bold,

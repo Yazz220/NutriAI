@@ -3,10 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecipeTemplateLibrary } from '@/components/cookbook/RecipeTemplateLibrary';
-import {
-  TOP_LEVEL_BOTTOM_NAV_HEIGHT,
-  TopLevelBottomNav,
-} from '@/components/navigation/TopLevelBottomNav';
+import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -25,7 +22,7 @@ export default function TopLevelTemplatesScreen() {
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
-        <Text style={styles.wordmark}>Nosh</Text>
+        <LibraryBackButton />
         <Text style={styles.title}>Templates</Text>
         <Text style={styles.subtitle}>
           Browse page styles and keep favorites ready for your next recipe.
@@ -35,12 +32,10 @@ export default function TopLevelTemplatesScreen() {
       <RecipeTemplateLibrary
         selectedTemplateId={selectedTemplateId}
         favoriteTemplateIds={favoriteTemplateIds}
-        bottomInset={TOP_LEVEL_BOTTOM_NAV_HEIGHT}
+        bottomInset={insets.bottom + Spacing.xxl}
         onSelectTemplate={selectTemplate}
         onToggleFavoriteTemplate={toggleFavoriteTemplate}
       />
-
-      <TopLevelBottomNav active="templates" />
     </LinearGradient>
   );
 }
@@ -53,13 +48,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     gap: Spacing.xs,
-  },
-  wordmark: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.display.bold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: 0,
   },
   title: {
     color: Colors.text,

@@ -47,9 +47,6 @@ export function NoshAssistantButton({
 
 const styles = StyleSheet.create({
   button: {
-    position: 'absolute',
-    left: 22,
-    bottom: 34,
     minWidth: 126,
     height: 44,
     borderRadius: 9999,

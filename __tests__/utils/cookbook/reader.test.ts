@@ -1,4 +1,37 @@
-import { buildCookbookSpreads, getReaderPageIndex, getSpreadIndexForPage } from '@/utils/cookbook/reader';
+import {
+  buildCookbookSpreads,
+  getAdjacentRecipePageIndex,
+  getReaderPageIndex,
+  getSpreadIndexForPage,
+  shouldAutoHideReaderChrome,
+  shouldUseTouchPaging,
+} from '@/utils/cookbook/reader';
+
+describe('reader chrome visibility', () => {
+  it('auto-hides only on web, where pointer movement can restore it', () => {
+    expect(shouldAutoHideReaderChrome('web')).toBe(true);
+    expect(shouldAutoHideReaderChrome('ios')).toBe(false);
+    expect(shouldAutoHideReaderChrome('android')).toBe(false);
+  });
+});
+
+describe('touch paging', () => {
+  it('replaces page arrows only on compact native screens', () => {
+    expect(shouldUseTouchPaging('ios', 390)).toBe(true);
+    expect(shouldUseTouchPaging('android', 430)).toBe(true);
+    expect(shouldUseTouchPaging('ios', 768)).toBe(false);
+    expect(shouldUseTouchPaging('web', 390)).toBe(false);
+  });
+
+  it('moves one recipe at a time and resists at the book edges', () => {
+    const pageIds = ['page-a', 'page-b', 'page-c'];
+
+    expect(getAdjacentRecipePageIndex(pageIds, 'page-a', 1)).toBe(1);
+    expect(getAdjacentRecipePageIndex(pageIds, 'page-b', 1)).toBe(2);
+    expect(getAdjacentRecipePageIndex(pageIds, 'page-c', 1)).toBeNull();
+    expect(getAdjacentRecipePageIndex(pageIds, 'page-a', -1)).toBeNull();
+  });
+});
 
 describe('getReaderPageIndex', () => {
   const pageIds = ['page-a', 'page-b', 'page-c'];

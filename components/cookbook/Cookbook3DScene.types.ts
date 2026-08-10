@@ -9,9 +9,11 @@ export interface Cookbook3DSceneProps {
   spreadIndex: number;
   isOpen: boolean;
   readingView?: 'tilted' | 'topdown';
+  readingPageId?: string;
   onOpen: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onEnterReadingView: (page?: CookbookPage) => void;
   onOpenRecipe: (page: CookbookPage) => void;
   style?: StyleProp<ViewStyle>;
 }

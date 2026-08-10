@@ -1,4 +1,25 @@
 const RECIPE_PAGE_OFFSET = 2;
+export const TOUCH_PAGING_BREAKPOINT = 600;
+
+export function shouldAutoHideReaderChrome(platform: string): boolean {
+  return platform === 'web';
+}
+
+export function shouldUseTouchPaging(platform: string, width: number): boolean {
+  return platform !== 'web' && width < TOUCH_PAGING_BREAKPOINT;
+}
+
+export function getAdjacentRecipePageIndex(
+  pageIds: string[],
+  currentPageId: string | undefined,
+  offset: -1 | 1,
+): number | null {
+  if (pageIds.length === 0) return null;
+  const requestedIndex = currentPageId ? pageIds.indexOf(currentPageId) : -1;
+  const currentIndex = requestedIndex >= 0 ? requestedIndex : 0;
+  const nextIndex = Math.max(0, Math.min(pageIds.length - 1, currentIndex + offset));
+  return nextIndex === currentIndex ? null : nextIndex;
+}
 
 export type CookbookLeaf =
   | { type: 'bookplate'; id: 'bookplate' }

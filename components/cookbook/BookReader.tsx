@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { AddPageSheet } from '@/components/cookbook/AddPageSheet';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
@@ -14,7 +15,14 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { buildCookbookSpreads, getSpreadIndexForPage, type CookbookLeaf } from '@/utils/cookbook/reader';
+import {
+  buildCookbookSpreads,
+  getAdjacentRecipePageIndex,
+  getSpreadIndexForPage,
+  shouldAutoHideReaderChrome,
+  shouldUseTouchPaging,
+  type CookbookLeaf,
+} from '@/utils/cookbook/reader';
 import type { Cookbook, CookbookPage, RecipeSourceType } from '@/types/cookbook';
 
 interface BookReaderProps {
@@ -45,13 +53,17 @@ export function BookReader({
   const requestedSpread = getSpreadIndexForPage(spreads, initialPageId) ?? 0;
   const [spreadIndex, setSpreadIndex] = useState(requestedSpread);
   const [isOpen, setIsOpen] = useState(Boolean(initialPageId));
-  const [readingView, setReadingView] = useState<'tilted' | 'topdown'>('tilted');
+  const [readingView, setReadingView] = useState<'tilted' | 'topdown'>(initialPageId ? 'topdown' : 'tilted');
+  const [readingPageId, setReadingPageId] = useState(initialPageId);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const handledInitialPageId = useRef<string | null>(null);
   const opening = useSharedValue(initialPageId ? 1 : 0);
   const chromeIdle = useSharedValue(1);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoHideChrome = shouldAutoHideReaderChrome(Platform.OS);
+  const isNative = Platform.OS !== 'web';
+  const usesTouchPaging = shouldUseTouchPaging(Platform.OS, width);
 
   const pokeChrome = useCallback(() => {
     // Set directly (no withTiming) so this works from any JS context,
@@ -59,10 +71,11 @@ export function BookReader({
     // withTiming from a setTimeout, which works reliably.
     chromeIdle.value = 1;
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (!autoHideChrome) return;
     idleTimerRef.current = setTimeout(() => {
       chromeIdle.value = withTiming(0, { duration: 700 });
     }, 3500);
-  }, [chromeIdle]);
+  }, [autoHideChrome, chromeIdle]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -90,10 +103,19 @@ export function BookReader({
   }, [isOpen, pokeChrome]);
 
   const topSideWidth = width < 480 ? 44 : 60;
+  const browseRailWidth = Math.min(width - 40, 760);
   const cookbookId = cookbook?.id;
   const cookbookTitle = cookbook?.title ?? 'My Cookbook';
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
-  const selectedPage = getPreferredRecipe(activeSpread?.left, activeSpread?.right, pages);
+  const preferredSpreadPage = getPreferredRecipe(activeSpread?.left, activeSpread?.right, pages);
+  const readingPage = pages.find((page) => page.id === readingPageId) ?? preferredSpreadPage;
+  const selectedPage = usesTouchPaging && readingView === 'topdown' ? readingPage : preferredSpreadPage;
+  const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
+  const counterCurrent =
+    usesTouchPaging && readingView === 'topdown' && readingPageIndex >= 0
+      ? readingPageIndex + 1
+      : spreadIndex + 1;
+  const counterTotal = usesTouchPaging && readingView === 'topdown' ? pages.length : spreads.length;
 
   useEffect(() => {
     if (spreadIndex < spreads.length) return;
@@ -108,6 +130,8 @@ export function BookReader({
     handledInitialPageId.current = initialPageId;
     setSpreadIndex(targetSpread);
     setIsOpen(true);
+    setReadingView('topdown');
+    setReadingPageId(initialPageId);
     opening.set(1);
     onSelectPage(initialPageId);
   }, [initialPageId, onSelectPage, opening, spreads]);
@@ -125,11 +149,6 @@ export function BookReader({
   const floatingIdleStyle = useAnimatedStyle(() => ({
     opacity: chromeIdle.value,
     transform: [{ scale: 0.7 + 0.3 * chromeIdle.value }],
-  }));
-
-  const closedCopyStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(opening.value, [0, 0.15], [1, 0]),
-    transform: [{ translateY: interpolate(opening.value, [0, 0.15], [0, 6]) }],
   }));
 
   function openBook() {
@@ -163,7 +182,21 @@ export function BookReader({
 
     const next = spreads[nextIndex];
     const page = getPreferredRecipe(next.left, next.right, pages);
-    if (page) onSelectPage(page.id);
+    if (page) {
+      setReadingPageId(page.id);
+      onSelectPage(page.id);
+    }
+  }
+
+  function goToRecipeOffset(offset: -1 | 1) {
+    const nextIndex = getAdjacentRecipePageIndex(pageIds, readingPage?.id, offset);
+    if (nextIndex === null) return;
+    const page = pages[nextIndex];
+    const targetSpread = getSpreadIndexForPage(spreads, page.id);
+    if (targetSpread !== null) setSpreadIndex(targetSpread);
+    setReadingPageId(page.id);
+    onSelectPage(page.id);
+    pokeChrome();
   }
 
   function openAddPageSheet() {
@@ -172,7 +205,29 @@ export function BookReader({
   }
 
   function toggleReadingView() {
-    setReadingView((prev) => (prev === 'tilted' ? 'topdown' : 'tilted'));
+    setReadingView((prev) => {
+      if (prev === 'tilted' && !readingPageId && preferredSpreadPage) {
+        setReadingPageId(preferredSpreadPage.id);
+      }
+      return prev === 'tilted' ? 'topdown' : 'tilted';
+    });
+    pokeChrome();
+  }
+
+  function jumpToRecipe(page: CookbookPage) {
+    const targetSpread = getSpreadIndexForPage(spreads, page.id);
+    if (targetSpread === null) return;
+    setSpreadIndex(targetSpread);
+    setReadingPageId(page.id);
+    onSelectPage(page.id);
+    pokeChrome();
+    if (usesTouchPaging) setReadingView('topdown');
+  }
+
+  function enterReadingView(page?: CookbookPage) {
+    const targetPage = page ?? preferredSpreadPage;
+    if (targetPage) setReadingPageId(targetPage.id);
+    setReadingView('topdown');
     pokeChrome();
   }
 
@@ -184,7 +239,6 @@ export function BookReader({
 
   return (
     <LinearGradient colors={Colors.book.readerGradient} style={styles.container}>
-      <View style={styles.ambientWash} />
       <Animated.View style={[styles.topBar, { paddingTop: insets.top + Spacing.xs }, topBarStyle]}>
         <Pressable
           style={[styles.backButton, { minWidth: topSideWidth }]}
@@ -230,81 +284,164 @@ export function BookReader({
           spreadIndex={spreadIndex}
           isOpen={isOpen}
           readingView={readingView}
+          readingPageId={readingPageId}
           onOpen={openBook}
-          onNext={() => goToSpread(spreadIndex + 1)}
-          onPrevious={() => goToSpread(spreadIndex - 1)}
+          onNext={() =>
+            usesTouchPaging && readingView === 'topdown'
+              ? goToRecipeOffset(1)
+              : goToSpread(spreadIndex + 1)
+          }
+          onPrevious={() =>
+            usesTouchPaging && readingView === 'topdown'
+              ? goToRecipeOffset(-1)
+              : goToSpread(spreadIndex - 1)
+          }
+          onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
         />
 
-        <Animated.View
-          style={[styles.closedCopy, { pointerEvents: isOpen ? 'none' : 'auto' }, closedCopyStyle]}
-        >
-          <Text style={styles.closedHint}>Tap the cover to open</Text>
-        </Animated.View>
       </View>
 
+      {isOpen && readingView === 'tilted' && pages.length > 0 ? (
+        <View
+          style={[
+            styles.browseRail,
+            {
+              bottom: insets.bottom + 68,
+              left: (width - browseRailWidth) / 2,
+              width: browseRailWidth,
+            },
+          ]}
+        >
+          <View style={styles.browseRailHeader}>
+            <Text style={styles.browseEyebrow}>BROWSE RECIPES</Text>
+            <Text style={styles.browseHint}>
+              {usesTouchPaging ? 'Swipe book · Tap to read' : 'Tap a page to jump'}
+            </Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.browseRailContent}
+          >
+            {pages.map((page) => {
+              const pageSpread = getSpreadIndexForPage(spreads, page.id);
+              const isActive = pageSpread === spreadIndex;
+              const imageSource = page.imageAsset ?? (page.imageUrl ? { uri: page.imageUrl } : null);
+              return (
+                <Pressable
+                  key={page.id}
+                  style={[styles.recipeDestination, isActive && styles.recipeDestinationActive]}
+                  onPress={() => jumpToRecipe(page)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Jump to ${page.title}, page ${page.pageNumber}`}
+                >
+                  {imageSource ? (
+                    <Image source={imageSource} style={styles.destinationImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.destinationPlaceholder} />
+                  )}
+                  <View style={styles.destinationCopy}>
+                    <Text style={styles.destinationPage}>PAGE {String(page.pageNumber).padStart(2, '0')}</Text>
+                    <Text style={styles.destinationTitle} numberOfLines={2}>
+                      {page.title}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {isOpen && usesTouchPaging && readingView === 'topdown' ? (
+        <View style={[styles.swipeHint, { bottom: insets.bottom + 67 }]} pointerEvents="none">
+          <Text style={styles.swipeHintText}>Swipe to turn recipe pages</Text>
+        </View>
+      ) : null}
+
       <Animated.View
-        style={[styles.readerControls, { paddingBottom: insets.bottom + 10, pointerEvents: isOpen ? 'auto' : 'none' }, chromeStyle]}
+        pointerEvents={isOpen ? 'auto' : 'none'}
+        style={[styles.readerControls, { paddingBottom: insets.bottom + 10 }, chromeStyle]}
       >
-        <Pressable
-          style={[styles.pageButton, spreadIndex === 0 && styles.pageButtonDisabled]}
-          disabled={spreadIndex === 0}
-          onPress={() => goToSpread(spreadIndex - 1)}
-          accessibilityLabel="Previous spread"
-        >
-          <ChevronLeft size={18} color={Colors.text} />
-        </Pressable>
+        {!usesTouchPaging ? (
+          <Pressable
+            style={[styles.pageButton, spreadIndex === 0 && styles.pageButtonDisabled]}
+            disabled={spreadIndex === 0}
+            onPress={() => goToSpread(spreadIndex - 1)}
+            accessibilityLabel="Previous spread"
+          >
+            <ChevronLeft size={18} color={Colors.text} />
+          </Pressable>
+        ) : null}
 
-        <Pressable style={styles.counter} onPress={closeBook} accessibilityLabel="Close cookbook">
-          <Text style={styles.counterNumber}>
-            {String(spreadIndex + 1).padStart(2, '0')} / {String(spreads.length).padStart(2, '0')}
-          </Text>
-        </Pressable>
+        {usesTouchPaging ? (
+          <View style={[styles.counter, styles.nativeCounter]}>
+            <Text style={styles.counterNumber}>
+              {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
+            </Text>
+          </View>
+        ) : (
+          <Pressable style={styles.counter} onPress={closeBook} accessibilityLabel="Close cookbook">
+            <Text style={styles.counterNumber}>
+              {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
+            </Text>
+          </Pressable>
+        )}
+
+        {!usesTouchPaging ? (
+          <Pressable
+            style={[styles.pageButton, spreadIndex === spreads.length - 1 && styles.pageButtonDisabled]}
+            disabled={spreadIndex === spreads.length - 1}
+            onPress={() => goToSpread(spreadIndex + 1)}
+            accessibilityLabel="Next spread"
+          >
+            <ChevronRight size={18} color={Colors.text} />
+          </Pressable>
+        ) : null}
 
         <Pressable
-          style={[styles.pageButton, spreadIndex === spreads.length - 1 && styles.pageButtonDisabled]}
-          disabled={spreadIndex === spreads.length - 1}
-          onPress={() => goToSpread(spreadIndex + 1)}
-          accessibilityLabel="Next spread"
-        >
-          <ChevronRight size={18} color={Colors.text} />
-        </Pressable>
-
-        <Pressable
-          style={styles.viewToggleButton}
+          style={[styles.viewToggleButton, isNative && styles.nativeControl]}
           onPress={toggleReadingView}
           accessibilityRole="button"
-          accessibilityLabel={readingView === 'tilted' ? 'Enter reading mode' : 'Back to 3D view'}
+          accessibilityLabel={readingView === 'tilted' ? 'Read this spread' : 'Browse pages'}
         >
           {readingView === 'tilted' ? (
             <Maximize2 size={16} color={Colors.text} />
           ) : (
             <Minimize2 size={16} color={Colors.text} />
           )}
+          <Text style={styles.viewToggleLabel}>{readingView === 'tilted' ? 'Read' : 'Browse'}</Text>
         </Pressable>
       </Animated.View>
 
-      {isOpen && cookbookId ? (
-        <Animated.View style={[floatingIdleStyle]} pointerEvents="auto">
-          <Pressable
-            style={styles.floatingAddButton}
-            onPress={openAddPageSheet}
-            accessibilityRole="button"
-            accessibilityLabel={`Add a page to ${cookbookTitle}`}
-          >
-            <Plus size={20} color={Colors.onPrimary} />
-          </Pressable>
-        </Animated.View>
-      ) : null}
-
-      {isOpen && selectedPage ? (
-        <Animated.View style={[floatingIdleStyle]} pointerEvents="auto">
-          <NoshAssistantButton
-            page={selectedPage}
-            pageNumber={selectedPage.pageNumber}
-            cookbookPages={pages}
-            cookbookTitle={cookbookTitle}
-          />
+      {isOpen && (selectedPage || cookbookId) ? (
+        <Animated.View
+          style={[
+            styles.readerActionDock,
+            { top: insets.top + 58 },
+            floatingIdleStyle,
+          ]}
+          pointerEvents="auto"
+        >
+          {selectedPage ? (
+            <NoshAssistantButton
+              page={selectedPage}
+              pageNumber={selectedPage.pageNumber}
+              cookbookPages={pages}
+              cookbookTitle={cookbookTitle}
+            />
+          ) : null}
+          {cookbookId ? (
+            <Pressable
+              style={({ pressed }) => [styles.floatingAddButton, pressed && styles.actionPressed]}
+              onPress={openAddPageSheet}
+              accessibilityRole="button"
+              accessibilityLabel={`Add a page to ${cookbookTitle}`}
+            >
+              <Plus size={20} color={Colors.onPrimary} />
+            </Pressable>
+          ) : null}
         </Animated.View>
       ) : null}
 
@@ -312,6 +449,7 @@ export function BookReader({
         visible={Boolean(focusedPage)}
         animationType="fade"
         transparent={false}
+        presentationStyle="fullScreen"
         onRequestClose={() => setFocusedPage(null)}
       >
         <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
@@ -319,10 +457,11 @@ export function BookReader({
             <Pressable
               style={styles.focusedAction}
               onPress={() => setFocusedPage(null)}
+              accessibilityRole="button"
               accessibilityLabel="Return to open cookbook"
             >
-              <X size={20} color={Colors.text} />
-              <Text style={styles.focusedActionText}>Book</Text>
+              <ChevronLeft size={18} color={Colors.text} />
+              <Text style={styles.focusedActionText}>Cookbook</Text>
             </Pressable>
             <Text style={styles.focusedTitle} numberOfLines={1}>
               {focusedPage?.title}
@@ -337,9 +476,18 @@ export function BookReader({
               </Pressable>
             ) : null}
           </View>
-          <View style={[styles.focusedPage, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>
             {focusedPage ? <PageCanvas page={focusedPage} /> : null}
           </View>
+          <Pressable
+            style={[styles.focusedReturnButton, { bottom: insets.bottom + 12 }]}
+            onPress={() => setFocusedPage(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Back to open cookbook"
+          >
+            <ChevronLeft size={17} color={Colors.onPrimary} />
+            <Text style={styles.focusedReturnText}>Back to cookbook</Text>
+          </Pressable>
         </LinearGradient>
       </Modal>
 
@@ -366,16 +514,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
-  },
-  ambientWash: {
-    position: 'absolute',
-    left: '-15%',
-    right: '-15%',
-    top: '18%',
-    height: '62%',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-    transform: [{ scaleY: 0.72 }],
   },
   topBar: {
     minHeight: 52,
@@ -424,19 +562,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
   },
-  closedCopy: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 28,
-    alignItems: 'center',
-  },
-  closedHint: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 11,
-    letterSpacing: 0.4,
-  },
   readerControls: {
     position: 'absolute',
     left: 0,
@@ -462,8 +587,13 @@ const styles = StyleSheet.create({
   pageButtonDisabled: {
     opacity: 0.28,
   },
+  nativeControl: {
+    backgroundColor: 'rgba(250,248,243,0.96)',
+    borderColor: 'rgba(91,82,68,0.28)',
+    boxShadow: '0 5px 14px rgba(35,33,28,0.16)',
+  },
   viewToggleButton: {
-    width: 36,
+    minWidth: 76,
     height: 36,
     borderRadius: Radii.full,
     alignItems: 'center',
@@ -471,11 +601,122 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.5)',
     borderWidth: 1,
     borderColor: Colors.ash,
-    marginLeft: 6,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 11,
+    marginLeft: 2,
+  },
+  viewToggleLabel: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 11,
+  },
+  browseRail: {
+    position: 'absolute',
+    zIndex: 9,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: 'rgba(248, 246, 240, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 118, 99, 0.2)',
+    boxShadow: '0 12px 32px rgba(35, 33, 28, 0.12)',
+  },
+  browseRailHeader: {
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  browseEyebrow: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 9,
+    letterSpacing: 1.25,
+  },
+  browseHint: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.display.regular,
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  browseRailContent: {
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  swipeHint: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 9,
+    alignItems: 'center',
+  },
+  swipeHintText: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.display.regular,
+    fontSize: 11,
+    fontStyle: 'italic',
+    letterSpacing: 0.15,
+  },
+  recipeDestination: {
+    width: 156,
+    height: 64,
+    padding: 5,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.66)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 118, 99, 0.16)',
+  },
+  recipeDestinationActive: {
+    backgroundColor: 'rgba(245, 238, 219, 0.96)',
+    borderColor: Colors.primary,
+  },
+  destinationImage: {
+    width: 35,
+    height: 52,
+    borderRadius: 5,
+    backgroundColor: Colors.parchment,
+  },
+  destinationPlaceholder: {
+    width: 35,
+    height: 52,
+    borderRadius: 5,
+    backgroundColor: Colors.parchment,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+  },
+  destinationCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  destinationPage: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 8,
+    letterSpacing: 0.8,
+  },
+  destinationTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 12,
+    lineHeight: 14,
   },
   counter: {
     minWidth: 72,
     alignItems: 'center',
+  },
+  nativeCounter: {
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(250,248,243,0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(91,82,68,0.22)',
   },
   counterNumber: {
     color: Colors.text,
@@ -484,17 +725,25 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   floatingAddButton: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     boxShadow: Colors.book.liftedShadow,
-    zIndex: 11,
+  },
+  readerActionDock: {
+    position: 'absolute',
+    right: Spacing.lg,
+    zIndex: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  actionPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
   },
   focusedReader: {
     flex: 1,
@@ -502,16 +751,27 @@ const styles = StyleSheet.create({
   focusedTopBar: {
     minHeight: 78,
     paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
+    zIndex: 3,
+    backgroundColor: 'rgba(248,246,240,0.94)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(129,118,99,0.18)',
   },
   focusedAction: {
-    minWidth: 72,
+    minWidth: 108,
     height: 42,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.ash,
   },
   focusedActionText: {
     color: Colors.text,
@@ -540,5 +800,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+  },
+  focusedReturnButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    height: 46,
+    paddingHorizontal: 18,
+    borderRadius: Radii.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: Colors.primary,
+    boxShadow: Colors.book.liftedShadow,
+    zIndex: 4,
+  },
+  focusedReturnText: {
+    color: Colors.onPrimary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 13,
   },
 });
