@@ -9,7 +9,9 @@
       "distribution": "internal",
       "env": {
         "APP_VARIANT": "development",
-        "EXPO_PUBLIC_OFFLINE_ONLY": "false"
+        "EXPO_PUBLIC_OFFLINE_ONLY": "false",
+        "EXPO_PUBLIC_DEV_BYPASS_AUTH": "true",
+        "EXPO_PUBLIC_SHOW_DEMO_COOKBOOK": "true"
       },
       "ios": {
         "simulator": false
