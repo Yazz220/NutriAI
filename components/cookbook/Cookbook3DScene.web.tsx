@@ -27,7 +27,20 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Group } from 'three';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
-import type { CookbookLeaf, CookbookSpread } from '@/utils/cookbook/reader';
+import {
+  buildPageCurlCurve,
+  estimateTurnSettleDuration,
+  resolveTurnProgress,
+  resolveTurnRelease,
+} from '@/utils/cookbook/physicalBook';
+import {
+  CONTENTS_CANVAS_HEIGHT,
+  CONTENTS_ENTRIES_TOP,
+  getContentsEntryIndex,
+  getContentsRowHeight,
+  type CookbookLeaf,
+  type CookbookSpread,
+} from '@/utils/cookbook/reader';
 
 extend({ RoundedBoxGeometry });
 
@@ -56,10 +69,8 @@ const CLOSED_PADDING = 1.48;
 const OPEN_PADDING = 1.18;
 const TOPDOWN_PADDING = 1.04;
 const AUTOMATIC_TURN_DURATION = 1.35;
-const MIN_TURN_SETTLE_DURATION = 0.38;
-const MAX_TURN_SETTLE_DURATION = 1.05;
-const MIN_TURN_CANCEL_DURATION = 0.24;
-const MAX_TURN_CANCEL_DURATION = 0.55;
+const WEB_CURL_LIFT = 0.28;
+const MIN_TURN_TRAVEL = 60;
 
 interface TurnTransition {
   from: number;
@@ -86,6 +97,7 @@ export function Cookbook3DScene({
   onPrevious,
   onEnterReadingView,
   onOpenRecipe,
+  onJumpToPage,
   style,
 }: Cookbook3DSceneProps) {
   const coverUri = resolveImageUri(cookbook?.coverImageAsset) ?? makeFallbackImageUri(cookbook?.title ?? 'My Cookbook');
@@ -109,7 +121,8 @@ export function Cookbook3DScene({
           gl.setClearColor(new Color('#d8d3c8'), 0);
         }}
       >
-        <Suspense fallback={null}>
+        <SceneLights />
+        <Suspense fallback={<FallbackBook />}>
           <BookScene
             title={cookbook?.title ?? 'My Cookbook'}
             pages={pages}
@@ -123,10 +136,57 @@ export function Cookbook3DScene({
             onPrevious={onPrevious}
             onEnterReadingView={onEnterReadingView}
             onOpenRecipe={onOpenRecipe}
+            onJumpToPage={onJumpToPage}
           />
         </Suspense>
       </Canvas>
     </View>
+  );
+}
+
+function SceneLights() {
+  return (
+    <>
+      <ambientLight intensity={0.24} />
+      <hemisphereLight args={['#fff8ee', '#4a4538', 0.34]} />
+      <directionalLight
+        castShadow
+        position={[-7, 11, 7]}
+        intensity={1.65}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={0.1}
+        shadow-camera-far={30}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+        shadow-bias={-0.0002}
+        shadow-radius={5}
+      />
+      <directionalLight position={[5, 7, -4]} intensity={0.22} color="#efe4d3" />
+    </>
+  );
+}
+
+// Shown while page textures stream in: the closed book in plain materials so
+// the stage is never blank.
+function FallbackBook() {
+  return (
+    <group position={[0, 0.14, 0]}>
+      <mesh position={[BOOK_WIDTH / 2, 0, 0]}>
+        <roundedBoxGeometry args={[BOOK_WIDTH + 0.1, 0.1, BOOK_HEIGHT + 0.1, 7, 0.1]} />
+        <meshStandardMaterial color={COVER_GREEN} roughness={0.85} />
+      </mesh>
+      <mesh position={[BOOK_WIDTH / 2, 0.13, 0]}>
+        <roundedBoxGeometry args={[BOOK_WIDTH - 0.16, 0.16, BOOK_HEIGHT - 0.2, 4, 0.045]} />
+        <meshStandardMaterial color={PAPER} roughness={0.9} />
+      </mesh>
+      <mesh position={[-0.055, 0.12, 0]}>
+        <roundedBoxGeometry args={[0.12, 0.25, BOOK_HEIGHT + 0.02, 5, 0.05]} />
+        <meshStandardMaterial color="#20241c" roughness={0.78} />
+      </mesh>
+    </group>
   );
 }
 
@@ -143,6 +203,7 @@ function BookScene({
   onPrevious,
   onEnterReadingView,
   onOpenRecipe,
+  onJumpToPage,
 }: {
   title: string;
   pages: CookbookPage[];
@@ -156,6 +217,7 @@ function BookScene({
   onPrevious: () => void;
   onEnterReadingView: (page?: CookbookPage) => void;
   onOpenRecipe: (page: CookbookPage) => void;
+  onJumpToPage?: (page: CookbookPage) => void;
 }) {
   const loadedTextures = useLoader(TextureLoader, textureUris);
   const coverTexture = loadedTextures[0];
@@ -191,6 +253,8 @@ function BookScene({
     lastX: number;
     lastTime: number;
     velocity: number;
+    /** Pointer travel (px) from grab point to the position where the turn completes. */
+    travel: number;
   } | null>(null);
   const [displayIndex, setDisplayIndex] = useState(spreadIndex);
   const [transition, setTransitionState] = useState<TurnTransition | null>(null);
@@ -234,6 +298,13 @@ function BookScene({
     if (transitionRef.current) return;
     const target = requestedIndexRef.current;
     if (target === visualIndexRef.current) return;
+    // Long jumps (table of contents, browse rail) snap like opening a book to
+    // a marked page; short jumps animate the leaf turn.
+    if (Math.abs(target - visualIndexRef.current) > 2) {
+      visualIndexRef.current = target;
+      setDisplayIndex(target);
+      return;
+    }
     const direction = target > visualIndexRef.current ? 1 : -1;
     turnProgressRef.current = 0;
     turnTargetRef.current = 1;
@@ -268,6 +339,7 @@ function BookScene({
         lastX: clientX,
         lastTime: performance.now(),
         velocity: 0,
+        travel: MIN_TURN_TRAVEL,
       };
       try {
         gl.domElement.setPointerCapture(pointerId);
@@ -281,8 +353,11 @@ function BookScene({
   useEffect(() => {
     const canvas = gl.domElement;
     const DRAG_THRESHOLD = 10;
-    const TURN_THRESHOLD = Math.max(80, size.width * 0.14);
-    const FLICK_VELOCITY = 450;
+    // The book's spine sits at world x=0, which projects to the canvas
+    // center in every reading view, so pointer travel is measured against
+    // the spine rather than the window. This keeps the corner glued to the
+    // cursor regardless of how wide the screen is.
+    const spineX = size.width / 2;
 
     const onPointerMove = (event: PointerEvent) => {
       const drag = dragStateRef.current;
@@ -300,6 +375,10 @@ function BookScene({
           return;
         }
         drag.started = true;
+        drag.travel = Math.max(
+          MIN_TURN_TRAVEL,
+          drag.direction === 1 ? 2 * (drag.startX - spineX) : 2 * (spineX - drag.startX),
+        );
         isDraggingRef.current = true;
         dragOccurredRef.current = true;
         turnProgressRef.current = 0;
@@ -310,14 +389,20 @@ function BookScene({
 
       const now = performance.now();
       const dt = (now - drag.lastTime) / 1000;
-      const dragDelta = drag.direction === 1 ? -deltaX : deltaX;
       if (dt > 0.001) {
         const instantaneous = (drag.direction === 1 ? -(event.clientX - drag.lastX) : event.clientX - drag.lastX) / dt;
         drag.velocity = drag.velocity * 0.6 + instantaneous * 0.4;
       }
       drag.lastX = event.clientX;
       drag.lastTime = now;
-      turnProgressRef.current = MathUtils.clamp(dragDelta / TURN_THRESHOLD, 0, 1);
+      turnProgressRef.current = resolveTurnProgress({
+        grabX: drag.startX,
+        pointerX: event.clientX,
+        pageWidth: size.width,
+        direction: drag.direction,
+        canTurn: true,
+        targetX: drag.direction === 1 ? drag.startX - drag.travel : drag.startX + drag.travel,
+      });
     };
 
     const onPointerUp = (_event: PointerEvent) => {
@@ -336,20 +421,21 @@ function BookScene({
       }
 
       isDraggingRef.current = false;
-      const velocity = drag.velocity;
       const progress = turnProgressRef.current;
+      const release = resolveTurnRelease({
+        progress,
+        velocityX: drag.direction === 1 ? -drag.velocity : drag.velocity,
+        direction: drag.direction,
+        pageWidth: drag.travel,
+      });
 
-      if (progress > 0.5 || velocity > FLICK_VELOCITY) {
+      if (release.commit) {
         turnTargetRef.current = 1;
         turnSettleRef.current = {
           from: progress,
           to: 1,
           elapsed: 0,
-          duration: MathUtils.lerp(
-            MIN_TURN_SETTLE_DURATION,
-            MAX_TURN_SETTLE_DURATION,
-            1 - progress,
-          ),
+          duration: estimateTurnSettleDuration(progress, 1, release.settleVelocity),
         };
         if (drag.direction === 1) onNext();
         else onPrevious();
@@ -359,11 +445,7 @@ function BookScene({
           from: progress,
           to: 0,
           elapsed: 0,
-          duration: MathUtils.lerp(
-            MIN_TURN_CANCEL_DURATION,
-            MAX_TURN_CANCEL_DURATION,
-            progress,
-          ),
+          duration: estimateTurnSettleDuration(progress, 0, release.settleVelocity),
         };
       }
     };
@@ -497,7 +579,18 @@ function BookScene({
     if (isOpen && !transition) action();
   };
 
-  const openLeafOrTurn = (leaf: CookbookLeaf, turn: () => void) => {
+  const openLeafOrTurn = (leaf: CookbookLeaf, turn: () => void, uv?: { x: number; y: number }) => {
+    // Table of contents entries jump straight to their recipe, like a real
+    // book. The tap position is mapped through the shared contents layout.
+    if (leaf.type === 'contents' && uv && onJumpToPage) {
+      const canvasY = (1 - uv.y) * CONTENTS_CANVAS_HEIGHT;
+      const entryIndex = getContentsEntryIndex(canvasY, pages.length);
+      const page = entryIndex === null ? undefined : pages[entryIndex];
+      if (page) {
+        turnOrIgnore(() => onJumpToPage(page));
+        return;
+      }
+    }
     if (leaf.type !== 'recipe') {
       turnOrIgnore(turn);
       return;
@@ -520,25 +613,6 @@ function BookScene({
 
   return (
     <>
-      <ambientLight intensity={0.24} />
-      <hemisphereLight args={['#fff8ee', '#4a4538', 0.34]} />
-      <directionalLight
-        castShadow
-        position={[-7, 11, 7]}
-        intensity={1.65}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-near={0.1}
-        shadow-camera-far={30}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
-        shadow-bias={-0.0002}
-        shadow-radius={5}
-      />
-      <directionalLight position={[5, 7, -4]} intensity={0.22} color="#efe4d3" />
-
       <group ref={rootRef} position={[0, 0.14, 0]}>
         {/* Base board — the rigid cover material underneath the pages */}
         <mesh castShadow receiveShadow position={[BOOK_WIDTH / 2, 0, 0]}>
@@ -575,7 +649,7 @@ function BookScene({
           <PageLeaf
             texture={textureForLeaf(leftLeaf)}
             side="left"
-            onPress={() => openLeafOrTurn(leftLeaf, onPrevious)}
+            onPress={(uv) => openLeafOrTurn(leftLeaf, onPrevious, uv)}
             onDragStart={handleDragStart}
             dragOccurredRef={dragOccurredRef}
           />
@@ -583,7 +657,7 @@ function BookScene({
         <PageLeaf
           texture={textureForLeaf(rightLeaf)}
           side="right"
-          onPress={() => openLeafOrTurn(rightLeaf, onNext)}
+          onPress={(uv) => openLeafOrTurn(rightLeaf, onNext, uv)}
           onDragStart={handleDragStart}
           dragOccurredRef={dragOccurredRef}
         />
@@ -670,7 +744,7 @@ function PageLeaf({
 }: {
   texture: Texture;
   side: 'left' | 'right';
-  onPress: () => void;
+  onPress: (uv?: { x: number; y: number }) => void;
   onDragStart: (clientX: number, clientY: number, direction: 1 | -1, pointerId: number) => void;
   dragOccurredRef: React.MutableRefObject<boolean>;
 }) {
@@ -697,7 +771,7 @@ function PageLeaf({
           dragOccurredRef.current = false;
           return;
         }
-        onPress();
+        onPress(event.uv ? { x: event.uv.x, y: event.uv.y } : undefined);
       }}
     >
       <meshPhysicalMaterial map={texture} roughness={0.9} specularIntensity={0.1} side={DoubleSide} />
@@ -719,10 +793,6 @@ function TurningLeaf({
   isDraggingRef: React.MutableRefObject<boolean>;
 }) {
   const geometry = useMemo(() => new PlaneGeometry(BOOK_WIDTH - 0.08, BOOK_HEIGHT - 0.14, 40, 4), []);
-  const basePositions = useMemo(
-    () => Float32Array.from(geometry.attributes.position.array as ArrayLike<number>),
-    [geometry],
-  );
   const readableBackTexture = useMemo(() => {
     const texture = backTexture.clone();
     // A texture seen through the BackSide of a plane is mirrored by default.
@@ -751,23 +821,13 @@ function TurningLeaf({
     const progress = isDraggingRef.current ? rawProgress : easePageTurn(rawProgress);
     const pageProgress = direction === 1 ? progress : 1 - progress;
     const positions = geometry.attributes.position;
+    const pageWidth = BOOK_WIDTH - 0.08;
+    const curve = buildPageCurlCurve(pageWidth, 40, pageProgress);
 
     for (let index = 0; index < positions.count; index += 1) {
-      const baseIndex = index * 3;
-      const originalX = basePositions[baseIndex] + (BOOK_WIDTH - 0.08) / 2;
-      const originalY = basePositions[baseIndex + 1];
-      const normalizedX = originalX / (BOOK_WIDTH - 0.08);
-      // A restrained curl keeps the paper dimensional without making its
-      // leading edge appear to fold or change direction mid-turn.
-      const curlEnvelope = Math.sin(Math.PI * pageProgress);
-      const curlStrength = 0.16 * Math.sin(Math.PI * normalizedX) * curlEnvelope;
-      const secondaryCurl = 0.035 * Math.sin(Math.PI * normalizedX * 2) * curlEnvelope;
-      // Asymmetric curl: the leading edge curls more than the trailing edge,
-      // mimicking how a real page lifts from the fore-edge first.
-      const edgeBias = 0.025 * normalizedX * curlEnvelope;
-      const totalCurl = curlStrength + secondaryCurl + edgeBias;
-      const theta = -Math.PI * pageProgress - totalCurl;
-      positions.setXYZ(index, Math.cos(theta) * originalX, originalY, -Math.sin(theta) * originalX);
+      const segmentIndex = index % 41;
+      const point = curve[segmentIndex];
+      positions.setXYZ(index, point.x, positions.getY(index), point.z * WEB_CURL_LIFT);
     }
     positions.needsUpdate = true;
     geometry.computeVertexNormals();
@@ -936,28 +996,37 @@ function createContentsTexture(title: string, pages: CookbookPage[]): CanvasText
     context.lineTo(240, 178);
     context.stroke();
 
-    // Entries
-    pages.slice(0, 8).forEach((page, index) => {
-      const y = 240 + index * 95;
+    // Entries: rows shrink to fit every recipe, matching the shared layout
+    // constants used for tap hit-testing.
+    const rowHeight = getContentsRowHeight(pages.length);
+    const numberSize = MathUtils.clamp(rowHeight * 0.34, 11, 18);
+    const titleSize = MathUtils.clamp(rowHeight * 0.42, 13, 26);
+    pages.forEach((page, index) => {
+      const y = CONTENTS_ENTRIES_TOP + index * rowHeight + rowHeight / 2;
       // Dotted leader line
       context.strokeStyle = '#d4c9b5';
       context.lineWidth = 1;
       context.setLineDash([2, 4]);
       context.beginPath();
-      context.moveTo(80, y + 28);
-      context.lineTo(width - 80, y + 28);
+      context.moveTo(80, y + rowHeight * 0.3);
+      context.lineTo(width - 80, y + rowHeight * 0.3);
       context.stroke();
       context.setLineDash([]);
 
       // Page number
       context.fillStyle = '#9a8d7a';
-      context.font = '18px Georgia';
+      context.font = `${numberSize}px Georgia`;
+      context.textAlign = 'left';
       context.fillText(String(page.pageNumber).padStart(2, '0'), 80, y);
 
-      // Recipe title
+      // Recipe title, ellipsized to fit the row
       context.fillStyle = '#29251f';
-      context.font = '26px Georgia';
-      context.fillText(page.title, 130, y);
+      context.font = `${titleSize}px Georgia`;
+      let label = page.title;
+      while (label.length > 4 && context.measureText(label).width > width - 260) {
+        label = `${label.slice(0, -2).trimEnd()}…`;
+      }
+      context.fillText(label, 130, y);
     });
   });
 }

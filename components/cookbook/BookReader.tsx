@@ -1,11 +1,20 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { BackHandler, Image, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
-import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  interpolate,
+  Keyframe,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { AddPageSheet } from '@/components/cookbook/AddPageSheet';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
@@ -37,6 +46,19 @@ interface BookReaderProps {
 
 const OPEN_DURATION = 1150;
 
+// The focused page lifts toward the reader rather than appearing via a
+// system modal cut — a light scale/rise with a soft overshoot.
+const focusedPageEnter = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.88 }, { translateY: 28 }] },
+  70: { opacity: 1, transform: [{ scale: 1.015 }, { translateY: -2 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
+}).duration(340);
+
+const focusedPageExit = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
+  100: { opacity: 0, transform: [{ scale: 0.94 }, { translateY: 14 }] },
+}).duration(150);
+
 export function BookReader({
   cookbook,
   pages,
@@ -55,6 +77,7 @@ export function BookReader({
   const [isOpen, setIsOpen] = useState(Boolean(initialPageId));
   const [readingView, setReadingView] = useState<'tilted' | 'topdown'>(initialPageId ? 'topdown' : 'tilted');
   const [readingPageId, setReadingPageId] = useState(initialPageId);
+  const [overviewOpen, setOverviewOpen] = useState(false);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const handledInitialPageId = useRef<string | null>(null);
@@ -111,16 +134,24 @@ export function BookReader({
   const readingPage = pages.find((page) => page.id === readingPageId) ?? preferredSpreadPage;
   const selectedPage = usesTouchPaging && readingView === 'topdown' ? readingPage : preferredSpreadPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
-  const counterCurrent =
-    usesTouchPaging && readingView === 'topdown' && readingPageIndex >= 0
-      ? readingPageIndex + 1
-      : spreadIndex + 1;
-  const counterTotal = usesTouchPaging && readingView === 'topdown' ? pages.length : spreads.length;
+  // The counter always means recipe pages, regardless of view mode.
+  const counterCurrent = readingPage && readingPageIndex >= 0 ? readingPageIndex + 1 : spreadIndex + 1;
+  const counterTotal = pages.length > 0 ? pages.length : spreads.length;
 
   useEffect(() => {
     if (spreadIndex < spreads.length) return;
     setSpreadIndex(Math.max(0, spreads.length - 1));
   }, [spreadIndex, spreads.length]);
+
+  // Android hardware back closes the focused page before navigating.
+  useEffect(() => {
+    if (!focusedPage) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setFocusedPage(null);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [focusedPage]);
 
   useEffect(() => {
     if (!initialPageId || handledInitialPageId.current === initialPageId) return;
@@ -153,6 +184,12 @@ export function BookReader({
 
   function openBook() {
     setIsOpen(true);
+    if (usesTouchPaging && pages.length > 0) {
+      const targetPage = readingPage ?? pages[0];
+      setReadingView('topdown');
+      setReadingPageId(targetPage.id);
+      onSelectPage(targetPage.id);
+    }
     opening.set(
       withTiming(1, {
         duration: OPEN_DURATION,
@@ -164,6 +201,7 @@ export function BookReader({
 
   function closeBook() {
     setFocusedPage(null);
+    setOverviewOpen(false);
     setIsOpen(false);
     setReadingView('tilted');
     opening.set(
@@ -222,6 +260,7 @@ export function BookReader({
     onSelectPage(page.id);
     pokeChrome();
     if (usesTouchPaging) setReadingView('topdown');
+    setOverviewOpen(false);
   }
 
   function enterReadingView(page?: CookbookPage) {
@@ -298,14 +337,16 @@ export function BookReader({
           }
           onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
+          onJumpToPage={jumpToRecipe}
         />
 
       </View>
 
-      {isOpen && readingView === 'tilted' && pages.length > 0 ? (
+      {isOpen && pages.length > 0 && (readingView === 'tilted' || (usesTouchPaging && overviewOpen)) ? (
         <View
           style={[
             styles.browseRail,
+            usesTouchPaging && styles.mobileBrowseRail,
             {
               bottom: insets.bottom + 68,
               left: (width - browseRailWidth) / 2,
@@ -316,7 +357,7 @@ export function BookReader({
           <View style={styles.browseRailHeader}>
             <Text style={styles.browseEyebrow}>BROWSE RECIPES</Text>
             <Text style={styles.browseHint}>
-              {usesTouchPaging ? 'Swipe book · Tap to read' : 'Tap a page to jump'}
+              {usesTouchPaging ? 'Choose a page' : 'Tap a page to jump'}
             </Text>
           </View>
           <ScrollView
@@ -354,7 +395,7 @@ export function BookReader({
         </View>
       ) : null}
 
-      {isOpen && usesTouchPaging && readingView === 'topdown' ? (
+      {isOpen && usesTouchPaging && readingView === 'topdown' && !overviewOpen ? (
         <View style={[styles.swipeHint, { bottom: insets.bottom + 67 }]} pointerEvents="none">
           <Text style={styles.swipeHintText}>Swipe to turn recipe pages</Text>
         </View>
@@ -400,19 +441,34 @@ export function BookReader({
           </Pressable>
         ) : null}
 
-        <Pressable
-          style={[styles.viewToggleButton, isNative && styles.nativeControl]}
-          onPress={toggleReadingView}
-          accessibilityRole="button"
-          accessibilityLabel={readingView === 'tilted' ? 'Read this spread' : 'Browse pages'}
-        >
-          {readingView === 'tilted' ? (
-            <Maximize2 size={16} color={Colors.text} />
-          ) : (
-            <Minimize2 size={16} color={Colors.text} />
-          )}
-          <Text style={styles.viewToggleLabel}>{readingView === 'tilted' ? 'Read' : 'Browse'}</Text>
-        </Pressable>
+        {usesTouchPaging ? (
+          <Pressable
+            style={[styles.viewToggleButton, styles.nativeControl]}
+            onPress={() => {
+              setOverviewOpen((open) => !open);
+              pokeChrome();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={overviewOpen ? 'Close page overview' : 'Open page overview'}
+          >
+            <BookOpen size={16} color={Colors.text} />
+            <Text style={styles.viewToggleLabel}>{overviewOpen ? 'Done' : 'Pages'}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.viewToggleButton, isNative && styles.nativeControl]}
+            onPress={toggleReadingView}
+            accessibilityRole="button"
+            accessibilityLabel={readingView === 'tilted' ? 'Read this spread' : 'Browse pages'}
+          >
+            {readingView === 'tilted' ? (
+              <Maximize2 size={16} color={Colors.text} />
+            ) : (
+              <Minimize2 size={16} color={Colors.text} />
+            )}
+            <Text style={styles.viewToggleLabel}>{readingView === 'tilted' ? 'Read' : 'Browse'}</Text>
+          </Pressable>
+        )}
       </Animated.View>
 
       {isOpen && (selectedPage || cookbookId) ? (
@@ -445,28 +501,26 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
-      <Modal
-        visible={Boolean(focusedPage)}
-        animationType="fade"
-        transparent={false}
-        presentationStyle="fullScreen"
-        onRequestClose={() => setFocusedPage(null)}
-      >
-        <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
-          <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
-            <Pressable
-              style={styles.focusedAction}
-              onPress={() => setFocusedPage(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Return to open cookbook"
-            >
-              <ChevronLeft size={18} color={Colors.text} />
-              <Text style={styles.focusedActionText}>Cookbook</Text>
-            </Pressable>
-            <Text style={styles.focusedTitle} numberOfLines={1}>
-              {focusedPage?.title}
-            </Text>
-            {focusedPage ? (
+      {focusedPage ? (
+        <Animated.View
+          entering={FadeIn.duration(170)}
+          exiting={FadeOut.duration(140)}
+          style={styles.focusedOverlay}
+        >
+          <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
+            <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
+              <Pressable
+                style={styles.focusedAction}
+                onPress={() => setFocusedPage(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Return to open cookbook"
+              >
+                <ChevronLeft size={18} color={Colors.text} />
+                <Text style={styles.focusedActionText}>Cookbook</Text>
+              </Pressable>
+              <Text style={styles.focusedTitle} numberOfLines={1}>
+                {focusedPage.title}
+              </Text>
               <Pressable
                 style={styles.focusedIcon}
                 onPress={() => onShare(focusedPage)}
@@ -474,22 +528,24 @@ export function BookReader({
               >
                 <Share2 size={18} color={Colors.text} />
               </Pressable>
-            ) : null}
-          </View>
-          <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>
-            {focusedPage ? <PageCanvas page={focusedPage} /> : null}
-          </View>
-          <Pressable
-            style={[styles.focusedReturnButton, { bottom: insets.bottom + 12 }]}
-            onPress={() => setFocusedPage(null)}
-            accessibilityRole="button"
-            accessibilityLabel="Back to open cookbook"
-          >
-            <ChevronLeft size={17} color={Colors.onPrimary} />
-            <Text style={styles.focusedReturnText}>Back to cookbook</Text>
-          </Pressable>
-        </LinearGradient>
-      </Modal>
+            </View>
+            <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>
+              <Animated.View entering={focusedPageEnter} exiting={focusedPageExit}>
+                <PageCanvas page={focusedPage} />
+              </Animated.View>
+            </View>
+            <Pressable
+              style={[styles.focusedReturnButton, { bottom: insets.bottom + 12 }]}
+              onPress={() => setFocusedPage(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Back to open cookbook"
+            >
+              <ChevronLeft size={17} color={Colors.onPrimary} />
+              <Text style={styles.focusedReturnText}>Back to cookbook</Text>
+            </Pressable>
+          </LinearGradient>
+        </Animated.View>
+      ) : null}
 
       <AddPageSheet
         visible={addSheetOpen}
@@ -621,6 +677,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(129, 118, 99, 0.2)',
     boxShadow: '0 12px 32px rgba(35, 33, 28, 0.12)',
   },
+  mobileBrowseRail: {
+    backgroundColor: 'rgba(248, 246, 240, 0.97)',
+    borderColor: 'rgba(91, 82, 68, 0.26)',
+    boxShadow: '0 18px 48px rgba(35, 33, 28, 0.2)',
+  },
   browseRailHeader: {
     paddingHorizontal: 14,
     paddingBottom: 8,
@@ -744,6 +805,10 @@ const styles = StyleSheet.create({
   actionPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.96 }],
+  },
+  focusedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
   },
   focusedReader: {
     flex: 1,

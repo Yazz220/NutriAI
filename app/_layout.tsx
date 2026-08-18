@@ -176,8 +176,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (initializing || !fontsLoaded || checkingAuthCallback) return;
 
-    const hasSession = !!session;
-    const canEnterBook = devBypass || hasSession;
+    const canEnterBook = devBypass || !!session;
     const routeSegments = segments as readonly string[];
     const inAuthGroup = routeSegments[0] === '(auth)';
     const inBookGroup = routeSegments[0] === '(book)';
@@ -188,7 +187,7 @@ function RootLayoutNav() {
       return;
     }
 
-    if (hasSession && !inBookGroup && !inResetPasswordRoute) {
+    if (canEnterBook && !inBookGroup && !inResetPasswordRoute) {
       router.replace('/(book)');
       return;
     }
