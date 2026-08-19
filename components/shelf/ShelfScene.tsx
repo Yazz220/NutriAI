@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, Ellipsis, LayoutTemplate, Settings as SettingsIcon } from 'lucide-react-native';
+import { ChevronRight, Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
 import { SpineFace } from '@/components/physical-book/SpineFace';
 import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBookVolume';
-import { ShelfBoard } from '@/components/shelf/ShelfBoard';
+import { ShelfBoard, SHELF_LIP_HEIGHT } from '@/components/shelf/ShelfBoard';
 import { ShelfCarousel } from '@/components/shelf/ShelfCarousel';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
@@ -25,13 +25,14 @@ import type { Cookbook } from '@/types/cookbook';
 
 const BOARD_HEIGHT = 18;
 const BOARD_BOTTOM = 10;
-const BOARD_CLEARANCE = BOARD_BOTTOM + BOARD_HEIGHT;
+// Board surface top = BOARD_BOTTOM + lip + board height. Books stand on the
+// board surface, so the carousel needs this as the book bottom edge.
+const BOARD_CLEARANCE = BOARD_BOTTOM + SHELF_LIP_HEIGHT + BOARD_HEIGHT;
 
 interface ShelfSceneProps {
   cookbooks: Cookbook[];
   onSelectCookbook: (cookbook: Cookbook) => void;
   onAddCookbook: () => void;
-  onOpenTemplates?: () => void;
   onOpenSettings?: () => void;
   bottomInset?: number;
   isStale?: boolean;
@@ -42,7 +43,6 @@ export function ShelfScene({
   cookbooks,
   onSelectCookbook,
   onAddCookbook,
-  onOpenTemplates,
   onOpenSettings,
   bottomInset = 0,
   isStale = false,
@@ -59,7 +59,7 @@ export function ShelfScene({
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
         <Text style={styles.logo}>Nosh</Text>
-        {onOpenTemplates || onOpenSettings ? (
+        {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
             onPress={() => setMenuOpen(true)}
@@ -81,9 +81,18 @@ export function ShelfScene({
       </View>
 
       <View style={styles.stage}>
-        {/* Wall shadow where the wall meets the shelf board */}
+        {/* Wall backdrop: subtle warm gradient with a faint horizon line
+            where wall meets the shelf area, giving the shelf a sense of
+            being mounted on a real wall rather than floating. */}
         <LinearGradient
-          colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.07)']}
+          colors={['rgba(240,237,231,0)', 'rgba(220,215,205,0.18)', 'rgba(200,193,180,0.22)']}
+          style={styles.wallBackdrop}
+          pointerEvents="none"
+        />
+        {/* Wall shadow where the wall meets the shelf board — deeper now
+            to ground the board on the wall */}
+        <LinearGradient
+          colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.05)', 'rgba(23,22,20,0.12)']}
           style={[styles.wallShadow, { bottom: BOARD_CLEARANCE }]}
           pointerEvents="none"
         />
@@ -162,17 +171,6 @@ export function ShelfScene({
           />
           <View style={[styles.menuPanel, { top: insets.top + 58 }]}>
             <Text style={styles.menuEyebrow}>LIBRARY</Text>
-            {onOpenTemplates ? (
-              <MenuItem
-                icon={<LayoutTemplate size={19} color={Colors.text} strokeWidth={1.7} />}
-                title="Page templates"
-                subtitle="Styles for new recipe pages"
-                onPress={() => {
-                  setMenuOpen(false);
-                  onOpenTemplates();
-                }}
-              />
-            ) : null}
             {onOpenSettings ? (
               <MenuItem
                 icon={<SettingsIcon size={19} color={Colors.text} strokeWidth={1.7} />}
@@ -280,11 +278,18 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'visible',
   },
+  wallBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   wallShadow: {
     position: 'absolute',
     left: 0,
     right: 0,
-    height: 26,
+    height: 32,
   },
   meta: {
     minHeight: 96,

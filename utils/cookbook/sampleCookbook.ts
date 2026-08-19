@@ -13,6 +13,7 @@ export const SAMPLE_COOKBOOK: Cookbook = {
   },
   sectionOrder: ['dinner', 'healthy', 'sides', 'desserts'],
   coverStyle: 'handwritten',
+  pageTemplateId: 'clean-cream',
   sections: [
     { id: 'dinner', label: 'Dinner', order: 0 },
     { id: 'healthy', label: 'Fresh & Healthy', order: 1 },

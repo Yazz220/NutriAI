@@ -1,4 +1,5 @@
 import type { StyleProp, ViewStyle } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import type { CookbookLeaf, CookbookSpread } from '@/utils/cookbook/reader';
 
@@ -8,6 +9,14 @@ export interface Cookbook3DSceneProps {
   spreads: CookbookSpread[];
   spreadIndex: number;
   isOpen: boolean;
+  /**
+   * Shared open/close progress (0 = closed, 1 = open). When provided, the
+   * parent owns the animation and the scene reads this value directly instead
+   * of running its own open/close effect — keeping the cover swing and reader
+   * chrome on the same clock. When omitted, the scene animates its own value
+   * from isOpen (backward-compatible fallback).
+   */
+  opening?: SharedValue<number>;
   readingView?: 'spread' | 'page';
   readingPageId?: string;
   /** Flat leaf list for one-page navigation (all leaf types, not just recipes). */

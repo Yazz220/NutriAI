@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
+import { PageStyleSheet } from '@/components/cookbook/PageStyleSheet';
 import { RecipeReviewForm } from '@/components/cookbook/RecipeReviewForm';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -24,7 +25,7 @@ import {
   FunctionResponseError,
   FunctionTimeoutError,
 } from '@/utils/supabaseEdge';
-import type { StructuredRecipe } from '@/types/cookbook';
+import type { RecipeTemplateId, StructuredRecipe } from '@/types/cookbook';
 
 export default function RecipeReviewScreen() {
   const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
@@ -36,13 +37,17 @@ export default function RecipeReviewScreen() {
     needsReview,
     reasons,
     clearSourceDraft,
-    selectedTemplateId,
-    favoriteTemplateIds,
   } = useCookbookImport();
   const [generationPhase, setGenerationPhase] = useState<GenerationPhase>('idle');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const generationAttemptRef = useRef<GenerationAttempt | null>(null);
   const generationRunRef = useRef(0);
+
+  // Per-recipe override; falls back to the book's default page style.
+  const bookDefaultTemplateId = cookbook?.pageTemplateId ?? 'clean-cream';
+  const [overrideTemplateId, setOverrideTemplateId] = useState<RecipeTemplateId | null>(null);
+  const [styleSheetOpen, setStyleSheetOpen] = useState(false);
+  const effectiveTemplateId = overrideTemplateId ?? bookDefaultTemplateId;
 
   useEffect(() => {
     if (!draft) {
@@ -65,7 +70,7 @@ export default function RecipeReviewScreen() {
     const promptPayload = buildCookbookPagePromptPayload({
       recipe,
       cookbook,
-      recipeTemplateId: selectedTemplateId,
+      recipeTemplateId: effectiveTemplateId,
     });
     const generationPayload = {
       cookbookId: cookbook.id,
@@ -132,10 +137,16 @@ export default function RecipeReviewScreen() {
         reviewReasons={reasons}
         generationPhase={generationPhase}
         generationError={generationError}
-        selectedTemplateId={selectedTemplateId}
-        favoriteTemplateIds={favoriteTemplateIds}
-        onOpenTemplateLibrary={() => router.push(`/(book)/${cookbookId}/templates`)}
+        selectedTemplateId={effectiveTemplateId}
+        isOverride={overrideTemplateId !== null}
+        onOpenTemplateLibrary={() => setStyleSheetOpen(true)}
         onGenerate={generateReviewedRecipe}
+      />
+      <PageStyleSheet
+        visible={styleSheetOpen}
+        selectedId={effectiveTemplateId}
+        onSelect={(id) => setOverrideTemplateId(id)}
+        onClose={() => setStyleSheetOpen(false)}
       />
     </View>
   );

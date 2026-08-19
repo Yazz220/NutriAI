@@ -6,11 +6,6 @@ jest.mock('@/utils/cookbook/api', () => ({
   parseRecipeSource: jest.fn(),
 }));
 
-jest.mock('@/utils/cookbook/templateFavorites', () => ({
-  loadFavoriteRecipeTemplateIds: jest.fn().mockResolvedValue([]),
-  saveFavoriteRecipeTemplateIds: jest.fn().mockResolvedValue(undefined),
-}));
-
 const mockLoadSourceDraft = jest.fn();
 const mockSaveSourceDraft = jest.fn();
 

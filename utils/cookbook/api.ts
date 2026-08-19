@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
 import { COOKBOOK_STYLE_PRESETS, getCookbookStyle } from '@/constants/cookbookStyles';
+import { DEFAULT_RECIPE_TEMPLATE_ID, getRecipeTemplate, isRecipeTemplateId } from '@/constants/recipeTemplates';
 import type {
   Cookbook,
   CookbookPage,
@@ -10,6 +11,7 @@ import type {
   CreditBalance,
   ParsedRecipeDraft,
   RecipeSourceType,
+  RecipeTemplateId,
   StructuredIngredient,
   StructuredRecipe,
 } from '@/types/cookbook';
@@ -22,6 +24,7 @@ type CookbookInsertPayload = {
   theme_name: string;
   theme_prompt: string;
   cover_style?: CookbookStyleId;
+  page_template_id?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
 };
 
@@ -33,6 +36,7 @@ interface CookbookRow {
   theme_prompt: string;
   section_order?: unknown;
   cover_style?: string | null;
+  page_template_id?: string | null;
   sections?: unknown;
   created_at: string;
   updated_at: string;
@@ -105,6 +109,10 @@ function normalizeCoverStyle(value?: string | null, themeName?: string | null): 
   return getCookbookStyle(value).id;
 }
 
+function normalizePageTemplateId(value?: string | null): RecipeTemplateId {
+  return isRecipeTemplateId(value) ? value : DEFAULT_RECIPE_TEMPLATE_ID;
+}
+
 function getEmbeddedVersion(row: CookbookPageRow): PageVersionRow | undefined {
   if (row.selected_version) return row.selected_version;
   if (Array.isArray(row.page_versions)) return row.page_versions[0];
@@ -113,6 +121,7 @@ function getEmbeddedVersion(row: CookbookPageRow): PageVersionRow | undefined {
 
 export function mapCookbook(row: CookbookRow): Cookbook {
   const coverStyle = normalizeCoverStyle(row.cover_style, row.theme_name);
+  const pageTemplateId = normalizePageTemplateId(row.page_template_id);
   const sections = normalizeSections(row.sections);
   return {
     id: row.id,
@@ -121,6 +130,7 @@ export function mapCookbook(row: CookbookRow): Cookbook {
     theme: { name: row.theme_name, prompt: row.theme_prompt },
     sectionOrder: normalizeSectionOrder(row.section_order),
     coverStyle,
+    pageTemplateId,
     sections,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -216,6 +226,7 @@ export interface CreateCookbookInput {
   userId: string;
   title: string;
   coverStyle: CookbookStyleId;
+  pageTemplateId?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
 }
 
@@ -251,6 +262,7 @@ async function insertCookbook(payload: CookbookInsertPayload): Promise<CookbookR
 
 export async function createCookbook(input: CreateCookbookInput): Promise<Cookbook> {
   const preset = getCookbookStyle(input.coverStyle);
+  const templateId = getRecipeTemplate(input.pageTemplateId).id;
   const title = input.title.trim() || 'My Cookbook';
   const basePayload = {
     user_id: input.userId,
@@ -263,6 +275,7 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     const row = await insertCookbook({
       ...basePayload,
       cover_style: preset.id,
+      page_template_id: templateId,
       sections: input.sections ?? [],
     });
     return { ...mapCookbook(row), pageCount: 0 };
@@ -271,6 +284,7 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
       const row = await insertCookbook({
         ...basePayload,
         cover_style: 'handwritten',
+        page_template_id: templateId,
         sections: input.sections ?? [],
       });
       return { ...mapCookbook(row), pageCount: 0 };
@@ -302,6 +316,19 @@ export async function updateCookbookSections(
     .schema('nutriai')
     .from('cookbooks')
     .update({ sections })
+    .eq('id', cookbookId);
+  if (error) throw error;
+}
+
+export async function updateCookbookPageTemplate(
+  cookbookId: string,
+  pageTemplateId: RecipeTemplateId,
+): Promise<void> {
+  const templateId = getRecipeTemplate(pageTemplateId).id;
+  const { error } = await supabase
+    .schema('nutriai')
+    .from('cookbooks')
+    .update({ page_template_id: templateId })
     .eq('id', cookbookId);
   if (error) throw error;
 }

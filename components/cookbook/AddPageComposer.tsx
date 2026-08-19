@@ -2,13 +2,12 @@ import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Link, Send, Sparkles, Video } from 'lucide-react-native';
-import { SelectedRecipeTemplateCard } from '@/components/cookbook/SelectedRecipeTemplateCard';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { RecipeSourceType, RecipeTemplateId } from '@/types/cookbook';
+import type { RecipeSourceType } from '@/types/cookbook';
 
 export type AddPageSubmitPayload =
   | { type: 'url'; input: string }
@@ -24,9 +23,6 @@ interface AddPageComposerProps {
   error?: string | null;
   onInputChange: (value: string) => void;
   onImageBase64Change: (value: string | null) => void;
-  selectedTemplateId: RecipeTemplateId;
-  favoriteTemplateIds: RecipeTemplateId[];
-  onOpenTemplateLibrary: () => void;
   onRetry?: () => Promise<void> | void;
   onSubmit: (payload: AddPageSubmitPayload) => Promise<void> | void;
 }
@@ -65,9 +61,6 @@ export function AddPageComposer({
   error = null,
   onInputChange,
   onImageBase64Change,
-  selectedTemplateId,
-  favoriteTemplateIds,
-  onOpenTemplateLibrary,
   onRetry,
   onSubmit,
 }: AddPageComposerProps) {
@@ -136,7 +129,7 @@ export function AddPageComposer({
       </View>
 
       <Text style={styles.description}>
-        Paste a recipe link, choose a template, then review the extracted recipe before Nosh turns it into a cookbook page.
+        Paste a recipe link or text, then review the extracted recipe before Nosh turns it into a cookbook page.
       </Text>
 
       <TextInput
@@ -159,13 +152,6 @@ export function AddPageComposer({
           </Pressable>
         </View>
       ) : null}
-
-      <SelectedRecipeTemplateCard
-        selectedTemplateId={selectedTemplateId}
-        favoriteTemplateIds={favoriteTemplateIds}
-        onOpenTemplateLibrary={onOpenTemplateLibrary}
-        label="Selected template"
-      />
 
       {error ? (
         <View style={styles.errorNotice} accessibilityRole="alert">

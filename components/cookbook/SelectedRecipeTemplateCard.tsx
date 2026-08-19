@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { ChevronRight, Star } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getRecipeTemplate } from '@/constants/recipeTemplates';
@@ -10,52 +10,46 @@ import type { RecipeTemplateId } from '@/types/cookbook';
 
 interface SelectedRecipeTemplateCardProps {
   selectedTemplateId: RecipeTemplateId;
-  favoriteTemplateIds: RecipeTemplateId[];
+  isOverride?: boolean;
   onOpenTemplateLibrary: () => void;
   label?: string;
 }
 
 export function SelectedRecipeTemplateCard({
   selectedTemplateId,
-  favoriteTemplateIds,
+  isOverride = false,
   onOpenTemplateLibrary,
-  label = 'Template',
+  label = 'Page style',
 }: SelectedRecipeTemplateCardProps) {
   const template = getRecipeTemplate(selectedTemplateId);
-  const isFavorite = favoriteTemplateIds.includes(template.id);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>{label}</Text>
-        {favoriteTemplateIds.length > 0 ? (
-          <Text style={styles.favorites}>{favoriteTemplateIds.length} saved</Text>
-        ) : null}
+        {isOverride ? (
+          <Text style={styles.overrideBadge}>For this recipe</Text>
+        ) : (
+          <Text style={styles.bookDefault}>Book default</Text>
+        )}
       </View>
       <Pressable
         style={styles.card}
         onPress={onOpenTemplateLibrary}
         accessibilityRole="button"
-        accessibilityLabel="Choose page template"
+        accessibilityLabel="Choose page style"
       >
         <Image source={template.previewAsset} style={styles.preview} resizeMode="cover" />
         <View style={styles.copy}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1}>
-              {template.name}
-            </Text>
-            {isFavorite ? (
-              <View style={styles.favoriteBadge}>
-                <Star size={12} color={Colors.onPrimary} fill={Colors.onPrimary} strokeWidth={1.8} />
-              </View>
-            ) : null}
-          </View>
+          <Text style={styles.title} numberOfLines={1}>
+            {template.name}
+          </Text>
           <Text style={styles.subtitle} numberOfLines={2}>
             {template.tagline}
           </Text>
         </View>
         <View style={styles.action}>
-          <Text style={styles.actionText}>Browse</Text>
+          <Text style={styles.actionText}>Change</Text>
           <ChevronRight size={17} color={Colors.text} strokeWidth={1.8} />
         </View>
       </Pressable>
@@ -80,8 +74,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.medium,
     letterSpacing: 0,
   },
-  favorites: {
-    color: Colors.deepOcean,
+  bookDefault: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: Fonts.ui.medium,
+  },
+  overrideBadge: {
+    color: Colors.primary,
     fontSize: 11,
     lineHeight: 16,
     fontFamily: Fonts.ui.medium,
@@ -109,11 +109,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
   title: {
     flexShrink: 1,
     color: Colors.text,
@@ -121,14 +116,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: Fonts.display.semibold,
     letterSpacing: 0,
-  },
-  favoriteBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
   },
   subtitle: {
     color: Colors.textMuted,

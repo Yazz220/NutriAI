@@ -20,7 +20,7 @@ interface RecipeReviewFormProps {
   generationPhase?: GenerationPhase;
   generationError?: string | null;
   selectedTemplateId: RecipeTemplateId;
-  favoriteTemplateIds: RecipeTemplateId[];
+  isOverride?: boolean;
   onOpenTemplateLibrary: () => void;
   onGenerate: (recipe: StructuredRecipe) => Promise<void> | void;
 }
@@ -33,7 +33,7 @@ export function RecipeReviewForm({
   generationPhase = 'idle',
   generationError = null,
   selectedTemplateId,
-  favoriteTemplateIds,
+  isOverride = false,
   onOpenTemplateLibrary,
   onGenerate,
 }: RecipeReviewFormProps) {
@@ -76,7 +76,9 @@ export function RecipeReviewForm({
         <Text style={styles.eyebrow}>Review recipe</Text>
         <Text style={styles.title}>Make sure this recipe reads the way you want.</Text>
         <Text style={styles.helper}>
-          Nosh will use the selected template after you confirm the recipe.
+          {isOverride
+            ? 'Using a different page style for this recipe.'
+            : 'Nosh will use this book\u2019s page style after you confirm the recipe.'}
         </Text>
       </View>
 
@@ -118,9 +120,9 @@ export function RecipeReviewForm({
 
       <SelectedRecipeTemplateCard
         selectedTemplateId={selectedTemplateId}
-        favoriteTemplateIds={favoriteTemplateIds}
+        isOverride={isOverride}
         onOpenTemplateLibrary={onOpenTemplateLibrary}
-        label="Page template"
+        label="Page style"
       />
 
       <TextInput

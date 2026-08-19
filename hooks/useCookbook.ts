@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchCookbookPages, getCookbook } from '@/utils/cookbook/api';
+import { fetchCookbookPages, getCookbook, updateCookbookPageTemplate } from '@/utils/cookbook/api';
 import { loadCachedCookbook, loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
 import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
-import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import type { Cookbook, CookbookPage, RecipeTemplateId } from '@/types/cookbook';
 
 export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
 export const COOKBOOK_PAGES_QUERY_KEY = (id?: string | null) => ['cookbook-pages', id];
@@ -24,6 +24,7 @@ export interface UseCookbookResult {
   isStale: boolean;
   refresh: () => Promise<void>;
   upsertPage: (page: CookbookPage) => void;
+  updatePageTemplate: (pageTemplateId: RecipeTemplateId) => Promise<void>;
 }
 
 export function useCookbook(cookbookId: string | null | undefined): UseCookbookResult {
@@ -124,6 +125,19 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
     },
   });
 
+  const updatePageTemplateMutation = useMutation({
+    mutationFn: async (pageTemplateId: RecipeTemplateId) => {
+      if (!cookbookId || isSampleCookbook) return;
+      await updateCookbookPageTemplate(cookbookId, pageTemplateId);
+    },
+    onSuccess: (_, pageTemplateId) => {
+      if (!cookbookId) return;
+      queryClient.setQueryData<Cookbook | null>(COOKBOOK_QUERY_KEY(cookbookId), (current) =>
+        current ? { ...current, pageTemplateId } : current,
+      );
+    },
+  });
+
   function upsertPage(page: CookbookPage) {
     queryClient.setQueryData<CookbookPage[]>(COOKBOOK_PAGES_QUERY_KEY(page.cookbookId), (existing = []) => {
       const withoutPage = existing.filter((candidate) => candidate.id !== page.id);
@@ -149,5 +163,6 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
     isStale,
     refresh: refreshMutation.mutateAsync,
     upsertPage,
+    updatePageTemplate: updatePageTemplateMutation.mutateAsync,
   };
 }

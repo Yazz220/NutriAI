@@ -51,6 +51,8 @@ export interface Cookbook {
   theme: CookbookTheme;
   sectionOrder: CookbookSection[];
   coverStyle: CookbookStyleId;
+  /** Book-level default page layout for new recipe pages. */
+  pageTemplateId: RecipeTemplateId;
   sections: CookbookSectionEntry[];
   pageCount?: number;
   createdAt: string;

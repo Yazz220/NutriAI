@@ -14,10 +14,6 @@ export default function MyCookbooksScreen() {
     router.push('/(book)/library');
   }
 
-  function openTemplates() {
-    router.push('/(book)/templates');
-  }
-
   function openSettings() {
     router.push('/(book)/settings');
   }
@@ -52,7 +48,6 @@ export default function MyCookbooksScreen() {
         cookbooks={cookbooks}
         onSelectCookbook={openCookbook}
         onAddCookbook={openLibrary}
-        onOpenTemplates={openTemplates}
         onOpenSettings={openSettings}
         isStale={isShelfStale}
         onRefresh={() => {

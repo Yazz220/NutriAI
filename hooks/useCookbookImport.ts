@@ -1,14 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_RECIPE_TEMPLATE_ID, getRecipeTemplate } from '@/constants/recipeTemplates';
 import { parseRecipeSource } from '@/utils/cookbook/api';
 import { loadSourceDraft, saveSourceDraft } from '@/utils/cookbook/importDraft';
-import {
-  loadFavoriteRecipeTemplateIds,
-  saveFavoriteRecipeTemplateIds,
-} from '@/utils/cookbook/templateFavorites';
 import { useAuth } from '@/hooks/useAuth';
-import type { ParsedRecipeDraft, RecipeTemplateId } from '@/types/cookbook';
+import type { ParsedRecipeDraft } from '@/types/cookbook';
 
 type ParseResult = {
   recipe: ParsedRecipeDraft;
@@ -26,22 +21,8 @@ export const [CookbookImportProvider, useCookbookImport] = createContextHook(() 
   const [reasons, setReasons] = useState<string[]>([]);
   const [sourceInput, setSourceInput] = useState('');
   const [sourceImageBase64, setSourceImageBase64] = useState<string | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<RecipeTemplateId>(DEFAULT_RECIPE_TEMPLATE_ID);
-  const [favoriteTemplateIds, setFavoriteTemplateIds] = useState<RecipeTemplateId[]>([]);
   const sourceInputRef = useRef(sourceInput);
   const restoredUserIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadFavoriteRecipeTemplateIds()
-      .then((ids) => {
-        if (!cancelled) setFavoriteTemplateIds(ids);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const userId = user?.id;
@@ -90,21 +71,6 @@ export const [CookbookImportProvider, useCookbookImport] = createContextHook(() 
     if (user?.id) saveSourceDraft(user.id, input).catch(() => {});
   }, [user?.id]);
 
-  const selectTemplate = useCallback((templateId: RecipeTemplateId | string) => {
-    setSelectedTemplateId(getRecipeTemplate(templateId).id);
-  }, []);
-
-  const toggleFavoriteTemplate = useCallback((templateId: RecipeTemplateId | string) => {
-    const id = getRecipeTemplate(templateId).id;
-    setFavoriteTemplateIds((current) => {
-      const next = current.includes(id)
-        ? current.filter((favoriteId) => favoriteId !== id)
-        : [id, ...current];
-      saveFavoriteRecipeTemplateIds(next).catch(() => {});
-      return next;
-    });
-  }, []);
-
   const clearSourceDraft = useCallback(() => {
     updateSourceInput('');
     setSourceImageBase64(null);
@@ -136,10 +102,6 @@ export const [CookbookImportProvider, useCookbookImport] = createContextHook(() 
     sourceImageBase64,
     setSourceImageBase64,
     clearSourceDraft,
-    selectedTemplateId,
-    favoriteTemplateIds,
-    selectTemplate,
-    toggleFavoriteTemplate,
     parseSource,
   };
 });

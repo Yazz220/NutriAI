@@ -4,7 +4,7 @@ import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, LayoutTemplate, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -19,6 +19,7 @@ import { AddPageSheet } from '@/components/cookbook/AddPageSheet';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
+import { PageStyleSheet } from '@/components/cookbook/PageStyleSheet';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -32,7 +33,7 @@ import {
   shouldUseTouchPaging,
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
-import type { Cookbook, CookbookPage, RecipeSourceType } from '@/types/cookbook';
+import type { Cookbook, CookbookPage, RecipeSourceType, RecipeTemplateId } from '@/types/cookbook';
 
 interface BookReaderProps {
   cookbook: Cookbook | null;
@@ -40,11 +41,19 @@ interface BookReaderProps {
   initialPageId?: string;
   onSelectPage: (id: string) => void;
   onShare: (page: CookbookPage) => void;
+  onUpdatePageTemplate?: (templateId: RecipeTemplateId) => Promise<void> | void;
   isStale?: boolean;
   onRefresh?: () => void;
 }
 
-const OPEN_DURATION = 1150;
+// Unified open/close durations and easings shared with Cookbook3DScene so
+// the cover swing and reader chrome animate on the same clock. The cover
+// swing is the primary motion; chrome interpolation offsets (appearing near
+// the end of the open, fading early on close) are handled in chromeStyle.
+const OPEN_DURATION = 980;
+const CLOSE_DURATION = 620;
+const OPEN_EASING = Easing.bezier(0.22, 0.72, 0.24, 1);
+const CLOSE_EASING = Easing.bezier(0.5, 0, 0.75, 0.2);
 
 // The focused page lifts toward the reader rather than appearing via a
 // system modal cut — a light scale/rise with a soft overshoot.
@@ -65,6 +74,7 @@ export function BookReader({
   initialPageId,
   onSelectPage,
   onShare,
+  onUpdatePageTemplate,
   isStale = false,
   onRefresh,
 }: BookReaderProps) {
@@ -85,6 +95,7 @@ export function BookReader({
   }, [initialPageId, leaves]);
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [pageStyleSheetOpen, setPageStyleSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const [isBackClosed, setIsBackClosed] = useState(false);
   const handledInitialPageId = useRef<string | null>(null);
@@ -181,17 +192,19 @@ export function BookReader({
     onSelectPage(initialPageId);
   }, [initialPageId, leaves, onSelectPage, opening, spreads]);
 
-  // Auto-open on arrival from the shelf (no deep-link pageId). The cover
-  // swing becomes the entrance transition instead of a gated second tap.
-  // Uses useFocusEffect to wait for the Expo Router screen transition to
-  // complete before starting the cover swing — InteractionManager is
-  // unreliable with native-stack transitions. Deep-linked opens skip this.
+  // Auto-open on arrival from the shelf (no deep-link pageId). The route
+  // uses animation: 'none' so the reader appears instantly with the closed
+  // cover; the cover swing IS the entrance transition. A brief settle delay
+  // lets the closed cover paint for one frame before the swing starts, so
+  // the user sees "book placed in hands → open" rather than a mid-swing pop.
+  // Deep-linked opens (with initialPageId) skip this — they start open.
   const autoOpened = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (autoOpened.current || initialPageId || !cookbook) return;
       autoOpened.current = true;
-      openBook();
+      const timeout = setTimeout(() => openBook(), 100);
+      return () => clearTimeout(timeout);
       // eslint-disable-next-line react-hooks/exhaustive-deps -- openBook is a hoisted function declaration; we only want this to fire once on focus.
     }, [cookbook, initialPageId]),
   );
@@ -223,7 +236,7 @@ export function BookReader({
     opening.set(
       withTiming(1, {
         duration: OPEN_DURATION,
-        easing: Easing.bezier(0.2, 0.76, 0.22, 1),
+        easing: OPEN_EASING,
       }),
     );
     pokeChrome();
@@ -235,8 +248,8 @@ export function BookReader({
     setReadingView('spread');
     opening.set(
       withTiming(0, {
-        duration: 760,
-        easing: Easing.bezier(0.55, 0, 0.72, 0.18),
+        duration: CLOSE_DURATION,
+        easing: CLOSE_EASING,
       }),
     );
   }
@@ -374,6 +387,7 @@ export function BookReader({
           spreads={spreads}
           spreadIndex={spreadIndex}
           isOpen={isOpen}
+          opening={opening}
           readingView={readingView}
           readingPageId={readingPageId}
           leaves={leaves}
@@ -484,6 +498,16 @@ export function BookReader({
               cookbookTitle={cookbookTitle}
             />
           ) : null}
+          {cookbookId && onUpdatePageTemplate ? (
+            <Pressable
+              style={({ pressed }) => [styles.floatingIconButton, pressed && styles.actionPressed]}
+              onPress={() => setPageStyleSheetOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Change page style"
+            >
+              <LayoutTemplate size={18} color={Colors.text} />
+            </Pressable>
+          ) : null}
           {cookbookId ? (
             <Pressable
               style={({ pressed }) => [styles.floatingAddButton, pressed && styles.actionPressed]}
@@ -549,6 +573,17 @@ export function BookReader({
         onClose={() => setAddSheetOpen(false)}
         onSelectSource={openAddPageSource}
       />
+      {onUpdatePageTemplate && cookbook ? (
+        <PageStyleSheet
+          visible={pageStyleSheetOpen}
+          selectedId={cookbook.pageTemplateId}
+          onSelect={(id) => {
+            void onUpdatePageTemplate(id);
+          }}
+          onClose={() => setPageStyleSheetOpen(false)}
+          bookDefaultMode
+        />
+      ) : null}
     </LinearGradient>
   );
 }
@@ -689,6 +724,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
+    boxShadow: Colors.book.liftedShadow,
+  },
+  floatingIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.alabaster,
+    borderWidth: 1,
+    borderColor: Colors.ash,
     boxShadow: Colors.book.liftedShadow,
   },
   readerActionDock: {

@@ -150,6 +150,7 @@ export function Cookbook3DScene({
   spreads,
   spreadIndex,
   isOpen,
+  opening: propOpening,
   readingView = 'spread',
   readingPageId,
   leaves,
@@ -235,9 +236,16 @@ export function Cookbook3DScene({
   // never unmounted — it stays in the tree so the user can swipe it open
   // and closed naturally. Deep-linked opens start with the animation
   // complete (opening = 1).
-  const opening = useSharedValue(isOpen ? 1 : 0);
+  //
+  // When the parent passes an opening SharedValue, it owns the animation
+  // (so the cover swing and reader chrome share one clock). Otherwise the
+  // scene animates its own value from isOpen — backward-compatible fallback
+  // for standalone usage.
+  const localOpening = useSharedValue(isOpen ? 1 : 0);
+  const opening = propOpening ?? localOpening;
 
   useEffect(() => {
+    if (propOpening) return; // Parent owns the open/close animation.
     opening.value = withTiming(
       isOpen ? 1 : 0,
       {
@@ -247,7 +255,7 @@ export function Cookbook3DScene({
           : Easing.bezier(0.5, 0, 0.75, 0.2),
       },
     );
-  }, [isOpen, opening]);
+  }, [isOpen, opening, propOpening]);
 
   // Back cover: mirrors the front cover. When the book is open, the back
   // cover is at +175° (face-down on the right, under the pages). When the

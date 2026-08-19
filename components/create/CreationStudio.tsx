@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft } from 'lucide-react-native';
+import { Check, ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { OpenBookInspector } from '@/components/create/OpenBookInspector';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
@@ -23,9 +24,10 @@ import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle, type BindingMaterial } from '@/constants/cookbookBindings';
 import { listCookbookCreationStyles } from '@/constants/cookbookStyles';
 import type { CookbookStylePreset } from '@/constants/cookbookStyles';
+import { DEFAULT_RECIPE_TEMPLATE_ID, listRecipeTemplates } from '@/constants/recipeTemplates';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { CookbookStyleId } from '@/types/cookbook';
+import type { CookbookStyleId, RecipeTemplateId } from '@/types/cookbook';
 
 /**
  * The 3D Cover Creation Studio. Browse: binding presets stand spine-out on
@@ -41,7 +43,7 @@ const BOARD_CLEARANCE = BOARD_BOTTOM + BOARD_HEIGHT;
 
 interface CreationStudioProps {
   canCreate: boolean;
-  onCreateBook: (title: string, styleId: CookbookStyleId) => Promise<void>;
+  onCreateBook: (title: string, styleId: CookbookStyleId, pageTemplateId: RecipeTemplateId) => Promise<void>;
   onSignIn: () => void;
   bottomInset?: number;
 }
@@ -49,9 +51,11 @@ interface CreationStudioProps {
 export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset = 0 }: CreationStudioProps) {
   const { width } = useWindowDimensions();
   const presets = listCookbookCreationStyles();
+  const pageTemplates = listRecipeTemplates();
   const [mode, setMode] = useState<'browse' | 'inspect'>('browse');
   const [activeIndex, setActiveIndex] = useState(0);
   const [inspected, setInspected] = useState<CookbookStyleId | null>(null);
+  const [pageTemplateId, setPageTemplateId] = useState<RecipeTemplateId>(DEFAULT_RECIPE_TEMPLATE_ID);
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +81,7 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook(trimmed, inspected);
+      await onCreateBook(trimmed, inspected, pageTemplateId);
     } catch (err) {
       setError(getErrorMessage(err));
       setSubmitting(false);
@@ -162,6 +166,42 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
               </View>
 
               <BindingSpecSummary preset={inspectedPreset} />
+
+              <Animated.View entering={FadeIn.delay(500).duration(400)} style={styles.pageStyleSection}>
+                <Text style={styles.pageStyleLabel}>Page style</Text>
+                <Text style={styles.pageStyleHint}>How your recipes will look inside the book</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pageStyleScroll}
+                >
+                  {pageTemplates.map((template) => {
+                    const selected = pageTemplateId === template.id;
+                    return (
+                      <Pressable
+                        key={template.id}
+                        style={[styles.pageStyleCard, selected && styles.pageStyleCardSelected]}
+                        onPress={() => setPageTemplateId(template.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Use ${template.name} page style`}
+                        accessibilityState={{ selected }}
+                      >
+                        <View style={styles.pageStylePreviewFrame}>
+                          <Image source={template.previewAsset} style={styles.pageStylePreview} resizeMode="cover" />
+                          {selected ? (
+                            <View style={styles.pageStyleCheck} pointerEvents="none">
+                              <Check size={12} color={Colors.onPrimary} strokeWidth={2.5} />
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text style={styles.pageStyleName} numberOfLines={1}>
+                          {template.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </Animated.View>
 
               <Animated.View entering={FadeIn.delay(700).duration(400)} style={styles.form}>
                 <Text style={styles.label}>Name your cookbook</Text>
@@ -345,6 +385,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: Spacing.xl,
+  },
+  pageStyleSection: {
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.xs,
+  },
+  pageStyleLabel: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 14,
+  },
+  pageStyleHint: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  pageStyleScroll: {
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  pageStyleCard: {
+    width: 84,
+    gap: 6,
+    alignItems: 'center',
+  },
+  pageStylePreviewFrame: {
+    position: 'relative',
+    width: 84,
+    height: 112,
+    borderRadius: Radii.md,
+    borderWidth: 2,
+    borderColor: Colors.ash,
+    overflow: 'hidden',
+    backgroundColor: Colors.book.page,
+  },
+  pageStyleCardSelected: {
+    borderColor: Colors.charcoal,
+  },
+  pageStylePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  pageStyleCheck: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  pageStyleName: {
+    color: Colors.text,
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: Fonts.ui.medium,
+    textAlign: 'center',
   },
   specName: {
     color: Colors.text,

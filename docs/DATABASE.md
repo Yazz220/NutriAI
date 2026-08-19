@@ -17,7 +17,8 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 | `title` | text | User-provided ("Desserts", "Italian", "Family") |
 | `theme_name`, `theme_prompt` | text | Legacy theme fields, kept for backward compat |
 | `section_order` | jsonb | Default order of the seven canonical sections |
-| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`} | Drives cover artwork + page-generation prompt |
+| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Drives cover artwork + page-generation prompt |
+| `page_template_id` | text CHECK ∈ {`clean-cream`, `ink-sketch`, `modern-editorial`} default `clean-cream` | Book-level default page layout for new recipe pages |
 | `sections` | jsonb array of `{id, label, order}` | Per-book section overrides (auto-derived if empty) |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -99,6 +100,7 @@ Run in numeric order against a fresh project. All are idempotent (`IF NOT EXISTS
 | `supabase/sql/20260503_ai_cookbook_reset.sql` | `cookbooks`, `recipes`, `cookbook_pages`, `page_versions`, `credit_ledger` + `reserve_generation_credit` |
 | `supabase/sql/20260505_multi_cookbook.sql` | Drops one-cookbook-per-user index, adds `cover_style` + `sections`, drops legacy tables |
 | `supabase/migrations/20260803132008_generation_request_idempotency.sql` | Generation request claims, request-scoped spend/refund uniqueness, completion caching, and stale-request recovery |
+| `supabase/migrations/20260820120000_cookbook_page_template.sql` | Adds `page_template_id` column to `cookbooks` for book-level default page layout |
 
 ## RLS posture
 

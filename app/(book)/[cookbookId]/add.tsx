@@ -30,8 +30,6 @@ export default function AddPageScreen() {
     setSourceInput,
     sourceImageBase64,
     setSourceImageBase64,
-    selectedTemplateId,
-    favoriteTemplateIds,
   } = useCookbookImport();
   const [error, setError] = React.useState<string | null>(null);
   const [failedPayload, setFailedPayload] = React.useState<AddPageSubmitPayload | null>(null);
@@ -96,9 +94,6 @@ export default function AddPageScreen() {
           error={error}
           onInputChange={updateSourceInput}
           onImageBase64Change={updateSourceImageBase64}
-          selectedTemplateId={selectedTemplateId}
-          favoriteTemplateIds={favoriteTemplateIds}
-          onOpenTemplateLibrary={() => router.push(`/(book)/${cookbookId}/templates`)}
           onRetry={failedPayload ? () => submitSource(failedPayload) : undefined}
           onSubmit={submitSource}
         />

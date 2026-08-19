@@ -8,10 +8,6 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
-jest.mock('@/components/cookbook/SelectedRecipeTemplateCard', () => ({
-  SelectedRecipeTemplateCard: () => null,
-}));
-
 describe('AddPageComposer', () => {
   it('keeps the source visible and retries from the import error panel', () => {
     const onRetry = jest.fn();
@@ -20,11 +16,8 @@ describe('AddPageComposer', () => {
         input="https://example.com/recipe"
         imageBase64={null}
         error="The recipe link could not be reached."
-        selectedTemplateId="clean-cream"
-        favoriteTemplateIds={[]}
         onInputChange={jest.fn()}
         onImageBase64Change={jest.fn()}
-        onOpenTemplateLibrary={jest.fn()}
         onRetry={onRetry}
         onSubmit={jest.fn()}
       />,

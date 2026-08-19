@@ -10,15 +10,15 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
-import type { CookbookStyleId } from '@/types/cookbook';
+import type { CookbookStyleId, RecipeTemplateId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
 
-  async function handleCreate(title: string, coverStyle: CookbookStyleId) {
-    const cookbook = await createCookbook({ title, coverStyle });
+  async function handleCreate(title: string, coverStyle: CookbookStyleId, pageTemplateId: RecipeTemplateId) {
+    const cookbook = await createCookbook({ title, coverStyle, pageTemplateId });
     router.replace(`/(book)/${cookbook.id}`);
   }
 
