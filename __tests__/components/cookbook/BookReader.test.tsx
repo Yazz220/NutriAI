@@ -5,6 +5,7 @@ import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleC
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  useFocusEffect: (cb: () => void) => cb(),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({

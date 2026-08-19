@@ -6,7 +6,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { BookCover } from '@/components/cookbook/BookCover';
+import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -75,12 +75,7 @@ export function AddCookbookSheet({
     >
       {styleId ? (
         <View style={styles.previewWrap}>
-          <BookCover
-            title={title || 'Your cookbook'}
-            coverStyle={styleId}
-            width={150}
-            showPageCount={false}
-          />
+          <PhysicalBook title={title || 'Your cookbook'} coverStyle={styleId} width={150} />
         </View>
       ) : null}
 

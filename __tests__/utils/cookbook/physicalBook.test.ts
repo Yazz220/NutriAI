@@ -1,5 +1,6 @@
 import {
   buildPageCurlCurve,
+  computeRowTurnProgress,
   estimateTurnSettleDuration,
   getSheetTurnProgress,
   resolveTurnProgress,
@@ -39,32 +40,37 @@ describe('physical cookbook page turns', () => {
   describe('resolveTurnProgress', () => {
     const pageWidth = 390;
 
-    it('tracks pointer position 1:1 from a free-edge grab', () => {
+    it('tracks pointer position with symmetrical travel from a free-edge grab', () => {
       const base = { grabX: pageWidth, pageWidth, direction: 1 as const, canTurn: true };
+      // travel = 2 * |targetX - grabX| = 2 * 390 = 780
       expect(resolveTurnProgress({ ...base, pointerX: pageWidth })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.5);
-      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBe(1);
-      expect(resolveTurnProgress({ ...base, pointerX: -40 })).toBe(1);
+      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.25);
+      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBeCloseTo(0.5);
+      expect(resolveTurnProgress({ ...base, pointerX: -pageWidth })).toBeCloseTo(1);
     });
 
     it('follows the finger back when the drag reverses', () => {
       const base = { grabX: pageWidth, pageWidth, direction: 1 as const, canTurn: true };
-      expect(resolveTurnProgress({ ...base, pointerX: 100 })).toBeCloseTo(0.74, 1);
-      expect(resolveTurnProgress({ ...base, pointerX: 300 })).toBeCloseTo(0.23, 1);
+      // travel = 780; at pointerX=100: (390-100)/780 ≈ 0.37
+      expect(resolveTurnProgress({ ...base, pointerX: 100 })).toBeCloseTo(0.37, 1);
+      // at pointerX=300: (390-300)/780 ≈ 0.12
+      expect(resolveTurnProgress({ ...base, pointerX: 300 })).toBeCloseTo(0.12, 1);
     });
 
     it('anchors travel to the grab point for mid-page grabs', () => {
       const grabX = pageWidth * 0.5;
       const base = { grabX, pageWidth, direction: 1 as const, canTurn: true };
+      // travel = 2 * |0 - 195| = 390; at pointerX=0: 195/390 = 0.5
       expect(resolveTurnProgress({ ...base, pointerX: grabX })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBe(1);
+      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBeCloseTo(0.5);
     });
 
     it('mirrors the mapping for backward turns', () => {
       const base = { grabX: 0, pageWidth, direction: -1 as const, canTurn: true };
+      // travel = 2 * |390 - 0| = 780; at pointerX=195: 195/780 = 0.25
       expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.5);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth })).toBe(1);
+      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.25);
+      expect(resolveTurnProgress({ ...base, pointerX: pageWidth })).toBeCloseTo(0.5);
     });
 
     it('resists when no page exists in the grab direction', () => {
@@ -116,6 +122,41 @@ describe('physical cookbook page turns', () => {
     it('stays within the perceptual bounds', () => {
       expect(estimateTurnSettleDuration(0.99, 1, 0.5)).toBeGreaterThanOrEqual(0.18);
       expect(estimateTurnSettleDuration(0, 1, 0.5)).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('computeRowTurnProgress', () => {
+    it('starts and ends flat across all rows regardless of grab position', () => {
+      expect(computeRowTurnProgress(0, 0, 1)).toBe(0);
+      expect(computeRowTurnProgress(0, 1, 1)).toBe(0);
+      expect(computeRowTurnProgress(1, 0, 1)).toBe(1);
+      expect(computeRowTurnProgress(1, 1, 1)).toBe(1);
+    });
+
+    it('returns uniform progress when grabbed at the vertical center', () => {
+      expect(computeRowTurnProgress(0.5, 0, 0.5)).toBeCloseTo(0.5);
+      expect(computeRowTurnProgress(0.5, 0.5, 0.5)).toBeCloseTo(0.5);
+      expect(computeRowTurnProgress(0.5, 1, 0.5)).toBeCloseTo(0.5);
+    });
+
+    it('accelerates bottom rows and delays top rows on bottom-corner grab', () => {
+      const topRow = computeRowTurnProgress(0.5, 0, 1);
+      const bottomRow = computeRowTurnProgress(0.5, 1, 1);
+      const midRow = computeRowTurnProgress(0.5, 0.5, 1);
+
+      expect(bottomRow).toBeGreaterThan(0.5);
+      expect(topRow).toBeLessThan(0.5);
+      expect(midRow).toBeCloseTo(0.5);
+    });
+
+    it('accelerates top rows and delays bottom rows on top-corner grab', () => {
+      const topRow = computeRowTurnProgress(0.5, 0, 0);
+      const bottomRow = computeRowTurnProgress(0.5, 1, 0);
+      const midRow = computeRowTurnProgress(0.5, 0.5, 0);
+
+      expect(topRow).toBeGreaterThan(0.5);
+      expect(bottomRow).toBeLessThan(0.5);
+      expect(midRow).toBeCloseTo(0.5);
     });
   });
 });

@@ -91,7 +91,7 @@ export function Cookbook3DScene({
   spreads,
   spreadIndex,
   isOpen,
-  readingView = 'tilted',
+  readingView = 'spread',
   onOpen,
   onNext,
   onPrevious,
@@ -210,7 +210,7 @@ function BookScene({
   spreads: CookbookSpread[];
   spreadIndex: number;
   isOpen: boolean;
-  readingView: 'tilted' | 'topdown';
+  readingView: 'spread' | 'page';
   textureUris: string[];
   onOpen: () => void;
   onNext: () => void;
@@ -500,7 +500,7 @@ function BookScene({
     const perspective = camera as PerspectiveCamera;
     const tanHalfFov = Math.tan(MathUtils.degToRad(perspective.fov) / 2);
     const aspect = size.width / size.height;
-    const isTopdown = isOpen && readingView === 'topdown';
+    const isTopdown = isOpen && readingView === 'page';
     const halfWidth = isTopdown ? BOOK_WIDTH + 0.2 : isOpen ? BOOK_WIDTH + 0.35 : BOOK_WIDTH * 0.92;
     const halfHeight = isTopdown ? BOOK_HEIGHT * 0.52 : isOpen ? BOOK_HEIGHT * 0.5 : BOOK_HEIGHT * 0.58;
     const padding = isTopdown ? TOPDOWN_PADDING : isOpen ? OPEN_PADDING : CLOSED_PADDING;
@@ -596,7 +596,7 @@ function BookScene({
       return;
     }
     const page = pages[leaf.pageIndex];
-    if (readingView === 'tilted') {
+    if (readingView === 'spread') {
       onEnterReadingView(page);
       return;
     }

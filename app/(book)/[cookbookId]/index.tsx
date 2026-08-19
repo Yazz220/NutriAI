@@ -5,6 +5,7 @@ import { BookReader } from '@/components/cookbook/BookReader';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
 import { Colors } from '@/constants/colors';
 import { useCookbook } from '@/hooks/useCookbook';
+import { useCookbooks } from '@/hooks/useCookbooks';
 import { shareCookbookPage } from '@/utils/cookbook/share';
 import type { CookbookPage } from '@/types/cookbook';
 
@@ -26,6 +27,13 @@ export default function BookReaderScreen() {
     refresh,
   } = useCookbook(cookbookId);
 
+  // The shelf already has the cookbook metadata cached. Use it to render
+  // the cover instantly while useCookbook fetches pages — eliminates the
+  // white flash on navigation from the shelf.
+  const { cookbooks: shelfCookbooks } = useCookbooks();
+  const shelfCookbook = shelfCookbooks.find((book) => book.id === cookbookId);
+  const effectiveCookbook = cookbook ?? shelfCookbook ?? null;
+
   const handleShare = async (page: CookbookPage) => {
     try {
       await shareCookbookPage(page);
@@ -35,7 +43,10 @@ export default function BookReaderScreen() {
     }
   };
 
-  if (isLoading && (!cookbook || pages.length === 0)) {
+  // Only show the full-screen spinner if we have NO cookbook metadata at
+  // all (not even from the shelf). If we have the cookbook, render the
+  // reader immediately — the cover shows instantly and pages stream in.
+  if (isLoading && !effectiveCookbook) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={Colors.primary} />
@@ -43,7 +54,7 @@ export default function BookReaderScreen() {
     );
   }
 
-  if ((cookbookError && !cookbook) || (pagesError && !hasPageData)) {
+  if ((cookbookError && !cookbook) || (pagesError && !hasPageData && !effectiveCookbook)) {
     return (
       <LoadErrorState
         title="Could not open this cookbook"
@@ -56,7 +67,7 @@ export default function BookReaderScreen() {
     );
   }
 
-  if (!cookbook) {
+  if (!effectiveCookbook) {
     return (
       <LoadErrorState
         title="Cookbook not found"
@@ -68,7 +79,7 @@ export default function BookReaderScreen() {
 
   return (
     <BookReader
-      cookbook={cookbook}
+      cookbook={effectiveCookbook}
       pages={pages}
       initialPageId={normalizedPageId}
       onSelectPage={setSelectedPageId}

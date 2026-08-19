@@ -41,7 +41,7 @@ export function getReaderPageIndex(pageIds: string[], targetPageId: string | nul
   return recipeIndex >= 0 ? recipeIndex + RECIPE_PAGE_OFFSET : null;
 }
 
-export function buildCookbookSpreads(pageIds: string[]): CookbookSpread[] {
+export function buildCookbookLeaves(pageIds: string[]): CookbookLeaf[] {
   const leaves: CookbookLeaf[] = [
     { type: 'bookplate', id: 'bookplate' },
     { type: 'contents', id: 'contents' },
@@ -51,6 +51,12 @@ export function buildCookbookSpreads(pageIds: string[]): CookbookSpread[] {
   if (leaves.length % 2 !== 0) {
     leaves.push({ type: 'blank', id: 'blank-end' });
   }
+
+  return leaves;
+}
+
+export function buildCookbookSpreads(pageIds: string[]): CookbookSpread[] {
+  const leaves = buildCookbookLeaves(pageIds);
 
   const spreads: CookbookSpread[] = [];
   for (let index = 0; index < leaves.length; index += 2) {

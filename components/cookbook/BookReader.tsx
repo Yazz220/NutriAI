@@ -1,10 +1,10 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Image, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { router } from 'expo-router';
+import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -25,8 +25,8 @@ import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
+  buildCookbookLeaves,
   buildCookbookSpreads,
-  getAdjacentRecipePageIndex,
   getSpreadIndexForPage,
   shouldAutoHideReaderChrome,
   shouldUseTouchPaging,
@@ -72,14 +72,21 @@ export function BookReader({
   const insets = useSafeAreaInsets();
   const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
   const spreads = useMemo(() => buildCookbookSpreads(pageIds), [pageIds]);
+  const leaves = useMemo(() => buildCookbookLeaves(pageIds), [pageIds]);
   const requestedSpread = getSpreadIndexForPage(spreads, initialPageId) ?? 0;
   const [spreadIndex, setSpreadIndex] = useState(requestedSpread);
   const [isOpen, setIsOpen] = useState(Boolean(initialPageId));
-  const [readingView, setReadingView] = useState<'tilted' | 'topdown'>(initialPageId ? 'topdown' : 'tilted');
+  const [readingView, setReadingView] = useState<'spread' | 'page'>('spread');
   const [readingPageId, setReadingPageId] = useState(initialPageId);
-  const [overviewOpen, setOverviewOpen] = useState(false);
+  const initialLeafIndex = useMemo(() => {
+    if (!initialPageId) return 2; // First recipe (after bookplate + ToC)
+    const index = leaves.findIndex((leaf) => leaf.id === initialPageId);
+    return index >= 0 ? index : 2;
+  }, [initialPageId, leaves]);
+  const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
+  const [isBackClosed, setIsBackClosed] = useState(false);
   const handledInitialPageId = useRef<string | null>(null);
   const opening = useSharedValue(initialPageId ? 1 : 0);
   const chromeIdle = useSharedValue(1);
@@ -126,17 +133,23 @@ export function BookReader({
   }, [isOpen, pokeChrome]);
 
   const topSideWidth = width < 480 ? 44 : 60;
-  const browseRailWidth = Math.min(width - 40, 760);
   const cookbookId = cookbook?.id;
   const cookbookTitle = cookbook?.title ?? 'My Cookbook';
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
   const preferredSpreadPage = getPreferredRecipe(activeSpread?.left, activeSpread?.right, pages);
   const readingPage = pages.find((page) => page.id === readingPageId) ?? preferredSpreadPage;
-  const selectedPage = usesTouchPaging && readingView === 'topdown' ? readingPage : preferredSpreadPage;
+  const selectedPage = usesTouchPaging && readingView === 'page' ? readingPage : preferredSpreadPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
-  // The counter always means recipe pages, regardless of view mode.
-  const counterCurrent = readingPage && readingPageIndex >= 0 ? readingPageIndex + 1 : spreadIndex + 1;
-  const counterTotal = pages.length > 0 ? pages.length : spreads.length;
+  // In one-page mode the counter tracks position in the full leaf list
+  // (bookplate, ToC, recipes, blank). In spread mode it tracks recipe pages.
+  const counterCurrent =
+    usesTouchPaging && readingView === 'page'
+      ? leafIndex + 1
+      : readingPage && readingPageIndex >= 0
+        ? readingPageIndex + 1
+        : spreadIndex + 1;
+  const counterTotal =
+    usesTouchPaging && readingView === 'page' ? leaves.length : pages.length > 0 ? pages.length : spreads.length;
 
   useEffect(() => {
     if (spreadIndex < spreads.length) return;
@@ -161,11 +174,27 @@ export function BookReader({
     handledInitialPageId.current = initialPageId;
     setSpreadIndex(targetSpread);
     setIsOpen(true);
-    setReadingView('topdown');
     setReadingPageId(initialPageId);
+    const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === initialPageId);
+    if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
     opening.set(1);
     onSelectPage(initialPageId);
-  }, [initialPageId, onSelectPage, opening, spreads]);
+  }, [initialPageId, leaves, onSelectPage, opening, spreads]);
+
+  // Auto-open on arrival from the shelf (no deep-link pageId). The cover
+  // swing becomes the entrance transition instead of a gated second tap.
+  // Uses useFocusEffect to wait for the Expo Router screen transition to
+  // complete before starting the cover swing — InteractionManager is
+  // unreliable with native-stack transitions. Deep-linked opens skip this.
+  const autoOpened = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (autoOpened.current || initialPageId || !cookbook) return;
+      autoOpened.current = true;
+      openBook();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- openBook is a hoisted function declaration; we only want this to fire once on focus.
+    }, [cookbook, initialPageId]),
+  );
 
   const chromeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opening.value, [0, 0.82, 1], [0, 0, 1]) * chromeIdle.value,
@@ -186,9 +215,10 @@ export function BookReader({
     setIsOpen(true);
     if (usesTouchPaging && pages.length > 0) {
       const targetPage = readingPage ?? pages[0];
-      setReadingView('topdown');
       setReadingPageId(targetPage.id);
       onSelectPage(targetPage.id);
+      const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === targetPage.id);
+      if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
     }
     opening.set(
       withTiming(1, {
@@ -201,15 +231,24 @@ export function BookReader({
 
   function closeBook() {
     setFocusedPage(null);
-    setOverviewOpen(false);
     setIsOpen(false);
-    setReadingView('tilted');
+    setReadingView('spread');
     opening.set(
       withTiming(0, {
         duration: 760,
         easing: Easing.bezier(0.55, 0, 0.72, 0.18),
       }),
     );
+  }
+
+  function closeBackBook() {
+    setIsBackClosed(true);
+    pokeChrome();
+  }
+
+  function openBackBook() {
+    setIsBackClosed(false);
+    pokeChrome();
   }
 
   function goToSpread(index: number) {
@@ -226,14 +265,17 @@ export function BookReader({
     }
   }
 
-  function goToRecipeOffset(offset: -1 | 1) {
-    const nextIndex = getAdjacentRecipePageIndex(pageIds, readingPage?.id, offset);
-    if (nextIndex === null) return;
-    const page = pages[nextIndex];
-    const targetSpread = getSpreadIndexForPage(spreads, page.id);
-    if (targetSpread !== null) setSpreadIndex(targetSpread);
-    setReadingPageId(page.id);
-    onSelectPage(page.id);
+  function goToLeaf(offset: -1 | 1) {
+    const nextIndex = Math.max(0, Math.min(leaves.length - 1, leafIndex + offset));
+    if (nextIndex === leafIndex) return;
+    setLeafIndex(nextIndex);
+    const leaf = leaves[nextIndex];
+    if (leaf.type === 'recipe') {
+      setReadingPageId(leaf.id);
+      onSelectPage(leaf.id);
+      const targetSpread = getSpreadIndexForPage(spreads, leaf.id);
+      if (targetSpread !== null) setSpreadIndex(targetSpread);
+    }
     pokeChrome();
   }
 
@@ -244,10 +286,19 @@ export function BookReader({
 
   function toggleReadingView() {
     setReadingView((prev) => {
-      if (prev === 'tilted' && !readingPageId && preferredSpreadPage) {
-        setReadingPageId(preferredSpreadPage.id);
+      if (prev === 'spread') {
+        // Switching to page mode: sync leafIndex to the current recipe page,
+        // or default to the first recipe if none is selected.
+        if (readingPageId) {
+          const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === readingPageId);
+          if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
+        } else if (preferredSpreadPage) {
+          setReadingPageId(preferredSpreadPage.id);
+          const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === preferredSpreadPage.id);
+          if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
+        }
       }
-      return prev === 'tilted' ? 'topdown' : 'tilted';
+      return prev === 'spread' ? 'page' : 'spread';
     });
     pokeChrome();
   }
@@ -258,15 +309,16 @@ export function BookReader({
     setSpreadIndex(targetSpread);
     setReadingPageId(page.id);
     onSelectPage(page.id);
+    const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === page.id);
+    if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
     pokeChrome();
-    if (usesTouchPaging) setReadingView('topdown');
-    setOverviewOpen(false);
+    if (usesTouchPaging) setReadingView('page');
   }
 
   function enterReadingView(page?: CookbookPage) {
     const targetPage = page ?? preferredSpreadPage;
     if (targetPage) setReadingPageId(targetPage.id);
-    setReadingView('topdown');
+    setReadingView('page');
     pokeChrome();
   }
 
@@ -324,17 +376,24 @@ export function BookReader({
           isOpen={isOpen}
           readingView={readingView}
           readingPageId={readingPageId}
+          leaves={leaves}
+          leafIndex={leafIndex}
           onOpen={openBook}
+          onClose={closeBook}
+          isBackClosed={isBackClosed}
+          onCloseBack={closeBackBook}
+          onOpenBack={openBackBook}
           onNext={() =>
-            usesTouchPaging && readingView === 'topdown'
-              ? goToRecipeOffset(1)
+            usesTouchPaging && readingView === 'page'
+              ? goToLeaf(1)
               : goToSpread(spreadIndex + 1)
           }
           onPrevious={() =>
-            usesTouchPaging && readingView === 'topdown'
-              ? goToRecipeOffset(-1)
+            usesTouchPaging && readingView === 'page'
+              ? goToLeaf(-1)
               : goToSpread(spreadIndex - 1)
           }
+          onStageTap={pokeChrome}
           onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
           onJumpToPage={jumpToRecipe}
@@ -342,133 +401,70 @@ export function BookReader({
 
       </View>
 
-      {isOpen && pages.length > 0 && (readingView === 'tilted' || (usesTouchPaging && overviewOpen)) ? (
-        <View
-          style={[
-            styles.browseRail,
-            usesTouchPaging && styles.mobileBrowseRail,
-            {
-              bottom: insets.bottom + 68,
-              left: (width - browseRailWidth) / 2,
-              width: browseRailWidth,
-            },
-          ]}
-        >
-          <View style={styles.browseRailHeader}>
-            <Text style={styles.browseEyebrow}>BROWSE RECIPES</Text>
-            <Text style={styles.browseHint}>
-              {usesTouchPaging ? 'Choose a page' : 'Tap a page to jump'}
-            </Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.browseRailContent}
-          >
-            {pages.map((page) => {
-              const pageSpread = getSpreadIndexForPage(spreads, page.id);
-              const isActive = pageSpread === spreadIndex;
-              const imageSource = page.imageAsset ?? (page.imageUrl ? { uri: page.imageUrl } : null);
-              return (
-                <Pressable
-                  key={page.id}
-                  style={[styles.recipeDestination, isActive && styles.recipeDestinationActive]}
-                  onPress={() => jumpToRecipe(page)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Jump to ${page.title}, page ${page.pageNumber}`}
-                >
-                  {imageSource ? (
-                    <Image source={imageSource} style={styles.destinationImage} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.destinationPlaceholder} />
-                  )}
-                  <View style={styles.destinationCopy}>
-                    <Text style={styles.destinationPage}>PAGE {String(page.pageNumber).padStart(2, '0')}</Text>
-                    <Text style={styles.destinationTitle} numberOfLines={2}>
-                      {page.title}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {isOpen && usesTouchPaging && readingView === 'topdown' && !overviewOpen ? (
-        <View style={[styles.swipeHint, { bottom: insets.bottom + 67 }]} pointerEvents="none">
-          <Text style={styles.swipeHintText}>Swipe to turn recipe pages</Text>
-        </View>
-      ) : null}
-
       <Animated.View
         pointerEvents={isOpen ? 'auto' : 'none'}
         style={[styles.readerControls, { paddingBottom: insets.bottom + 10 }, chromeStyle]}
       >
-        {!usesTouchPaging ? (
-          <Pressable
-            style={[styles.pageButton, spreadIndex === 0 && styles.pageButtonDisabled]}
-            disabled={spreadIndex === 0}
-            onPress={() => goToSpread(spreadIndex - 1)}
-            accessibilityLabel="Previous spread"
-          >
-            <ChevronLeft size={18} color={Colors.text} />
-          </Pressable>
-        ) : null}
+        {(() => {
+          const isPageMode = usesTouchPaging && readingView === 'page';
+          const atStart = isPageMode ? leafIndex === 0 : spreadIndex === 0;
+          const atEnd = isPageMode
+            ? leafIndex === leaves.length - 1
+            : spreadIndex === spreads.length - 1;
+          const onPrev = isPageMode ? () => goToLeaf(-1) : () => goToSpread(spreadIndex - 1);
+          const onNext = isPageMode ? () => goToLeaf(1) : () => goToSpread(spreadIndex + 1);
+          const prevLabel = isPageMode ? 'Previous page' : 'Previous spread';
+          const nextLabel = isPageMode ? 'Next page' : 'Next spread';
+          return (
+            <>
+              <Pressable
+                style={[styles.pageButton, isNative && styles.nativeControl, atStart && styles.pageButtonDisabled]}
+                disabled={atStart}
+                onPress={onPrev}
+                accessibilityLabel={prevLabel}
+              >
+                <ChevronLeft size={18} color={Colors.text} />
+              </Pressable>
 
-        {usesTouchPaging ? (
-          <View style={[styles.counter, styles.nativeCounter]}>
-            <Text style={styles.counterNumber}>
-              {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
-            </Text>
-          </View>
-        ) : (
-          <Pressable style={styles.counter} onPress={closeBook} accessibilityLabel="Close cookbook">
-            <Text style={styles.counterNumber}>
-              {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
-            </Text>
-          </Pressable>
-        )}
+              {usesTouchPaging ? (
+                <View style={[styles.counter, styles.nativeCounter]}>
+                  <Text style={styles.counterNumber}>
+                    {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
+                  </Text>
+                </View>
+              ) : (
+                <Pressable style={styles.counter} onPress={closeBook} accessibilityLabel="Close cookbook">
+                  <Text style={styles.counterNumber}>
+                    {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
+                  </Text>
+                </Pressable>
+              )}
 
-        {!usesTouchPaging ? (
-          <Pressable
-            style={[styles.pageButton, spreadIndex === spreads.length - 1 && styles.pageButtonDisabled]}
-            disabled={spreadIndex === spreads.length - 1}
-            onPress={() => goToSpread(spreadIndex + 1)}
-            accessibilityLabel="Next spread"
-          >
-            <ChevronRight size={18} color={Colors.text} />
-          </Pressable>
-        ) : null}
+              <Pressable
+                style={[styles.pageButton, isNative && styles.nativeControl, atEnd && styles.pageButtonDisabled]}
+                disabled={atEnd}
+                onPress={onNext}
+                accessibilityLabel={nextLabel}
+              >
+                <ChevronRight size={18} color={Colors.text} />
+              </Pressable>
+            </>
+          );
+        })()}
 
-        {usesTouchPaging ? (
-          <Pressable
-            style={[styles.viewToggleButton, styles.nativeControl]}
-            onPress={() => {
-              setOverviewOpen((open) => !open);
-              pokeChrome();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={overviewOpen ? 'Close page overview' : 'Open page overview'}
-          >
-            <BookOpen size={16} color={Colors.text} />
-            <Text style={styles.viewToggleLabel}>{overviewOpen ? 'Done' : 'Pages'}</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={[styles.viewToggleButton, isNative && styles.nativeControl]}
-            onPress={toggleReadingView}
-            accessibilityRole="button"
-            accessibilityLabel={readingView === 'tilted' ? 'Read this spread' : 'Browse pages'}
-          >
-            {readingView === 'tilted' ? (
-              <Maximize2 size={16} color={Colors.text} />
-            ) : (
-              <Minimize2 size={16} color={Colors.text} />
-            )}
-            <Text style={styles.viewToggleLabel}>{readingView === 'tilted' ? 'Read' : 'Browse'}</Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={[styles.viewToggleButton, isNative && styles.nativeControl]}
+          onPress={toggleReadingView}
+          accessibilityRole="button"
+          accessibilityLabel={readingView === 'spread' ? 'Read this page' : 'Browse spreads'}
+        >
+          {readingView === 'spread' ? (
+            <Maximize2 size={16} color={Colors.text} />
+          ) : (
+            <Minimize2 size={16} color={Colors.text} />
+          )}
+          <Text style={styles.viewToggleLabel}>{readingView === 'spread' ? 'Read' : 'Browse'}</Text>
+        </Pressable>
       </Animated.View>
 
       {isOpen && (selectedPage || cookbookId) ? (
@@ -666,105 +662,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: 11,
-  },
-  browseRail: {
-    position: 'absolute',
-    zIndex: 9,
-    paddingVertical: 10,
-    borderRadius: 18,
-    backgroundColor: 'rgba(248, 246, 240, 0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(129, 118, 99, 0.2)',
-    boxShadow: '0 12px 32px rgba(35, 33, 28, 0.12)',
-  },
-  mobileBrowseRail: {
-    backgroundColor: 'rgba(248, 246, 240, 0.97)',
-    borderColor: 'rgba(91, 82, 68, 0.26)',
-    boxShadow: '0 18px 48px rgba(35, 33, 28, 0.2)',
-  },
-  browseRailHeader: {
-    paddingHorizontal: 14,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  browseEyebrow: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 9,
-    letterSpacing: 1.25,
-  },
-  browseHint: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.display.regular,
-    fontSize: 11,
-    fontStyle: 'italic',
-  },
-  browseRailContent: {
-    paddingHorizontal: 10,
-    gap: 8,
-  },
-  swipeHint: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 9,
-    alignItems: 'center',
-  },
-  swipeHintText: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.display.regular,
-    fontSize: 11,
-    fontStyle: 'italic',
-    letterSpacing: 0.15,
-  },
-  recipeDestination: {
-    width: 156,
-    height: 64,
-    padding: 5,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.66)',
-    borderWidth: 1,
-    borderColor: 'rgba(129, 118, 99, 0.16)',
-  },
-  recipeDestinationActive: {
-    backgroundColor: 'rgba(245, 238, 219, 0.96)',
-    borderColor: Colors.primary,
-  },
-  destinationImage: {
-    width: 35,
-    height: 52,
-    borderRadius: 5,
-    backgroundColor: Colors.parchment,
-  },
-  destinationPlaceholder: {
-    width: 35,
-    height: 52,
-    borderRadius: 5,
-    backgroundColor: Colors.parchment,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-  },
-  destinationCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  destinationPage: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 8,
-    letterSpacing: 0.8,
-  },
-  destinationTitle: {
-    color: Colors.text,
-    fontFamily: Fonts.display.semibold,
-    fontSize: 12,
-    lineHeight: 14,
   },
   counter: {
     minWidth: 72,

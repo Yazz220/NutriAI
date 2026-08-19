@@ -19,7 +19,13 @@ export type CookbookStyleId =
   | 'editorial'
   | 'watercolor'
   | 'rustic'
-  | 'minimal';
+  | 'minimal'
+  | 'sage-linen'
+  | 'terracotta-cloth'
+  | 'navy-leather'
+  | 'charcoal-cloth'
+  | 'alabaster-linen'
+  | 'umber-leather';
 
 export type RecipeTemplateId =
   | 'clean-cream'

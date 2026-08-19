@@ -1,7 +1,7 @@
 import React from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { CookbookShelf } from '@/components/cookbook/CookbookShelf';
+import { ShelfScene } from '@/components/shelf/ShelfScene';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
 import { Colors } from '@/constants/colors';
 import { useCookbooks } from '@/hooks/useCookbooks';
@@ -48,7 +48,7 @@ export default function MyCookbooksScreen() {
 
   return (
     <View style={styles.container}>
-      <CookbookShelf
+      <ShelfScene
         cookbooks={cookbooks}
         onSelectCookbook={openCookbook}
         onAddCookbook={openLibrary}

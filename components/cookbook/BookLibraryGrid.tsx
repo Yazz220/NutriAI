@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Check, Eye } from 'lucide-react-native';
-import { BookCover } from '@/components/cookbook/BookCover';
+import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -40,12 +40,7 @@ export function BookLibraryGrid({ selectedStyle, onSelectStyle }: BookLibraryGri
             accessibilityState={{ selected: isSelected }}
           >
             <View style={styles.coverWrap}>
-              <BookCover
-                title={preset.name}
-                coverStyle={preset.id}
-                width={coverWidth}
-                showPageCount={false}
-              />
+              <PhysicalBook title={preset.name} coverStyle={preset.id} width={coverWidth} />
               {isSelected ? (
                 <View style={styles.checkBadge}>
                   <Check size={16} color={Colors.onPrimary} />

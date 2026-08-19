@@ -14,6 +14,7 @@ const MIN_SETTLE_DURATION = 0.18;
 const MAX_SETTLE_DURATION = 1.0;
 
 export function clampPageTurnProgress(progress: number): number {
+  'worklet';
   return Math.max(0, Math.min(1, progress));
 }
 
@@ -23,10 +24,20 @@ export function shouldCommitPageTurn(
   direction: Exclude<PageTurnDirection, 0>,
   pageWidth: number,
 ): boolean {
+  'worklet';
+  const current = clampPageTurnProgress(progress);
   const signedVelocity = direction === 1 ? -velocityX : velocityX;
-  const projectedProgress =
-    clampPageTurnProgress(progress) +
-    (signedVelocity / Math.max(pageWidth, 1)) * RELEASE_PROJECTION_SECONDS;
+  const velocityContribution = (signedVelocity / Math.max(pageWidth, 1)) * RELEASE_PROJECTION_SECONDS;
+  const projectedProgress = current + velocityContribution;
+
+  // If the user has dragged past 50%, commit unless actively flicking backward
+  if (current >= 0.5 && velocityContribution > -0.2) {
+    return true;
+  }
+  // If below 20%, cancel unless flicked forward with substantial speed
+  if (current < 0.2 && velocityContribution < 0.3) {
+    return false;
+  }
 
   return projectedProgress >= RELEASE_COMMIT_PROGRESS;
 }
@@ -58,9 +69,13 @@ export interface TurnGrab {
  * in the grab direction the leaf resists instead of moving 1:1.
  */
 export function resolveTurnProgress(grab: TurnGrab): number {
+  'worklet';
   const { grabX, pointerX, pageWidth, direction, canTurn } = grab;
   const targetX = grab.targetX ?? (direction === 1 ? 0 : pageWidth);
-  const travel = Math.max(Math.abs(targetX - grabX), 1);
+  // Symmetrical travel: the full drag distance is twice the distance from
+  // grab to target (mirror across the target line). This prevents the turn
+  // from being too sensitive when grabbing near the spine.
+  const travel = Math.max(2 * Math.abs(targetX - grabX), 1);
   const raw = direction === 1 ? (grabX - pointerX) / travel : (pointerX - grabX) / travel;
   const progress = clampPageTurnProgress(raw);
   return canTurn ? progress : progress * EDGE_RESISTANCE;
@@ -83,6 +98,7 @@ export function resolveTurnRelease(input: {
   direction: Exclude<PageTurnDirection, 0>;
   pageWidth: number;
 }): TurnRelease {
+  'worklet';
   const { progress, velocityX, direction, pageWidth } = input;
   const commit = shouldCommitPageTurn(progress, velocityX, direction, pageWidth);
   const progressVelocity =
@@ -125,6 +141,7 @@ export function buildPageCurlCurve(
   segmentCount: number,
   progress: number,
 ): PageCurlPoint[] {
+  'worklet';
   const safeSegments = Math.max(1, Math.floor(segmentCount));
   const pageProgress = clampPageTurnProgress(progress);
   const segmentWidth = width / safeSegments;
@@ -144,3 +161,68 @@ export function buildPageCurlCurve(
 
   return points;
 }
+
+/**
+ * Finds the x-coordinate of the fold peak — the point where the paper bends
+ * most sharply (steepest z-increment). This is the apex of the curl, where
+ * the shadow should sit, rather than the free edge (trailing tip).
+ */
+export function findFoldPeakX(curve: PageCurlPoint[]): number {
+  'worklet';
+  if (curve.length < 2) return 0;
+  let maxZIncrement = 0;
+  let peakX = curve[0].x;
+  for (let i = 1; i < curve.length; i += 1) {
+    const zIncrement = curve[i].z - curve[i - 1].z;
+    if (zIncrement > maxZIncrement) {
+      maxZIncrement = zIncrement;
+      peakX = curve[i].x;
+    }
+  }
+  return peakX;
+}
+
+// ---------------------------------------------------------------------------
+// 2D Conical Corner Peel
+//
+// Modulates the turn progress per mesh row based on the grab Y position,
+// creating a diagonal peel when grabbing near the top or bottom corner.
+// The modulation amplitude is kept small to minimize texture stretching —
+// the higher mesh resolution (30 segments x 12 rows) distributes the shear
+// across more triangles, making any residual stretching imperceptible.
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum diagonal skew between the leading and lagging corners at mid-turn
+ * (progress=0.5). Kept moderate to balance the diagonal peel effect against
+ * texture stretching — the higher mesh resolution compensates for the
+ * remaining shear.
+ */
+export const CORNER_SKEW_MAX = 0.22;
+
+/**
+ * Modulates turn progress for a specific vertical mesh row based on where the
+ * user grabbed the page (grabYRatio in 0..1).
+ *
+ * Grabbing near the bottom corner (grabYRatio ~ 1) accelerates bottom rows
+ * and delays top rows, creating a diagonal conical peel.
+ * Grabbing near the top corner (grabYRatio ~ 0) does the reverse.
+ * Grabbing near the center (grabYRatio ~ 0.5) produces a uniform cylindrical
+ * curl with no per-row modulation.
+ *
+ * The envelope uses sin(PI * baseProgress) so all rows start flat at
+ * progress=0 and converge smoothly to flat at progress=1.
+ */
+export function computeRowTurnProgress(
+  baseProgress: number,
+  rowRatio: number,
+  grabYRatio: number,
+): number {
+  'worklet';
+  const progress = clampPageTurnProgress(baseProgress);
+  const grabY = Math.max(0, Math.min(1, grabYRatio));
+  const envelope = Math.sin(Math.PI * progress);
+  const delta = (rowRatio - 0.5) * 2 * (grabY - 0.5) * CORNER_SKEW_MAX * envelope;
+  return clampPageTurnProgress(progress + delta);
+}
+
