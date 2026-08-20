@@ -8,12 +8,16 @@ import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbookImport } from '@/hooks/useCookbookImport';
-import { generateCookbookPage } from '@/utils/cookbook/api';
+import {
+  createRecipePageWithGraph,
+  fetchPageById,
+  generatePageArt,
+  updatePageSelectedVersion,
+} from '@/utils/cookbook/api';
 import {
   getOrCreateGenerationAttempt,
   type GenerationAttempt,
 } from '@/utils/cookbook/generationAttempt';
-import { buildCookbookPagePromptPayload } from '@/utils/cookbook/pagePrompt';
 import {
   GenerationPollingCancelledError,
   GenerationPollingTimeoutError,
@@ -25,7 +29,8 @@ import {
   FunctionResponseError,
   FunctionTimeoutError,
 } from '@/utils/supabaseEdge';
-import type { RecipeTemplateId, StructuredRecipe } from '@/types/cookbook';
+import { fromLegacyRecipe } from '@/types/recipeGraph';
+import type { CookbookStyleId, RecipeTemplateId, StructuredRecipe } from '@/types/cookbook';
 
 export default function RecipeReviewScreen() {
   const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
@@ -59,6 +64,72 @@ export default function RecipeReviewScreen() {
     generationRunRef.current += 1;
   }, []);
 
+  /**
+   * New-pipeline generation (Phase 4.5):
+   * 1. Create the page row with the RecipeGraph stored as JSONB
+   * 2. Call generate-page-art to produce the illustration
+   * 3. Poll for the art asset
+   * 4. When art is ready, link it to the page via selected_version_id
+   * 5. Fetch the updated page and upsert it into the cache
+   */
+  async function generateWithNewPipeline(
+    recipe: StructuredRecipe,
+    attempt: GenerationAttempt,
+    runId: number,
+  ): Promise<void> {
+    if (!cookbook) return;
+
+    const styleId: CookbookStyleId = cookbook.coverStyle ?? 'vintage-garden';
+    const graph = fromLegacyRecipe(recipe);
+
+    // 1. Create the page row with the RecipeGraph
+    const createdPage = await createRecipePageWithGraph({
+      cookbookId: cookbook.id,
+      recipeGraph: graph,
+      styleId,
+      templateId: effectiveTemplateId,
+    });
+
+    // 2–4. Poll for art generation
+    const page = await pollCookbookGeneration(
+      async () => {
+        const result = await generatePageArt({
+          cookbookId: cookbook.id,
+          pageId: createdPage.id,
+          recipeGraph: graph,
+          styleId,
+          idempotencyKey: attempt.key,
+        });
+
+        if ('artAsset' in result) {
+          // Art is ready — link it to the page
+          await updatePageSelectedVersion(createdPage.id, result.artAsset.id);
+          const updatedPage = await fetchPageById(createdPage.id);
+          if (!updatedPage) throw new Error('Page not found after art generation');
+          return { status: 'ready' as const, page: updatedPage };
+        }
+
+        return result; // { status: 'processing', requestId }
+      },
+      {
+        onPhase: setGenerationPhase,
+        isCancelled: () => generationRunRef.current !== runId,
+      },
+    );
+
+    if (generationRunRef.current !== runId) return;
+    setGenerationPhase('succeeded');
+    generationAttemptRef.current = null;
+    upsertPage(page);
+    clearSourceDraft();
+    try {
+      await refresh();
+    } catch (refreshError) {
+      console.warn('Cookbook refresh failed after page generation', refreshError);
+    }
+    router.replace(`/(book)/${cookbookId}/generation/${page.id}`);
+  }
+
   async function generateReviewedRecipe(recipe: StructuredRecipe) {
     setDraft(recipe);
 
@@ -67,16 +138,8 @@ export default function RecipeReviewScreen() {
       return;
     }
 
-    const promptPayload = buildCookbookPagePromptPayload({
-      recipe,
-      cookbook,
-      recipeTemplateId: effectiveTemplateId,
-    });
-    const generationPayload = {
-      cookbookId: cookbook.id,
-      recipe,
-      promptPayload,
-    };
+    const generationPayload = { cookbookId: cookbook.id, recipe };
+
     const attempt = getOrCreateGenerationAttempt(generationAttemptRef.current, generationPayload);
     generationAttemptRef.current = attempt;
 
@@ -85,27 +148,7 @@ export default function RecipeReviewScreen() {
     setGenerationError(null);
     setGenerationPhase('queued');
     try {
-      const page = await pollCookbookGeneration(
-        () => generateCookbookPage({
-          ...generationPayload,
-          idempotencyKey: attempt.key,
-        }),
-        {
-          onPhase: setGenerationPhase,
-          isCancelled: () => generationRunRef.current !== runId,
-        },
-      );
-      if (generationRunRef.current !== runId) return;
-      setGenerationPhase('succeeded');
-      generationAttemptRef.current = null;
-      upsertPage(page);
-      clearSourceDraft();
-      try {
-        await refresh();
-      } catch (refreshError) {
-        console.warn('Cookbook refresh failed after page generation', refreshError);
-      }
-      router.replace(`/(book)/${cookbookId}/generation/${page.id}`);
+      await generateWithNewPipeline(recipe, attempt, runId);
     } catch (err) {
       if (err instanceof GenerationPollingCancelledError) return;
       const requestMayStillBeRunning =

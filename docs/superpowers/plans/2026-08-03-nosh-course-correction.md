@@ -205,6 +205,16 @@ Work in vertical, reviewable slices. Every slice must include:
 
 Do not begin Phase 2 or Phase 3 implementation while Phase 0's trust and credit-safety exit gate remains unresolved.
 
+> **Status update — 2026-08-20:** Phase 2 (deterministic recipe page system) and
+> Phase 3 (signature book experience) have been substantially implemented via the
+> 3D shelf, creation studio, and Skia-based reader (see
+> `2026-08-18-nosh-reader-feel.md` and `2026-08-18-nosh-reader-handoff.md`). The
+> reader is now in maintenance/polish mode. The remaining open Phase 0 item is
+> **0D — Repeatable validation**: integration coverage for the persisted
+> shelf → book → add → review → generate → opened-page journey is still missing.
+> That validation work is the next priority now that the bypass-auth mock has been
+> removed and the real Supabase journey is reachable again.
+
 ## Signature Book Rebuild — 2026-08-09 Direction Reset
 
 The book experience is now the product priority. Import extraction and generated-image pipeline refinement are intentionally deferred until the book object, reader, and page interactions are visually convincing and reliable.

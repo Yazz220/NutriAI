@@ -39,21 +39,46 @@ export function extractRecipeJsonLd(html: string): string | null {
 
 export function htmlToRecipePageText(html: string): string {
   return html
+    // Strip scripts and styles (existing defense)
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    // Strip HTML comments — common injection vector for hidden instructions
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    // Strip hidden elements: display:none, visibility:hidden, zero font-size
+    .replace(/<[^>]*style\s*=\s*"[^"]*display\s*:\s*none[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, ' ')
+    .replace(/<[^>]*style\s*=\s*"[^"]*visibility\s*:\s*hidden[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, ' ')
+    .replace(/<[^>]*style\s*=\s*"[^"]*font-size\s*:\s*0[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, ' ')
+    // Strip remaining tags
     .replace(/<[^>]+>/g, '\n')
+    // Decode common HTML entities
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Remove zero-width characters — invisible injection vector
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    // Collapse excessive whitespace
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
+/**
+ * Wrap untrusted web content in explicit delimiters so the model can
+ * distinguish our instructions from the scraped data. This is the
+ * "spotlighting" defense technique (OWASP LLM01:2025).
+ */
+const UNTRUSTED_CONTENT_PREFIX = `<UNTRUSTED_WEB_CONTENT>`;
+const UNTRUSTED_CONTENT_SUFFIX = `</UNTRUSTED_WEB_CONTENT>`;
+
 export function buildUrlRecipePrompt(url: string, html: string): { pageText: string; prompt: string } {
   const pageText = htmlToRecipePageText(html);
   const recipeJsonLd = extractRecipeJsonLd(html);
+
   const evidence = recipeJsonLd
-    ? `Recipe JSON-LD (primary evidence):\n${recipeJsonLd}\n\nVisible page text (secondary evidence):\n${pageText}`
-    : `Visible page text:\n${pageText}`;
+    ? `Recipe JSON-LD (primary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${recipeJsonLd}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
+    : `Visible page text:\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`;
 
   return { pageText, prompt: `Source URL: ${url}\n\n${evidence}` };
 }

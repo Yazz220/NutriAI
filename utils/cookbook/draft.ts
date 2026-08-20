@@ -1,4 +1,6 @@
-import type { ParsedRecipeDraft, StructuredIngredient, StructuredRecipe } from '@/types/cookbook';
+import type { CookbookSection, ParsedRecipeDraft, RecipeSourceType, StructuredIngredient, StructuredRecipe } from '@/types/cookbook';
+import type { RecipeGraphDraft } from '@/types/recipeGraph';
+import { flattenIngredients, flattenSteps } from '@/types/recipeGraph';
 
 export interface RecipeDraftFormValues {
   title: string;
@@ -67,5 +69,36 @@ export function structuredRecipeFromDraft(
     steps: splitRecipeLines(values.steps),
     tags: draft.tags ?? [],
     category: draft.category ?? 'dinner',
+  };
+}
+
+/**
+ * Convert a RecipeGraphDraft (new pipeline) to a ParsedRecipeDraft (legacy)
+ * so the existing review form and generation flow work as a bridge.
+ * Flattens grouped ingredients/steps into the flat arrays the legacy
+ * StructuredRecipe expects.
+ */
+export function parsedDraftFromRecipeGraph(graph: RecipeGraphDraft): ParsedRecipeDraft {
+  const flatIngs = flattenIngredients(graph.ingredientGroups);
+  const flatSteps = flattenSteps(graph.stepGroups).map((s) => s.text);
+
+  return {
+    title: graph.title,
+    description: graph.description,
+    servings: graph.servings,
+    prepTime: graph.prepTimeMinutes,
+    cookTime: graph.cookTimeMinutes,
+    ingredients: flatIngs.map((ing) => ({
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+      isOptional: ing.isOptional,
+    })),
+    steps: flatSteps,
+    sourceType: graph.provenance.sourceType as RecipeSourceType,
+    sourceUrl: graph.provenance.sourceUrl,
+    tags: graph.tags ?? [],
+    category: graph.category as CookbookSection,
+    confidence: graph.provenance.confidence,
   };
 }

@@ -1,9 +1,12 @@
 import React from 'react';
 import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
+import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
+import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 
 interface PageCanvasProps {
@@ -26,11 +29,33 @@ function PageSkeleton({ page }: { page: CookbookPage }) {
   );
 }
 
+/** Check if a page has new-pipeline fields (recipeGraph) for typesetter rendering. */
+function hasTypesetterData(page: CookbookPage): boolean {
+  return Boolean(page.recipeGraph);
+}
+
 export function PageCanvas({ page, bookMode = false }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
   const horizontalInset = width < 390 ? Spacing.md : Spacing.xl;
   const pageWidth = bookMode ? '100%' : Math.min(width - horizontalInset * 2, 430);
   const maxHeight = bookMode ? undefined : Math.max(500, height - 220);
+
+  // New pipeline: render via the typesetter (live vector text + art asset)
+  if (hasTypesetterData(page) && page.recipeGraph) {
+    return (
+      <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
+        <TypesetterPage
+          recipeGraph={page.recipeGraph}
+          artAsset={page.artAsset ?? null}
+          styleId={page.styleId ?? DEFAULT_COOKBOOK_STYLE}
+          templateId={page.templateId ?? DEFAULT_RECIPE_TEMPLATE_ID}
+          bookMode={bookMode}
+        />
+      </View>
+    );
+  }
+
+  // Legacy pipeline: render the full-page PNG
   const imageSource = page.imageAsset ?? (page.imageUrl ? { uri: page.imageUrl } : null);
 
   return (

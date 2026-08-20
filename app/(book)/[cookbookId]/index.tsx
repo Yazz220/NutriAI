@@ -26,6 +26,7 @@ export default function BookReaderScreen() {
     isStale,
     refresh,
     updatePageTemplate,
+    upsertPage,
   } = useCookbook(cookbookId);
 
   // The shelf already has the cookbook metadata cached. Use it to render
@@ -86,6 +87,7 @@ export default function BookReaderScreen() {
       onSelectPage={setSelectedPageId}
       onShare={handleShare}
       onUpdatePageTemplate={updatePageTemplate}
+      onPageUpdate={upsertPage}
       isStale={isStale}
       onRefresh={() => {
         void refresh();

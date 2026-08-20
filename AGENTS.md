@@ -115,27 +115,28 @@ Current provider/hook reality:
 - `CookbooksProvider` / `useCookbooks`: shelf state, cookbook creation/deletion, credit balance.
 - `useCookbook(cookbookId)`: per-book data; no `CookbookProvider` exists.
 - `CookbookImportProvider` / `useCookbookImport`: import draft and review state.
-- `useNoshAssistant`: assistant state inside `NoshAssistantSheet`; no `NoshAssistantProvider` exists.
+- `useNoshAssistant`: removed. The Nosh assistant now uses `@assistant-ui/react-native` with a `LocalRuntime` bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
 
 ## AI And Import Architecture
 
 ```text
 User adds source in a book
-  -> AddPageComposer
-  -> useCookbookImport.parseSource
-  -> parse-recipe-source Edge Function
+  -> UnifiedIntakeComposer (auto-detects source type)
+  -> useCookbookImport.extractRecipe
+  -> extract-recipe Edge Function (Qwen3.6-35B-A3B)
+  -> RecipeGraphDraft → ParsedRecipeDraft bridge
   -> RecipeReviewForm
-  -> generate-cookbook-page Edge Function
-  -> returned CookbookPage is upserted into React Query
+  -> createRecipePageWithGraph (stores RecipeGraph as JSONB)
+  -> generate-page-art Edge Function (Qwen Image 3 Pro)
+  -> TypesetterPage renders live vector text + art
+  -> CookbookPage upserted into React Query
 ```
 
 Active functions:
 
-- `ai-chat`: OpenRouter-compatible chat proxy for the Nosh assistant.
-- `parse-recipe-source`: URL/text/image/video import orchestrator using OpenRouter-compatible extraction, with image/video fallback paths.
-- `parse-image-recipe`: Gemini 2.5 Flash direct image extraction fallback.
-- `parse-video-recipe`: Gemini 2.5 Flash direct video extraction fallback.
-- `generate-cookbook-page`: OpenAI image generation for rendered cookbook pages.
+- `extract-recipe`: multimodal extraction (URL, text, image, video) → RecipeGraphDraft. Uses Qwen3.6-35B-A3B via OpenRouter.
+- `nosh-chat`: multi-turn kitchen chat with tool-calling (scale_servings, substitute_ingredient, start_timer, guide_next_step, update_page_data). Uses Qwen3.6-35B-A3B via OpenRouter.
+- `generate-page-art`: isolated style-conditioned illustration generation. Uses Qwen Image 3 Pro via OpenRouter. No text in output.
 - `credits`: credit balance.
 - `delete-account`: account deletion.
 
@@ -147,7 +148,8 @@ Client-safe `.env` keys:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
-EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
+EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
+EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 ```
@@ -155,10 +157,8 @@ EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 Edge Function secrets in Supabase:
 
 ```text
-AI_API_KEY, AI_API_BASE, AI_MODEL          ai-chat and parse-recipe-source
-GEMINI_API_KEY                            parse-image-recipe and parse-video-recipe fallbacks
-OPENAI_API_KEY, OPENAI_IMAGE_MODEL         generate-cookbook-page
-COOKBOOK_PAGE_BUCKET                       optional generated-page storage bucket override
+AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
+ART_MODEL                                 generate-page-art
 ```
 
 Never expose provider API keys through `EXPO_PUBLIC_*`.
@@ -171,15 +171,18 @@ Never expose provider API keys through `EXPO_PUBLIC_*`.
 | `hooks/useCookbooks.ts` | shelf provider |
 | `hooks/useCookbook.ts` | one-book hook |
 | `hooks/useCookbookImport.ts` | import/review state |
-| `hooks/useNoshAssistant.ts` | in-book assistant |
 | `components/cookbook/BookReader.tsx` | swipeable reader |
 | `components/cookbook/BookTableOfContentsPage.tsx` | in-reader contents page |
-| `components/cookbook/AddPageComposer.tsx` | recipe source composer |
+| `components/cookbook/UnifiedIntakeComposer.tsx` | multimodal recipe source input |
 | `components/cookbook/RecipeReviewForm.tsx` | review/proof form |
 | `components/cookbook/GenerationResult.tsx` | generated-page result |
+| `components/cookbook/NoshAssistantChat.tsx` | assistant-ui powered in-book chat |
+| `components/cookbook/PageCanvas.tsx` | renders pages via typesetter or legacy image |
+| `components/cookbook/typesetter/TypesetterPage.tsx` | live vector text + art page renderer |
 | `utils/cookbook/api.ts` | Supabase and Edge Function API calls |
 | `utils/cookbook/cache.ts` | AsyncStorage shelf/page cache |
-| `utils/cookbook/pagePrompt.ts` | page-generation prompt payload |
+| `utils/cookbook/noshChatAdapter.ts` | bridges assistant-ui to nosh-chat Edge Function |
+| `utils/cookbook/noshToolkit.tsx` | Nosh tool definitions with execute + render |
 | `utils/cookbook/sampleCookbook.ts` | offline sample book fixtures |
 | `constants/cookbookStyles.ts` | six style presets |
 

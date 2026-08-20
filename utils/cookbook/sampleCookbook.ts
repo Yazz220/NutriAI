@@ -128,6 +128,9 @@ export const SAMPLE_COOKBOOK_PAGES: CookbookPage[] = [
   },
 ];
 
+// Currently gated off: both flags are false in .env and eas.json so real Supabase
+// auth and the real shelf take over. The fixtures remain here for offline reader
+// tests and a future seeded-demo-on-first-signup feature. Do not delete.
 export function shouldShowSampleCookbook(cookbookId?: string | null): boolean {
   return (
     process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true' &&

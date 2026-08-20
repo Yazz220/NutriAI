@@ -15,9 +15,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { AddPageSheet } from '@/components/cookbook/AddPageSheet';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
-import { NoshAssistantButton } from '@/components/cookbook/NoshAssistantButton';
+import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { PageStyleSheet } from '@/components/cookbook/PageStyleSheet';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
@@ -33,7 +32,7 @@ import {
   shouldUseTouchPaging,
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
-import type { Cookbook, CookbookPage, RecipeSourceType, RecipeTemplateId } from '@/types/cookbook';
+import type { Cookbook, CookbookPage, RecipeTemplateId } from '@/types/cookbook';
 
 interface BookReaderProps {
   cookbook: Cookbook | null;
@@ -42,6 +41,7 @@ interface BookReaderProps {
   onSelectPage: (id: string) => void;
   onShare: (page: CookbookPage) => void;
   onUpdatePageTemplate?: (templateId: RecipeTemplateId) => Promise<void> | void;
+  onPageUpdate?: (page: CookbookPage) => void;
   isStale?: boolean;
   onRefresh?: () => void;
 }
@@ -75,6 +75,7 @@ export function BookReader({
   onSelectPage,
   onShare,
   onUpdatePageTemplate,
+  onPageUpdate,
   isStale = false,
   onRefresh,
 }: BookReaderProps) {
@@ -94,7 +95,6 @@ export function BookReader({
     return index >= 0 ? index : 2;
   }, [initialPageId, leaves]);
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
-  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [pageStyleSheetOpen, setPageStyleSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const [isBackClosed, setIsBackClosed] = useState(false);
@@ -292,8 +292,8 @@ export function BookReader({
     pokeChrome();
   }
 
-  function openAddPageSheet() {
-    if (cookbookId) setAddSheetOpen(true);
+  function openAddPage() {
+    if (cookbookId) router.push(`/(book)/${cookbookId}/add`);
     pokeChrome();
   }
 
@@ -333,12 +333,6 @@ export function BookReader({
     if (targetPage) setReadingPageId(targetPage.id);
     setReadingView('page');
     pokeChrome();
-  }
-
-  function openAddPageSource(sourceType: RecipeSourceType) {
-    if (!cookbookId) return;
-    setAddSheetOpen(false);
-    router.push(`/(book)/${cookbookId}/add?source=${sourceType}`);
   }
 
   return (
@@ -491,11 +485,12 @@ export function BookReader({
           pointerEvents="auto"
         >
           {selectedPage ? (
-            <NoshAssistantButton
+            <NoshAssistantChatButton
               page={selectedPage}
               pageNumber={selectedPage.pageNumber}
               cookbookPages={pages}
               cookbookTitle={cookbookTitle}
+              onPageUpdate={onPageUpdate}
             />
           ) : null}
           {cookbookId && onUpdatePageTemplate ? (
@@ -511,7 +506,7 @@ export function BookReader({
           {cookbookId ? (
             <Pressable
               style={({ pressed }) => [styles.floatingAddButton, pressed && styles.actionPressed]}
-              onPress={openAddPageSheet}
+              onPress={openAddPage}
               accessibilityRole="button"
               accessibilityLabel={`Add a page to ${cookbookTitle}`}
             >
@@ -567,12 +562,6 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
-      <AddPageSheet
-        visible={addSheetOpen}
-        cookbookTitle={cookbookTitle}
-        onClose={() => setAddSheetOpen(false)}
-        onSelectSource={openAddPageSource}
-      />
       {onUpdatePageTemplate && cookbook ? (
         <PageStyleSheet
           visible={pageStyleSheetOpen}

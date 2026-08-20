@@ -31,7 +31,8 @@ Client-safe `.env` keys:
 EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
-EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
+EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
+EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 ```
@@ -42,13 +43,10 @@ Supabase Edge Function secrets:
 
 | Secret | Used by |
 |---|---|
-| `AI_API_KEY` | `ai-chat`, `parse-recipe-source` |
-| `AI_API_BASE` | `ai-chat`, `parse-recipe-source` |
-| `AI_MODEL` | `ai-chat`, `parse-recipe-source` |
-| `GEMINI_API_KEY` | `parse-image-recipe`, `parse-video-recipe` fallbacks |
-| `OPENAI_API_KEY` | `generate-cookbook-page` |
-| `OPENAI_IMAGE_MODEL` | `generate-cookbook-page` |
-| `COOKBOOK_PAGE_BUCKET` | optional generated-page storage bucket override |
+| `AI_API_KEY` | `extract-recipe`, `nosh-chat` |
+| `AI_API_BASE` | `extract-recipe`, `nosh-chat` |
+| `AI_MODEL` | `extract-recipe`, `nosh-chat` |
+| `ART_MODEL` | `generate-page-art` |
 
 Supabase also provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to functions that need them.
 
@@ -91,7 +89,7 @@ QueryClientProvider
 - Shelf data comes from `useCookbooks`.
 - One-book reader state comes from `useCookbook(cookbookId)`.
 - Import/review state comes from `useCookbookImport`.
-- Assistant messages come from `useNoshAssistant` inside `NoshAssistantSheet`.
+- Assistant chat uses `@assistant-ui/react-native` `LocalRuntime` bridging to `nosh-chat` via `utils/cookbook/noshChatAdapter.ts`.
 - Server state belongs in TanStack React Query.
 - Shelf and per-book page caches belong in `utils/cookbook/cache.ts`.
 
@@ -111,11 +109,9 @@ supabase functions logs <function-name> --project-ref <PROJECT_REF>
 
 Live functions:
 
-- `ai-chat`
-- `parse-recipe-source`
-- `parse-image-recipe`
-- `parse-video-recipe`
-- `generate-cookbook-page`
+- `extract-recipe`
+- `nosh-chat`
+- `generate-page-art`
 - `credits`
 - `delete-account`
 
@@ -157,4 +153,4 @@ npx eas-cli submit --platform ios
 | Signed-in user returns to auth | auth guard or session state changed | inspect `app/_layout.tsx` and `useAuth` |
 | Shelf stays empty after creating a book | migration/RLS issue | verify `supabase/sql/20260505_multi_cookbook.sql` and RLS policies |
 | Import fails with 401 | missing Supabase JWT | call through `callAuthenticatedFunction` |
-| Generated page has no image | missing OpenAI secret or storage bucket issue | check `generate-cookbook-page` logs and secrets |
+| Generated page has no art | missing `ART_MODEL` secret or OpenRouter issue | check `generate-page-art` logs and secrets |

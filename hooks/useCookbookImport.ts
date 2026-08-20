@@ -1,12 +1,16 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseRecipeSource } from '@/utils/cookbook/api';
+import { extractRecipe } from '@/utils/cookbook/api';
 import { loadSourceDraft, saveSourceDraft } from '@/utils/cookbook/importDraft';
+import { parsedDraftFromRecipeGraph } from '@/utils/cookbook/draft';
 import { useAuth } from '@/hooks/useAuth';
 import type { ParsedRecipeDraft } from '@/types/cookbook';
+import type { RecipeGraphDraft } from '@/types/recipeGraph';
 
-type ParseResult = {
-  recipe: ParsedRecipeDraft;
+type ExtractResult = {
+  recipeGraph: RecipeGraphDraft;
+  /** Legacy-format draft (bridge for the existing review form). */
+  draft: ParsedRecipeDraft;
   confidence: number;
   needsReview: boolean;
   reasons: string[];
@@ -15,6 +19,7 @@ type ParseResult = {
 export const [CookbookImportProvider, useCookbookImport] = createContextHook(() => {
   const { user } = useAuth();
   const [draft, setDraft] = useState<ParsedRecipeDraft | null>(null);
+  const [recipeGraphDraft, setRecipeGraphDraft] = useState<RecipeGraphDraft | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [confidence, setConfidence] = useState(0);
   const [needsReview, setNeedsReview] = useState(false);
@@ -74,17 +79,40 @@ export const [CookbookImportProvider, useCookbookImport] = createContextHook(() 
   const clearSourceDraft = useCallback(() => {
     updateSourceInput('');
     setSourceImageBase64(null);
+    setRecipeGraphDraft(null);
   }, [updateSourceInput]);
 
-  async function parseSource(payload: Record<string, unknown>) {
+  /**
+   * Call the extract-recipe Edge Function (Phase 2).
+   * Accepts any source type (url, text, image, video) in a single call.
+   * Returns a RecipeGraphDraft (canonical) and a ParsedRecipeDraft (bridge
+   * for the existing review form).
+   */
+  async function parseSource(payload: {
+    type: 'url' | 'text' | 'image' | 'video';
+    input?: string;
+    imageBase64?: string;
+    videoUrl?: string;
+  }): Promise<ExtractResult> {
     setIsParsing(true);
     try {
-      const result: ParseResult = await parseRecipeSource(payload);
-      setDraft(result.recipe);
+      const result = await extractRecipe(payload);
+      const graph = result.recipeGraph;
+      const legacyDraft = parsedDraftFromRecipeGraph(graph);
+
+      setRecipeGraphDraft(graph);
+      setDraft(legacyDraft);
       setConfidence(result.confidence);
-      setNeedsReview(result.needsReview);
-      setReasons(result.reasons);
-      return result;
+      setNeedsReview(result.confidence < 0.7);
+      setReasons(result.extractionNotes ?? []);
+
+      return {
+        recipeGraph: graph,
+        draft: legacyDraft,
+        confidence: result.confidence,
+        needsReview: result.confidence < 0.7,
+        reasons: result.extractionNotes ?? [],
+      };
     } finally {
       setIsParsing(false);
     }
@@ -93,6 +121,7 @@ export const [CookbookImportProvider, useCookbookImport] = createContextHook(() 
   return {
     draft,
     setDraft,
+    recipeGraphDraft,
     isParsing,
     confidence,
     needsReview,

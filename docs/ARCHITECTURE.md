@@ -33,6 +33,7 @@ app/
     sign-in.tsx
     sign-up.tsx
     forgot-password.tsx
+    reset-password.tsx
   (book)/
     _layout.tsx
     index.tsx
@@ -42,7 +43,6 @@ app/
       _layout.tsx
       index.tsx
       add.tsx
-      templates.tsx
       review.tsx
       generation/
         [pageId].tsx
@@ -57,12 +57,12 @@ Route responsibilities:
 | `app/(auth)/sign-in.tsx` | Email/password, magic link, Google, Apple sign-in entry |
 | `app/(auth)/sign-up.tsx` | Account creation |
 | `app/(auth)/forgot-password.tsx` | Password reset email request |
+| `app/(auth)/reset-password.tsx` | Password reset form reached via recovery callback |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
 | `app/(book)/library.tsx` | Two-cover cookbook picker and cookbook creation |
 | `app/(book)/settings.tsx` | Account, library stats, sign out |
 | `app/(book)/[cookbookId]/index.tsx` | Swipeable reader for a single cookbook |
 | `app/(book)/[cookbookId]/add.tsx` | Source composer for URL, text, image, or video import |
-| `app/(book)/[cookbookId]/templates.tsx` | Template library for selecting and favoriting page styles |
 | `app/(book)/[cookbookId]/review.tsx` | Review extracted recipe before spending a page credit |
 | `app/(book)/[cookbookId]/generation/[pageId].tsx` | Generated-page result screen |
 
@@ -90,7 +90,7 @@ QueryClientProvider
                 OfflineBanner
 ```
 
-Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. Assistant state is local to `NoshAssistantSheet` via `useNoshAssistant`; there is no `NoshAssistantProvider`.
+Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. The Nosh assistant uses `@assistant-ui/react-native` with a `LocalRuntime` bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`; there is no `NoshAssistantProvider`.
 
 ## Active Hooks
 
@@ -100,7 +100,6 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | `useCookbooks` | Shelf list, create/delete cookbook, credit balance, shelf cache hydration |
 | `useCookbook(cookbookId)` | One cookbook, its pages, selected page, refresh, and optimistic page upsert |
 | `useCookbookImport` | Import draft, parser status, extraction confidence, review reasons |
-| `useNoshAssistant` | Assistant messages, quick prompts, and chat requests with current page/book context |
 | `useNetworkStatus` | Connectivity state for the offline banner |
 
 `useCookbooks` and `useCookbookImport` are the context-backed hooks created with `@nkzw/create-context-hook`.
@@ -115,25 +114,44 @@ Shelf
 
 Reader
   -> useCookbook(cookbookId)
-  -> nutriai.cookbooks + nutriai.cookbook_pages + nutriai.recipes + page_versions
+  -> nutriai.cookbooks + nutriai.cookbook_pages (with recipe_graph JSONB)
   -> AsyncStorage per-book pages cache
 
 Import
-  -> AddPageComposer
-  -> useCookbookImport.parseSource
-  -> parse-recipe-source Edge Function
+  -> UnifiedIntakeComposer (auto-detects source type)
+  -> useCookbookImport.extractRecipe
+  -> extract-recipe Edge Function (Qwen3.6-35B-A3B)
+  -> RecipeGraphDraft → ParsedRecipeDraft bridge
   -> RecipeReviewForm
-  -> generate-cookbook-page Edge Function
+  -> createRecipePageWithGraph (stores RecipeGraph as JSONB)
+  -> generate-page-art Edge Function (Qwen Image 3 Pro)
+  -> TypesetterPage renders live vector text + art
   -> React Query page cache upsert
+
+Assistant
+  -> NoshAssistantChat (assistant-ui LocalRuntime)
+  -> nosh-chat Edge Function (Qwen3.6-35B-A3B with tool-calling)
+  -> tools execute against RecipeGraph → live typesetter re-render
+  -> changes persisted to cookbook_pages.recipe_graph
 ```
 
 All database writes are scoped by Supabase Auth and RLS. Edge Functions receive the current JWT through `callAuthenticatedFunction`.
 
 ## AI Pipeline
 
+The pipeline has three independent engines, each doing one thing well:
+
+1. **Multimodal Extraction (Qwen3.6-35B-A3B):** Ingests URL, text, image, video → structured RecipeGraphDraft
+2. **Culinary Reasoning / Nosh Agent (Qwen3.6-35B-A3B):** Multi-turn chat with tool calls that mutate the graph live
+3. **Generative Art (Qwen Image 3 Pro):** Isolated, style-conditioned illustrations — no text, ever
+
+The page the user sees is a composite: vector text from the typesetter + artwork from the generator, layered at render time. Editing a recipe re-flows text instantly with zero image re-generation cost.
+
 ### Assistant Chat
 
-`components/cookbook/NoshAssistantSheet.tsx` calls `useNoshAssistant`, which calls `utils/aiClient.createChatCompletion`. The client calls the `ai-chat` Edge Function, and `ai-chat` forwards the request to an OpenRouter-compatible chat-completions endpoint.
+`components/cookbook/NoshAssistantChat.tsx` uses `@assistant-ui/react-native` with a `LocalRuntime`. The runtime bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Tools are defined in `utils/cookbook/noshToolkit.tsx` and execute against the active page's RecipeGraph, triggering live typesetter re-renders.
+
+Available tools: `scale_servings`, `substitute_ingredient`, `start_timer`, `guide_next_step`, `update_page_data`.
 
 Secrets:
 
@@ -145,12 +163,7 @@ AI_MODEL
 
 ### Recipe Import
 
-The app calls `parse-recipe-source` through `utils/cookbook/api.ts`.
-
-`parse-recipe-source` handles URL, text, image, and video payloads. It uses OpenRouter-compatible chat completions for the primary extraction path. For image and video inputs, it can fall back to the direct Gemini functions:
-
-- `parse-image-recipe`: Gemini 2.5 Flash over base64 image input.
-- `parse-video-recipe`: Gemini 2.5 Flash over video URL/file input.
+The app calls `extract-recipe` through `utils/cookbook/api.ts`. This single multimodal model handles URL, text, image, and video inputs natively — no fallback functions needed.
 
 Secrets:
 
@@ -158,19 +171,18 @@ Secrets:
 AI_API_KEY
 AI_API_BASE
 AI_MODEL
-GEMINI_API_KEY
 ```
 
-### Cookbook Page Generation
+### Cookbook Page Art Generation
 
-`generate-cookbook-page` receives the reviewed structured recipe and the active cookbook style descriptor from `utils/cookbook/pagePrompt.ts`. It generates a page image with OpenAI image generation, stores it in Supabase Storage, records a page version, and reserves one generation credit.
+`generate-page-art` receives the RecipeGraph and cookbook style descriptor. It generates an isolated illustration (no text) with Qwen Image 3 Pro via OpenRouter, stores it in Supabase Storage, and links it to the page. The typesetter renders the page live by layering vector text over the art asset.
 
 Secrets:
 
 ```text
-OPENAI_API_KEY
-OPENAI_IMAGE_MODEL
-COOKBOOK_PAGE_BUCKET
+AI_API_KEY
+AI_API_BASE
+ART_MODEL
 ```
 
 ## Cookbook Covers And Page Templates
@@ -188,7 +200,7 @@ minimal
 
 The creation flow only exposes two covers: Classic Kitchen (`vintage-garden`) and Modern Journal (`minimal`). `cover_style` remains stored on `nutriai.cookbooks`.
 
-Recipe page styling is now selected per import from `constants/recipeTemplates.ts`. The selected template is held in `useCookbookImport`, favorites persist locally in `nosh:favorite-page-templates:v1`, and `utils/cookbook/pagePrompt.ts` sends the template descriptor in the generation prompt payload.
+Recipe page styling is now selected per import from `constants/recipeTemplates.ts`. The selected template is held in `useCookbookImport`, favorites persist locally in `nosh:favorite-page-templates:v1`, and the template ID is stored on `cookbook_pages.template_id`. The typesetter uses the template to lay out vector text from the RecipeGraph.
 
 ## Offline Sample Book
 

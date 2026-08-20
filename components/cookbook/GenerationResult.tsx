@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight, BookOpen, Plus } from 'lucide-react-native';
+import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -24,7 +25,6 @@ export function GenerationResult({
 }: PageAddedScreenProps) {
   const preset = getCookbookStyle(cookbook?.coverStyle ?? null);
   const cookbookTitle = cookbook?.title ?? 'your cookbook';
-  const imageSource = page.imageAsset ?? (page.imageUrl ? { uri: page.imageUrl } : null);
 
   return (
     <LinearGradient colors={preset.palette.shelfBackground} style={styles.container}>
@@ -39,13 +39,7 @@ export function GenerationResult({
 
         <View style={styles.previewWrap}>
           <View style={styles.preview}>
-            {imageSource ? (
-              <Image source={imageSource} style={styles.image} resizeMode="contain" />
-            ) : (
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>Your page is being prepared.</Text>
-              </View>
-            )}
+            <PageCanvas page={page} />
           </View>
         </View>
 
@@ -125,22 +119,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.ash,
     overflow: 'hidden',
     boxShadow: Colors.book.paperShadow,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
-  },
-  placeholderText: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   actions: {
     gap: Spacing.md,

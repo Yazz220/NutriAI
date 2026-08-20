@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft } from 'lucide-react-native';
-import { AddPageComposer, type AddPageSubmitPayload } from '@/components/cookbook/AddPageComposer';
+import { UnifiedIntakeComposer, type UnifiedIntakePayload } from '@/components/cookbook/UnifiedIntakeComposer';
 import { ExtractingRecipeStages } from '@/components/cookbook/ExtractingRecipeStages';
 import { Text } from '@/components/ui/Text';
 import { useCookbook } from '@/hooks/useCookbook';
@@ -11,17 +11,9 @@ import { useCookbookImport } from '@/hooks/useCookbookImport';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { RecipeSourceType } from '@/types/cookbook';
-
-function normalizeSourceParam(value: string | string[] | undefined): RecipeSourceType | undefined {
-  const source = Array.isArray(value) ? value[0] : value;
-  return source === 'url' || source === 'text' || source === 'image' || source === 'video'
-    ? source
-    : undefined;
-}
 
 export default function AddPageScreen() {
-  const { cookbookId, source } = useLocalSearchParams<{ cookbookId: string; source?: string | string[] }>();
+  const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
   const { cookbook } = useCookbook(cookbookId);
   const {
     parseSource,
@@ -32,12 +24,11 @@ export default function AddPageScreen() {
     setSourceImageBase64,
   } = useCookbookImport();
   const [error, setError] = React.useState<string | null>(null);
-  const [failedPayload, setFailedPayload] = React.useState<AddPageSubmitPayload | null>(null);
+  const [failedPayload, setFailedPayload] = React.useState<UnifiedIntakePayload | null>(null);
 
-  const sourceHint = normalizeSourceParam(source);
   const cookbookTitle = cookbook?.title ?? 'Cookbook';
 
-  async function submitSource(payload: AddPageSubmitPayload) {
+  async function submitSource(payload: UnifiedIntakePayload) {
     setError(null);
     setFailedPayload(null);
     try {
@@ -86,9 +77,8 @@ export default function AddPageScreen() {
         </View>
 
         {isParsing ? <ExtractingRecipeStages running /> : null}
-        <AddPageComposer
+        <UnifiedIntakeComposer
           isSubmitting={isParsing}
-          sourceHint={sourceHint}
           input={sourceInput}
           imageBase64={sourceImageBase64}
           error={error}

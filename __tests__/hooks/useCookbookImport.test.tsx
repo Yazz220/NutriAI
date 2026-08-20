@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { CookbookImportProvider, useCookbookImport } from '@/hooks/useCookbookImport';
 
 jest.mock('@/utils/cookbook/api', () => ({
-  parseRecipeSource: jest.fn(),
+  extractRecipe: jest.fn(),
 }));
 
 const mockLoadSourceDraft = jest.fn();

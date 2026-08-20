@@ -11,9 +11,9 @@ The product is the cookbook. The AI is the chef inside it.
 - **My Cookbooks shelf**: the authenticated home screen for a user's cookbook collection.
 - **Book Library**: style presets for creating a new cookbook.
 - **Book reader**: a swipeable reader with cover, table-of-contents page, recipe pages, add-page controls, and the Nosh assistant.
-- **Recipe import**: URL, text, image, and video inputs become structured recipe drafts for review.
-- **Page generation**: reviewed recipes become rendered cookbook-page images in the selected book style.
-- **Nosh assistant**: contextual chef chat scoped to the active page and cookbook.
+- **Recipe import**: a single multimodal input auto-detects URL, text, image, or video sources and extracts a structured RecipeGraph for review.
+- **Page generation**: reviewed recipes become live typesetter pages (vector text) layered over style-conditioned generative art — no baked-in text, instant re-flow on edit.
+- **Nosh assistant**: an assistant-ui powered chat with tool-calling that can scale servings, substitute ingredients, start timers, guide steps, and patch the recipe graph live.
 
 Out of scope for this app: legacy non-cookbook product surfaces and persistent bottom navigation.
 
@@ -25,14 +25,17 @@ Out of scope for this app: legacy non-cookbook product surfaces and persistent b
 - TanStack React Query for server state.
 - AsyncStorage for shelf and per-book page cache.
 - `@nkzw/create-context-hook` for shared provider hooks.
+- `@assistant-ui/react-native` for the in-book assistant chat runtime.
 
 ## AI And Import Architecture
 
-- `ai-chat`: OpenRouter-compatible chat completions for the in-book Nosh assistant.
-- `parse-recipe-source`: authenticated import orchestrator for URL, text, image, and video payloads. It uses `AI_API_KEY`, `AI_API_BASE`, and `AI_MODEL` for OpenRouter-compatible extraction. Image and video paths can fall back to the direct Gemini functions.
-- `parse-image-recipe`: direct Gemini 2.5 Flash image extraction fallback.
-- `parse-video-recipe`: direct Gemini 2.5 Flash video extraction fallback.
-- `generate-cookbook-page`: OpenAI image generation for cookbook page art, then stores the image in Supabase Storage and spends one generation credit.
+The pipeline has three engines, each doing one thing well:
+
+- `extract-recipe`: multimodal extraction (URL, text, image, video) → RecipeGraphDraft. Uses Qwen3.6-35B-A3B via OpenRouter.
+- `nosh-chat`: multi-turn kitchen chat with tool-calling (scale, substitute, timer, guide, update). Uses Qwen3.6-35B-A3B via OpenRouter.
+- `generate-page-art`: isolated style-conditioned illustration — no text, ever. Uses Qwen Image 3 Pro via OpenRouter.
+
+The page the user sees is a composite: vector text from the typesetter + artwork from the generator, layered at render time. Editing a recipe re-flows text instantly with zero image re-generation cost.
 
 API keys stay in Supabase Edge Function secrets. Do not put provider keys in `EXPO_PUBLIC_*`.
 
@@ -84,7 +87,7 @@ Active hooks:
 - `useCookbooks`: shelf state, create/delete cookbook mutations, credit balance.
 - `useCookbook(cookbookId)`: per-book data, page selection, refresh, and page upsert. It is a parameterized hook, not a global provider.
 - `useCookbookImport`: import draft, confidence, parser state, and review metadata.
-- `useNoshAssistant`: local assistant state for `NoshAssistantSheet`; chat is scoped by current page and book.
+- The Nosh assistant uses `@assistant-ui/react-native` with a `LocalRuntime` bridging to the `nosh-chat` Edge Function; chat is scoped by current page and book.
 
 ## Environment
 
@@ -94,7 +97,8 @@ Required in `.env` for the client:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
-EXPO_PUBLIC_AI_MODEL=openai/gpt-oss-20b:free
+EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
+EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 ```
@@ -102,10 +106,8 @@ EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 Supabase Edge Function secrets:
 
 ```text
-AI_API_KEY, AI_API_BASE, AI_MODEL          ai-chat and parse-recipe-source
-GEMINI_API_KEY                            parse-image-recipe and parse-video-recipe fallbacks
-OPENAI_API_KEY, OPENAI_IMAGE_MODEL         generate-cookbook-page image generation
-COOKBOOK_PAGE_BUCKET                       optional generated-page storage bucket override
+AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
+ART_MODEL                                 generate-page-art
 ```
 
 ## Commands

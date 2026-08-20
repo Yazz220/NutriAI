@@ -9,15 +9,15 @@ import type {
   CookbookSectionEntry,
   CookbookStyleId,
   CreditBalance,
-  ParsedRecipeDraft,
+  PageArtAsset,
+  PageArtStatus,
   RecipeSourceType,
   RecipeTemplateId,
   StructuredIngredient,
   StructuredRecipe,
 } from '@/types/cookbook';
-import type { CookbookGenerationResult } from '@/utils/cookbook/generationPolling';
+import type { RecipeGraph, RecipeGraphDraft } from '@/types/recipeGraph';
 
-type JsonRecord = Record<string, unknown>;
 type CookbookInsertPayload = {
   user_id: string;
   title: string;
@@ -62,6 +62,11 @@ interface PageVersionRow {
   id: string;
   page_id: string;
   image_url?: string | null;
+  storage_path?: string | null;
+  prompt_payload?: unknown;
+  model?: string | null;
+  status?: string | null;
+  credit_cost?: number | null;
 }
 
 interface CookbookPageRow {
@@ -75,6 +80,10 @@ interface CookbookPageRow {
   recipes?: RecipeRow | null;
   page_versions?: PageVersionRow | PageVersionRow[] | null;
   selected_version?: PageVersionRow | null;
+  /** New-pipeline columns (nullable — only present for typesetter pages) */
+  recipe_graph?: unknown;
+  style_id?: string | null;
+  template_id?: string | null;
 }
 
 interface CookbookPageCountRow {
@@ -161,7 +170,7 @@ export function mapPage(
 ): CookbookPage {
   const selectedVersion = selectedVersions[row.id] ?? getEmbeddedVersion(row);
 
-  return {
+  const page: CookbookPage = {
     id: row.id,
     cookbookId: row.cookbook_id,
     recipeId: row.recipe_id,
@@ -173,6 +182,37 @@ export function mapPage(
     imageUrl: selectedVersion?.image_url ?? undefined,
     recipe: row.recipes ? mapRecipe(row.recipes) : undefined,
   };
+
+  // New-pipeline fields: populate when the page has a recipe_graph
+  if (row.recipe_graph && typeof row.recipe_graph === 'object') {
+    page.recipeGraph = row.recipe_graph as RecipeGraph;
+  }
+
+  // Build artAsset from the selected version (the generated illustration)
+  if (selectedVersion?.image_url && row.style_id) {
+    page.artAsset = {
+      id: selectedVersion.id,
+      pageId: row.id,
+      artUrl: selectedVersion.image_url,
+      storagePath: selectedVersion.storage_path ?? undefined,
+      styleId: row.style_id as CookbookStyleId,
+      artPrompt: '', // Not stored on the version row; available in prompt_payload
+      model: selectedVersion.model ?? '',
+      status: (selectedVersion.status as PageArtStatus) ?? 'ready',
+      creditCost: selectedVersion.credit_cost ?? 1,
+      createdAt: '', // Not selected in the lightweight query
+    };
+  }
+
+  if (row.style_id) {
+    page.styleId = row.style_id as CookbookStyleId;
+  }
+
+  if (row.template_id) {
+    page.templateId = row.template_id as RecipeTemplateId;
+  }
+
+  return page;
 }
 
 export async function listCookbooks(userId: string): Promise<Cookbook[]> {
@@ -354,7 +394,7 @@ export async function fetchCookbookPages(cookbookId: string): Promise<CookbookPa
     const { data: versions, error: versionsError } = await supabase
       .schema('nutriai')
       .from('page_versions')
-      .select('id, page_id, image_url')
+      .select('id, page_id, image_url, storage_path, model, status, credit_cost')
       .in('id', selectedVersionIds);
 
     if (versionsError) throw versionsError;
@@ -366,36 +406,197 @@ export async function fetchCookbookPages(cookbookId: string): Promise<CookbookPa
   return rows.map((row) => mapPage(row, selectedVersions)).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-export async function parseRecipeSource(payload: Record<string, unknown>): Promise<{
-  recipe: ParsedRecipeDraft;
+/**
+ * Call the new extract-recipe Edge Function (Phase 2).
+ * Accepts any source type (URL, text, image, video) in a single call
+ * and returns a RecipeGraphDraft — the canonical structured recipe format.
+ */
+export async function extractRecipe(payload: {
+  type: 'url' | 'text' | 'image' | 'video';
+  input?: string;
+  imageBase64?: string;
+  videoUrl?: string;
+}): Promise<{
+  recipeGraph: RecipeGraphDraft;
   confidence: number;
-  needsReview: boolean;
-  reasons: string[];
+  inferredFields: string[];
+  extractionNotes: string[];
 }> {
-  return callAuthenticatedFunction('parse-recipe-source', payload);
+  return callAuthenticatedFunction('extract-recipe', payload, { timeoutMs: 95_000 });
 }
 
-export async function generateCookbookPage(
-  payload: Record<string, unknown>,
-): Promise<CookbookGenerationResult> {
-  const response = await callAuthenticatedFunction<
-    CookbookPage |
-    CookbookPageRow |
-    { page: CookbookPage | CookbookPageRow } |
-    { status: 'processing'; requestId: string }
-  >('generate-cookbook-page', payload, { timeoutMs: 20_000 });
+// ---------------------------------------------------------------------------
+// Phase 4.5: New-pipeline page creation + art generation
+// ---------------------------------------------------------------------------
 
-  if ('status' in response && response.status === 'processing') {
-    return response;
+/**
+ * Create a cookbook page row with a RecipeGraph.
+ * Inserts a `recipes` row (flattened from the graph for backward compatibility)
+ * and a `cookbook_pages` row with the full graph stored as JSONB.
+ * Returns the new page with all fields populated.
+ */
+export async function createRecipePageWithGraph(input: {
+  cookbookId: string;
+  recipeGraph: RecipeGraphDraft;
+  styleId: CookbookStyleId;
+  templateId: RecipeTemplateId;
+}): Promise<CookbookPage> {
+  const { cookbookId, recipeGraph, styleId, templateId } = input;
+
+  // Flatten the graph into the legacy recipes schema for backward compatibility
+  const flatIngredients = recipeGraph.ingredientGroups.flatMap((g) =>
+    g.ingredients.map((ing) => ({
+      name: ing.name,
+      quantity: ing.quantity,
+      unit: ing.unit,
+      isOptional: ing.isOptional,
+    })),
+  );
+  const flatSteps = recipeGraph.stepGroups.flatMap((g) => g.steps.map((s) => s.text));
+
+  // Insert the recipe row
+  const { data: recipeRow, error: recipeError } = await supabase
+    .schema('nutriai')
+    .from('recipes')
+    .insert({
+      title: recipeGraph.title,
+      description: recipeGraph.description ?? null,
+      servings: recipeGraph.servings,
+      prep_time: recipeGraph.prepTimeMinutes ?? null,
+      cook_time: recipeGraph.cookTimeMinutes ?? null,
+      ingredients: flatIngredients,
+      steps: flatSteps,
+      source_type: recipeGraph.provenance.sourceType,
+      source_url: recipeGraph.provenance.sourceUrl ?? null,
+      tags: recipeGraph.tags,
+      category: recipeGraph.category,
+      confidence: recipeGraph.provenance.confidence,
+    })
+    .select('id')
+    .single();
+
+  if (recipeError) throw recipeError;
+  const recipeId = (recipeRow as { id: string }).id;
+
+  // Determine the next page number and sort order
+  const { data: existingPages, error: pagesError } = await supabase
+    .schema('nutriai')
+    .from('cookbook_pages')
+    .select('page_number, sort_order')
+    .eq('cookbook_id', cookbookId)
+    .order('sort_order', { ascending: false })
+    .limit(1);
+
+  if (pagesError) throw pagesError;
+
+  const maxSortOrder = (existingPages as Array<{ sort_order: number; page_number: number }>)[0]?.sort_order ?? -1;
+  const maxPageNumber = (existingPages as Array<{ sort_order: number; page_number: number }>)[0]?.page_number ?? 0;
+
+  // Insert the page row with the RecipeGraph stored as JSONB
+  const { data: pageRow, error: pageError } = await supabase
+    .schema('nutriai')
+    .from('cookbook_pages')
+    .insert({
+      cookbook_id: cookbookId,
+      recipe_id: recipeId,
+      page_number: maxPageNumber + 1,
+      section: recipeGraph.category,
+      sort_order: maxSortOrder + 1,
+      recipe_graph: recipeGraph as unknown as Record<string, unknown>,
+      style_id: styleId,
+      template_id: templateId,
+    })
+    .select('*, recipes(*)')
+    .single();
+
+  if (pageError) throw pageError;
+
+  return mapPage(pageRow as CookbookPageRow);
+}
+
+/**
+ * Call the generate-page-art Edge Function (Phase 2).
+ * Generates an isolated illustration (no text) for the page.
+ * Returns the art asset on success, or a processing status for polling.
+ */
+export async function generatePageArt(payload: {
+  cookbookId: string;
+  pageId: string;
+  recipeGraph: RecipeGraphDraft;
+  styleId: CookbookStyleId;
+  idempotencyKey: string;
+}): Promise<{ artAsset: PageArtAsset } | { status: 'processing'; requestId: string }> {
+  return callAuthenticatedFunction('generate-page-art', payload, { timeoutMs: 20_000 });
+}
+
+/**
+ * Update the selected_version_id on a cookbook page to point to the
+ * newly generated art version. This links the page to its art asset.
+ */
+export async function updatePageSelectedVersion(
+  pageId: string,
+  versionId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .schema('nutriai')
+    .from('cookbook_pages')
+    .update({ selected_version_id: versionId })
+    .eq('id', pageId);
+
+  if (error) throw error;
+}
+
+/**
+ * Fetch a single page by ID with all fields (including new-pipeline columns).
+ * Used after art generation to get the updated page with the art asset.
+ */
+export async function fetchPageById(pageId: string): Promise<CookbookPage | null> {
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .from('cookbook_pages')
+    .select('*, recipes(*)')
+    .eq('id', pageId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as CookbookPageRow;
+
+  // Fetch the selected version if present
+  const selectedVersions: Record<string, PageVersionRow | undefined> = {};
+  if (row.selected_version_id) {
+    const { data: version, error: versionError } = await supabase
+      .schema('nutriai')
+      .from('page_versions')
+      .select('id, page_id, image_url, storage_path, model, status, credit_cost')
+      .eq('id', row.selected_version_id)
+      .maybeSingle();
+
+    if (!versionError && version) {
+      selectedVersions[row.id] = version as PageVersionRow;
+    }
   }
 
-  const page = (response as { page?: CookbookPage | CookbookPageRow }).page ?? response;
+  return mapPage(row, selectedVersions);
+}
 
-  if ('cookbook_id' in (page as JsonRecord)) {
-    return { status: 'ready', page: mapPage(page as CookbookPageRow) };
-  }
+/**
+ * Update the recipe_graph JSONB on a cookbook page.
+ * Used by Nosh tools (scale_servings, substitute_ingredient, update_page_data)
+ * to persist RecipeGraph mutations from the assistant.
+ */
+export async function updatePageRecipeGraph(
+  pageId: string,
+  recipeGraph: RecipeGraph,
+): Promise<void> {
+  const { error } = await supabase
+    .schema('nutriai')
+    .from('cookbook_pages')
+    .update({ recipe_graph: recipeGraph as unknown as Record<string, unknown> })
+    .eq('id', pageId);
 
-  return { status: 'ready', page: page as CookbookPage };
+  if (error) throw error;
 }
 
 export async function fetchCreditBalance(): Promise<CreditBalance> {

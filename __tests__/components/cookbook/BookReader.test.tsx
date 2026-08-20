@@ -12,8 +12,9 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 47, right: 0, bottom: 34, left: 0 }),
 }));
 
-jest.mock('@/components/cookbook/AddPageSheet', () => ({ AddPageSheet: () => null }));
-jest.mock('@/components/cookbook/NoshAssistantButton', () => ({ NoshAssistantButton: () => null }));
+jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
+  NoshAssistantChatButton: () => null,
+}));
 
 jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   const ReactModule = require('react');

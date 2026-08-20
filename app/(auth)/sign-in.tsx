@@ -32,7 +32,7 @@ export default function SignInScreen() {
     }
     setLoading(true);
     try {
-      await supabase.auth.signOut().catch(() => {});
+      await withTimeout(supabase.auth.signOut(), 5000).catch(() => {});
 
       const { data, error: authError } = await withTimeout(
         supabase.auth.signInWithPassword({ email, password }),
