@@ -74,6 +74,7 @@ import {
   type LoadedCollectionRecipe,
 } from '@/utils/cookbook/recipeCollection';
 import { SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
+import { normalizeCaptureDestinationCookbookId } from '@/utils/cookbook/captureLifecycle';
 import { Fonts } from '@/utils/fonts';
 
 const COLLECTION_SESSION: NoshInteractionSession = {
@@ -438,6 +439,9 @@ export function NoshConversationHost() {
     onCommitCollectionAction: handleCommitCollectionAction,
     onStartRecipeCapture: (source) => {
       const destination = visibleBookContextRef.current.cookbook;
+      const persistedDestination = normalizeCaptureDestinationCookbookId(destination?.id)
+        ? destination
+        : null;
       setCaptureHandoffSource({
         ...source,
         ...(source.sourceType === 'image' && imageRef.current
@@ -448,8 +452,12 @@ export function NoshConversationHost() {
       setPendingImageMimeType(null);
       open(
         'cookbook-add',
-        destination
-          ? { kind: 'cookbook', cookbookId: destination.id, title: destination.title }
+        persistedDestination
+          ? {
+              kind: 'cookbook',
+              cookbookId: persistedDestination.id,
+              title: persistedDestination.title,
+            }
           : { kind: 'capture', captureId: `conversation-${Date.now()}`, title: 'Recipe capture' },
       );
     },

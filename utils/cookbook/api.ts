@@ -17,9 +17,11 @@ import type {
   StructuredRecipe,
 } from '@/types/cookbook';
 import type { RecipeGraph, RecipeGraphDraft } from '@/types/recipeGraph';
-import type {
-  RecipeCapture,
-  RecipeCaptureSource,
+import {
+  normalizeRecipeCapturePageStatus,
+  normalizeRecipeCaptureStatus,
+  type RecipeCapture,
+  type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
 
 type CookbookInsertPayload = {
@@ -106,13 +108,13 @@ interface RecipeCaptureRow {
   source_type: RecipeSourceType;
   source_payload?: unknown;
   source_storage_path?: string | null;
-  status: RecipeCapture['status'];
+  status: string;
   recipe_graph?: unknown;
   confidence?: number | string | null;
   extraction_notes?: unknown;
   inferred_fields?: unknown;
   pending_page_id?: string | null;
-  art_status: RecipeCapture['pageStatus'];
+  art_status: string;
   art_warning?: string | null;
   failure_code?: string | null;
   failure_message?: string | null;
@@ -280,24 +282,33 @@ export function mapPage(
 }
 
 export function mapRecipeCapture(row: RecipeCaptureRow): RecipeCapture {
+  const destinationCookbookId = row.destination_cookbook_id ?? undefined;
+  const pageId = row.pending_page_id ?? undefined;
+  const pageStatus = normalizeRecipeCapturePageStatus(row.art_status);
+  const status = normalizeRecipeCaptureStatus({
+    status: row.status,
+    pageStatus,
+    pageId,
+    destinationCookbookId,
+  });
   return {
     id: row.id,
     userId: row.user_id,
-    destinationCookbookId: row.destination_cookbook_id ?? undefined,
+    destinationCookbookId,
     sourceType: row.source_type,
     sourcePayload: row.source_payload && typeof row.source_payload === 'object'
       ? row.source_payload as Record<string, unknown>
       : {},
     sourceStoragePath: row.source_storage_path ?? undefined,
-    status: row.status,
+    status,
     recipeGraph: row.recipe_graph && typeof row.recipe_graph === 'object'
       ? row.recipe_graph as RecipeGraphDraft
       : undefined,
     confidence: row.confidence == null ? undefined : Number(row.confidence),
     extractionNotes: asStringArray(row.extraction_notes),
     inferredFields: asStringArray(row.inferred_fields),
-    pageId: row.pending_page_id ?? undefined,
-    pageStatus: row.art_status,
+    pageId,
+    pageStatus,
     pageWarning: row.art_warning ?? undefined,
     failureCode: row.failure_code ?? undefined,
     failureMessage: row.failure_message ?? undefined,

@@ -17,6 +17,8 @@ import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import type { Cookbook } from '@/types/cookbook';
 import {
   createCaptureRequestKey,
+  isCaptureReadyToOpen,
+  normalizeCaptureDestinationCookbookId,
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
@@ -61,7 +63,8 @@ export function NoshCaptureWorkspace({
   useEffect(() => {
     if (
       !onReady
-      || capture?.status !== 'ready'
+      || !capture
+      || !isCaptureReadyToOpen(capture)
       || !capture.destinationCookbookId
       || !capture.pageId
       || completedCaptureRef.current === capture.id
@@ -88,7 +91,7 @@ export function NoshCaptureWorkspace({
       }
       const result = await captureState.startCapture({
         source,
-        destinationCookbookId,
+        destinationCookbookId: normalizeCaptureDestinationCookbookId(destinationCookbookId),
         idempotencyKey: requestKey,
       });
       setCaptureId(result.capture.id);
@@ -210,19 +213,36 @@ export function NoshCaptureWorkspace({
     );
   }
 
+  if (isCaptureReadyToOpen(capture)) {
+    return (
+      <StateCard
+        icon={<Check size={21} color={Colors.onSuccess} />}
+        iconTone="success"
+        eyebrow={destination?.title}
+        title="Your page is in the book"
+        copy={`${capture.recipeGraph?.title ?? 'The recipe'} is ready to read and cook from.`}
+        action={
+          <Button
+            title="Open recipe"
+            onPress={() => router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`)}
+            fullWidth
+          />
+        }
+      />
+    );
+  }
+
   return (
     <StateCard
-      icon={<Check size={21} color={Colors.onSuccess} />}
-      iconTone="success"
-      eyebrow={destination?.title}
-      title="Your page is in the book"
-      copy={`${capture.recipeGraph?.title ?? 'The recipe'} is ready to read and cook from.`}
+      icon={<AlertTriangle size={21} color={Colors.error} />}
+      iconTone="error"
+      title="This page needs another try"
+      copy="Nosh accepted the recipe but did not publish a finished page. Try the capture again."
       action={
         <Button
-          title="Open recipe"
-          onPress={() => capture.destinationCookbookId && capture.pageId
-            ? router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`)
-            : undefined}
+          title="Try again"
+          onPress={() => void captureState.retryCapture(capture.id)}
+          loading={captureState.isRetrying}
           fullWidth
         />
       }

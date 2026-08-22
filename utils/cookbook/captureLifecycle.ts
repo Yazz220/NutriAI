@@ -9,6 +9,8 @@ export type RecipeCaptureStatus =
 
 export type RecipeCapturePageStatus = 'not_started' | 'generating' | 'ready' | 'failed';
 
+const DATABASE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface RecipeCapture {
   id: string;
   userId: string;
@@ -48,6 +50,63 @@ export function createCaptureRequestKey(): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2);
   return `capture-${timestamp}-${random}`;
+}
+
+/**
+ * Cookbook ids sent to the capture RPC must be database UUIDs. Local visual-QA
+ * fixtures (for example `demo-cookbook`) deliberately never cross this seam.
+ */
+export function normalizeCaptureDestinationCookbookId(
+  cookbookId?: string | null,
+): string | undefined {
+  return cookbookId && DATABASE_ID_PATTERN.test(cookbookId) ? cookbookId : undefined;
+}
+
+export function normalizeRecipeCapturePageStatus(value: unknown): RecipeCapturePageStatus {
+  return value === 'generating' || value === 'ready' || value === 'failed'
+    ? value
+    : 'not_started';
+}
+
+/**
+ * Compatibility boundary for captures created before the simplified lifecycle
+ * migration. This keeps stale server/cache values from becoming UI success.
+ */
+export function normalizeRecipeCaptureStatus(input: {
+  status: unknown;
+  pageStatus: RecipeCapturePageStatus;
+  pageId?: string;
+  destinationCookbookId?: string;
+}): RecipeCaptureStatus {
+  const hasPublishedPage = input.pageStatus === 'ready' && Boolean(input.pageId);
+
+  if (input.status === 'ready') {
+    if (hasPublishedPage) return 'ready';
+    return input.pageStatus === 'failed' ? 'needs_attention' : 'processing';
+  }
+  if (input.status === 'processing' || input.status === 'saved' || input.status === 'reading') {
+    return 'processing';
+  }
+  if (input.status === 'needs_destination') return 'needs_destination';
+  if (input.status === 'needs_attention' || input.status === 'needs_help') return 'needs_attention';
+  if (input.status === 'ready_to_review') {
+    if (!input.destinationCookbookId) return 'needs_destination';
+    if (hasPublishedPage) return 'ready';
+    return input.pageStatus === 'failed' ? 'needs_attention' : 'processing';
+  }
+  if (input.status === 'added') {
+    return hasPublishedPage ? 'ready' : 'needs_attention';
+  }
+  return 'needs_attention';
+}
+
+export function isCaptureReadyToOpen(
+  capture: Pick<RecipeCapture, 'status' | 'destinationCookbookId' | 'pageId' | 'pageStatus'>,
+): boolean {
+  return capture.status === 'ready'
+    && capture.pageStatus === 'ready'
+    && Boolean(capture.destinationCookbookId)
+    && Boolean(capture.pageId);
 }
 
 export function canTransitionCapture(

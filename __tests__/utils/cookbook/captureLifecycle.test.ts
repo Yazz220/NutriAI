@@ -1,8 +1,11 @@
 import {
   approvedPages,
   canTransitionCapture,
+  isCaptureReadyToOpen,
   isCaptureProcessing,
   isCaptureStale,
+  normalizeCaptureDestinationCookbookId,
+  normalizeRecipeCaptureStatus,
   reconcileCapturePage,
 } from '@/utils/cookbook/captureLifecycle';
 import type { CookbookPage } from '@/types/cookbook';
@@ -48,5 +51,32 @@ describe('recipe capture lifecycle', () => {
   it('keeps processing pages out of the reader', () => {
     expect(approvedPages([page('approved', 0, 'approved'), page('processing', 1, 'processing')]))
       .toEqual([page('approved', 0, 'approved')]);
+  });
+
+  it('does not send the local demo cookbook id to the UUID-backed capture pipeline', () => {
+    expect(normalizeCaptureDestinationCookbookId('demo-cookbook')).toBeUndefined();
+    expect(normalizeCaptureDestinationCookbookId('87dbb66c-2f58-4c06-a859-522b44b118a3'))
+      .toBe('87dbb66c-2f58-4c06-a859-522b44b118a3');
+  });
+
+  it('maps retired accepted and extraction states back to processing', () => {
+    expect(normalizeRecipeCaptureStatus({ status: 'saved', pageStatus: 'not_started' }))
+      .toBe('processing');
+    expect(normalizeRecipeCaptureStatus({ status: 'reading', pageStatus: 'not_started' }))
+      .toBe('processing');
+  });
+
+  it('requires a published page before presenting capture success', () => {
+    const base = {
+      status: 'ready' as const,
+      destinationCookbookId: '87dbb66c-2f58-4c06-a859-522b44b118a3',
+      pageId: 'e9ca5f4a-fad0-4ae4-bf26-d795fd008488',
+      pageStatus: 'ready' as const,
+    };
+
+    expect(isCaptureReadyToOpen(base)).toBe(true);
+    expect(isCaptureReadyToOpen({ ...base, pageId: undefined })).toBe(false);
+    expect(isCaptureReadyToOpen({ ...base, pageStatus: 'generating' })).toBe(false);
+    expect(isCaptureReadyToOpen({ ...base, status: 'saved' as never })).toBe(false);
   });
 });
