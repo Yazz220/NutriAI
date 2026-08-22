@@ -1,5 +1,7 @@
 # Multi-Cookbook Shelf + Style Library — Design (2026-05-05)
 
+> Historical design record. The multi-book idea remains, but current behavior is defined by `docs/PRODUCT_FLOW.md`, `docs/ARCHITECTURE.md`, and the accepted ADRs.
+
 ## Context
 
 The previous cookbook design ([2026-05-03](./2026-05-03-nosh-ai-cookbook-reset-design.md)) treated each user as having exactly one cookbook. The reader, the page generation flow, and the AI assistant all worked, but the home screen dropped users straight into a single book. The product vision is **a shelf of beautifully styled cookbooks** ("Italian", "Desserts", "Family", etc.), each with its own visual identity. This spec lifts the one-book limit and reframes the home as a shelf.

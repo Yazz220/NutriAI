@@ -1,5 +1,7 @@
 # Phase 3 Implementation Research — Native Typesetter
 
+> Superseded research. The typesetter is now legacy compatibility only; new recipes use complete generated page images. See ADR 0002.
+
 **Date:** 2026-08-20
 **Purpose:** Research the best approach for building the native typesetter that renders cookbook pages from RecipeGraph + art asset + style preset, before writing any code.
 

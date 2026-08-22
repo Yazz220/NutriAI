@@ -1,5 +1,7 @@
 # Phase 2 Implementation Research — Edge Functions
 
+> Historical research. Do not use its earlier function boundaries as current architecture. See `docs/ARCHITECTURE.md` and ADR 0002.
+
 **Date:** 2026-08-20
 **Purpose:** Research industry standards and best practices before building the three new Edge Functions (`extract-recipe`, `generate-page-art`, `nosh-chat`).
 

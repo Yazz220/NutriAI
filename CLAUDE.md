@@ -1,156 +1,29 @@
 # CLAUDE.md
 
-Operating manual for AI agents working on this repo. Keep this file factual and current.
+Read [AGENTS.md](./AGENTS.md) before changing this repository. It is the canonical operating manual for coding agents. Read [CONTEXT.md](./CONTEXT.md) for product terms and [docs/README.md](./docs/README.md) for the documentation map.
 
-## Product
+## Product constraints
 
-Nosh is a personal digital cookbook app. Users create styled cookbooks, add recipes as pages from URL/text/image/video sources, and cook from a swipeable book reader. The Nosh assistant lives inside the reader and answers questions using the active page first, then the rest of the current cookbook.
+- Nosh is a book-first personal cookbook. The bookshelf and reader are the product.
+- There is one recipe-capture pipeline. Share to Nosh, Cookbook Add, the shelf, and Nosh handoffs all enter `capture-recipe`.
+- `capture-recipe` owns extraction, destination resolution, page creation, retry, and publication. Do not build a direct extraction-to-page path in chat or another screen.
+- `generate-page-art` is a compatibility route name. It generates the complete recipe page, including visible text. Do not add an artwork-only generator for new pages.
+- The Recipe Graph is Nosh's canonical reasoning data. The selected generated page image is what the user reads.
+- A cookbook owns its page style. New pages inherit the persisted cookbook style, revision, and visual references. Users do not style individual recipes.
+- New captures do not require review or approval. The only pauses are `needs_destination` and `needs_attention`.
+- The table of contents is retired. New reader work starts with the cover, bookplate, and recipe pages.
+- The legacy typesetter remains only so old pages stay readable. Do not route new captures through it.
 
-Keep product work book-first. Do not reintroduce legacy non-cookbook product surfaces or persistent bottom navigation without an explicit product decision.
+## Before changing the pipeline
 
-## Stack
+Read [docs/PRODUCT_FLOW.md](./docs/PRODUCT_FLOW.md), [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), and [ADR 0002](./docs/adr/0002-single-capture-and-complete-page-generation.md). Dated files under `docs/superpowers/` are historical records and cannot override those documents.
 
-- React Native with Expo SDK 54.
-- Expo Router.
-- TypeScript strict.
-- Supabase in the `nutriai` schema with RLS and Edge Functions.
-- TanStack React Query for server state.
-- AsyncStorage for shelf and per-book page cache.
-- `@nkzw/create-context-hook` for shared context hooks.
-
-Node is `20.19.4`. Install dependencies with `npm install --legacy-peer-deps`.
-
-## Commands
+## Verification
 
 ```bash
-npx expo start
-npx expo start --web --port 8081
-npx expo start --lan
-npm test
 npm run typecheck
 npm run lint
+npm test -- --runInBand
 ```
 
-## Builds
-
-```bash
-npx eas-cli build --profile development --platform ios
-npx eas-cli build --profile preview --platform ios
-npx eas-cli build --profile production --platform ios
-npx eas-cli submit --platform ios
-```
-
-`APP_VARIANT=development` produces `Nosh (Dev)` with bundle id `com.yaz12.nosh.dev`. Preview and production use `Nosh` with bundle id `com.yaz12.nosh`.
-
-## Routes
-
-```text
-app/_layout.tsx
-app/(auth)/index.tsx
-app/(auth)/sign-in.tsx
-app/(auth)/sign-up.tsx
-app/(auth)/forgot-password.tsx
-app/(book)/_layout.tsx
-app/(book)/index.tsx
-app/(book)/library.tsx
-app/(book)/settings.tsx
-app/(book)/[cookbookId]/_layout.tsx
-app/(book)/[cookbookId]/index.tsx
-app/(book)/[cookbookId]/add.tsx
-app/(book)/[cookbookId]/review.tsx
-app/(book)/[cookbookId]/generation/[pageId].tsx
-```
-
-The table of contents is an in-reader page rendered by `BookTableOfContentsPage`, not a route. There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in the live branch.
-
-## Provider Order
-
-Do not reorder the root tree in `app/_layout.tsx` without checking every consumer:
-
-```text
-QueryClientProvider
-  CookbooksProvider
-    CookbookImportProvider
-      ToastProvider
-        GlobalErrorBoundary
-          RootLayoutNav
-            GestureHandlerRootView
-              SafeAreaProvider
-                Stack
-                OfflineBanner
-```
-
-`useAuth` is a hook used by `RootLayoutNav`; there is no `AuthProvider`. `useCookbook(cookbookId)` is a parameterized hook; there is no global `CookbookProvider`. The Nosh assistant uses `@assistant-ui/react-native` with a `LocalRuntime` bridging to the `nosh-chat` Edge Function; there is no `NoshAssistantProvider`.
-
-## Active Hooks
-
-| Hook | Purpose |
-|---|---|
-| `useAuth` | Supabase session/user state and sign-out |
-| `useCookbooks` | shelf provider, create/delete cookbook, credit balance |
-| `useCookbook(cookbookId)` | one cookbook, pages, selected page, refresh, upsert |
-| `useCookbookImport` | parser state, draft, confidence, review reasons |
-| `useNetworkStatus` | offline banner state |
-
-## AI And Edge Functions
-
-The pipeline has three engines: multimodal extraction, culinary reasoning (Nosh agent), and generative art. Pages are rendered live by the typesetter (vector text) layered over generated art.
-
-| Function | Provider path | Purpose |
-|---|---|---|
-| `extract-recipe` | OpenRouter (Qwen3.6-35B-A3B) | multimodal extraction: URL, text, image, video → RecipeGraphDraft |
-| `nosh-chat` | OpenRouter (Qwen3.6-35B-A3B) | multi-turn chat with tool-calling (scale, substitute, timer, guide, update) |
-| `generate-page-art` | OpenRouter (Qwen Image 3 Pro) | isolated style-conditioned illustration — no text |
-| `credits` | Supabase service role | read generation-credit balance |
-| `delete-account` | Supabase service role | account deletion |
-
-Required Edge Function secrets:
-
-```text
-AI_API_KEY, AI_API_BASE, AI_MODEL
-ART_MODEL
-```
-
-Do not put API keys in `EXPO_PUBLIC_*`.
-
-## Files Worth Knowing
-
-| File | Purpose |
-|---|---|
-| `app/_layout.tsx` | providers, auth guard, root stack |
-| `app/(book)/index.tsx` | shelf entry |
-| `app/(book)/library.tsx` | cookbook creation |
-| `app/(book)/[cookbookId]/index.tsx` | reader entry |
-| `hooks/useCookbooks.ts` | shelf provider |
-| `hooks/useCookbook.ts` | per-book hook |
-| `hooks/useCookbookImport.ts` | import/review state |
-| `utils/cookbook/api.ts` | Supabase and Edge Function cookbook API |
-| `utils/cookbook/cache.ts` | AsyncStorage cache keys |
-| `utils/cookbook/sections.ts` | section normalization/order |
-| `utils/cookbook/sampleCookbook.ts` | offline sample books |
-| `utils/cookbook/noshChatAdapter.ts` | bridges assistant-ui runtime to nosh-chat Edge Function |
-| `utils/cookbook/noshToolkit.tsx` | Nosh tool definitions (scale, substitute, timer, guide, update) |
-| `constants/cookbookStyles.ts` | style presets |
-| `components/cookbook/BookReader.tsx` | swipeable reader |
-| `components/cookbook/BookTableOfContentsPage.tsx` | in-reader contents page |
-| `components/cookbook/NoshAssistantChat.tsx` | assistant-ui powered in-book chat |
-| `components/cookbook/PageCanvas.tsx` | renders pages via typesetter or legacy image |
-| `components/cookbook/typesetter/TypesetterPage.tsx` | live vector text + art page renderer |
-
-## Conventions
-
-- Use `@/` imports for cross-folder code.
-- Keep secrets server-side in Edge Functions.
-- Style with `constants/colors.ts`, `constants/spacing.ts`, and `constants/cookbookStyles.ts`.
-- Only add config-plugin packages to `app.json` plugins.
-- Do not revert unrelated worker changes on the shared cleanup branch.
-- Do not commit unless the user explicitly asks.
-
-## Current Docs
-
-- `README.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DATABASE.md`
-- `docs/DEVELOPMENT.md`
-- `docs/superpowers/specs/`
-- `docs/superpowers/plans/`
+Do not commit unless the user asks. Never put provider or service-role keys in `EXPO_PUBLIC_*` variables.

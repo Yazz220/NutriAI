@@ -1,5 +1,7 @@
 # Nosh — AI Cookbook Reset Design
 
+> Historical design record. Do not implement from this file. Use `docs/PRODUCT_FLOW.md`, `docs/ARCHITECTURE.md`, and the accepted ADRs for current behavior.
+
 **Date:** 2026-05-03  
 **Status:** Approved concept, ready for implementation planning  
 **Direction:** Clean product reset inside the existing Expo/Supabase app

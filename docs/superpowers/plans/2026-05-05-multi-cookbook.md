@@ -1,5 +1,7 @@
 # Multi-Cookbook Implementation Plan (2026-05-05)
 
+> Historical implementation record. Do not execute this plan against the current branch.
+
 Plan paired with [`specs/2026-05-05-multi-cookbook-design.md`](../specs/2026-05-05-multi-cookbook-design.md).
 
 ## Order of work

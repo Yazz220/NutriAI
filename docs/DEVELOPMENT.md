@@ -23,6 +23,10 @@ npm run lint
 
 The dev server connects to the Nosh dev build on device. Web preview is useful for reader layout work, but iOS device builds are still required for native auth and platform checks.
 
+Before a Phase 9 release, follow `docs/PHASE9_RELEASE_RUNBOOK.md`. A passing web preview does not satisfy the native-share, dynamic-type, screen-reader, reduced-motion, or representative-device gates.
+
+Before changing capture or generation, read `docs/PRODUCT_FLOW.md` and ADR 0002. The app has one capture pipeline and one complete-page generator.
+
 ## Environment
 
 Client-safe `.env` keys:
@@ -35,7 +39,10 @@ EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
 EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
+EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
 ```
+
+`EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must not select a different capture, extraction, or page-generation implementation.
 
 Only `EXPO_PUBLIC_*` values are bundled into the app. Never put provider API keys or service-role keys in client env vars.
 
@@ -67,19 +74,21 @@ app/(book)/[cookbookId]/review.tsx
 app/(book)/[cookbookId]/generation/[pageId].tsx
 ```
 
-The table of contents is rendered inside the reader by `BookTableOfContentsPage`; it is not a route.
+The reader contains a bookplate and recipe pages. The table of contents has been retired; review and generation routes are compatibility redirects.
 
 ## Provider Order
 
 Keep the root provider order in `app/_layout.tsx` aligned with the live tree:
 
 ```text
-QueryClientProvider
-  CookbooksProvider
-    CookbookImportProvider
-      ToastProvider
-        GlobalErrorBoundary
-          RootLayoutNav
+ShareIntentProvider
+  NoshNativeShareProvider
+    QueryClientProvider
+      CookbooksProvider
+        NoshConversationProvider
+          ToastProvider
+            GlobalErrorBoundary
+              RootLayoutNav
 ```
 
 `RootLayoutNav` owns the auth redirect logic with `useAuth()` and renders the root Expo Router stack inside `GestureHandlerRootView` and `SafeAreaProvider`.
@@ -88,7 +97,7 @@ QueryClientProvider
 
 - Shelf data comes from `useCookbooks`.
 - One-book reader state comes from `useCookbook(cookbookId)`.
-- Import/review state comes from `useCookbookImport`.
+- Durable import state, polling, retry, and destination choice come from `useRecipeCaptures`.
 - Assistant chat uses `@assistant-ui/react-native` `LocalRuntime` bridging to `nosh-chat` via `utils/cookbook/noshChatAdapter.ts`.
 - Server state belongs in TanStack React Query.
 - Shelf and per-book page caches belong in `utils/cookbook/cache.ts`.
@@ -110,10 +119,13 @@ supabase functions logs <function-name> --project-ref <PROJECT_REF>
 Live functions:
 
 - `extract-recipe`
+- `capture-recipe`
 - `nosh-chat`
 - `generate-page-art`
 - `credits`
 - `delete-account`
+
+Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. For the simplified pipeline, apply `20260822153000_simplify_recipe_page_pipeline.sql` before the matching `capture-recipe` and `generate-page-art` versions.
 
 ## EAS Builds
 
@@ -153,4 +165,8 @@ npx eas-cli submit --platform ios
 | Signed-in user returns to auth | auth guard or session state changed | inspect `app/_layout.tsx` and `useAuth` |
 | Shelf stays empty after creating a book | migration/RLS issue | verify `supabase/sql/20260505_multi_cookbook.sql` and RLS policies |
 | Import fails with 401 | missing Supabase JWT | call through `callAuthenticatedFunction` |
-| Generated page has no art | missing `ART_MODEL` secret or OpenRouter issue | check `generate-page-art` logs and secrets |
+| Generated page has no image | missing `ART_MODEL` secret, OpenRouter failure, or an unselected page version | check `generate-page-art` logs, `generation_requests`, and `selected_version_id` |
+| Capture stays in processing | stale worker, failed generator callback, or migration mismatch | inspect `recipe_captures`, `generation_requests`, and `capture-recipe` logs; retry the same capture id |
+| Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |
+| New page uses the typesetter | caller bypassed the capture contract or page has no complete image | trace the source through `capture-recipe`; do not add another generation path |
+| Page style differs from its book | stale cookbook style fields or caller-defined references | inspect `cover_style`, `style_revision`, and `page_style_references`; generation must read them from the database |

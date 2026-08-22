@@ -1,5 +1,7 @@
 # Nosh reader feel: physical book polish plan
 
+> Historical reader-polish record. Inspect the current reader before using any remaining idea from this plan.
+
 Date: 2026-08-18
 Status: in progress (Phases 1–4 complete, Phase 5 remaining)
 Benchmark: StPageFlip / react-pageflip (https://nodlik.github.io/react-pageflip/)

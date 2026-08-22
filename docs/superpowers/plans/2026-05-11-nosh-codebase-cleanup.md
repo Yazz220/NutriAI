@@ -1,5 +1,7 @@
 # Nosh Codebase Cleanup Implementation Plan
 
+> Superseded implementation plan. Do not execute its tasks. Current product and pipeline boundaries live in `docs/PRODUCT_FLOW.md` and `docs/ARCHITECTURE.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Bring the current Nosh codebase into a clean, production-ready, book-first shape by removing legacy product drift, fixing launch blockers, and simplifying the UI/developer architecture.
@@ -1897,4 +1899,3 @@ No placeholder scan:
 Type consistency:
 
 - New helper names are consistent across tasks: `validatePublicHttpUrl`, `assertPublicDnsHostname`, `normalizeBase64Payload`, `buildReviewedRecipe`, `deleteAccount`, `clearCachedShelf`, `clearCachedPages`, and `Sheet`.
-

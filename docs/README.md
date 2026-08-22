@@ -1,28 +1,54 @@
-# Nosh — Documentation
+# Nosh documentation
 
-Welcome. The cookbook product moves fast; everything in here reflects the **current** state of the app, not earlier products. If something is stale, fix it in place rather than leaving notes that contradict the code.
+Start here when the code, a plan, and an old screenshot seem to disagree.
 
-## Index
+## Current sources of truth
 
-| Doc | Purpose |
+Read these in order:
+
+| Document | Answers |
 |---|---|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | How the app is wired: navigation, state layers, AI pipeline, Edge Functions. |
-| [DATABASE.md](./DATABASE.md) | Supabase schema (`nutriai`), RLS posture, migrations. |
-| [DEVELOPMENT.md](./DEVELOPMENT.md) | Run / build / test / deploy commands and gotchas. |
-| [superpowers/specs/](./superpowers/specs/) | Approved design specs. |
-| [superpowers/plans/](./superpowers/plans/) | Implementation plans paired with each spec. |
+| [../CONTEXT.md](../CONTEXT.md) | What Nosh terms mean |
+| [PRODUCT_FLOW.md](./PRODUCT_FLOW.md) | What the user does and how a recipe reaches a book |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | How the current app implements that flow |
+| [DATABASE.md](./DATABASE.md) | Which tables, states, RPCs, and ownership rules support it |
+| [DEVELOPMENT.md](./DEVELOPMENT.md) | How to run, test, build, and debug the app |
+| [PHASE9_RELEASE_RUNBOOK.md](./PHASE9_RELEASE_RUNBOOK.md) | What must pass before staging or production |
+| [adr/](./adr/) | Accepted decisions and the reasons behind them |
 
-## What lives where
+`AGENTS.md` is the coding-agent operating manual. `CLAUDE.md` points agents back to the same sources so the repository has one set of rules.
 
-- **Specs** describe *what* we're building and *why*. They're approved before any code.
-- **Plans** describe *how* — file-level changes, order of operations, verification steps.
-- **ARCHITECTURE / DATABASE / DEVELOPMENT** describe *what exists right now*.
+## One pipeline
 
-If a spec/plan ships and the doc is no longer needed, it stays in `superpowers/` as a record. If the architecture changes meaningfully, update `ARCHITECTURE.md` in the same PR.
+The active import and generation contract is fixed by [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md):
 
-## House rules
+```text
+recipe source
+  -> capture-recipe
+  -> extract-recipe
+  -> destination resolution
+  -> one processing cookbook page
+  -> generate-page-art creates the complete page with text
+  -> ready page in the reader
+```
 
-- One source of truth per topic. Don't duplicate database details across multiple files.
-- Code references use linkable paths (e.g. [hooks/useCookbook.ts](../hooks/useCookbook.ts)). Keep them current.
-- Never write a "Session recap" doc that captures one chat. Recaps belong in commit messages and PRs.
-- Never describe deprecated products (calorie tracker, food logging, inventory) in current docs.
+Do not introduce a direct chat import, blocking review flow, pending-page approval, artwork-only generator, or new typesetter production path.
+
+## Historical records
+
+Files under `superpowers/specs/` and `superpowers/plans/` record earlier decisions and implementation work. They can explain why code exists, but they are not current instructions. Several describe the retired approval flow or the superseded split typesetter and artwork architecture.
+
+`UX_INVENTORY_CURRENT.md` is a pre-simplification UX snapshot. Its diagrams and flow descriptions are historical.
+
+When historical material conflicts with the current sources above, follow the current sources and the code. Add a clear superseded note to the historical file if the conflict could mislead another agent.
+
+## Documentation rules
+
+- Update `PRODUCT_FLOW.md` when user behavior changes.
+- Update `ARCHITECTURE.md` when routes, providers, pipeline ownership, or major components change.
+- Update `DATABASE.md` with every schema or state-machine migration.
+- Update `DEVELOPMENT.md` when commands, environment variables, deployment order, or debugging steps change.
+- Add an ADR only for a costly, surprising decision with real alternatives.
+- Keep dated plans as history. Do not quietly rewrite them into current architecture.
+- Delete obsolete root-level guides instead of leaving contradictory instructions beside `README.md`.
+- Never include credentials, recipe content, source URLs, or private user data in documentation examples.

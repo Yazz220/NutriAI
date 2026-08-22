@@ -1,7 +1,9 @@
 # Pipeline Architecture Pivot — Decoupled Art + Text
 
+> Superseded by ADR 0002. Nosh now generates the complete recipe page with visible text and keeps the typesetter only for legacy compatibility.
+
 **Date:** 2026-08-20
-**Status:** Decided — implementation in progress
+**Status:** Superseded
 
 ## Decision
 
@@ -100,7 +102,7 @@ model later requires no architectural change.
 ```json
 {
   "cookbookId": "string",
-  "pageId": "string (optional, for re-generation)",
+  "pageId": "string (required; existing page that owns the art asset)",
   "recipeGraph": RecipeGraph,
   "styleId": CookbookStyleId,
   "idempotencyKey": "string"

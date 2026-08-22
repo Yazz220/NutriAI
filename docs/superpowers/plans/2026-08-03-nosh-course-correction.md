@@ -1,6 +1,8 @@
 # Nosh Course-Correction Plan
 
-**Status:** Active direction as of 2026-08-03  
+> Historical plan. The book-first direction remains, but current capture and page generation are defined by `docs/PRODUCT_FLOW.md` and ADR 0002.
+
+**Status:** Superseded implementation record
 **Product:** A book-first personal cookbook builder  
 **North star:** Every import should feel like placing a finished page into a book you own.
 
@@ -18,6 +20,10 @@ The active sequence is now:
 4. Return to import breadth, generated imagery, placement, and provider-pipeline optimization after the book concept works seamlessly.
 
 Remaining Phase 0 fixture and validation work is deferred, not discarded. Completed reliability safeguards remain the baseline.
+
+## Context-aware Nosh roadmap, 2026-08-21
+
+Assistant context, collection retrieval, and capture wrappers now follow [the context-aware interaction roadmap](./2026-08-21-nosh-context-aware-interaction-roadmap.md). That roadmap supersedes the assistant and universal-capture sections below where they conflict, while preserving the completed reader, typesetter, generation-safety, and credit work.
 
 ## Product Principles
 

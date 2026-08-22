@@ -1,5 +1,7 @@
 # Nosh Reader Feel — Session Handoff
 
+> Historical handoff. It describes an earlier reader state and is not a current implementation brief.
+
 ## Goal
 
 Make the digital cookbook feel like a real physical book — tactile, immersive, delightful to flip through. The benchmark is [react-pageflip/StPageFlip](https://nodlik.github.io/react-pageflip/): corner-grab page curl, soft paper deformation, momentum-aware release, interruptible mid-turn.

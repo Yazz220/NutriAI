@@ -1,5 +1,7 @@
 # Nosh AI Cookbook Reset Implementation Plan
 
+> Superseded implementation plan. Do not execute its tasks. Use `docs/PRODUCT_FLOW.md`, `docs/ARCHITECTURE.md`, and the accepted ADRs.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebuild Nosh into a personal recipe e-book with an AI chef assistant who understands every generated cookbook page.
