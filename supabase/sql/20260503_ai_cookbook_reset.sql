@@ -13,21 +13,6 @@ create table if not exists nutriai.cookbooks (
   updated_at timestamptz not null default now()
 );
 
-delete from nutriai.cookbooks c
-using (
-  select id
-  from (
-    select
-      id,
-      row_number() over (partition by user_id order by created_at asc, id asc) as keeper_rank
-    from nutriai.cookbooks
-  ) ranked
-  where keeper_rank > 1
-) duplicates
-where c.id = duplicates.id;
-
-create unique index if not exists cookbooks_one_per_user_idx on nutriai.cookbooks(user_id);
-
 create table if not exists nutriai.recipes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

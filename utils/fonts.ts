@@ -1,37 +1,43 @@
-import * as Font from 'expo-font';
 import { Platform } from 'react-native';
+import * as Font from 'expo-font';
+import type { FontSource } from 'expo-font';
 
-// Load and register custom fonts (Manrope for UI, Fraunces for Display)
+type InterFontModule = Partial<{
+  Inter_400Regular: FontSource;
+  Inter_500Medium: FontSource;
+  Inter_600SemiBold: FontSource;
+  Inter_700Bold: FontSource;
+}>;
+
+async function optionalFontModule<T extends object>(loader: () => Promise<unknown>): Promise<Partial<T>> {
+  try {
+    return (await loader()) as Partial<T>;
+  } catch {
+    return {};
+  }
+}
+
+// Load and register optional fonts. The Boords reference uses Matter; Inter is
+// the closest available substitute and is used for headings, body, and UI.
 // Uses dynamic imports so the app doesn't crash if packages aren't installed yet.
 export const loadFonts = async () => {
   try {
-    const [manrope, fraunces] = await Promise.all([
-      import('@expo-google-fonts/manrope').catch(() => ({} as any)),
-      import('@expo-google-fonts/fraunces').catch(() => ({} as any)),
+    const [inter] = await Promise.all([
+      optionalFontModule<InterFontModule>(() => import('@expo-google-fonts/inter')),
     ]);
 
     const {
-      Manrope_400Regular,
-      Manrope_500Medium,
-      Manrope_600SemiBold,
-      Manrope_700Bold,
-    } = manrope as any;
+      Inter_400Regular,
+      Inter_500Medium,
+      Inter_600SemiBold,
+      Inter_700Bold,
+    } = inter;
 
-    const {
-      Fraunces_400Regular,
-      Fraunces_600SemiBold,
-      Fraunces_700Bold,
-    } = fraunces as any;
-
-    const toLoad: Record<string, any> = {};
-    if (Manrope_400Regular) toLoad['Manrope'] = Manrope_400Regular;
-    if (Manrope_500Medium) toLoad['Manrope-Medium'] = Manrope_500Medium;
-    if (Manrope_600SemiBold) toLoad['Manrope-SemiBold'] = Manrope_600SemiBold;
-    if (Manrope_700Bold) toLoad['Manrope-Bold'] = Manrope_700Bold;
-
-    if (Fraunces_400Regular) toLoad['Fraunces'] = Fraunces_400Regular;
-    if (Fraunces_600SemiBold) toLoad['Fraunces-SemiBold'] = Fraunces_600SemiBold;
-    if (Fraunces_700Bold) toLoad['Fraunces-Bold'] = Fraunces_700Bold;
+    const toLoad: Record<string, FontSource> = {};
+    if (Inter_400Regular) toLoad.Inter = Inter_400Regular;
+    if (Inter_500Medium) toLoad['Inter-Medium'] = Inter_500Medium;
+    if (Inter_600SemiBold) toLoad['Inter-SemiBold'] = Inter_600SemiBold;
+    if (Inter_700Bold) toLoad['Inter-Bold'] = Inter_700Bold;
 
     if (Object.keys(toLoad).length > 0) {
       await Font.loadAsync(toLoad);
@@ -39,28 +45,32 @@ export const loadFonts = async () => {
   } catch (e) {
     // Ignore font load errors to avoid blocking the app
     if (__DEV__) {
-      console.warn('[fonts] Failed to load Manrope/Fraunces; falling back to system fonts.', e);
+      console.warn('[fonts] Failed to load Nosh fonts; falling back to system fonts.', e);
     }
   }
   return true;
 };
 
+const editorialSerif = Platform.select({
+  ios: 'Georgia',
+  android: 'serif',
+  web: 'Georgia',
+  default: 'serif',
+}) ?? 'serif';
+
 // Central place to reference font families used across the app
 export const Fonts = {
-  // UI (Manrope)
   ui: {
-    regular: 'Manrope',
-    medium: 'Manrope-Medium',
-    semibold: 'Manrope-SemiBold',
-    bold: 'Manrope-Bold',
+    regular: 'Inter',
+    medium: 'Inter-Medium',
+    semibold: 'Inter-SemiBold',
+    bold: 'Inter-Bold',
   },
-  // Display (Fraunces)
   display: {
-    regular: 'Fraunces',
-    semibold: 'Fraunces-SemiBold',
-    bold: 'Fraunces-Bold',
+    regular: editorialSerif,
+    semibold: editorialSerif,
+    bold: editorialSerif,
   },
-  // Backwards-compat aliases (default to UI font)
-  regular: 'Manrope',
-  bold: 'Manrope-Bold',
+  regular: 'Inter',
+  bold: 'Inter-Bold',
 };

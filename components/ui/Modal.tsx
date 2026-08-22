@@ -13,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { X } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { Fonts } from '@/utils/fonts';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 
 interface ModalProps {
   visible: boolean;
@@ -105,7 +106,7 @@ export const Modal: React.FC<ModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: Colors.overlay.medium,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
@@ -117,8 +118,10 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   modalContent: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
     maxHeight: '95%',
   },
   fullContent: {
@@ -164,7 +167,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.semibold,
+    fontFamily: Fonts.display.bold,
     color: Colors.text,
     flex: 1,
   },

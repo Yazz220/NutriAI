@@ -1,347 +1,398 @@
 -- =============================================================================
--- Nosh — Full Database Bootstrap
+-- Nosh - Fresh Database Bootstrap
 -- =============================================================================
--- Run this against a fresh Supabase project to create all tables, RLS policies,
--- triggers, and seed data. Safe to re-run (uses IF NOT EXISTS / ON CONFLICT).
+-- Run this against a fresh Supabase project to create the current book-first
+-- cookbook schema.
 --
 -- Prerequisites:
---   - Supabase project with auth.users enabled (default)
+--   - Supabase project with auth.users and storage enabled
 --   - Run as the postgres/service_role user
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1. Schema
+-- 1. Schema and shared helpers
 -- ---------------------------------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS nutriai;
 
--- ---------------------------------------------------------------------------
--- 2. Shared helper: auto-update updated_at
--- ---------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+GRANT USAGE ON SCHEMA nutriai TO anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION nutriai.set_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
--- Alias in public schema (used by food_logs etc.)
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
+-- ---------------------------------------------------------------------------
+-- 2. Cookbooks
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS nutriai.cookbooks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT 'My Cookbook',
+  theme_name TEXT NOT NULL DEFAULT 'Warm handwritten',
+  theme_prompt TEXT NOT NULL DEFAULT 'Warm handwritten cookbook page with practical recipe styling.',
+  section_order JSONB NOT NULL DEFAULT '["breakfast","lunch","dinner","healthy","desserts","sides","favorites"]'::jsonb,
+  cover_style TEXT NOT NULL DEFAULT 'handwritten',
+  sections JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT cookbooks_cover_style_check
+    CHECK (cover_style IN ('vintage-garden','handwritten','editorial','watercolor','rustic','minimal'))
+);
+
+ALTER TABLE nutriai.cookbooks
+  ADD COLUMN IF NOT EXISTS cover_style TEXT NOT NULL DEFAULT 'handwritten';
+
+ALTER TABLE nutriai.cookbooks
+  ADD COLUMN IF NOT EXISTS sections JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+UPDATE nutriai.cookbooks
+   SET cover_style = 'handwritten'
+ WHERE cover_style IS NULL
+    OR cover_style = ''
+    OR cover_style NOT IN ('vintage-garden','handwritten','editorial','watercolor','rustic','minimal');
+
+DO $$ BEGIN
+  ALTER TABLE nutriai.cookbooks
+    ADD CONSTRAINT cookbooks_cover_style_check
+    CHECK (cover_style IN ('vintage-garden','handwritten','editorial','watercolor','rustic','minimal'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DROP INDEX IF EXISTS nutriai.cookbooks_one_per_user_idx;
+
+CREATE INDEX IF NOT EXISTS cookbooks_user_idx
+  ON nutriai.cookbooks (user_id);
+
+CREATE INDEX IF NOT EXISTS cookbooks_user_updated_idx
+  ON nutriai.cookbooks (user_id, updated_at DESC);
+
+DROP TRIGGER IF EXISTS cookbooks_set_updated_at ON nutriai.cookbooks;
+CREATE TRIGGER cookbooks_set_updated_at
+  BEFORE UPDATE ON nutriai.cookbooks
+  FOR EACH ROW EXECUTE FUNCTION nutriai.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- 3. Recipes
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS nutriai.recipes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  servings INTEGER,
+  prep_time INTEGER,
+  cook_time INTEGER,
+  ingredients JSONB NOT NULL DEFAULT '[]'::jsonb,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  source_type TEXT NOT NULL CHECK (source_type IN ('url','text','image','video')),
+  source_url TEXT,
+  tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+  category TEXT NOT NULL DEFAULT 'favorites',
+  confidence NUMERIC NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS recipes_id_user_idx
+  ON nutriai.recipes (id, user_id);
+
+CREATE INDEX IF NOT EXISTS recipes_user_idx
+  ON nutriai.recipes (user_id);
+
+DROP TRIGGER IF EXISTS recipes_set_updated_at ON nutriai.recipes;
+CREATE TRIGGER recipes_set_updated_at
+  BEFORE UPDATE ON nutriai.recipes
+  FOR EACH ROW EXECUTE FUNCTION nutriai.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- 4. Cookbook pages
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS nutriai.cookbook_pages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cookbook_id UUID NOT NULL REFERENCES nutriai.cookbooks(id) ON DELETE CASCADE,
+  recipe_id UUID NOT NULL REFERENCES nutriai.recipes(id) ON DELETE CASCADE,
+  page_number INTEGER NOT NULL,
+  section TEXT NOT NULL DEFAULT 'favorites',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  selected_version_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (cookbook_id, page_number)
+);
+
+CREATE OR REPLACE FUNCTION nutriai.enforce_cookbook_page_recipe_owner()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  cookbook_owner UUID;
+  recipe_owner UUID;
 BEGIN
-  NEW.updated_at = NOW();
+  SELECT user_id INTO cookbook_owner
+  FROM nutriai.cookbooks
+  WHERE id = NEW.cookbook_id;
+
+  SELECT user_id INTO recipe_owner
+  FROM nutriai.recipes
+  WHERE id = NEW.recipe_id;
+
+  IF cookbook_owner IS NULL OR recipe_owner IS NULL OR cookbook_owner <> recipe_owner THEN
+    RAISE EXCEPTION 'Cookbook page recipe must belong to the cookbook owner';
+  END IF;
+
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
--- ---------------------------------------------------------------------------
--- 3. nutriai.profiles
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS nutriai.profiles (
-  user_id     UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name TEXT,
-  units       TEXT DEFAULT 'metric',
-  goals       JSONB DEFAULT '{}'::jsonb,
-  preferences JSONB DEFAULT '{}'::jsonb,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+DROP TRIGGER IF EXISTS cookbook_pages_recipe_owner_check ON nutriai.cookbook_pages;
+CREATE TRIGGER cookbook_pages_recipe_owner_check
+  BEFORE INSERT OR UPDATE OF cookbook_id, recipe_id ON nutriai.cookbook_pages
+  FOR EACH ROW EXECUTE FUNCTION nutriai.enforce_cookbook_page_recipe_owner();
 
-DROP TRIGGER IF EXISTS profiles_set_updated_at ON nutriai.profiles;
-CREATE TRIGGER profiles_set_updated_at
-  BEFORE UPDATE ON nutriai.profiles
+CREATE INDEX IF NOT EXISTS pages_cookbook_order_idx
+  ON nutriai.cookbook_pages (cookbook_id, sort_order);
+
+DROP TRIGGER IF EXISTS cookbook_pages_set_updated_at ON nutriai.cookbook_pages;
+CREATE TRIGGER cookbook_pages_set_updated_at
+  BEFORE UPDATE ON nutriai.cookbook_pages
   FOR EACH ROW EXECUTE FUNCTION nutriai.set_updated_at();
 
-ALTER TABLE nutriai.profiles ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY profiles_select ON nutriai.profiles FOR SELECT
-    USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY profiles_insert ON nutriai.profiles FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY profiles_update ON nutriai.profiles FOR UPDATE
-    USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
 -- ---------------------------------------------------------------------------
--- 4. nutriai.meal_plans
+-- 5. Page versions
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS nutriai.meal_plans (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  recipe_id    TEXT NOT NULL,
-  date         DATE NOT NULL,
-  meal_type    TEXT NOT NULL,
-  servings     INTEGER DEFAULT 1,
-  notes        TEXT,
-  is_completed BOOLEAN DEFAULT FALSE,
-  completed_at TIMESTAMPTZ,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS nutriai.page_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id UUID NOT NULL REFERENCES nutriai.cookbook_pages(id) ON DELETE CASCADE,
+  image_url TEXT,
+  storage_path TEXT,
+  prompt_payload JSONB NOT NULL,
+  model TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','generating','ready','failed')),
+  credit_cost INTEGER NOT NULL DEFAULT 1,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_meal_plans_user_date
-  ON nutriai.meal_plans (user_id, date);
+CREATE UNIQUE INDEX IF NOT EXISTS page_versions_page_id_id_idx
+  ON nutriai.page_versions (page_id, id);
 
-DROP TRIGGER IF EXISTS meal_plans_set_updated_at ON nutriai.meal_plans;
-CREATE TRIGGER meal_plans_set_updated_at
-  BEFORE UPDATE ON nutriai.meal_plans
-  FOR EACH ROW EXECUTE FUNCTION nutriai.set_updated_at();
+CREATE INDEX IF NOT EXISTS page_versions_page_idx
+  ON nutriai.page_versions (page_id);
 
-ALTER TABLE nutriai.meal_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutriai.cookbook_pages
+  DROP CONSTRAINT IF EXISTS cookbook_pages_selected_version_id_fkey;
 
-DO $$ BEGIN
-  CREATE POLICY meal_plans_select ON nutriai.meal_plans FOR SELECT
-    USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY meal_plans_insert ON nutriai.meal_plans FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY meal_plans_update ON nutriai.meal_plans FOR UPDATE
-    USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY meal_plans_delete ON nutriai.meal_plans FOR DELETE
-    USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+ALTER TABLE nutriai.cookbook_pages
+  ADD CONSTRAINT cookbook_pages_selected_version_id_fkey
+  FOREIGN KEY (id, selected_version_id) REFERENCES nutriai.page_versions(page_id, id)
+  ON DELETE SET NULL (selected_version_id);
 
 -- ---------------------------------------------------------------------------
--- 5. nutriai.ingredient_icons
+-- 6. Credits
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS nutriai.ingredient_icons (
-  slug              TEXT PRIMARY KEY,
-  display_name      TEXT,
-  status            TEXT NOT NULL DEFAULT 'pending'
-                      CHECK (status IN ('ready','pending','failed')),
-  image_url         TEXT,
-  storage_path      TEXT,
-  seed              INTEGER,
-  prompt_version    INTEGER NOT NULL DEFAULT 1,
-  prompt            TEXT,
-  model             TEXT,
-  fail_count        INTEGER NOT NULL DEFAULT 0,
-  last_error        TEXT,
-  last_requested_at TIMESTAMPTZ,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS nutriai.credit_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('grant','generation_spend','adjustment')),
+  amount INTEGER NOT NULL,
+  related_page_version_id UUID REFERENCES nutriai.page_versions(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS ingredient_icons_status_idx
-  ON nutriai.ingredient_icons (status);
-CREATE INDEX IF NOT EXISTS ingredient_icons_updated_idx
-  ON nutriai.ingredient_icons (updated_at DESC);
-CREATE INDEX IF NOT EXISTS ingredient_icons_requested_idx
-  ON nutriai.ingredient_icons (last_requested_at DESC);
+CREATE INDEX IF NOT EXISTS credit_ledger_user_idx
+  ON nutriai.credit_ledger (user_id, created_at DESC);
 
-DROP TRIGGER IF EXISTS ingredient_icons_set_updated_at ON nutriai.ingredient_icons;
-CREATE TRIGGER ingredient_icons_set_updated_at
-  BEFORE UPDATE ON nutriai.ingredient_icons
-  FOR EACH ROW EXECUTE FUNCTION nutriai.set_updated_at();
+CREATE OR REPLACE FUNCTION nutriai.reserve_generation_credit(p_user_id UUID)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  current_balance INTEGER;
+  spend_id UUID;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
 
-ALTER TABLE nutriai.ingredient_icons ENABLE ROW LEVEL SECURITY;
+  SELECT COALESCE(SUM(amount), 0)::INTEGER
+    INTO current_balance
+  FROM nutriai.credit_ledger
+  WHERE user_id = p_user_id;
 
-DO $$ BEGIN
-  CREATE POLICY ingredient_icons_read ON nutriai.ingredient_icons FOR SELECT
-    TO authenticated USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  IF current_balance < 1 THEN
+    RAISE EXCEPTION 'Not enough credits' USING errcode = 'P0001';
+  END IF;
 
-DO $$ BEGIN
-  CREATE POLICY ingredient_icons_write_service ON nutriai.ingredient_icons FOR ALL
-    TO service_role USING (true) WITH CHECK (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  INSERT INTO nutriai.credit_ledger (user_id, event_type, amount)
+  VALUES (p_user_id, 'generation_spend', -1)
+  RETURNING id INTO spend_id;
 
--- ---------------------------------------------------------------------------
--- 6. public.food_usda_mapping  (USDA nutrition per 100 g)
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.food_usda_mapping (
-  label                TEXT PRIMARY KEY,
-  fdc_id               TEXT NOT NULL,
-  calories             INTEGER NOT NULL,
-  protein              FLOAT NOT NULL,
-  carbohydrates        FLOAT NOT NULL,
-  fat                  FLOAT NOT NULL,
-  fiber                FLOAT,
-  sugar                FLOAT,
-  sodium               FLOAT,
-  default_grams        INTEGER DEFAULT 100,
-  default_portion_text TEXT,
-  updated_at           TIMESTAMPTZ DEFAULT NOW(),
-  notes                TEXT
-);
+  RETURN spend_id;
+END;
+$$;
 
-CREATE INDEX IF NOT EXISTS idx_food_usda_mapping_fdc_id
-  ON public.food_usda_mapping (fdc_id);
+CREATE OR REPLACE FUNCTION nutriai.create_cookbook_page(
+  p_cookbook_id UUID,
+  p_recipe_id UUID,
+  p_section TEXT
+)
+RETURNS nutriai.cookbook_pages
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  next_page_number INTEGER;
+  inserted_page nutriai.cookbook_pages;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext(p_cookbook_id::text));
 
-DROP TRIGGER IF EXISTS update_food_usda_mapping_updated_at ON public.food_usda_mapping;
-CREATE TRIGGER update_food_usda_mapping_updated_at
-  BEFORE UPDATE ON public.food_usda_mapping
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  SELECT COALESCE(MAX(page_number), 0) + 1
+    INTO next_page_number
+  FROM nutriai.cookbook_pages
+  WHERE cookbook_id = p_cookbook_id;
 
-ALTER TABLE public.food_usda_mapping ENABLE ROW LEVEL SECURITY;
+  INSERT INTO nutriai.cookbook_pages (
+    cookbook_id,
+    recipe_id,
+    page_number,
+    section,
+    sort_order
+  )
+  VALUES (
+    p_cookbook_id,
+    p_recipe_id,
+    next_page_number,
+    COALESCE(NULLIF(p_section, ''), 'favorites'),
+    next_page_number
+  )
+  RETURNING * INTO inserted_page;
 
-DO $$ BEGIN
-  CREATE POLICY "Anyone can read USDA mapping" ON public.food_usda_mapping
-    FOR SELECT USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role can manage USDA mapping" ON public.food_usda_mapping
-    FOR ALL USING (auth.role() = 'service_role');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ---------------------------------------------------------------------------
--- 7. public.food_synonyms
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.food_synonyms (
-  alias           TEXT PRIMARY KEY,
-  canonical_label TEXT NOT NULL REFERENCES public.food_usda_mapping(label) ON DELETE CASCADE,
-  created_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_food_synonyms_alias
-  ON public.food_synonyms (alias);
-CREATE INDEX IF NOT EXISTS idx_food_synonyms_canonical
-  ON public.food_synonyms (canonical_label);
-
-ALTER TABLE public.food_synonyms ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Anyone can read food synonyms" ON public.food_synonyms
-    FOR SELECT USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role can manage synonyms" ON public.food_synonyms
-    FOR ALL USING (auth.role() = 'service_role');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  RETURN inserted_page;
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
--- 8. public.food_logs  (AI-powered food scan results)
+-- 7. Row level security
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.food_logs (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  source          TEXT NOT NULL CHECK (source IN ('manual', 'ai_scan', 'search', 'recipe')),
-  image_url       TEXT,
-  label           TEXT NOT NULL,
-  confidence      FLOAT CHECK (confidence >= 0 AND confidence <= 1),
-  grams_total     INTEGER,
-  portion_text    TEXT,
-  totals          JSONB NOT NULL,
-  model_version   TEXT,
-  mapping_version TEXT,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ DEFAULT NOW()
-);
+ALTER TABLE nutriai.cookbooks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutriai.recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutriai.cookbook_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutriai.page_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutriai.credit_ledger ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_food_logs_user_date
-  ON public.food_logs (user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_food_logs_label
-  ON public.food_logs (label);
+DROP POLICY IF EXISTS cookbooks_owner_select ON nutriai.cookbooks;
+CREATE POLICY cookbooks_owner_select ON nutriai.cookbooks
+  FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
 
-DROP TRIGGER IF EXISTS update_food_logs_updated_at ON public.food_logs;
-CREATE TRIGGER update_food_logs_updated_at
-  BEFORE UPDATE ON public.food_logs
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+DROP POLICY IF EXISTS cookbooks_owner_insert ON nutriai.cookbooks;
+CREATE POLICY cookbooks_owner_insert ON nutriai.cookbooks
+  FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) = user_id);
 
-ALTER TABLE public.food_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS cookbooks_owner_update ON nutriai.cookbooks;
+CREATE POLICY cookbooks_owner_update ON nutriai.cookbooks
+  FOR UPDATE TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can view own food logs" ON public.food_logs
-    FOR SELECT USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DROP POLICY IF EXISTS cookbooks_owner_delete ON nutriai.cookbooks;
+CREATE POLICY cookbooks_owner_delete ON nutriai.cookbooks
+  FOR DELETE TO authenticated USING ((SELECT auth.uid()) = user_id);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can insert own food logs" ON public.food_logs
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DROP POLICY IF EXISTS recipes_owner_all ON nutriai.recipes;
+CREATE POLICY recipes_owner_all ON nutriai.recipes
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can update own food logs" ON public.food_logs
-    FOR UPDATE USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DROP POLICY IF EXISTS pages_owner_all ON nutriai.cookbook_pages;
+CREATE POLICY pages_owner_all ON nutriai.cookbook_pages
+  FOR ALL TO authenticated USING (
+    EXISTS (
+      SELECT 1
+      FROM nutriai.cookbooks
+      WHERE cookbooks.id = cookbook_pages.cookbook_id
+        AND cookbooks.user_id = (SELECT auth.uid())
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM nutriai.cookbooks
+      WHERE cookbooks.id = cookbook_pages.cookbook_id
+        AND cookbooks.user_id = (SELECT auth.uid())
+    )
+  );
 
-DO $$ BEGIN
-  CREATE POLICY "Users can delete own food logs" ON public.food_logs
-    FOR DELETE USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DROP POLICY IF EXISTS page_versions_owner_all ON nutriai.page_versions;
+CREATE POLICY page_versions_owner_all ON nutriai.page_versions
+  FOR ALL TO authenticated USING (
+    EXISTS (
+      SELECT 1
+      FROM nutriai.cookbook_pages p
+      JOIN nutriai.cookbooks c ON c.id = p.cookbook_id
+      WHERE p.id = page_versions.page_id
+        AND c.user_id = (SELECT auth.uid())
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM nutriai.cookbook_pages p
+      JOIN nutriai.cookbooks c ON c.id = p.cookbook_id
+      WHERE p.id = page_versions.page_id
+        AND c.user_id = (SELECT auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS credit_ledger_owner_select ON nutriai.credit_ledger;
+CREATE POLICY credit_ledger_owner_select ON nutriai.credit_ledger
+  FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS credit_ledger_service_all ON nutriai.credit_ledger;
 
 -- ---------------------------------------------------------------------------
--- 9. Seed data — USDA top-20 foods
+-- 8. Grants
 -- ---------------------------------------------------------------------------
-INSERT INTO public.food_usda_mapping (label, fdc_id, calories, protein, carbohydrates, fat, fiber, sugar, default_grams, default_portion_text, notes) VALUES
-  ('pizza',               '173292', 266, 11.0, 33.0, 10.0, 2.3, 3.6, 107, '1 slice',          'Cheese pizza, regular crust'),
-  ('hamburger',           '173287', 295, 17.0, 24.0, 14.0, 1.5, 4.8, 110, '1 burger',         'Plain hamburger with bun'),
-  ('french_fries',        '170427', 312,  3.4, 41.0, 15.0, 3.8, 0.2, 117, '1 medium serving',  'Deep fried potato strips'),
-  ('ice_cream',           '170920', 207,  3.5, 24.0, 11.0, 0.7, 21.0, 66, '1/2 cup',          'Vanilla ice cream'),
-  ('grilled_chicken',     '171477', 165, 31.0,  0.0,  3.6, 0.0, 0.0, 140, '1 breast',         'Grilled chicken breast, skinless'),
-  ('caesar_salad',        '167773', 149,  5.5,  8.0, 11.0, 2.2, 2.0, 100, '1 bowl',           'Caesar salad with dressing'),
-  ('hot_dog',             '173288', 290, 10.0, 22.0, 17.0, 0.8, 4.0, 100, '1 hot dog',        'Frankfurter with bun'),
-  ('apple_pie',           '167518', 237,  2.0, 34.0, 11.0, 1.6, 16.0, 125, '1 slice',         'Apple pie, homemade'),
-  ('chocolate_cake',      '167519', 352,  4.9, 50.0, 15.0, 2.1, 35.0, 95, '1 slice',          'Chocolate cake with frosting'),
-  ('donuts',              '167520', 452,  4.9, 51.0, 25.0, 1.5, 27.0, 52, '1 donut',          'Glazed donut'),
-  ('bread',               '172687', 265,  9.0, 49.0,  3.2, 2.7, 5.0, 32, '1 slice',           'White bread'),
-  ('sushi',               '173296', 143,  6.1, 21.0,  4.0, 0.6, 3.0, 100, '6 pieces',         'Sushi roll, mixed'),
-  ('tacos',               '173295', 226,  9.0, 20.0, 13.0, 2.7, 1.6, 100, '1 taco',           'Beef taco with toppings'),
-  ('spaghetti_carbonara', '167765', 195,  8.0, 25.0,  7.0, 1.5, 2.0, 140, '1 cup',            'Pasta carbonara'),
-  ('fried_rice',          '168241', 163,  4.4, 28.0,  3.5, 0.8, 0.5, 198, '1 cup',            'Fried rice, chicken'),
-  ('pancakes',            '173277', 227,  6.0, 28.0, 10.0, 0.9, 6.0, 77, '1 pancake',         'Buttermilk pancake'),
-  ('waffles',             '173278', 291,  7.0, 33.0, 14.0, 1.2, 8.0, 75, '1 waffle',          'Waffle, plain'),
-  ('omelette',            '173424', 154, 11.0,  1.0, 12.0, 0.0, 0.8, 122, '2 eggs',           'Cheese omelette'),
-  ('chicken_wings',       '171479', 290, 27.0,  0.0, 19.0, 0.0, 0.0, 100, '4 wings',          'Chicken wings, fried'),
-  ('salad',               '167772',  33,  2.7,  6.3,  0.2, 2.1, 2.3, 100, '1 bowl',           'Mixed green salad, no dressing')
-ON CONFLICT (label) DO NOTHING;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA nutriai TO authenticated;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA nutriai TO service_role;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA nutriai TO authenticated, service_role;
 
-INSERT INTO public.food_synonyms (alias, canonical_label) VALUES
-  ('pepperoni pizza',      'pizza'),
-  ('cheese pizza',         'pizza'),
-  ('margherita pizza',     'pizza'),
-  ('burger',               'hamburger'),
-  ('cheeseburger',         'hamburger'),
-  ('fries',                'french_fries'),
-  ('chips',                'french_fries'),
-  ('vanilla ice cream',    'ice_cream'),
-  ('chocolate ice cream',  'ice_cream'),
-  ('grilled chicken breast','grilled_chicken'),
-  ('chicken breast',       'grilled_chicken'),
-  ('hot dog',              'hot_dog'),
-  ('hotdog',               'hot_dog'),
-  ('donut',                'donuts'),
-  ('doughnut',             'donuts'),
-  ('white bread',          'bread'),
-  ('wheat bread',          'bread'),
-  ('taco',                 'tacos'),
-  ('beef taco',            'tacos'),
-  ('spaghetti',            'spaghetti_carbonara'),
-  ('carbonara',            'spaghetti_carbonara'),
-  ('pancake',              'pancakes'),
-  ('waffle',               'waffles'),
-  ('omelet',               'omelette'),
-  ('egg omelette',         'omelette'),
-  ('wings',                'chicken_wings'),
-  ('buffalo wings',        'chicken_wings'),
-  ('green salad',          'salad'),
-  ('mixed salad',          'salad')
-ON CONFLICT (alias) DO NOTHING;
+REVOKE ALL ON FUNCTION nutriai.reserve_generation_credit(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION nutriai.create_cookbook_page(UUID, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION nutriai.set_updated_at() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION nutriai.enforce_cookbook_page_recipe_owner() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION nutriai.reserve_generation_credit(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION nutriai.create_cookbook_page(UUID, UUID, TEXT) TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 9. Generated page storage
+-- ---------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'cookbook-pages',
+  'cookbook-pages',
+  true,
+  10485760,
+  ARRAY['image/png', 'image/webp', 'image/jpeg']
+)
+ON CONFLICT (id) DO UPDATE
+SET public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- ---------------------------------------------------------------------------
 -- 10. Comments
 -- ---------------------------------------------------------------------------
 COMMENT ON SCHEMA nutriai IS 'Nosh application schema';
-COMMENT ON TABLE nutriai.profiles IS 'User profiles with goals and preferences';
-COMMENT ON TABLE nutriai.meal_plans IS 'Planned meals by date and meal type';
-COMMENT ON TABLE nutriai.ingredient_icons IS 'AI-generated ingredient icon queue and results';
-COMMENT ON TABLE public.food_logs IS 'AI-powered food scan results with full nutrition data';
-COMMENT ON TABLE public.food_usda_mapping IS 'Canonical food labels mapped to USDA FoodData Central (per-100g)';
-COMMENT ON TABLE public.food_synonyms IS 'Alternative food names mapped to canonical labels';
+COMMENT ON TABLE nutriai.cookbooks IS 'User-owned cookbook shelf entries';
+COMMENT ON TABLE nutriai.recipes IS 'Structured recipes imported into cookbooks';
+COMMENT ON TABLE nutriai.cookbook_pages IS 'Ordered recipe pages inside cookbooks';
+COMMENT ON TABLE nutriai.page_versions IS 'Generated image versions for cookbook pages';
+COMMENT ON TABLE nutriai.credit_ledger IS 'Append-only generation credit ledger';

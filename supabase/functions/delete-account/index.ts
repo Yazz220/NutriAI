@@ -10,9 +10,13 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
 import { verifyAuth } from '../_shared/auth.ts';
+import { logError, logInfo } from '../_shared/log.ts';
+import { removeStoragePrefix } from '../_shared/storageCleanup.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const CAPTURE_BUCKET = 'recipe-captures';
+const COOKBOOK_PAGE_BUCKET = Deno.env.get('COOKBOOK_PAGE_BUCKET') || 'cookbook-pages';
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -27,25 +31,42 @@ serve(async (req: Request) => {
 
   try {
     const userId = user!.id;
-    console.log(`[delete-account] Deleting user ${userId}`);
+    logInfo('delete-account started', { userId });
 
     // Use service role client for admin operations
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Delete user via Supabase Admin API (cascades through foreign keys)
+    // Storage objects do not participate in database foreign-key cascades.
+    // Remove both source captures and generated page artwork before deleting
+    // auth data so an account deletion cannot leave private media behind.
+    const [captureObjectsRemoved, pageArtObjectsRemoved] = await Promise.all([
+      removeStoragePrefix(adminClient.storage, CAPTURE_BUCKET, userId),
+      removeStoragePrefix(adminClient.storage, COOKBOOK_PAGE_BUCKET, userId),
+    ]);
+
+    // Delete user via Supabase Admin API (cascades through foreign keys).
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
 
     if (deleteError) {
-      console.error('[delete-account] Admin deleteUser error:', deleteError);
+      logError('delete-account auth deletion failed', {
+        userId,
+        error: deleteError.message,
+      });
       return jsonError('Failed to delete account', 500, req);
     }
 
-    console.log(`[delete-account] User ${userId} deleted successfully`);
+    logInfo('delete-account completed', {
+      userId,
+      captureObjectsRemoved,
+      pageArtObjectsRemoved,
+    });
     return jsonResponse({ success: true }, 200, req);
   } catch (error) {
-    console.error('[delete-account] Error:', error);
+    logError('delete-account failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return jsonError(
       error instanceof Error ? error.message : 'Internal server error',
       500,

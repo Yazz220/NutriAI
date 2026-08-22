@@ -1,15 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react-native';
+import { AlertCircle, Check, Info, X } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography, Shadows } from '@/constants/spacing';
+import { Fonts } from '@/utils/fonts';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 
 interface ToastProps {
   visible: boolean;
@@ -23,8 +23,6 @@ interface ToastProps {
   };
 }
 
-const { width } = Dimensions.get('window');
-
 export const Toast: React.FC<ToastProps> = ({
   visible,
   message,
@@ -35,6 +33,23 @@ export const Toast: React.FC<ToastProps> = ({
 }) => {
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+
+  const hideToast = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 100,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onHide();
+    });
+  }, [onHide, opacity, translateY]);
 
   useEffect(() => {
     if (visible) {
@@ -57,44 +72,27 @@ export const Toast: React.FC<ToastProps> = ({
 
       return () => clearTimeout(timer);
     }
-  }, [visible, duration]);
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: 100,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onHide();
-    });
-  };
+  }, [duration, hideToast, opacity, translateY, visible]);
 
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle size={20} color={Colors.fresh} />;
+        return <Check size={18} color={Colors.text} />;
       case 'error':
-        return <AlertCircle size={20} color={Colors.expiring} />;
+        return <AlertCircle size={18} color={Colors.error} />;
       default:
-        return <Info size={20} color={Colors.primary} />;
+        return <Info size={18} color={Colors.text} />;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return Colors.fresh;
+        return Colors.successLight;
       case 'error':
-        return Colors.expiring;
+        return Colors.errorLight;
       default:
-        return Colors.text;
+        return Colors.white;
     }
   };
 
@@ -136,7 +134,7 @@ export const Toast: React.FC<ToastProps> = ({
             onPress={hideToast}
             accessibilityLabel="Close notification"
           >
-            <X size={16} color={Colors.white} />
+            <X size={16} color={Colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -155,9 +153,11 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: Radii.lg,
     padding: Spacing.lg,
-    ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    ...Shadows.sm,
   },
   content: {
     flex: 1,
@@ -165,7 +165,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   message: {
-    color: Colors.white,
+    color: Colors.text,
+    fontFamily: Fonts.ui.regular,
     fontSize: Typography.sizes.md,
     marginLeft: Spacing.md,
     flex: 1,
@@ -176,16 +177,16 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
   },
   actionButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.parchment,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    borderRadius: 6,
+    borderRadius: Radii.xs,
     marginRight: Spacing.sm,
   },
   actionText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
+    fontFamily: Fonts.ui.medium,
   },
   closeButton: {
     padding: Spacing.xs,

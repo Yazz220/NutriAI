@@ -34,6 +34,9 @@ module.exports = {
     // Hooks rules
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'warn',
+    // React Native animation refs and initial effect synchronization are valid in this codebase.
+    'react-hooks/refs': 'off',
+    'react-hooks/set-state-in-effect': 'off',
   },
   ignorePatterns: [
     'node_modules/',

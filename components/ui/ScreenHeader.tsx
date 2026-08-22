@@ -44,7 +44,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
       {glassy && (
         <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
       )}
-      {glassy && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.04)'}]} />}
+      {glassy && <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.alpha.white[5] }]} />}
       {includeStatusBarSpacer && <View style={styles.statusBarSpacer} />}
 
       {/* Floating overlay icon (does not affect layout height) */}
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   containerGlassy: {
     backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.ash,
   },
   statusBarSpacer: {
     height: Platform.OS === 'ios' ? 44 : 24,

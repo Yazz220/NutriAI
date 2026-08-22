@@ -19,7 +19,8 @@
       "Bash(node -e \"const ngrok = require\\('@expo/ngrok'\\); ngrok.connect\\({addr: 8081}\\).then\\(url => { console.log\\('OK:', url\\); ngrok.kill\\(\\); }\\).catch\\(err => console.error\\('ERR:', err.message\\)\\)\")",
       "Bash(npm root:*)",
       "Bash(node -e \"console.log\\(require.resolve\\('ngrok/bin/ngrok'\\)\\)\")",
-      "Read(//c/Users/Yaz/AppData/Roaming/npm/node_modules/ngrok/bin/**)"
+      "Read(//c/Users/Yaz/AppData/Roaming/npm/node_modules/ngrok/bin/**)",
+      "mcp__supabase__apply_migration"
     ]
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { identifyUser } from '@/utils/analytics';
+import { withTimeout } from '@/utils/networkTimeout';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -32,12 +33,13 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     try {
-      // Prefer global sign-out (revokes refresh token); supported in supabase-js v2
-      await supabase.auth.signOut({ scope: 'global' } as any);
+      // Prefer global sign-out (revokes refresh token); supported in supabase-js v2.
+      // Time-bounded so a hung network call can't freeze the UI forever.
+      await withTimeout(supabase.auth.signOut({ scope: 'global' }), 8000);
     } catch (err1) {
       // Fallback to local sign-out to clear device session even if global fails
       try {
-        await supabase.auth.signOut({ scope: 'local' } as any);
+        await withTimeout(supabase.auth.signOut({ scope: 'local' }), 5000);
       } catch (err2) {
         // As a last resort, proceed with client-side state reset
         console.warn('[Auth] signOut fallback failed, clearing local state anyway', err1, err2);

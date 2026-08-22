@@ -19,7 +19,7 @@ export function OfflineBanner() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 4 }]}>
-      <WifiOff size={14} color={Colors.onWarning} />
+      <WifiOff size={14} color={Colors.text} />
       <Text style={styles.text}>No internet connection</Text>
     </View>
   );
@@ -36,12 +36,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingBottom: 6,
-    backgroundColor: Colors.warningDark,
+    paddingBottom: 8,
+    backgroundColor: Colors.parchment,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.ash,
   },
   text: {
-    color: Colors.onWarning,
+    color: Colors.text,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

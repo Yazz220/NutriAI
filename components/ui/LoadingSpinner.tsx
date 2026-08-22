@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
+import { Fonts } from '@/utils/fonts';
 
 interface LoadingSpinnerProps {
   size?: 'small' | 'large';
@@ -24,7 +25,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   return (
     <View style={containerStyle}>
-      <ActivityIndicator size={size} color={color || Colors.primary} />
+      <ActivityIndicator size={size} color={color || Colors.charcoal} />
       {text && <Text style={styles.text}>{text}</Text>}
     </View>
   );
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: Colors.alpha.white[50],
     zIndex: 1000,
   },
   text: {
@@ -47,5 +48,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     color: Colors.lightText,
     textAlign: 'center',
+    fontFamily: Fonts.ui.regular,
   },
 });

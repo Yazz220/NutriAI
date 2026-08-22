@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Colors } from '@/constants/colors';
 
 export type RuleProps = {
   orientation?: 'h' | 'v';
   thickness?: number;
   color?: string;
-  length?: number | string; // width for h, height for v
-  style?: ViewStyle | ViewStyle[];
+  length?: ViewStyle['width']; // width for h, height for v
+  style?: StyleProp<ViewStyle>;
 };
 
 export const Rule: React.FC<RuleProps> = ({
@@ -20,9 +20,9 @@ export const Rule: React.FC<RuleProps> = ({
   const isH = orientation === 'h';
   const t = thickness ?? StyleSheet.hairlineWidth;
   const base: ViewStyle = isH
-    ? { height: t, width: length as any, backgroundColor: color }
-    : { width: t, height: length as any, backgroundColor: color };
-  return <View style={[base, style as any]} />;
+    ? { height: t, width: length, backgroundColor: color }
+    : { width: t, height: length, backgroundColor: color };
+  return <View style={[base, style]} />;
 };
 
 export default Rule;

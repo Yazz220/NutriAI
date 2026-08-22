@@ -1,5 +1,6 @@
-﻿// Unified spacing system tuned for the Nosh aesthetic
+// Shared layout scale from the Boords-inspired Nosh design system.
 export const Spacing = {
+  xxs: 4,
   xs: 4,
   sm: 8,
   md: 12,
@@ -7,26 +8,27 @@ export const Spacing = {
   xl: 24,
   xxl: 32,
   xxxl: 40,
-  // terminal value per design scale
   xxxx: 48,
+  huge: 64,
+  page: 80,
+  hero: 104,
 } as const;
 
-// Typography system
+// Legacy typography export kept for components still importing from spacing.
 export const Typography = {
   sizes: {
-    xs: 11,
-    sm: 13,      // caption
-    md: 15,      // body
-    lg: 16,      // subtitle
-    xl: 20,      // title
-    xxl: 22,     // reserved
-    xxxl: 28,    // displayLg
-    display: 28,
+    xs: 10,
+    sm: 12,
+    md: 14,
+    lg: 16,
+    xl: 19,
+    xxl: 24,
+    xxxl: 32,
+    display: 60,
   },
   families: {
-    // Font family tokens (can be mapped to installed fonts later)
-    title: 'serif' as const,
-    body: undefined as unknown as string | undefined, // default system sans
+    title: 'Inter-Bold' as const,
+    body: 'Inter' as const,
   },
   weights: {
     regular: '400' as const,
@@ -36,88 +38,71 @@ export const Typography = {
   },
   lineHeights: {
     tight: 1.25,
-    normal: 1.38,
-    relaxed: 1.45,
+    normal: 1.5,
+    relaxed: 1.625,
   },
-  // Typography styles for components
-  displayLg: { // 28/36 600
-    fontSize: 28,
-    fontWeight: '600' as const,
-    lineHeight: 36,
+  displayLg: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    lineHeight: 38,
   },
-  displayMd: { // keep for compatibility
+  displayMd: {
     fontSize: 24,
-    fontWeight: '500' as const,
-    lineHeight: 32,
+    fontWeight: '700' as const,
+    lineHeight: 30,
   },
-  h2: { // title 20/28 600
-    fontSize: 20,
-    fontWeight: '600' as const,
-    lineHeight: 28,
+  h2: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    lineHeight: 30,
   },
-  h3: { // subtitle 16/22 500
-    fontSize: 16,
-    fontWeight: '500' as const,
-    lineHeight: 22,
+  h3: {
+    fontSize: 19,
+    fontWeight: '700' as const,
+    lineHeight: 24,
   },
-  body: { // 15/22 400
-    fontSize: 15,
+  body: {
+    fontSize: 14,
     fontWeight: '400' as const,
-    lineHeight: 22,
+    lineHeight: 24,
   },
-  bodySm: { // 13/18 400
-    fontSize: 13,
-    fontWeight: '400' as const,
-    lineHeight: 18,
-  },
-  caption: { // 13/18 400
-    fontSize: 13,
+  bodySm: {
+    fontSize: 12,
     fontWeight: '400' as const,
     lineHeight: 18,
   },
-  overline: { // 11/16 600
-    fontSize: 11,
+  caption: {
+    fontSize: 10,
+    fontWeight: '400' as const,
+    lineHeight: 15,
+  },
+  overline: {
+    fontSize: 10,
     fontWeight: '600' as const,
-    lineHeight: 16,
-    // tracking handled at component usage level if needed
+    lineHeight: 15,
   },
 } as const;
 
-// Corner radius system softened for the Nosh brand
 export const Radii = {
-  sm: 12,
-  md: 16,
-  lg: 20,
+  xs: 4,
+  sm: 8,
+  md: 14,
+  lg: 22,
+  xl: 24,
+  full: 9999,
 } as const;
 
-// Shadow system with herbaceous tints
 export const Shadows = {
   level0: {
-    shadowColor: 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    boxShadow: 'none',
   },
   sm: {
-    shadowColor: 'rgba(63, 109, 42, 0.10)',
-    shadowOffset: { width: 0, height: 2 }, // elevation.card offsetY 2
-    shadowOpacity: 1,
-    shadowRadius: 8, // blur 8
-    elevation: 3,
+    boxShadow: '0 10px 28px rgba(23, 22, 20, 0.06)',
   },
   md: {
-    shadowColor: 'rgba(63, 109, 42, 0.14)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
-    elevation: 6,
+    boxShadow: '0 12px 34px rgba(23, 22, 20, 0.08)',
   },
   lg: {
-    shadowColor: 'rgba(47, 58, 31, 0.18)', // elevated sheet tint
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 26,
-    elevation: 12,
+    boxShadow: '0 16px 38px rgba(23, 22, 20, 0.14)',
   },
 } as const;

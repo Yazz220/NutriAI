@@ -3,6 +3,12 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock react-native-worklets native module (required by Reanimated 4 / Skia)
+jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'));
+
+// Mock @shopify/react-native-skia native module (JSI bindings unavailable in Jest)
+jest.mock('@shopify/react-native-skia', () => require('@shopify/react-native-skia/lib/module/mock'));
+
 // Silence non-critical console warnings in tests
 const originalWarn = console.warn;
 console.warn = (...args) => {

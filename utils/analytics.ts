@@ -22,7 +22,7 @@ export function trackEvent(event: Omit<AppAnalyticsEvent, 'timestamp'>) {
     }
     // TODO: forward to Amplitude / Segment / PostHog
   } catch {
-    // swallow — analytics must never crash the app
+    // swallow: analytics must never crash the app
   }
 }
 
@@ -38,7 +38,7 @@ export function captureError(error: unknown, context?: Record<string, unknown>) 
     }
     // TODO: Sentry.captureException(error, { extra: context })
   } catch {
-    // swallow — error reporting must never crash the app
+    // swallow: error reporting must never crash the app
   }
 }
 

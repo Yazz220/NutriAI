@@ -1,69 +1,74 @@
-﻿import { Platform } from 'react-native';
 import { Fonts } from '@/utils/fonts';
 
 export const Typography = {
-  // Display headers with rounded, friendly proportions
+  display: {
+    fontFamily: Fonts.display.bold,
+    fontSize: 58,
+    lineHeight: 64,
+    letterSpacing: 0,
+  },
   h1: {
     fontFamily: Fonts.display.bold,
     fontSize: 32,
-    lineHeight: 40,
-    letterSpacing: -0.5,
+    lineHeight: 38,
+    letterSpacing: 0,
   },
   h2: {
     fontFamily: Fonts.display.bold,
-    fontSize: 28,
-    lineHeight: 36,
-    letterSpacing: -0.3,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: 0,
   },
   h3: {
-    fontFamily: Fonts.display.semibold,
-    fontSize: 24,
-    lineHeight: 32,
+    fontFamily: Fonts.display.bold,
+    fontSize: 19,
+    lineHeight: 24,
+    letterSpacing: 0,
   },
-
-  // Body text
   body: {
     fontFamily: Fonts.ui.regular,
-    fontSize: 16,
+    fontSize: 14,
     lineHeight: 24,
+    letterSpacing: 0,
   },
   bodyBold: {
-    fontFamily: Fonts.ui.bold,
-    fontSize: 16,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 14,
     lineHeight: 24,
+    letterSpacing: 0,
   },
   bodySmall: {
     fontFamily: Fonts.ui.regular,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  // Buttons favour sentence case for a warmer tone
-  button: {
-    fontFamily: Fonts.ui.semibold,
-    fontSize: 16,
-    lineHeight: 22,
-    textTransform: 'none' as const,
-    letterSpacing: 0.2,
-  },
-
-  // Captions and labels follow the friendlier casing too
-  caption: {
-    fontFamily: Fonts.ui.medium,
     fontSize: 12,
-    lineHeight: 16,
-    textTransform: 'none' as const,
-    letterSpacing: 0.2,
+    lineHeight: 18,
+    letterSpacing: 0,
   },
-
-  // Overrides for specific components
+  button: {
+    fontFamily: Fonts.ui.medium,
+    fontSize: 16,
+    lineHeight: 20,
+    textTransform: 'none' as const,
+    letterSpacing: 0,
+  },
+  caption: {
+    fontFamily: Fonts.ui.regular,
+    fontSize: 10,
+    lineHeight: 15,
+    textTransform: 'none' as const,
+    letterSpacing: 0,
+  },
+  overline: {
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 10,
+    lineHeight: 15,
+    letterSpacing: 0,
+  },
   input: {
     fontFamily: Fonts.ui.regular,
-    fontSize: 16,
+    fontSize: 14,
     lineHeight: 24,
+    letterSpacing: 0,
   },
-
-  // Helper to apply font family to Text components
   applyFont: (style = {}) => ({
     fontFamily: Fonts.ui.regular,
     ...(Array.isArray(style) ? Object.assign({}, ...style) : style),
