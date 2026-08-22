@@ -12,6 +12,7 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
+import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const { receipt } = useNoshNativeShare();
 
   useEffect(() => {
     isAppleSignInAvailable().then(setAppleAvailable);
@@ -127,6 +129,12 @@ export default function SignInScreen() {
         </View>
       }
     >
+      {receipt.status === 'waiting_for_sign_in' ? (
+        <View style={styles.shareNotice} accessibilityRole="alert">
+          <Text style={styles.shareNoticeTitle}>Sign in to save your shared recipe</Text>
+          <Text style={styles.shareNoticeCopy}>The private handoff is waiting on this device. Nosh will save it after authentication.</Text>
+        </View>
+      ) : null}
       <Input
         label="Email"
         autoCapitalize="none"
@@ -202,4 +210,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.sm,
     padding: Spacing.sm,
   },
+  shareNotice: { gap: Spacing.xs, borderRadius: Radii.sm, backgroundColor: Colors.parchment, padding: Spacing.md },
+  shareNoticeTitle: { color: Colors.text, fontWeight: '600' },
+  shareNoticeCopy: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
 });

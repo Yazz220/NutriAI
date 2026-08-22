@@ -7,7 +7,15 @@ export default function BookLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="library" options={{ presentation: 'card' }} />
       <Stack.Screen name="settings" />
-      <Stack.Screen name="[cookbookId]" options={{ animation: 'none' }} />
+      <Stack.Screen name="imports" />
+      <Stack.Screen name="share" />
+      <Stack.Screen
+        name="[cookbookId]"
+        options={{
+          animation: 'fade',
+          animationDuration: 240,
+        }}
+      />
     </Stack>
   );
 }

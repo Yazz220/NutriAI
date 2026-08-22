@@ -19,7 +19,7 @@
 import type { ChatModelAdapter, ThreadMessage, ThreadAssistantMessagePart } from '@assistant-ui/react-native';
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import type { RecipeGraph } from '@/types/recipeGraph';
-import type { CookbookPage } from '@/types/cookbook';
+import type { NoshInteractionEnvelope, NoshTask } from '@/types/noshInteraction';
 
 // ---------------------------------------------------------------------------
 // Types — mirrors of the nosh-chat Edge Function's request/response
@@ -45,10 +45,15 @@ interface NoshChatRequest {
   messages: NoshChatMessage[];
   recipeGraph?: RecipeGraph;
   cookbookContext?: {
+    activeCookbookId?: string;
     title?: string;
     styleId?: string;
-    otherRecipes?: Array<{ title: string; category?: string }>;
+    availableCookbooks?: Array<{ id: string; title: string }>;
   };
+  interactionContext: NoshInteractionEnvelope & {
+    hasAttachedImage: boolean;
+  };
+  tools: string[];
 }
 
 interface NoshChatResponse {
@@ -139,17 +144,16 @@ function extractText(content: ThreadMessage['content']): string {
 // ---------------------------------------------------------------------------
 
 function buildCookbookContext(
-  pages: CookbookPage[],
+  activeCookbookId?: string,
   cookbookTitle?: string,
   styleId?: string,
+  availableCookbooks?: Array<{ id: string; title: string }>,
 ): NoshChatRequest['cookbookContext'] {
   return {
+    activeCookbookId,
     title: cookbookTitle,
     styleId,
-    otherRecipes: pages
-      .filter((p) => p.title)
-      .slice(0, 20)
-      .map((p) => ({ title: p.title, category: p.section })),
+    availableCookbooks,
   };
 }
 
@@ -158,15 +162,55 @@ function buildCookbookContext(
 // ---------------------------------------------------------------------------
 
 export interface NoshChatAdapterContext {
-  /** The active page's RecipeGraph (sent as system context to nosh-chat) */
+  /** The focused recipe graph, which does not follow reader swipes. */
   recipeGraph?: RecipeGraph | null;
-  /** All pages in the current cookbook (for cookbook context) */
-  cookbookPages: CookbookPage[];
-  /** Cookbook title */
+  /** Focused cookbook title. */
   cookbookTitle?: string;
+  /** Focused cookbook id, used by page-creation tools. */
+  activeCookbookId?: string;
   /** Cookbook style ID */
   styleId?: string;
+  /** Real cookbooks available as page destinations */
+  availableCookbooks?: Array<{ id: string; title: string }>;
+  /** Entry point, active task, stable focus, and visible route hint. */
+  interaction: NoshInteractionEnvelope;
+  /** Whether the composer has a recipe image ready for extraction */
+  hasAttachedImage?: boolean;
 }
+
+const TOOLS_BY_TASK: Record<NoshTask, string[]> = {
+  collection: ['start_recipe_capture', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'list_cookbooks', 'organize_recipe'],
+  'recipe-help': [
+    'start_recipe_capture',
+    'search_recipe_collection',
+    'load_recipe',
+    'open_recipe',
+    'list_cookbooks',
+    'organize_recipe',
+    'scale_servings',
+    'substitute_ingredient',
+    'start_timer',
+    'guide_next_step',
+    'set_walkthrough',
+    'update_page_data',
+    'regenerate_recipe_page',
+  ],
+  capture: [],
+  walkthrough: [
+    'search_recipe_collection',
+    'load_recipe',
+    'open_recipe',
+    'list_cookbooks',
+    'organize_recipe',
+    'start_timer',
+    'guide_next_step',
+    'set_walkthrough',
+    'scale_servings',
+    'substitute_ingredient',
+    'update_page_data',
+    'regenerate_recipe_page',
+  ],
+};
 
 /**
  * Create a ChatModelAdapter that bridges to the nosh-chat Edge Function.
@@ -177,17 +221,22 @@ export function createNoshChatAdapter(
   getContext: () => NoshChatAdapterContext,
 ): ChatModelAdapter {
   return {
-    async run({ messages }) {
+    async run({ messages, context, abortSignal }) {
       const ctx = getContext();
-
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),
         ...(ctx.recipeGraph ? { recipeGraph: ctx.recipeGraph } : {}),
         cookbookContext: buildCookbookContext(
-          ctx.cookbookPages,
+          ctx.activeCookbookId,
           ctx.cookbookTitle,
           ctx.styleId,
+          ctx.availableCookbooks,
         ),
+        interactionContext: {
+          ...ctx.interaction,
+          hasAttachedImage: ctx.hasAttachedImage ?? false,
+        },
+        tools: TOOLS_BY_TASK[ctx.interaction.task],
       };
 
       const response = await callAuthenticatedFunction<NoshChatResponse>(
@@ -198,6 +247,7 @@ export function createNoshChatAdapter(
 
       // Build the content parts from the response
       const content: ThreadAssistantMessagePart[] = [];
+      let toolExecutionFailed = false;
 
       const text = response.message.content?.trim();
       if (text) {
@@ -214,14 +264,48 @@ export function createNoshChatAdapter(
           } catch {
             // malformed args — send empty
           }
+          const registeredTool = context.tools?.[tc.function.name];
+          let result: unknown;
+          let isError = false;
+
+          if (registeredTool?.type === 'frontend' && registeredTool.execute) {
+            try {
+              result = await registeredTool.execute(args, {
+                toolCallId: tc.id,
+                abortSignal,
+                human: async () => {
+                  throw new Error('This tool requires input through its review card.');
+                },
+              });
+            } catch (error) {
+              isError = true;
+              toolExecutionFailed = true;
+              result = {
+                error: error instanceof Error ? error.message : 'Tool execution failed',
+              };
+            }
+          } else if (!registeredTool) {
+            isError = true;
+            toolExecutionFailed = true;
+            result = { error: `Nosh tool ${tc.function.name} is unavailable` };
+          }
+
           content.push({
             type: 'tool-call',
             toolCallId: tc.id,
             toolName: tc.function.name,
             args: args as Record<string, never>,
             argsText,
+            ...(result !== undefined ? { result, isError } : {}),
           });
         }
+      }
+
+      if (toolExecutionFailed) {
+        content.push({
+          type: 'text',
+          text: 'I could not finish that action. Please try again, or send the recipe in another format.',
+        });
       }
 
       // If no content at all, provide a fallback
@@ -229,7 +313,14 @@ export function createNoshChatAdapter(
         content.push({ type: 'text', text: 'I can help with this recipe.' });
       }
 
-      return { content };
+      return {
+        content,
+        status: toolExecutionFailed
+          ? { type: 'complete', reason: 'stop' }
+          : response.message.tool_calls?.length
+          ? { type: 'requires-action', reason: 'tool-calls' }
+          : { type: 'complete', reason: 'stop' },
+      };
     },
   };
 }

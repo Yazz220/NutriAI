@@ -3,11 +3,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft } from 'lucide-react-native';
-import { UnifiedIntakeComposer, type UnifiedIntakePayload } from '@/components/cookbook/UnifiedIntakeComposer';
-import { ExtractingRecipeStages } from '@/components/cookbook/ExtractingRecipeStages';
+import { NoshCaptureWorkspace } from '@/components/nosh/capture/NoshCaptureWorkspace';
 import { Text } from '@/components/ui/Text';
 import { useCookbook } from '@/hooks/useCookbook';
-import { useCookbookImport } from '@/hooks/useCookbookImport';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
@@ -15,43 +13,8 @@ import { Fonts } from '@/utils/fonts';
 export default function AddPageScreen() {
   const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
   const { cookbook } = useCookbook(cookbookId);
-  const {
-    parseSource,
-    isParsing,
-    sourceInput,
-    setSourceInput,
-    sourceImageBase64,
-    setSourceImageBase64,
-  } = useCookbookImport();
-  const [error, setError] = React.useState<string | null>(null);
-  const [failedPayload, setFailedPayload] = React.useState<UnifiedIntakePayload | null>(null);
 
   const cookbookTitle = cookbook?.title ?? 'Cookbook';
-
-  async function submitSource(payload: UnifiedIntakePayload) {
-    setError(null);
-    setFailedPayload(null);
-    try {
-      await parseSource(payload);
-      router.push(`/(book)/${cookbookId}/review`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not read that recipe.';
-      setError(message);
-      setFailedPayload(payload);
-    }
-  }
-
-  function updateSourceInput(value: string) {
-    setError(null);
-    setFailedPayload(null);
-    setSourceInput(value);
-  }
-
-  function updateSourceImageBase64(value: string | null) {
-    setError(null);
-    setFailedPayload(null);
-    setSourceImageBase64(value);
-  }
 
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
@@ -76,16 +39,11 @@ export default function AddPageScreen() {
           </View>
         </View>
 
-        {isParsing ? <ExtractingRecipeStages running /> : null}
-        <UnifiedIntakeComposer
-          isSubmitting={isParsing}
-          input={sourceInput}
-          imageBase64={sourceImageBase64}
-          error={error}
-          onInputChange={updateSourceInput}
-          onImageBase64Change={updateSourceImageBase64}
-          onRetry={failedPayload ? () => submitSource(failedPayload) : undefined}
-          onSubmit={submitSource}
+        <NoshCaptureWorkspace
+          destinationCookbookId={cookbookId}
+          onReady={(readyCookbookId, pageId) => {
+            router.replace(`/(book)/${readyCookbookId}?pageId=${pageId}`);
+          }}
         />
       </ScrollView>
     </LinearGradient>

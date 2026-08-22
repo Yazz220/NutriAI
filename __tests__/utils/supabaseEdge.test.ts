@@ -1,5 +1,6 @@
 import {
   fetchWithTimeout,
+  FunctionCanceledError,
   FunctionNetworkError,
   FunctionTimeoutError,
 } from '@/utils/supabaseEdge';
@@ -39,6 +40,27 @@ describe('fetchWithTimeout', () => {
     const fetchImpl = jest.fn().mockResolvedValue(response);
 
     await expect(fetchWithTimeout('https://example.com', {}, 500, fetchImpl)).resolves.toBe(response);
+  });
+
+  it('propagates explicit cancellation separately from a timeout', async () => {
+    const external = new AbortController();
+    const fetchImpl = jest.fn((_: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+        });
+      }),
+    );
+
+    const request = fetchWithTimeout(
+      'https://example.com',
+      { signal: external.signal },
+      5_000,
+      fetchImpl as typeof fetch,
+    );
+    external.abort();
+
+    await expect(request).rejects.toBeInstanceOf(FunctionCanceledError);
   });
 
   it('distinguishes an uncertain network failure from a server rejection', async () => {

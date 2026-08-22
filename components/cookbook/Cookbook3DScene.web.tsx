@@ -34,10 +34,6 @@ import {
   resolveTurnRelease,
 } from '@/utils/cookbook/physicalBook';
 import {
-  CONTENTS_CANVAS_HEIGHT,
-  CONTENTS_ENTRIES_TOP,
-  getContentsEntryIndex,
-  getContentsRowHeight,
   type CookbookLeaf,
   type CookbookSpread,
 } from '@/utils/cookbook/reader';
@@ -97,7 +93,6 @@ export function Cookbook3DScene({
   onPrevious,
   onEnterReadingView,
   onOpenRecipe,
-  onJumpToPage,
   style,
 }: Cookbook3DSceneProps) {
   const coverUri = resolveImageUri(cookbook?.coverImageAsset) ?? makeFallbackImageUri(cookbook?.title ?? 'My Cookbook');
@@ -136,7 +131,6 @@ export function Cookbook3DScene({
             onPrevious={onPrevious}
             onEnterReadingView={onEnterReadingView}
             onOpenRecipe={onOpenRecipe}
-            onJumpToPage={onJumpToPage}
           />
         </Suspense>
       </Canvas>
@@ -203,7 +197,6 @@ function BookScene({
   onPrevious,
   onEnterReadingView,
   onOpenRecipe,
-  onJumpToPage,
 }: {
   title: string;
   pages: CookbookPage[];
@@ -217,14 +210,12 @@ function BookScene({
   onPrevious: () => void;
   onEnterReadingView: (page?: CookbookPage) => void;
   onOpenRecipe: (page: CookbookPage) => void;
-  onJumpToPage?: (page: CookbookPage) => void;
 }) {
   const loadedTextures = useLoader(TextureLoader, textureUris);
   const coverTexture = loadedTextures[0];
   const recipeTextures = loadedTextures.slice(1);
   const coverTitleTexture = useMemo(() => createCoverTitleTexture(title), [title]);
   const bookplateTexture = useMemo(() => createBookplateTexture(title, pages.length), [pages.length, title]);
-  const contentsTexture = useMemo(() => createContentsTexture(title, pages), [pages, title]);
   const blankTexture = useMemo(() => createBlankTexture(), []);
   const gutterShadowTexture = useMemo(() => createGutterShadowTexture(), []);
   const rootRef = useRef<Group>(null);
@@ -298,8 +289,8 @@ function BookScene({
     if (transitionRef.current) return;
     const target = requestedIndexRef.current;
     if (target === visualIndexRef.current) return;
-    // Long jumps (table of contents, browse rail) snap like opening a book to
-    // a marked page; short jumps animate the leaf turn.
+    // Long jumps from restored state snap to the marked page; short jumps
+    // animate the leaf turn.
     if (Math.abs(target - visualIndexRef.current) > 2) {
       visualIndexRef.current = target;
       setDisplayIndex(target);
@@ -472,11 +463,10 @@ function BookScene({
     () => () => {
       coverTitleTexture.dispose();
       bookplateTexture.dispose();
-      contentsTexture.dispose();
       blankTexture.dispose();
       gutterShadowTexture.dispose();
     },
-    [blankTexture, bookplateTexture, contentsTexture, coverTitleTexture, gutterShadowTexture],
+    [blankTexture, bookplateTexture, coverTitleTexture, gutterShadowTexture],
   );
 
   useFrame((_, delta) => {
@@ -568,7 +558,6 @@ function BookScene({
 
   const textureForLeaf = (leaf: CookbookLeaf): Texture => {
     if (leaf.type === 'bookplate') return bookplateTexture;
-    if (leaf.type === 'contents') return contentsTexture;
     if (leaf.type === 'recipe') return recipeTextures[leaf.pageIndex] ?? blankTexture;
     return blankTexture;
   };
@@ -579,18 +568,7 @@ function BookScene({
     if (isOpen && !transition) action();
   };
 
-  const openLeafOrTurn = (leaf: CookbookLeaf, turn: () => void, uv?: { x: number; y: number }) => {
-    // Table of contents entries jump straight to their recipe, like a real
-    // book. The tap position is mapped through the shared contents layout.
-    if (leaf.type === 'contents' && uv && onJumpToPage) {
-      const canvasY = (1 - uv.y) * CONTENTS_CANVAS_HEIGHT;
-      const entryIndex = getContentsEntryIndex(canvasY, pages.length);
-      const page = entryIndex === null ? undefined : pages[entryIndex];
-      if (page) {
-        turnOrIgnore(() => onJumpToPage(page));
-        return;
-      }
-    }
+  const openLeafOrTurn = (leaf: CookbookLeaf, turn: () => void) => {
     if (leaf.type !== 'recipe') {
       turnOrIgnore(turn);
       return;
@@ -649,7 +627,7 @@ function BookScene({
           <PageLeaf
             texture={textureForLeaf(leftLeaf)}
             side="left"
-            onPress={(uv) => openLeafOrTurn(leftLeaf, onPrevious, uv)}
+            onPress={() => openLeafOrTurn(leftLeaf, onPrevious)}
             onDragStart={handleDragStart}
             dragOccurredRef={dragOccurredRef}
           />
@@ -657,7 +635,7 @@ function BookScene({
         <PageLeaf
           texture={textureForLeaf(rightLeaf)}
           side="right"
-          onPress={(uv) => openLeafOrTurn(rightLeaf, onNext, uv)}
+          onPress={() => openLeafOrTurn(rightLeaf, onNext)}
           onDragStart={handleDragStart}
           dragOccurredRef={dragOccurredRef}
         />
@@ -744,7 +722,7 @@ function PageLeaf({
 }: {
   texture: Texture;
   side: 'left' | 'right';
-  onPress: (uv?: { x: number; y: number }) => void;
+  onPress: () => void;
   onDragStart: (clientX: number, clientY: number, direction: 1 | -1, pointerId: number) => void;
   dragOccurredRef: React.MutableRefObject<boolean>;
 }) {
@@ -771,7 +749,7 @@ function PageLeaf({
           dragOccurredRef.current = false;
           return;
         }
-        onPress(event.uv ? { x: event.uv.x, y: event.uv.y } : undefined);
+        onPress();
       }}
     >
       <meshPhysicalMaterial map={texture} roughness={0.9} specularIntensity={0.1} side={DoubleSide} />
@@ -973,61 +951,6 @@ function createBookplateTexture(title: string, count: number): CanvasTexture {
     context.fillStyle = '#b39762';
     context.font = '20px Georgia';
     context.fillText('✦', width / 2, height * 0.82);
-  });
-}
-
-function createContentsTexture(title: string, pages: CookbookPage[]): CanvasTexture {
-  return createPaperTexture((context, width) => {
-    // Header
-    context.fillStyle = '#9a8d7a';
-    context.font = 'italic 16px Georgia';
-    context.fillText(title, 80, 100);
-
-    // Title
-    context.fillStyle = '#29251f';
-    context.font = 'bold 42px Georgia';
-    context.fillText('Contents', 80, 160);
-
-    // Decorative underline
-    context.strokeStyle = '#b39762';
-    context.lineWidth = 1.5;
-    context.beginPath();
-    context.moveTo(80, 178);
-    context.lineTo(240, 178);
-    context.stroke();
-
-    // Entries: rows shrink to fit every recipe, matching the shared layout
-    // constants used for tap hit-testing.
-    const rowHeight = getContentsRowHeight(pages.length);
-    const numberSize = MathUtils.clamp(rowHeight * 0.34, 11, 18);
-    const titleSize = MathUtils.clamp(rowHeight * 0.42, 13, 26);
-    pages.forEach((page, index) => {
-      const y = CONTENTS_ENTRIES_TOP + index * rowHeight + rowHeight / 2;
-      // Dotted leader line
-      context.strokeStyle = '#d4c9b5';
-      context.lineWidth = 1;
-      context.setLineDash([2, 4]);
-      context.beginPath();
-      context.moveTo(80, y + rowHeight * 0.3);
-      context.lineTo(width - 80, y + rowHeight * 0.3);
-      context.stroke();
-      context.setLineDash([]);
-
-      // Page number
-      context.fillStyle = '#9a8d7a';
-      context.font = `${numberSize}px Georgia`;
-      context.textAlign = 'left';
-      context.fillText(String(page.pageNumber).padStart(2, '0'), 80, y);
-
-      // Recipe title, ellipsized to fit the row
-      context.fillStyle = '#29251f';
-      context.font = `${titleSize}px Georgia`;
-      let label = page.title;
-      while (label.length > 4 && context.measureText(label).width > width - 260) {
-        label = `${label.slice(0, -2).trimEnd()}…`;
-      }
-      context.fillText(label, 130, y);
-    });
   });
 }
 

@@ -1,4 +1,4 @@
-const RECIPE_PAGE_OFFSET = 2;
+const RECIPE_PAGE_OFFSET = 1;
 export const TOUCH_PAGING_BREAKPOINT = 600;
 
 export function shouldAutoHideReaderChrome(_platform: string): boolean {
@@ -25,7 +25,6 @@ export function getAdjacentRecipePageIndex(
 
 export type CookbookLeaf =
   | { type: 'bookplate'; id: 'bookplate' }
-  | { type: 'contents'; id: 'contents' }
   | { type: 'recipe'; id: string; pageIndex: number }
   | { type: 'blank'; id: string };
 
@@ -44,7 +43,6 @@ export function getReaderPageIndex(pageIds: string[], targetPageId: string | nul
 export function buildCookbookLeaves(pageIds: string[]): CookbookLeaf[] {
   const leaves: CookbookLeaf[] = [
     { type: 'bookplate', id: 'bookplate' },
-    { type: 'contents', id: 'contents' },
     ...pageIds.map<CookbookLeaf>((id, pageIndex) => ({ type: 'recipe', id, pageIndex })),
   ];
 
@@ -72,22 +70,4 @@ export function getSpreadIndexForPage(spreads: CookbookSpread[], pageId: string 
   if (!pageId) return null;
   const spreadIndex = spreads.findIndex((spread) => spread.left.id === pageId || spread.right.id === pageId);
   return spreadIndex >= 0 ? spreadIndex : null;
-}
-
-// Table-of-contents layout shared by the web contents texture and its tap
-// hit-testing. The texture is painted on a 900x1240 canvas; entry rows fill
-// the region between CONTENTS_ENTRIES_TOP and CONTENTS_ENTRIES_BOTTOM.
-export const CONTENTS_CANVAS_HEIGHT = 1240;
-export const CONTENTS_ENTRIES_TOP = 250;
-export const CONTENTS_ENTRIES_BOTTOM = 1170;
-const CONTENTS_MAX_ROW_HEIGHT = 80;
-
-export function getContentsRowHeight(entryCount: number): number {
-  return Math.min(CONTENTS_MAX_ROW_HEIGHT, (CONTENTS_ENTRIES_BOTTOM - CONTENTS_ENTRIES_TOP) / Math.max(entryCount, 1));
-}
-
-export function getContentsEntryIndex(canvasY: number, entryCount: number): number | null {
-  if (entryCount <= 0) return null;
-  const index = Math.floor((canvasY - CONTENTS_ENTRIES_TOP) / getContentsRowHeight(entryCount));
-  return index >= 0 && index < entryCount ? index : null;
 }

@@ -38,7 +38,5 @@ export interface Cookbook3DSceneProps {
   onStageTap?: () => void;
   onEnterReadingView: (page?: CookbookPage) => void;
   onOpenRecipe: (page: CookbookPage) => void;
-  /** Jump straight to a recipe (table of contents tap). Web animates the turn. */
-  onJumpToPage?: (page: CookbookPage) => void;
   style?: StyleProp<ViewStyle>;
 }

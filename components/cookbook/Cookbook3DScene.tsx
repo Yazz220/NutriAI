@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -14,16 +14,21 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useImage } from '@shopify/react-native-skia';
+import { releaseCapture } from 'react-native-view-shot';
 import { CookbookLeafPage } from '@/components/cookbook/CookbookLeafPage';
-import { OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
+import { BOOK_GUTTER_WIDTH, BookGutter, OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
 import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
+import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
 import { createLeafTexture } from '@/utils/cookbook/leafTexture';
 import {
+  resolveBookStageTranslation,
+  resolveNativeBookGeometry,
+  resolveNativeReadingPageGeometry,
   resolveTurnProgress,
   resolveTurnRelease,
   type PageTurnDirection,
@@ -45,25 +50,13 @@ const STACK_STRIATIONS = 5;
  * forward, the left stack grows. Striation lines suggest individual page
  * edges.
  */
-function PageStack({
-  height,
-  side,
-}: {
-  height: number;
-  side: 'left' | 'right';
-}) {
+function PageStack({ height, side }: { height: number; side: 'left' | 'right' }) {
   if (height < 2) return null;
   const striations: React.ReactElement[] = [];
   const gap = height / (STACK_STRIATIONS + 1);
   for (let i = 1; i <= STACK_STRIATIONS; i += 1) {
     striations.push(
-      <View
-        key={i}
-        style={[
-          styles.stackStriation,
-          { top: gap * i, width: STACK_WIDTH + 2, left: -1 },
-        ]}
-      />,
+      <View key={i} style={[styles.stackStriation, { top: gap * i, width: STACK_WIDTH + 2, left: -1 }]} />,
     );
   }
   return (
@@ -98,7 +91,11 @@ function getLeafPage(leaf: CookbookLeaf | undefined, pages: CookbookPage[]): Coo
 }
 
 /** Resolves the CookbookPage for a flat-leaf-list entry by index. */
-function getLeafPageByIndex(leaves: CookbookLeaf[] | undefined, index: number, pages: CookbookPage[]): CookbookPage | undefined {
+function getLeafPageByIndex(
+  leaves: CookbookLeaf[] | undefined,
+  index: number,
+  pages: CookbookPage[],
+): CookbookPage | undefined {
   if (!leaves || index < 0 || index >= leaves.length) return undefined;
   return getLeafPage(leaves[index], pages);
 }
@@ -169,11 +166,11 @@ export function Cookbook3DScene({
 }: Cookbook3DSceneProps) {
   const { width, height } = useWindowDimensions();
   const isCompactPhone = width < TOUCH_PAGING_BREAKPOINT;
-  const leafWidth = Math.max(
-    120,
-    Math.min(340, (width - (isCompactPhone ? 12 : 32)) / 2, (height - 210) / 1.38),
-  );
-  const bookHeight = leafWidth * 1.38;
+  const bookGeometry = resolveNativeBookGeometry(width, height, isCompactPhone);
+  const readingPageGeometry = resolveNativeReadingPageGeometry(width, height);
+  const leafWidth = bookGeometry.pageWidth;
+  const bookHeight = bookGeometry.pageHeight;
+  const coverColor = getCookbookBindingForStyle(cookbook?.coverStyle).cloth;
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
   const requestedPageIndex = pages.findIndex((page) => page.id === readingPageId);
   const fallbackLeaf =
@@ -200,6 +197,25 @@ export function Cookbook3DScene({
   // before turnDirection resets, causing a 1-frame flash of wrong content.
   const [displaySpreadIndex, setDisplaySpreadIndex] = useState(spreadIndex);
   const [displayLeafIndex, setDisplayLeafIndex] = useState(leafIndex);
+  const [pageTextureUris, setPageTextureUris] = useState<Record<string, string>>({});
+  const pageTextureUrisRef = useRef(pageTextureUris);
+
+  const handlePageTextureReady = useCallback((pageId: string, uri: string) => {
+    const previousUri = pageTextureUrisRef.current[pageId];
+    if (previousUri === uri) return;
+    if (previousUri) releaseCapture(previousUri);
+
+    const nextUris = { ...pageTextureUrisRef.current, [pageId]: uri };
+    pageTextureUrisRef.current = nextUris;
+    setPageTextureUris(nextUris);
+  }, []);
+
+  useEffect(
+    () => () => {
+      Object.values(pageTextureUrisRef.current).forEach(releaseCapture);
+    },
+    [],
+  );
 
   const canGoPrevious = leafIndex > 0;
   const canGoNext = leafIndex < (leaves?.length ?? 1) - 1;
@@ -208,18 +224,16 @@ export function Cookbook3DScene({
   // don't change content before the turn shared values reset.
   const displayCanGoPrevious = displayLeafIndex > 0;
   const displayCanGoNext = displayLeafIndex < (leaves?.length ?? 1) - 1;
-  // One-page reading view: 3:4 aspect ratio (industry standard for cookbooks).
-  // Width fills the screen minus 32pt side margins (16pt each side), height is
-  // width × 1.35. Clamped to available vertical space so it never clips.
-  // References: Apple Books, Kindle, NYT Cooking — all use ~3:4 on portrait phones.
-  const READING_PAGE_MARGIN = 16;
-  const READING_PAGE_RATIO = 1.35;
-  const readingPageWidth = Math.min(width - READING_PAGE_MARGIN * 2, (height - 190) / READING_PAGE_RATIO);
-  const readingPageHeight = readingPageWidth * READING_PAGE_RATIO;
+  const readingPageWidth = readingPageGeometry.pageWidth;
+  const readingPageHeight = readingPageGeometry.pageHeight;
   // In browse mode a swipe turns whole spreads; in physical reading it turns
   // single pages. Boundaries and travel are measured against the active mode.
   const canTurnNext = isPhysicalPageReading ? canGoNext : spreadIndex < spreads.length - 1;
   const canTurnPrevious = isPhysicalPageReading ? canGoPrevious : spreadIndex > 0;
+  const atFrontEdge = isPhysicalPageReading ? leafIndex === 0 : spreadIndex === 0;
+  const atBackEdge = isPhysicalPageReading
+    ? leafIndex === (leaves?.length ?? 1) - 1
+    : spreadIndex === spreads.length - 1;
   // In spread mode the user drags one page width (not the full spread), and
   // the turn target is the spine (center of the spread) rather than the edge.
   const turnSurfaceWidth = isPhysicalPageReading ? readingPageWidth : leafWidth;
@@ -244,17 +258,16 @@ export function Cookbook3DScene({
   const localOpening = useSharedValue(isOpen ? 1 : 0);
   const opening = propOpening ?? localOpening;
 
+  const bookEntryPositionStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: resolveBookStageTranslation(opening.value, leafWidth) }],
+  }));
+
   useEffect(() => {
     if (propOpening) return; // Parent owns the open/close animation.
-    opening.value = withTiming(
-      isOpen ? 1 : 0,
-      {
-        duration: isOpen ? 980 : 620,
-        easing: isOpen
-          ? Easing.bezier(0.22, 0.72, 0.24, 1)
-          : Easing.bezier(0.5, 0, 0.75, 0.2),
-      },
-    );
+    opening.value = withTiming(isOpen ? 1 : 0, {
+      duration: isOpen ? 980 : 620,
+      easing: isOpen ? Easing.bezier(0.22, 0.72, 0.24, 1) : Easing.bezier(0.5, 0, 0.75, 0.2),
+    });
   }, [isOpen, opening, propOpening]);
 
   // Back cover: mirrors the front cover. When the book is open, the back
@@ -265,15 +278,10 @@ export function Cookbook3DScene({
   const backOpening = useSharedValue(isBackClosed ? 0 : 1);
 
   useEffect(() => {
-    backOpening.value = withTiming(
-      isBackClosed ? 0 : 1,
-      {
-        duration: isBackClosed ? 620 : 760,
-        easing: isBackClosed
-          ? Easing.bezier(0.5, 0, 0.75, 0.2)
-          : Easing.bezier(0.22, 0.72, 0.24, 1),
-      },
-    );
+    backOpening.value = withTiming(isBackClosed ? 0 : 1, {
+      duration: isBackClosed ? 620 : 760,
+      easing: isBackClosed ? Easing.bezier(0.5, 0, 0.75, 0.2) : Easing.bezier(0.22, 0.72, 0.24, 1),
+    });
   }, [isBackClosed, backOpening]);
 
   // The cover swings from 0° (closed, over the right page) to -175° (open,
@@ -295,7 +303,7 @@ export function Cookbook3DScene({
   //   translateX(-W/2)         — shift pivot to the left edge
   //   rotateY(angle)           — swing around the left edge (gutter)
   //   translateX(W/2)          — shift back from the pivot
-  const coverHingeOffset = isPhysicalPageReading ? 0 : leafWidth / 2 + 10;
+  const coverHingeOffset = isPhysicalPageReading ? 0 : bookGeometry.frontCoverOffsetX;
   const coverOpenStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opening.value, [0, 0.48, 0.52, 1], [1, 1, 0, 0], Extrapolation.CLAMP),
     transform: [
@@ -318,7 +326,7 @@ export function Cookbook3DScene({
   //   translateX(W/2)           — shift pivot to the right edge
   //   rotateY(angle)            — swing around the right edge (gutter)
   //   translateX(-W/2)          — shift back from the pivot
-  const backCoverHingeOffset = isPhysicalPageReading ? 0 : leafWidth / 2 + 10;
+  const backCoverHingeOffset = isPhysicalPageReading ? 0 : -bookGeometry.backCoverOffsetX;
   const backCoverOpenStyle = useAnimatedStyle(() => ({
     opacity: interpolate(backOpening.value, [0, 0.48, 0.52, 1], [1, 1, 0, 0], Extrapolation.CLAMP),
     transform: [
@@ -372,10 +380,22 @@ export function Cookbook3DScene({
   const backwardBackFacePage = isPhysicalPageReading
     ? getLeafPageByIndex(leaves, displayLeafIndex - 2, pages)
     : getLeafPage(prevSpread?.right, pages);
-  const forwardLeafImage = useImage(SKIA_ENABLED ? getCookbookPageImageSource(forwardLeafPage) : null);
-  const backwardLeafImage = useImage(SKIA_ENABLED ? getCookbookPageImageSource(backwardLeafPage) : null);
-  const forwardBackFaceImage = useImage(SKIA_ENABLED ? getCookbookPageImageSource(forwardBackFacePage) : null);
-  const backwardBackFaceImage = useImage(SKIA_ENABLED ? getCookbookPageImageSource(backwardBackFacePage) : null);
+  const forwardLeafTextureUri = forwardLeafPage ? pageTextureUris[forwardLeafPage.id] : undefined;
+  const backwardLeafTextureUri = backwardLeafPage ? pageTextureUris[backwardLeafPage.id] : undefined;
+  const forwardBackTextureUri = forwardBackFacePage ? pageTextureUris[forwardBackFacePage.id] : undefined;
+  const backwardBackTextureUri = backwardBackFacePage ? pageTextureUris[backwardBackFacePage.id] : undefined;
+  const forwardLeafImage = useImage(
+    SKIA_ENABLED ? getCookbookPageTurnImageSource(forwardLeafPage, forwardLeafTextureUri) : null,
+  );
+  const backwardLeafImage = useImage(
+    SKIA_ENABLED ? getCookbookPageTurnImageSource(backwardLeafPage, backwardLeafTextureUri) : null,
+  );
+  const forwardBackFaceImage = useImage(
+    SKIA_ENABLED ? getCookbookPageTurnImageSource(forwardBackFacePage, forwardBackTextureUri) : null,
+  );
+  const backwardBackFaceImage = useImage(
+    SKIA_ENABLED ? getCookbookPageTurnImageSource(backwardBackFacePage, backwardBackTextureUri) : null,
+  );
 
   // Generate Skia-drawn textures for non-recipe leaves in both spread and page modes.
   // These are used in place of the recipe page images for the curl mesh.
@@ -420,6 +440,12 @@ export function Cookbook3DScene({
   const backwardImage = backwardLeafTexture ?? backwardLeafImage;
   const forwardBackImage = forwardBackLeafTexture ?? forwardBackFaceImage;
   const backwardBackImage = backwardBackLeafTexture ?? backwardBackFaceImage;
+  const forwardSkiaEnabled =
+    (!forwardLeafPage?.recipeGraph || Boolean(forwardLeafTextureUri && forwardLeafImage)) &&
+    (!forwardBackFacePage?.recipeGraph || Boolean(forwardBackTextureUri && forwardBackFaceImage));
+  const backwardSkiaEnabled =
+    (!backwardLeafPage?.recipeGraph || Boolean(backwardLeafTextureUri && backwardLeafImage)) &&
+    (!backwardBackFacePage?.recipeGraph || Boolean(backwardBackTextureUri && backwardBackFaceImage));
 
   // While a turn runs, the Skia leaf draws the turning page (curl, back face,
   // fold shadow); the flat RN leaves underneath only gate their visibility so
@@ -429,7 +455,8 @@ export function Cookbook3DScene({
     const dir = turnDirection.value;
     const progress = turnProgress.value;
     if (dir === 0 || progress === 0) return { opacity: 1, transform: [{ rotateY: '0deg' }] };
-    if (SKIA_ENABLED) {
+    const skiaTurnEnabled = dir === 1 ? forwardSkiaEnabled : backwardSkiaEnabled;
+    if (SKIA_ENABLED && skiaTurnEnabled) {
       // In single-page backward turns, the previous page uncurls IN over the current page,
       // so the current page remains visible underneath.
       if (isPhysicalPageReading && dir === -1) {
@@ -437,14 +464,17 @@ export function Cookbook3DScene({
       }
       return { opacity: 0, transform: [{ rotateY: '0deg' }] };
     }
+    const halfPageWidth = readingPageWidth / 2;
     return {
-      opacity: 1 - progress * 0.7,
+      opacity: interpolate(progress, [0, 0.48, 0.56, 1], [1, 1, 0, 0], Extrapolation.CLAMP),
       transform: [
         { perspective: 1000 },
-        { rotateY: `${-progress * 78 * dir}deg` },
+        { translateX: -halfPageWidth },
+        { rotateY: `${-progress * 175 * dir}deg` },
+        { translateX: halfPageWidth },
       ],
     };
-  });
+  }, [backwardSkiaEnabled, forwardSkiaEnabled, isPhysicalPageReading, readingPageWidth]);
 
   const nextPageRevealStyle = useAnimatedStyle(() => ({
     opacity: turnDirection.value === 1 ? 1 : 0,
@@ -452,7 +482,7 @@ export function Cookbook3DScene({
   }));
 
   const prevPageRevealStyle = useAnimatedStyle(() => ({
-    opacity: !isPhysicalPageReading && turnDirection.value === -1 ? 1 : 0,
+    opacity: turnDirection.value === -1 ? 1 : 0,
     transform: [{ scale: 0.992 + turnProgress.value * 0.008 }],
   }));
 
@@ -465,7 +495,6 @@ export function Cookbook3DScene({
   const spreadLeftUnderneathStyle = useAnimatedStyle(() => ({
     opacity: !isPhysicalPageReading && turnDirection.value === -1 ? 1 : 0,
   }));
-
 
   const commitTurn = useCallback(
     (direction: -1 | 1) => {
@@ -608,19 +637,12 @@ export function Cookbook3DScene({
           const direction = turnDirection.value;
           if (direction === 0) return;
 
-          // Close the book: backward swipe on the first spread (bookplate /
-          // ToC). This takes priority over the corner-lift release check
+          // Close the book: backward swipe on the first spread or first leaf.
+          // This takes priority over the corner-lift release check
           // below, because on spread 0 canTurnPrevious is false and
           // turnProgress stays at the corner-lift value — without this
           // check the gesture would just spring back harmlessly.
-          if (
-            direction === -1 &&
-            !isPhysicalPageReading &&
-            spreadIndex === 0 &&
-            !isBackClosed &&
-            event.translationX > 24 &&
-            onClose
-          ) {
+          if (direction === -1 && atFrontEdge && !isBackClosed && event.translationX > 24 && onClose) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
@@ -628,18 +650,11 @@ export function Cookbook3DScene({
             return;
           }
 
-          // Close the back cover: forward swipe on the LAST spread. The
+          // Close the back cover: forward swipe on the last spread or leaf. The
           // back cover swings from +175° (face-down on the right) to 0°
           // (covering the left page), closing the book from the back.
           // Same priority logic as the front cover close above.
-          if (
-            direction === 1 &&
-            !isPhysicalPageReading &&
-            spreadIndex === spreads.length - 1 &&
-            !isBackClosed &&
-            event.translationX < -24 &&
-            onCloseBack
-          ) {
+          if (direction === 1 && atBackEdge && !isBackClosed && event.translationX < -24 && onCloseBack) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
@@ -650,13 +665,7 @@ export function Cookbook3DScene({
           // Reopen the back cover: backward swipe when the back cover is
           // closed. The back cover swings from 0° back to +175°, revealing
           // the last spread again.
-          if (
-            direction === -1 &&
-            !isPhysicalPageReading &&
-            isBackClosed &&
-            event.translationX > 24 &&
-            onOpenBack
-          ) {
+          if (direction === -1 && !isPhysicalPageReading && isBackClosed && event.translationX > 24 && onOpenBack) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
@@ -668,14 +677,10 @@ export function Cookbook3DScene({
           // release quietly without haptic feedback.
           if (turnProgress.value <= CORNER_LIFT_PROGRESS + 0.02) {
             isSettling.value = 1;
-            turnProgress.value = withSpring(
-              0,
-              { damping: 22, stiffness: 220, mass: 0.6 },
-              () => {
-                turnDirection.value = 0;
-                isSettling.value = 0;
-              },
-            );
+            turnProgress.value = withSpring(0, { damping: 22, stiffness: 220, mass: 0.6 }, () => {
+              turnDirection.value = 0;
+              isSettling.value = 0;
+            });
             return;
           }
 
@@ -723,6 +728,8 @@ export function Cookbook3DScene({
     [
       canTurnNext,
       canTurnPrevious,
+      atBackEdge,
+      atFrontEdge,
       commitTurn,
       grabYRatio,
       bookHeight,
@@ -738,8 +745,6 @@ export function Cookbook3DScene({
       onOpenBack,
       onStageTap,
       readingPageHeight,
-      spreadIndex,
-      spreads.length,
       turnDirection,
       turnGrabX,
       turnProgress,
@@ -763,17 +768,15 @@ export function Cookbook3DScene({
   return (
     <View style={[styles.container, style]}>
       <GestureDetector gesture={composedGesture}>
-        <Animated.View
-          style={styles.gestureSurface}
-          pointerEvents="auto"
-        >
+        <Animated.View style={[styles.sceneSurface, bookEntryPositionStyle]}>
+          <Animated.View style={styles.gestureSurface} pointerEvents="auto">
             {isPhysicalPageReading ? (
               <Animated.View
                 entering={zoomEntering}
                 exiting={zoomExiting}
                 style={[
                   styles.physicalPageStage,
-                  { width: Math.min(width, readingPageWidth + 42), height: readingPageHeight + 30 },
+                  { width: readingPageGeometry.stageWidth, height: readingPageHeight + 30 },
                 ]}
               >
                 {/* Page stacks: left grows as you read forward, right thins */}
@@ -782,14 +785,27 @@ export function Cookbook3DScene({
                   const ratio = total > 1 ? leafIndex / (total - 1) : 0;
                   const leftH = getStackHeight(ratio, readingPageHeight, 'left');
                   const rightH = getStackHeight(ratio, readingPageHeight, 'right');
-                  const stageW = Math.min(width, readingPageWidth + 42);
                   const stageH = readingPageHeight + 30;
                   return (
                     <>
-                      <View style={{ position: 'absolute', left: 2, top: (stageH - leftH) / 2, zIndex: 0 }}>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          left: readingPageGeometry.pageOffsetX - STACK_WIDTH,
+                          top: (stageH - leftH) / 2,
+                          zIndex: 0,
+                        }}
+                      >
                         <PageStack height={leftH} side="left" />
                       </View>
-                      <View style={{ position: 'absolute', left: stageW - STACK_WIDTH - 2, top: (stageH - rightH) / 2, zIndex: 0 }}>
+                      <View
+                        style={{
+                          position: 'absolute',
+                          left: readingPageGeometry.pageOffsetX + readingPageWidth,
+                          top: (stageH - rightH) / 2,
+                          zIndex: 0,
+                        }}
+                      >
                         <PageStack height={rightH} side="right" />
                       </View>
                     </>
@@ -799,7 +815,7 @@ export function Cookbook3DScene({
                   <View
                     style={[
                       styles.physicalFallbackCover,
-                      { width: readingPageWidth + 10, height: readingPageHeight + 12 },
+                      { width: readingPageWidth + 10, height: readingPageHeight + 12, backgroundColor: coverColor },
                     ]}
                   />
                   <View
@@ -821,8 +837,8 @@ export function Cookbook3DScene({
                         leaf={leaves![displayLeafIndex + 1]}
                         cookbook={cookbook}
                         pages={pages}
-                        onSelectRecipe={onNext}
                         onOpenRecipe={onOpenRecipe}
+                        onPageTextureReady={handlePageTextureReady}
                       />
                     </Animated.View>
                   ) : null}
@@ -839,8 +855,8 @@ export function Cookbook3DScene({
                         leaf={leaves![displayLeafIndex - 1]}
                         cookbook={cookbook}
                         pages={pages}
-                        onSelectRecipe={onPrevious}
                         onOpenRecipe={onOpenRecipe}
+                        onPageTextureReady={handlePageTextureReady}
                       />
                     </Animated.View>
                   ) : null}
@@ -857,8 +873,8 @@ export function Cookbook3DScene({
                       leaf={currentLeaf!}
                       cookbook={cookbook}
                       pages={pages}
-                      onSelectRecipe={onNext}
                       onOpenRecipe={onOpenRecipe}
+                      onPageTextureReady={handlePageTextureReady}
                     />
                   </Animated.View>
                   {SKIA_ENABLED ? (
@@ -869,14 +885,24 @@ export function Cookbook3DScene({
                       backwardBackImage={backwardBackImage}
                       width={readingPageWidth}
                       height={readingPageHeight}
-                      forwardOffsetX={(Math.min(width, readingPageWidth + 42) - readingPageWidth) / 2}
+                      forwardOffsetX={readingPageGeometry.pageOffsetX}
                       offsetY={15}
                       progress={turnProgress}
                       direction={turnDirection}
                       grabYRatio={grabYRatio}
                       onePageMode
+                      forwardEnabled={forwardSkiaEnabled}
+                      backwardEnabled={backwardSkiaEnabled}
                     />
                   ) : null}
+                  <BookGutter
+                    height={readingPageHeight}
+                    style={{
+                      left: readingPageGeometry.bindingLeft,
+                      top: 15,
+                      zIndex: 4,
+                    }}
+                  />
                 </View>
                 {currentLeaf?.type === 'recipe' ? (
                   <Pressable
@@ -892,159 +918,183 @@ export function Cookbook3DScene({
               </Animated.View>
             ) : (
               <Animated.View
-                entering={zoomEntering}
-                exiting={zoomExiting}
                 style={spreadVisibilityStyle}
+                pointerEvents={isOpen ? 'auto' : 'none'}
+                accessibilityElementsHidden={!isOpen}
+                importantForAccessibility={isOpen ? 'auto' : 'no-hide-descendants'}
               >
-                <View
-                  style={[
-                    styles.spreadStage,
-                    { width: leafWidth * 2 + 20, height: bookHeight + 24 },
-                  ]}
-                >
-                  {/* Page stacks: left grows as you read forward, right thins */}
-                  {(() => {
-                    const ratio = spreads.length > 1 ? spreadIndex / (spreads.length - 1) : 0;
-                    const leftH = getStackHeight(ratio, bookHeight, 'left');
-                    const rightH = getStackHeight(ratio, bookHeight, 'right');
-                    return (
-                      <>
-                        <View style={{ position: 'absolute', left: 0, top: (bookHeight + 24 - leftH) / 2, zIndex: 0 }}>
-                          <PageStack height={leftH} side="left" />
-                        </View>
-                        <View style={{ position: 'absolute', left: leafWidth * 2 + 20 - STACK_WIDTH, top: (bookHeight + 24 - rightH) / 2, zIndex: 0 }}>
-                          <PageStack height={rightH} side="right" />
-                        </View>
-                      </>
-                    );
-                  })()}
-                  <OpenBookSpread
-                    width={leafWidth * 2}
-                    height={bookHeight}
-                    left={
-                      <CookbookLeafPage
-                        leaf={activeSpread.left}
-                        cookbook={cookbook}
-                        pages={pages}
-                        onSelectRecipe={onPrevious}
-                        onOpenRecipe={(page) =>
-                          readingView === 'spread'
-                            ? onEnterReadingView(page)
-                            : onOpenRecipe(page)
-                        }
-                      />
-                    }
-                    right={
-                      <CookbookLeafPage
-                        leaf={activeSpread.right}
-                        cookbook={cookbook}
-                        pages={pages}
-                        onSelectRecipe={onNext}
-                        onOpenRecipe={(page) =>
-                          readingView === 'spread'
-                            ? onEnterReadingView(page)
-                            : onOpenRecipe(page)
-                        }
-                      />
-                    }
-                  />
-                  {/* Underneath pages: show the destination spread's pages
-                      so the turn commits with zero pop. */}
-                  {nextSpread ? (
-                    <Animated.View
-                      pointerEvents="none"
-                      style={[
-                        styles.underneathRight,
-                        { left: leafWidth + 10, top: 12, width: leafWidth, height: bookHeight },
-                        spreadRightUnderneathStyle,
-                      ]}
-                    >
-                      <CookbookLeafPage
-                        leaf={nextSpread.right}
-                        cookbook={cookbook}
-                        pages={pages}
-                        onSelectRecipe={onNext}
-                        onOpenRecipe={onOpenRecipe}
-                      />
-                    </Animated.View>
-                  ) : null}
-                  {prevSpread ? (
-                    <Animated.View
-                      pointerEvents="none"
-                      style={[
-                        styles.underneathLeft,
-                        { left: 10, top: 12, width: leafWidth, height: bookHeight },
-                        spreadLeftUnderneathStyle,
-                      ]}
-                    >
-                      <CookbookLeafPage
-                        leaf={prevSpread.left}
-                        cookbook={cookbook}
-                        pages={pages}
-                        onSelectRecipe={onPrevious}
-                        onOpenRecipe={onOpenRecipe}
-                      />
-                    </Animated.View>
-                  ) : null}
-                  {SKIA_ENABLED ? (
-                    <TurningLeafSkia
-                      forwardImage={forwardImage}
-                      backwardImage={backwardImage}
-                      forwardBackImage={forwardBackImage}
-                      backwardBackImage={backwardBackImage}
-                      width={leafWidth}
+                <Animated.View entering={zoomEntering} exiting={zoomExiting}>
+                  <View
+                    style={[styles.spreadStage, { width: bookGeometry.stageWidth, height: bookGeometry.stageHeight }]}
+                  >
+                    {/* Page stacks: left grows as you read forward, right thins */}
+                    {(() => {
+                      const ratio = spreads.length > 1 ? spreadIndex / (spreads.length - 1) : 0;
+                      const leftH = getStackHeight(ratio, bookHeight, 'left');
+                      const rightH = getStackHeight(ratio, bookHeight, 'right');
+                      return (
+                        <>
+                          <View
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: (bookGeometry.stageHeight - leftH) / 2,
+                              zIndex: 0,
+                            }}
+                          >
+                            <PageStack height={leftH} side="left" />
+                          </View>
+                          <View
+                            style={{
+                              position: 'absolute',
+                              left: bookGeometry.stageWidth - STACK_WIDTH,
+                              top: (bookGeometry.stageHeight - rightH) / 2,
+                              zIndex: 0,
+                            }}
+                          >
+                            <PageStack height={rightH} side="right" />
+                          </View>
+                        </>
+                      );
+                    })()}
+                    <OpenBookSpread
+                      width={leafWidth * 2}
                       height={bookHeight}
-                      forwardOffsetX={leafWidth + 10}
-                      backwardOffsetX={10}
-                      offsetY={12}
-                      progress={turnProgress}
-                      direction={turnDirection}
-                      grabYRatio={grabYRatio}
+                      coverColor={coverColor}
+                      left={
+                        <CookbookLeafPage
+                          leaf={activeSpread.left}
+                          cookbook={cookbook}
+                          pages={pages}
+                          onOpenRecipe={(page) =>
+                            readingView === 'spread' ? onEnterReadingView(page) : onOpenRecipe(page)
+                          }
+                          onPageTextureReady={handlePageTextureReady}
+                        />
+                      }
+                      right={
+                        <CookbookLeafPage
+                          leaf={activeSpread.right}
+                          cookbook={cookbook}
+                          pages={pages}
+                          onOpenRecipe={(page) =>
+                            readingView === 'spread' ? onEnterReadingView(page) : onOpenRecipe(page)
+                          }
+                          onPageTextureReady={handlePageTextureReady}
+                        />
+                      }
                     />
-                  ) : null}
-                </View>
+                    {/* Underneath pages: show the destination spread's pages
+                      so the turn commits with zero pop. */}
+                    {nextSpread ? (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.underneathRight,
+                          { left: leafWidth + bookGeometry.frameInset, top: 12, width: leafWidth, height: bookHeight },
+                          spreadRightUnderneathStyle,
+                        ]}
+                      >
+                        <CookbookLeafPage
+                          leaf={nextSpread.right}
+                          cookbook={cookbook}
+                          pages={pages}
+                          onOpenRecipe={onOpenRecipe}
+                          onPageTextureReady={handlePageTextureReady}
+                        />
+                      </Animated.View>
+                    ) : null}
+                    {prevSpread ? (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.underneathLeft,
+                          { left: bookGeometry.frameInset, top: 12, width: leafWidth, height: bookHeight },
+                          spreadLeftUnderneathStyle,
+                        ]}
+                      >
+                        <CookbookLeafPage
+                          leaf={prevSpread.left}
+                          cookbook={cookbook}
+                          pages={pages}
+                          onOpenRecipe={onOpenRecipe}
+                          onPageTextureReady={handlePageTextureReady}
+                        />
+                      </Animated.View>
+                    ) : null}
+                    {SKIA_ENABLED ? (
+                      <TurningLeafSkia
+                        forwardImage={forwardImage}
+                        backwardImage={backwardImage}
+                        forwardBackImage={forwardBackImage}
+                        backwardBackImage={backwardBackImage}
+                        width={leafWidth}
+                        height={bookHeight}
+                        forwardOffsetX={leafWidth + bookGeometry.frameInset}
+                        backwardOffsetX={bookGeometry.frameInset}
+                        offsetY={12}
+                        progress={turnProgress}
+                        direction={turnDirection}
+                        grabYRatio={grabYRatio}
+                        forwardEnabled={forwardSkiaEnabled}
+                        backwardEnabled={backwardSkiaEnabled}
+                      />
+                    ) : null}
+                    <BookGutter
+                      height={bookHeight}
+                      style={{
+                        left: bookGeometry.frameInset + leafWidth - BOOK_GUTTER_WIDTH / 2,
+                        top: 12,
+                        zIndex: 4,
+                      }}
+                    />
+                  </View>
+                </Animated.View>
               </Animated.View>
             )}
           </Animated.View>
-        </GestureDetector>
-      {/* The cover is always mounted. It swings open/closed via the
+          {/* The cover is always mounted. It swings open/closed via the
           coverOpenStyle animation. pointerEvents: 'box-none' when closed
           so the Pressable inside receives taps but swipes pass through to
           the gesture surface; 'none' when open so nothing on the cover
           intercepts touches. */}
-      <View style={styles.coverLayer} pointerEvents={isOpen ? 'none' : 'box-none'}>
-        <Animated.View style={[styles.coverPivot, coverOpenStyle]}>
-          <Pressable onPress={onOpen} accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}>
-            <PhysicalBook
-              title={cookbook?.title ?? 'My Cookbook'}
-              coverStyle={cookbook?.coverStyle ?? 'handwritten'}
-              pageCount={pages.length}
-              imageAsset={cookbook?.coverImageAsset}
-              width={leafWidth}
-              showShadow={false}
-            />
-          </Pressable>
-        </Animated.View>
-      </View>
-      {/* Back cover: mirrors the front cover. Positioned over the LEFT page,
+          <View style={styles.coverLayer} pointerEvents={isOpen ? 'none' : 'box-none'}>
+            <Animated.View style={[styles.coverPivot, coverOpenStyle]}>
+              <Pressable onPress={onOpen} accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}>
+                <PhysicalBook
+                  title={cookbook?.title ?? 'My Cookbook'}
+                  coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  pageCount={pages.length}
+                  imageAsset={cookbook?.coverImageAsset}
+                  width={leafWidth}
+                  showShadow={false}
+                />
+              </Pressable>
+            </Animated.View>
+          </View>
+          {/* Back cover: mirrors the front cover. Positioned over the LEFT page,
           hinged at the right edge (gutter). When the book is open, it's
           face-down on the right (invisible). When the user swipes forward
           on the last spread, it swings to 0° covering the left page.
           pointerEvents: 'box-none' when closed so the Pressable inside
           receives taps; 'none' when open. */}
-      <View style={styles.coverLayer} pointerEvents={isBackClosed ? 'box-none' : 'none'}>
-        <Animated.View style={[styles.backCoverPivot, backCoverOpenStyle]}>
-          <Pressable onPress={onOpenBack} accessibilityLabel="Open back cover">
-            <PhysicalBook
-              title=""
-              coverStyle={cookbook?.coverStyle ?? 'handwritten'}
-              pageCount={pages.length}
-              width={leafWidth}
-              showShadow={false}
-            />
-          </Pressable>
+          <View style={styles.coverLayer} pointerEvents={isBackClosed ? 'box-none' : 'none'}>
+            <Animated.View style={[styles.backCoverPivot, backCoverOpenStyle]}>
+              <Pressable onPress={onOpenBack} accessibilityLabel="Open back cover">
+                <PhysicalBook
+                  title=""
+                  coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  pageCount={pages.length}
+                  imageAsset={cookbook?.coverImageAsset}
+                  face="back"
+                  width={leafWidth}
+                  showShadow={false}
+                />
+              </Pressable>
+            </Animated.View>
+          </View>
         </Animated.View>
-      </View>
+      </GestureDetector>
     </View>
   );
 }
@@ -1054,6 +1104,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sceneSurface: {
+    flex: 1,
+    alignSelf: 'stretch',
   },
   gestureSurface: {
     flex: 1,
@@ -1091,7 +1145,6 @@ const styles = StyleSheet.create({
   physicalFallbackCover: {
     position: 'absolute',
     borderRadius: 12,
-    backgroundColor: '#26311f',
     transform: [{ translateY: 3 }],
     boxShadow: '0 18px 38px rgba(35,33,28,0.2)',
   },
@@ -1104,6 +1157,8 @@ const styles = StyleSheet.create({
   physicalFallbackLeaf: {
     overflow: 'hidden',
     borderRadius: 9,
+    borderTopLeftRadius: 2,
+    borderBottomLeftRadius: 2,
     backgroundColor: Colors.book.page,
     borderWidth: 1,
     borderColor: Colors.book.edgeStrong,
@@ -1113,8 +1168,7 @@ const styles = StyleSheet.create({
   },
   currentNativePage: {
     zIndex: 2,
-    transformOrigin: 'left center',
-    boxShadow: '-8px 10px 24px rgba(35,33,28,0.14)',
+    boxShadow: '3px 9px 18px rgba(35,33,28,0.1)',
   },
   spreadStage: {
     position: 'relative',

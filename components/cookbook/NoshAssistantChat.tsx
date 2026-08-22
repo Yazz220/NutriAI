@@ -1,395 +1,651 @@
 /**
- * NoshAssistantChat — the Phase 5 in-book assistant.
+ * The persistent Nosh conversation.
  *
- * Replaces the legacy NoshAssistantButton + NoshAssistantSheet with
- * an assistant-ui powered chat interface. Features:
- *   - Gemini-style clean message bubbles
- *   - Inline tool-call cards (scale, substitute, timer, guide, edit)
- *   - Suggestion chips for quick prompts
- *   - Live page updates via tool execution
- *   - Streaming-ready architecture
- *
- * The component wraps the assistant-ui runtime in a Sheet, with
- * AssistantRuntimeProvider at the top. The runtime bridges to the
- * nosh-chat Edge Function via the NoshChatAdapter, and tools execute
- * against the active page's RecipeGraph.
+ * The runtime is mounted once at the app root. Routes only update its active
+ * cookbook/page context, so creating a page never resets the conversation.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { ChefHat, Send } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { ChefHat } from 'lucide-react-native';
 import {
   AssistantRuntimeProvider,
   AuiConfig,
-  AuiIf,
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
   Tools,
-  useAuiState,
   useLocalRuntime,
+  useRemoteThreadListRuntime,
 } from '@assistant-ui/react-native';
 import { Sheet } from '@/components/ui/Sheet';
-import { Text } from '@/components/ui/Text';
+import { NoshFocusChangePrompt } from '@/components/nosh/conversation/NoshFocusChangePrompt';
+import { NoshHeaderActions, NoshHeaderIdentity } from '@/components/nosh/conversation/NoshConversationHeader';
+import { NoshThreadHistory } from '@/components/nosh/conversation/NoshThreadHistory';
+import { NoshInteractionStateSync } from '@/components/nosh/conversation/NoshInteractionStateSync';
+import {
+  NoshCaptureWorkspace,
+  type NoshCaptureHandoffSource,
+} from '@/components/nosh/capture/NoshCaptureWorkspace';
+import {
+  NoshConversationDisplay,
+  type NoshActiveTask,
+} from '@/components/nosh/conversation/NoshConversationDisplay';
 import { Colors } from '@/constants/colors';
+import { getCookbookStyle } from '@/constants/cookbookStyles';
+import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
-import { createNoshChatAdapter } from '@/utils/cookbook/noshChatAdapter';
-import { useNoshToolkit } from '@/utils/cookbook/noshToolkit';
-import { updatePageRecipeGraph } from '@/utils/cookbook/api';
-import type { CookbookPage } from '@/types/cookbook';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAuth } from '@/hooks/useAuth';
+import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
+import { SHELF_QUERY_KEY, useCookbooks } from '@/hooks/useCookbooks';
+import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import type { NoshFocus, NoshInteractionSession } from '@/types/noshInteraction';
+import {
+  createRecipePageWithGraph,
+  fetchPageById,
+  fetchCookbookPages,
+  getCookbook,
+  listCookbooks,
+  updatePageRecipeGraph,
+  updatePageSelectedVersion,
+} from '@/utils/cookbook/api';
+import { saveCachedPages, saveCachedShelf } from '@/utils/cookbook/cache';
+import {
+  loadCollectionActionPreview,
+  organizeRecipePage,
+  type CollectionActionResult,
+} from '@/utils/cookbook/collectionActions';
+import { createNoshChatAdapter } from '@/utils/cookbook/noshChatAdapter';
+import { createNoshThreadListAdapter } from '@/utils/cookbook/noshThreadStorage';
+import { useNoshToolkit } from '@/utils/cookbook/noshToolkit';
+import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
+import {
+  finishRecipePageCandidate,
+  finishRecipePageImage,
+} from '@/utils/cookbook/pageProduction';
+import type {
+  RecipeActionCommitMode,
+  RecipeActionProposal,
+} from '@/utils/cookbook/recipeActions';
+import {
+  loadRecipeFromCollection,
+  searchRecipeCollection,
+  type LoadedCollectionRecipe,
+} from '@/utils/cookbook/recipeCollection';
+import { SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
+import { Fonts } from '@/utils/fonts';
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+const COLLECTION_SESSION: NoshInteractionSession = {
+  entryPoint: 'shelf-nosh',
+  task: 'collection',
+  focus: { kind: 'collection' },
+};
 
-interface NoshAssistantChatProps {
-  visible: boolean;
-  page: CookbookPage | null;
-  cookbookPages: CookbookPage[];
-  cookbookTitle?: string;
-  pageNumber?: number;
-  onClose: () => void;
-  /** Called when a tool mutates the RecipeGraph (updates React Query cache) */
-  onPageUpdate?: (page: CookbookPage) => void;
+function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
+  const references = cookbook.pageStyleReferences?.length
+    ? cookbook.pageStyleReferences
+    : getCookbookStyle(cookbook.coverStyle).pageStyleReferences;
+  return references?.length ? [...references] : undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Quick prompts (shown as suggestion chips)
-// ---------------------------------------------------------------------------
+/** Mounted once in app/_layout.tsx so the transcript survives navigation. */
+export function NoshConversationHost() {
+  const contextModelEnabled = isNoshContextModelV2Enabled();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { cookbooks } = useCookbooks();
+  const conversation = useNoshConversation();
+  const {
+    visible,
+    interaction,
+    requestedFocus,
+    visibleBookContext,
+    pendingImageBase64,
+    recipePreview,
+    open,
+    close,
+    requestFocus,
+    acceptRequestedFocus,
+    dismissRequestedFocus,
+    restoreInteraction,
+    updateVisiblePage,
+    setPendingImageBase64,
+    setPendingImageMimeType,
+    setRecipePreview,
+    setVisibleBookContext,
+  } = conversation;
 
-const QUICK_PROMPTS = [
-  'Scale servings',
-  'Substitute ingredient',
-  'Make a shopping list',
-  'Walk me through cooking',
-  'Make it healthier',
-];
+  const [loadedFocus, setLoadedFocus] = useState<LoadedCollectionRecipe | null>(null);
+  const [focusStatus, setFocusStatus] = useState<'ready' | 'loading' | 'missing'>('ready');
+  const recipeFocus = interaction.focus.kind === 'recipe' ? interaction.focus : null;
+  const visibleFocusedPage = recipeFocus
+    ? visibleBookContext.pages.find((page) => page.id === recipeFocus.pageId) ?? null
+    : null;
+  const canonicalFocusedRecipeGraph = visibleFocusedPage?.recipeGraph
+    ?? (recipeFocus && loadedFocus?.pageId === recipeFocus.pageId
+      ? loadedFocus.recipeGraph
+      : null);
+  const focusedRecipeGraph = recipeFocus && recipePreview?.pageId === recipeFocus.pageId
+    ? recipePreview.graph
+    : canonicalFocusedRecipeGraph;
+  const focusedCookbookId = interaction.focus.kind === 'recipe' || interaction.focus.kind === 'cookbook'
+    ? interaction.focus.cookbookId
+    : undefined;
+  const focusedCookbook = cookbooks.find((book) => book.id === focusedCookbookId)
+    ?? (visibleBookContext.cookbook?.id === focusedCookbookId ? visibleBookContext.cookbook : null);
 
-// ---------------------------------------------------------------------------
-// Message components — Gemini-style bubbles
-// ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (
+      recipePreview
+      && (interaction.focus.kind !== 'recipe' || recipePreview.pageId !== interaction.focus.pageId)
+    ) {
+      setRecipePreview(null);
+    }
+    if (interaction.focus.kind !== 'recipe') {
+      setLoadedFocus(null);
+      setFocusStatus('ready');
+      return;
+    }
+    if (visibleFocusedPage?.recipeGraph) {
+      setLoadedFocus(null);
+      setFocusStatus('ready');
+      return;
+    }
 
-function UserMessage() {
-  return (
-    <View style={styles.userRow}>
-      <View style={styles.userBubble}>
-        <MessagePrimitive.Parts
-          components={{
-            Text: ({ text }: { text: string }) => <Text style={styles.userText}>{text}</Text>,
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-function AssistantMessage() {
-  return (
-    <View style={styles.assistantRow}>
-      <View style={styles.assistantAvatar}>
-        <ChefHat size={16} color={Colors.onPrimary} />
-      </View>
-      <View style={styles.assistantBubble}>
-        <MessagePrimitive.Parts
-          components={{
-            Text: ({ text }: { text: string }) => <Text style={styles.assistantText}>{text}</Text>,
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Composer — rounded input with send button
-// ---------------------------------------------------------------------------
-
-function NoshComposer() {
-  const isEmpty = useAuiState((s) => s.composer.isEmpty);
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-
-  return (
-    <ComposerPrimitive.Root style={styles.composer}>
-      <ComposerPrimitive.Input
-        placeholder="Ask Nosh..."
-        placeholderTextColor={Colors.textMuted}
-        multiline
-        style={styles.composerInput}
-      />
-      {isRunning ? (
-        <ComposerPrimitive.Cancel style={styles.cancelButton}>
-          <Text style={styles.cancelText}>Stop</Text>
-        </ComposerPrimitive.Cancel>
-      ) : (
-        <ComposerPrimitive.Send
-          style={[styles.sendButton, isEmpty && styles.sendDisabled]}
-        >
-          <Send size={18} color={Colors.onPrimary} />
-        </ComposerPrimitive.Send>
-      )}
-    </ComposerPrimitive.Root>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Suggestion chips
-// ---------------------------------------------------------------------------
-
-function SuggestionChips() {
-  return (
-    <AuiIf condition={(s) => s.thread.isEmpty}>
-      <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsTitle}>Nosh is looking at this page</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {QUICK_PROMPTS.map((prompt) => (
-            <ThreadPrimitive.Suggestion
-              key={prompt}
-              prompt={prompt}
-              send
-              style={styles.chip}
-            >
-              <Text style={styles.chipText}>{prompt}</Text>
-            </ThreadPrimitive.Suggestion>
-          ))}
-        </ScrollView>
-      </View>
-    </AuiIf>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Thread — the message list + composer
-// ---------------------------------------------------------------------------
-
-function NoshThread() {
-  return (
-    <View style={styles.threadContainer}>
-      <ThreadPrimitive.MessagesFlatList
-        autoScroll
-        contentContainerStyle={styles.messagesContent}
-        style={styles.messagesList}
-        components={{
-          UserMessage,
-          AssistantMessage,
-        }}
-      />
-      <SuggestionChips />
-      <NoshComposer />
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Runtime provider — wraps the adapter + toolkit
-// ---------------------------------------------------------------------------
-
-interface NoshRuntimeProviderProps {
-  page: CookbookPage | null;
-  cookbookPages: CookbookPage[];
-  cookbookTitle?: string;
-  children: React.ReactNode;
-  onPageUpdate?: (page: CookbookPage) => void;
-}
-
-function NoshRuntimeProvider({
-  page,
-  cookbookPages,
-  cookbookTitle,
-  children,
-  onPageUpdate,
-}: NoshRuntimeProviderProps) {
-  // Keep a ref to the latest page so the adapter always sends current state
-  const pageRef = useRef(page);
-  pageRef.current = page;
-  const cookbookPagesRef = useRef(cookbookPages);
-  cookbookPagesRef.current = cookbookPages;
-  const titleRef = useRef(cookbookTitle);
-  titleRef.current = cookbookTitle;
-
-  // Tool execution: update the RecipeGraph and persist
-  const handleUpdateGraph = useCallback(
-    (graph: RecipeGraph) => {
-      if (!pageRef.current) return;
-      const updatedPage: CookbookPage = {
-        ...pageRef.current,
-        recipeGraph: graph,
-      };
-      // Update React Query cache immediately (live typesetter re-render)
-      onPageUpdate?.(updatedPage);
-      // Persist to DB in the background
-      updatePageRecipeGraph(pageRef.current.id, graph).catch((err) => {
-        console.warn('[NoshAssistant] Failed to persist graph update', err);
+    let cancelled = false;
+    setFocusStatus('loading');
+    void loadRecipeFromCollection(interaction.focus.pageId)
+      .then((loaded) => {
+        if (cancelled) return;
+        setLoadedFocus(loaded);
+        setFocusStatus('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadedFocus(null);
+        setFocusStatus('missing');
       });
-    },
-    [onPageUpdate],
-  );
+    return () => {
+      cancelled = true;
+    };
+  }, [interaction.focus, recipePreview, setRecipePreview, visibleFocusedPage]);
 
-  // Create the toolkit with tool execution callbacks
+  const interactionRef = useRef(interaction);
+  interactionRef.current = interaction;
+  const focusedRecipeGraphRef = useRef(focusedRecipeGraph);
+  focusedRecipeGraphRef.current = focusedRecipeGraph;
+  const focusedCookbookRef = useRef(focusedCookbook);
+  focusedCookbookRef.current = focusedCookbook;
+  const focusStatusRef = useRef(focusStatus);
+  focusStatusRef.current = focusStatus;
+  const visibleBookContextRef = useRef(visibleBookContext);
+  visibleBookContextRef.current = visibleBookContext;
+  const imageRef = useRef(pendingImageBase64);
+  imageRef.current = pendingImageBase64;
+  const cookbooksRef = useRef(cookbooks);
+  cookbooksRef.current = cookbooks;
+  const [activeTask, setActiveTask] = useState<NoshActiveTask | null>(null);
+  const [showingHistory, setShowingHistory] = useState(false);
+  const [captureHandoffSource, setCaptureHandoffSource] = useState<NoshCaptureHandoffSource | null>(null);
+
+  useEffect(() => {
+    if (!visible) setShowingHistory(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (interaction.task === 'capture') setShowingHistory(false);
+  }, [interaction.task]);
+
+  const clearSessionScratch = useCallback(() => {
+    setCaptureHandoffSource(null);
+    setPendingImageBase64(null);
+    setPendingImageMimeType(null);
+    setRecipePreview(null);
+  }, [setPendingImageBase64, setPendingImageMimeType, setRecipePreview]);
+
+  const persistFocusedGraph = useCallback(async (graph: RecipeGraph) => {
+    const focus = interactionRef.current.focus;
+    if (focus.kind !== 'recipe') throw new Error('No focused recipe to update');
+    const cookbook = cookbooksRef.current.find((candidate) => candidate.id === focus.cookbookId)
+      ?? await getCookbook(focus.cookbookId);
+    if (!cookbook) throw new Error('Cookbook not found');
+    const savedGraph = { ...graph, updatedAt: new Date().toISOString() };
+    setActiveTask({ kind: 'create', cookbookTitle: cookbook.title });
+    try {
+      const candidate = await finishRecipePageCandidate({
+        cookbookId: cookbook.id,
+        pageId: focus.pageId,
+        recipeGraph: savedGraph,
+        styleId: cookbook.coverStyle,
+        styleRevision: cookbook.styleRevision,
+        styleReferences: pageStyleReferences(cookbook),
+        idempotencyKey: createGenerationRequestKey(),
+      });
+      await updatePageRecipeGraph(focus.pageId, savedGraph);
+      await updatePageSelectedVersion(focus.pageId, candidate.id);
+    } finally {
+      setActiveTask(null);
+    }
+    const savedPage = await fetchPageById(focus.pageId);
+    if (!savedPage) throw new Error('Recipe page not found after saving the update');
+    updateVisiblePage(savedPage);
+    setLoadedFocus({ pageId: focus.pageId, cookbookId: focus.cookbookId, recipeGraph: savedGraph });
+    queryClient.setQueryData<CookbookPage[]>(
+      COOKBOOK_PAGES_QUERY_KEY(focus.cookbookId),
+      (pages = []) => pages.map((page) => page.id === focus.pageId ? savedPage : page),
+    );
+  }, [queryClient, updateVisiblePage]);
+
+  const handleCommitRecipeAction = useCallback(async (
+    proposal: RecipeActionProposal,
+    mode: RecipeActionCommitMode,
+  ): Promise<{ pageId?: string }> => {
+    const focus = interactionRef.current.focus;
+    if (focus.kind !== 'recipe') throw new Error('No focused recipe to change');
+
+    if (mode === 'session') {
+      setRecipePreview({ pageId: focus.pageId, graph: proposal.proposed });
+      return { pageId: focus.pageId };
+    }
+
+    if (mode === 'update') {
+      await persistFocusedGraph(proposal.proposed);
+      setRecipePreview(null);
+      return { pageId: focus.pageId };
+    }
+
+    if (!user) throw new Error('Sign in to save a new recipe version');
+    const cookbook = cookbooksRef.current.find((candidate) => candidate.id === focus.cookbookId)
+      ?? await getCookbook(focus.cookbookId);
+    if (!cookbook) throw new Error('Cookbook not found');
+    const copiedGraph = {
+      ...proposal.proposed,
+      provenance: {
+        ...proposal.proposed.provenance,
+        extractionNotes: [
+          ...(proposal.proposed.provenance.extractionNotes ?? []),
+          `Saved as a copy of ${proposal.original.title}.`,
+        ],
+      },
+    };
+    setActiveTask({ kind: 'create', cookbookTitle: cookbook.title });
+    let copiedPage = await createRecipePageWithGraph({
+      cookbookId: cookbook.id,
+      userId: user.id,
+      recipeGraph: copiedGraph,
+      styleId: cookbook.coverStyle,
+      templateId: cookbook.pageTemplateId,
+    });
+    try {
+      copiedPage = await finishRecipePageImage({
+        cookbookId: cookbook.id,
+        pageId: copiedPage.id,
+        recipeGraph: copiedGraph,
+        styleId: cookbook.coverStyle,
+        styleRevision: cookbook.styleRevision,
+        styleReferences: pageStyleReferences(cookbook),
+        idempotencyKey: createGenerationRequestKey(),
+      });
+    } finally {
+      setActiveTask(null);
+    }
+    queryClient.setQueryData<CookbookPage[]>(
+      COOKBOOK_PAGES_QUERY_KEY(cookbook.id),
+      (pages = []) => [...pages, copiedPage],
+    );
+    return { pageId: copiedPage.id };
+  }, [persistFocusedGraph, queryClient, setRecipePreview, user]);
+
+  const handleGenerateArtCandidate = useCallback(async (
+    instruction: string | undefined,
+    idempotencyKey: string,
+  ): Promise<GeneratedRecipePage> => {
+    const focus = interactionRef.current.focus;
+    if (focus.kind !== 'recipe') throw new Error('No focused recipe for artwork');
+    const graph = focusedRecipeGraphRef.current;
+    if (!graph) throw new Error('Recipe data is unavailable');
+    const cookbook = cookbooksRef.current.find((candidate) => candidate.id === focus.cookbookId)
+      ?? await getCookbook(focus.cookbookId);
+    if (!cookbook) throw new Error('Cookbook not found');
+    const currentPage = visibleBookContextRef.current.pages.find((page) => page.id === focus.pageId)
+      ?? (await fetchCookbookPages(focus.cookbookId)).find((page) => page.id === focus.pageId);
+
+    return finishRecipePageCandidate({
+      cookbookId: focus.cookbookId,
+      pageId: focus.pageId,
+      recipeGraph: graph,
+      styleId: cookbook.coverStyle,
+      styleRevision: cookbook.styleRevision,
+      styleReferences: pageStyleReferences(cookbook),
+      idempotencyKey,
+      artDirection: instruction,
+      referenceArtUrl: currentPage?.pageImage?.imageUrl ?? currentPage?.artAsset?.artUrl,
+    });
+  }, []);
+
+  const handleSelectArtCandidate = useCallback(async (candidate: GeneratedRecipePage) => {
+    const focus = interactionRef.current.focus;
+    if (focus.kind !== 'recipe' || candidate.pageId !== focus.pageId) {
+      throw new Error('Artwork candidate does not belong to the focused recipe');
+    }
+    await updatePageSelectedVersion(focus.pageId, candidate.id);
+    const page = await fetchPageById(focus.pageId);
+    if (!page) throw new Error('Recipe page not found after artwork selection');
+    queryClient.setQueryData<CookbookPage[]>(
+      COOKBOOK_PAGES_QUERY_KEY(focus.cookbookId),
+      (pages = []) => pages.map((current) => current.id === page.id ? page : current),
+    );
+    updateVisiblePage(page);
+  }, [queryClient, updateVisiblePage]);
+
+  const handleLoadRecipe = useCallback(async (pageId: string) => {
+    const loaded = await loadRecipeFromCollection(pageId);
+    requestFocus({
+      kind: 'recipe',
+      cookbookId: loaded.cookbookId,
+      pageId: loaded.pageId,
+      title: loaded.recipeGraph.title,
+    });
+    setLoadedFocus(loaded);
+    setFocusStatus('ready');
+    return loaded;
+  }, [requestFocus]);
+
+  const handleOpenRecipe = useCallback(async (pageId: string) => {
+    const loaded = await loadRecipeFromCollection(pageId);
+    const cookbook = cookbooksRef.current.find((book) => book.id === loaded.cookbookId)
+      ?? await getCookbook(loaded.cookbookId);
+    if (!cookbook) throw new Error('That cookbook is no longer available.');
+
+    const pages = await fetchCookbookPages(cookbook.id);
+    const page = pages.find((candidate) => candidate.id === pageId);
+    if (!page) throw new Error('That saved recipe is no longer available.');
+
+    queryClient.setQueryData(COOKBOOK_PAGES_QUERY_KEY(cookbook.id), pages);
+    setVisibleBookContext({ cookbook, pages, page });
+    requestFocus({
+      kind: 'recipe',
+      cookbookId: cookbook.id,
+      pageId: page.id,
+      title: page.title,
+    });
+    setLoadedFocus({ pageId: page.id, cookbookId: cookbook.id, recipeGraph: loaded.recipeGraph });
+    router.replace(`/(book)/${cookbook.id}?pageId=${page.id}`);
+    return {
+      success: true as const,
+      cookbookId: cookbook.id,
+      pageId: page.id,
+      title: page.title,
+    };
+  }, [queryClient, requestFocus, router, setVisibleBookContext]);
+
+  const handleCommitCollectionAction = useCallback(async (input: {
+    action: 'move' | 'copy';
+    pageId: string;
+    destinationCookbookId: string;
+    idempotencyKey: string;
+  }): Promise<CollectionActionResult> => {
+    if (!user) throw new Error('Sign in to organize your cookbooks.');
+    const result = await organizeRecipePage(input);
+    const cookbookIds = [...new Set([result.sourceCookbookId, result.destinationCookbookId])];
+    const [shelf, pageLists] = await Promise.all([
+      listCookbooks(user.id),
+      Promise.all(cookbookIds.map((cookbookId) => fetchCookbookPages(cookbookId))),
+    ]);
+
+    queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user.id), shelf);
+    await saveCachedShelf(user.id, shelf);
+    cookbookIds.forEach((cookbookId, index) => {
+      queryClient.setQueryData<CookbookPage[]>(COOKBOOK_PAGES_QUERY_KEY(cookbookId), pageLists[index]);
+    });
+    await Promise.all(cookbookIds.map((cookbookId, index) => saveCachedPages(cookbookId, pageLists[index])));
+
+    const destination = shelf.find((cookbook) => cookbook.id === result.destinationCookbookId)
+      ?? await getCookbook(result.destinationCookbookId);
+    const destinationPages = pageLists[cookbookIds.indexOf(result.destinationCookbookId)];
+    const resultPage = destinationPages?.find((page) => page.id === result.resultPageId);
+    if (!destination || !resultPage) throw new Error('The change was saved, but the destination could not be opened.');
+
+    setVisibleBookContext({ cookbook: destination, pages: destinationPages, page: resultPage });
+    requestFocus({
+      kind: 'recipe',
+      cookbookId: destination.id,
+      pageId: resultPage.id,
+      title: resultPage.title,
+    });
+    setLoadedFocus(resultPage.recipeGraph
+      ? { pageId: resultPage.id, cookbookId: destination.id, recipeGraph: resultPage.recipeGraph }
+      : null);
+    router.replace(`/(book)/${destination.id}?pageId=${resultPage.id}`);
+    return result;
+  }, [queryClient, requestFocus, router, setVisibleBookContext, user]);
+
+  const realCookbooks = cookbooks.filter((book) => book.id !== SAMPLE_COOKBOOK_ID);
+
   const toolkit = useNoshToolkit({
-    recipeGraph: page?.recipeGraph ?? null,
-    onUpdateGraph: handleUpdateGraph,
-    onStartTimer: (duration, label) => {
-      console.log('[NoshAssistant] Timer requested', { duration, label });
-      // Timer implementation: use the device notification API
-      // For now, this is a placeholder — actual timer UI is a follow-up
+    recipeGraph: focusedRecipeGraph,
+    onCommitRecipeAction: handleCommitRecipeAction,
+    onGenerateArtCandidate: handleGenerateArtCandidate,
+    onSelectArtCandidate: handleSelectArtCandidate,
+    hasCurrentArtwork: Boolean(visibleFocusedPage?.pageImage ?? visibleFocusedPage?.artAsset),
+    availableCookbooks: realCookbooks.map((book) => ({ id: book.id, title: book.title })),
+    onSearchRecipeCollection: searchRecipeCollection,
+    onLoadRecipe: handleLoadRecipe,
+    onOpenRecipe: handleOpenRecipe,
+    onLoadCollectionActionPreview: loadCollectionActionPreview,
+    onCommitCollectionAction: handleCommitCollectionAction,
+    onStartRecipeCapture: (source) => {
+      const destination = visibleBookContextRef.current.cookbook;
+      setCaptureHandoffSource({
+        ...source,
+        ...(source.sourceType === 'image' && imageRef.current
+          ? { imageBase64: imageRef.current }
+          : {}),
+      });
+      setPendingImageBase64(null);
+      setPendingImageMimeType(null);
+      open(
+        'cookbook-add',
+        destination
+          ? { kind: 'cookbook', cookbookId: destination.id, title: destination.title }
+          : { kind: 'capture', captureId: `conversation-${Date.now()}`, title: 'Recipe capture' },
+      );
+    },
+    onStartTimer: (durationMinutes, label) => {
+      setTimeout(() => {
+        Alert.alert(label ?? 'Nosh timer', `${durationMinutes}-minute timer is done.`);
+      }, durationMinutes * 60_000);
     },
     onGuideStep: (stepId) => {
-      console.log('[NoshAssistant] Guide to step', stepId);
-      // Step highlighting: scroll to the step in the typesetter
-      // For now, this is a placeholder — actual step highlighting is a follow-up
+      console.info('[Nosh] Guide to recipe step', stepId);
+    },
+    onSetWalkthrough: (active) => {
+      const focus = interactionRef.current.focus;
+      if (focus.kind !== 'recipe') return;
+      open(active ? 'walkthrough' : 'recipe-ask', focus);
     },
   });
 
-  // Create the adapter — context is read at call time via closures
-  const adapter = useMemo(
-    () =>
-      createNoshChatAdapter(() => ({
-        recipeGraph: pageRef.current?.recipeGraph ?? null,
-        cookbookPages: cookbookPagesRef.current,
-        cookbookTitle: titleRef.current,
-        styleId: pageRef.current?.styleId,
-      })),
-    [],
+  const adapter = useMemo(() => createNoshChatAdapter(() => {
+    const currentInteraction = interactionRef.current;
+    const currentBook = currentInteraction.task === 'capture'
+      ? visibleBookContextRef.current.cookbook
+      : focusedCookbookRef.current;
+    return {
+      recipeGraph: focusedRecipeGraphRef.current,
+      cookbookTitle: currentBook?.title,
+      activeCookbookId: currentBook?.id,
+      styleId: currentBook?.coverStyle,
+      availableCookbooks: cookbooksRef.current
+        .filter((book) => book.id !== SAMPLE_COOKBOOK_ID)
+        .map((book) => ({ id: book.id, title: book.title })),
+      interaction: {
+        ...currentInteraction,
+        focusStatus: focusStatusRef.current,
+      },
+      hasAttachedImage: Boolean(imageRef.current),
+    };
+  }), []);
+
+  const threadListAdapter = useMemo(
+    () => createNoshThreadListAdapter(user?.id),
+    [user?.id],
   );
-
-  // Create the runtime with tool support
-  const runtime = useLocalRuntime(adapter, {
-    maxSteps: 5,
+  const runtimeHook = useCallback(function useNoshLocalRuntime() {
+    return useLocalRuntime(adapter, {
+      maxSteps: 8,
+      unstable_humanToolNames: [
+        'start_recipe_capture',
+        'scale_servings',
+        'substitute_ingredient',
+        'update_page_data',
+        'regenerate_recipe_page',
+        'organize_recipe',
+      ],
+    });
+  }, [adapter]);
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook,
+    adapter: threadListAdapter,
   });
-
-  // Register tools via AuiConfig
   const config = useMemo(() => AuiConfig({ tools: Tools({ toolkit }) }), [toolkit]);
+  const contextLabel = interaction.focus.kind === 'collection'
+    ? 'Your cookbook collection'
+    : interaction.focus.kind === 'capture'
+      ? interaction.focus.title ?? 'Recipe capture'
+      : focusStatus === 'missing'
+        ? `${interaction.focus.title} · unavailable`
+        : interaction.focus.title;
+
+  const startNewConversation = useCallback(async (focus?: NoshFocus) => {
+    clearSessionScratch();
+    try {
+      await runtime.threads.switchToNewThread();
+      if (focus) {
+        restoreInteraction({
+          entryPoint: focus.kind === 'recipe' ? 'recipe-ask' : 'shelf-nosh',
+          task: focus.kind === 'recipe' ? 'recipe-help' : 'collection',
+          focus,
+        });
+      } else {
+        restoreInteraction(COLLECTION_SESSION);
+      }
+      setShowingHistory(false);
+    } catch (error) {
+      Alert.alert(
+        'Could not start a new conversation',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    }
+  }, [clearSessionScratch, restoreInteraction, runtime]);
+
+  const closeAndResetHistory = useCallback(() => {
+    setShowingHistory(false);
+    close();
+  }, [close]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
-      {children}
+      <NoshInteractionStateSync
+        interaction={{
+          entryPoint: interaction.entryPoint,
+          task: interaction.task,
+          focus: interaction.focus,
+        }}
+        onRestoreInteraction={restoreInteraction}
+        onThreadChanged={clearSessionScratch}
+      />
+      <Sheet
+        visible={visible}
+        onClose={closeAndResetHistory}
+        keyboardAvoiding
+        maxHeight="88%"
+        contentStyle={styles.sheet}
+        handleStyle={styles.handle}
+        closeButtonStyle={styles.closeButton}
+        closeAccessibilityLabel="Close Nosh conversation"
+        header={
+          <>
+            <View style={styles.iconBadge}>
+              <ChefHat size={20} color={Colors.onPrimary} />
+            </View>
+            <NoshHeaderIdentity contextLabel={contextLabel} showingHistory={showingHistory} />
+            {interaction.task !== 'capture' ? (
+              <NoshHeaderActions
+                showingHistory={showingHistory}
+                onToggleHistory={() => setShowingHistory((current) => !current)}
+                onNewConversation={() => void startNewConversation()}
+              />
+            ) : null}
+          </>
+        }
+      >
+        {showingHistory ? (
+          <NoshThreadHistory
+            onNewConversation={() => void startNewConversation()}
+            onOpenConversation={() => {
+              clearSessionScratch();
+              setShowingHistory(false);
+            }}
+            onDeleteActive={clearSessionScratch}
+          />
+        ) : (
+          <>
+            {requestedFocus ? (
+              <NoshFocusChangePrompt
+                requestedFocus={requestedFocus}
+                currentLabel={contextLabel}
+                onAccept={acceptRequestedFocus}
+                onStartNew={() => {
+                  dismissRequestedFocus();
+                  void startNewConversation(requestedFocus);
+                }}
+              />
+            ) : null}
+            {interaction.task === 'capture' ? (
+              <NoshCaptureWorkspace
+                initialSource={captureHandoffSource}
+                destinationCookbookId={interaction.focus.kind === 'cookbook'
+                  ? interaction.focus.cookbookId
+                  : undefined}
+                captureId={interaction.focus.kind === 'capture'
+                  ? interaction.focus.captureId
+                  : undefined}
+                onReady={(cookbookId, pageId) => {
+                  setCaptureHandoffSource(null);
+                  close();
+                  router.replace(`/(book)/${cookbookId}?pageId=${pageId}`);
+                }}
+              />
+            ) : (
+              <NoshConversationDisplay
+                interaction={interaction}
+                activeTask={activeTask}
+                contextModelEnabled={contextModelEnabled}
+              />
+            )}
+          </>
+        )}
+      </Sheet>
     </AssistantRuntimeProvider>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main component — the Sheet wrapper
-// ---------------------------------------------------------------------------
-
-export function NoshAssistantChat({
-  visible,
-  page,
-  cookbookPages,
-  cookbookTitle,
-  pageNumber,
-  onClose,
-  onPageUpdate,
-}: NoshAssistantChatProps) {
-  const contextLabel = page
-    ? [
-        page.title,
-        pageNumber ? `Page ${pageNumber}` : null,
-        cookbookTitle ?? 'Cookbook',
-      ]
-        .filter(Boolean)
-        .join(' - ')
-    : cookbookTitle ?? 'Cookbook';
-
-  return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      keyboardAvoiding
-      maxHeight="82%"
-      contentStyle={styles.sheet}
-      handleStyle={styles.handle}
-      closeButtonStyle={styles.closeButton}
-      closeAccessibilityLabel="Close Nosh chat"
-      header={
-        <>
-          <View style={styles.iconBadge}>
-            <ChefHat size={20} color={Colors.onPrimary} />
-          </View>
-          <View style={styles.headerText}>
-            <Text style={styles.eyebrow}>Ask Nosh</Text>
-            <Text style={styles.title} numberOfLines={1}>
-              {contextLabel}
-            </Text>
-          </View>
-        </>
-      }
-    >
-      <NoshRuntimeProvider
-        page={page}
-        cookbookPages={cookbookPages}
-        cookbookTitle={cookbookTitle}
-        onPageUpdate={onPageUpdate}
-      >
-        <NoshThread />
-      </NoshRuntimeProvider>
-    </Sheet>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Button component — the floating "Ask Nosh" trigger
-// ---------------------------------------------------------------------------
-
-interface NoshAssistantChatButtonProps {
-  page: CookbookPage;
-  cookbookPages: CookbookPage[];
-  cookbookTitle?: string;
-  pageNumber?: number;
-  onPageUpdate?: (page: CookbookPage) => void;
-}
-
-export function NoshAssistantChatButton({
-  page,
-  cookbookPages,
-  cookbookTitle,
-  pageNumber,
-  onPageUpdate,
-}: NoshAssistantChatButtonProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <>
-      <Pressable
-        style={styles.button}
-        accessibilityLabel={`Ask Nosh about ${page.title}`}
-        accessibilityRole="button"
-        onPress={() => setIsOpen(true)}
-      >
-        <ChefHat size={20} color={Colors.text} />
-        <Text style={styles.buttonLabel}>Ask Nosh</Text>
-      </Pressable>
-      <NoshAssistantChat
-        visible={isOpen}
-        page={page}
-        cookbookPages={cookbookPages}
-        cookbookTitle={cookbookTitle}
-        pageNumber={pageNumber}
-        onClose={() => setIsOpen(false)}
-        onPageUpdate={onPageUpdate}
-      />
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Styles — Gemini-inspired clean chat aesthetic
-// ---------------------------------------------------------------------------
+export { NoshAssistantChatButton, NoshShelfChatButton } from '@/components/nosh/NoshLaunchers';
 
 const styles = StyleSheet.create({
-  // Sheet
   sheet: {
+    height: '88%',
     backgroundColor: Colors.alabaster,
-    borderWidth: 1,
     borderColor: Colors.ash,
     gap: Spacing.sm,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
   },
-  handle: {
-    backgroundColor: Colors.duskGrey,
-  },
+  handle: { backgroundColor: Colors.duskGrey },
+  closeButton: { backgroundColor: Colors.white },
   iconBadge: {
     width: 42,
     height: 42,
@@ -397,68 +653,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
+  },
+  headerText: { flex: 1 },
+  eyebrow: { color: Colors.textMuted, fontSize: 11, fontFamily: Fonts.ui.medium },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xl },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  headerAction: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  headerText: {
-    flex: 1,
-  },
-  eyebrow: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
-  },
-  title: {
-    color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.xl,
-  },
-  closeButton: {
+    borderColor: Colors.ash,
     backgroundColor: Colors.white,
   },
-
-  // Thread
-  threadContainer: {
-    flex: 1,
-    gap: Spacing.sm,
-  },
-  messagesList: {
-    flex: 1,
-    minHeight: 200,
-  },
-  messagesContent: {
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: 2,
-  },
-
-  // User message — right-aligned, primary color
-  userRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
+  headerActionDisabled: { opacity: 0.4 },
+  threadContainer: { flex: 1, gap: Spacing.sm },
+  messagesList: { flex: 1, minHeight: 220 },
+  messagesContent: { gap: Spacing.sm, paddingVertical: Spacing.sm, paddingHorizontal: 2 },
+  userRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   userBubble: {
-    maxWidth: '85%',
+    maxWidth: '86%',
     borderRadius: Radii.lg,
     borderBottomRightRadius: Radii.sm,
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  userText: {
-    color: Colors.onPrimary,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: Fonts.ui.regular,
-  },
-
-  // Assistant message — left-aligned, clean white with avatar
-  assistantRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'flex-start',
-  },
+  userText: { color: Colors.onPrimary, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
+  assistantRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
   assistantAvatar: {
     width: 28,
     height: 28,
@@ -470,7 +694,7 @@ const styles = StyleSheet.create({
   },
   assistantBubble: {
     flex: 1,
-    maxWidth: '85%',
+    maxWidth: '88%',
     borderRadius: Radii.lg,
     borderBottomLeftRadius: Radii.sm,
     backgroundColor: Colors.white,
@@ -479,26 +703,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
   },
-  assistantText: {
-    color: Colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: Fonts.ui.regular,
-  },
-
-  // Suggestions
-  suggestionsContainer: {
-    gap: Spacing.xs,
-    paddingHorizontal: 2,
-  },
-  suggestionsTitle: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontFamily: Fonts.ui.medium,
-  },
+  assistantText: { color: Colors.text, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
+  suggestionsContainer: { gap: Spacing.xs, paddingVertical: Spacing.sm },
+  welcomeTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 20 },
+  welcomeCopy: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, maxWidth: 390 },
   chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
-    paddingRight: Spacing.lg,
+    paddingTop: Spacing.xs,
   },
   chip: {
     borderRadius: Radii.full,
@@ -508,64 +721,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  chipText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+  chipText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  composerArea: { gap: Spacing.xs },
+  attachmentChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.parchment,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
   },
-
-  // Composer — Gemini-style rounded input
+  attachmentText: { color: Colors.text, fontSize: 12, fontFamily: Fonts.ui.medium },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: Spacing.sm,
-    paddingHorizontal: 2,
-  },
-  composerInput: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 100,
-    borderRadius: Radii.lg,
+    gap: Spacing.xs,
+    padding: 4,
+    borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 110,
     color: Colors.text,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 9,
     fontSize: 14,
     fontFamily: Fonts.ui.regular,
   },
   sendButton: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderWidth: 0,
   },
-  sendDisabled: {
-    opacity: 0.4,
-  },
+  sendDisabled: { opacity: 0.35 },
   cancelButton: {
-    height: 42,
+    height: 40,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.ash,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
   },
-  cancelText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-  },
-
-  // Floating button
+  cancelText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
   button: {
     minWidth: 126,
     height: 44,
-    borderRadius: 9999,
+    borderRadius: Radii.full,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -576,8 +795,244 @@ const styles = StyleSheet.create({
     borderColor: Colors.charcoal,
     boxShadow: Colors.book.cardShadow,
   },
-  buttonLabel: {
+  buttonLabel: { color: Colors.text, fontFamily: Fonts.ui.medium },
+  shelfButton: {
+    position: 'absolute',
+    right: Spacing.md,
+    top: 132,
+    width: 54,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 27,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.primary,
+    boxShadow: Colors.book.liftedShadow,
+  },
+  shelfEntry: {
+    position: 'absolute',
+    right: Spacing.md,
+    top: 132,
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    boxShadow: Colors.book.liftedShadow,
+  },
+  shelfEntryText: { gap: 1, paddingRight: Spacing.xs },
+  shelfEntryTitle: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 14 },
+  shelfEntryCopy: { color: Colors.onPrimary, fontFamily: Fonts.ui.regular, fontSize: 11, opacity: 0.82 },
+  progressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.parchment,
+    padding: Spacing.md,
+    marginHorizontal: 2,
+  },
+  progressGlyph: {
+    width: 42,
+    height: 42,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+  },
+  progressScanLine: {
+    position: 'absolute',
+    left: 7,
+    right: 7,
+    top: 20,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: Colors.primary,
+  },
+  progressText: { flex: 1, gap: 2 },
+  progressLabel: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
+    fontSize: 13,
   },
+  progressDetail: {
+    color: Colors.slate,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  progressTrail: {
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 5,
+  },
+  progressDot: {
+    width: 18,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: Colors.ash,
+  },
+  progressDotActive: { backgroundColor: Colors.primary },
+  historyPanel: { flex: 1, minHeight: 260, gap: Spacing.md },
+  historyIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.ash,
+    paddingBottom: Spacing.md,
+  },
+  historyHeading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 19 },
+  historyCopy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 12, marginTop: 2 },
+  newConversationButton: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+  },
+  newConversationText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  historyListRoot: { flex: 1 },
+  historyListContent: { gap: Spacing.sm, paddingBottom: Spacing.md },
+  historyItem: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+    padding: Spacing.xs,
+  },
+  historyItemActive: { borderColor: Colors.charcoal, backgroundColor: Colors.parchment },
+  historyItemMain: {
+    flex: 1,
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+  },
+  historyMark: {
+    width: 8,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: Colors.ash,
+  },
+  historyMarkActive: { backgroundColor: Colors.butterscotch },
+  historyItemText: { flex: 1, gap: 3 },
+  historyTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 14 },
+  historyMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11 },
+  historySmallAction: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  renameEditor: {
+    flex: 1,
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingLeft: Spacing.sm,
+  },
+  renameInput: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 13,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+  },
+  historyDelete: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
+  deleteCancel: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 7 },
+  deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 11 },
+  deleteConfirmButton: {
+    minHeight: 36,
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.error,
+    paddingHorizontal: Spacing.sm,
+  },
+  deleteConfirmText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: 11 },
+  historyEmpty: {
+    flex: 1,
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.ash,
+    backgroundColor: Colors.parchment,
+    padding: Spacing.xl,
+  },
+  historyEmptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16, textAlign: 'center' },
+  historyEmptyCopy: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  focusPrompt: {
+    gap: Spacing.sm,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.parchment,
+    padding: Spacing.md,
+  },
+  focusPromptTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16 },
+  focusPromptCopy: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  focusPrimaryButton: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+  },
+  focusPrimaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  focusSecondaryButton: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.md,
+  },
+  focusSecondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
 });

@@ -23,6 +23,7 @@
  *   { type: "url" | "text" | "image" | "video",
  *     input?: string,         // URL or text
  *     imageBase64?: string,   // for image type
+ *     imageMimeType?: string, // image/jpeg, image/png, etc.
  *     videoUrl?: string       // for video type
  *   }
  *
@@ -42,6 +43,12 @@ import { errorResponse } from '../_shared/error.ts';
 import { logInfo, logError } from '../_shared/log.ts';
 import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
 import { buildUrlRecipePrompt } from '../_shared/urlRecipeEvidence.ts';
+import {
+  normalizeRecipeGraphDraft,
+  recipeJsonLdToDraft,
+  validateNormalizedRecipeGraph,
+  type NormalizedRecipeGraphDraft,
+} from '../_shared/recipeGraphNormalization.ts';
 import {
   callChatCompletion,
   extractJsonObject,
@@ -69,33 +76,11 @@ interface RequestBody {
   type: SourceType;
   input?: string;
   imageBase64?: string;
+  imageMimeType?: string;
   videoUrl?: string;
 }
 
-interface RecipeGraphDraft {
-  title: string;
-  description?: string;
-  servings: number;
-  prepTimeMinutes?: number;
-  cookTimeMinutes?: number;
-  cuisine?: string;
-  category: string;
-  difficulty?: string;
-  ingredientGroups: unknown[];
-  stepGroups: unknown[];
-  notes?: string[];
-  equipment?: string[];
-  tags: string[];
-  dietaryTags?: string[];
-  provenance: {
-    sourceType: string;
-    sourceUrl?: string;
-    sourceAttribution?: string;
-    inferredFields?: string[];
-    extractionNotes?: string[];
-    confidence: number;
-  };
-}
+type RecipeGraphDraft = NormalizedRecipeGraphDraft;
 
 // ---------------------------------------------------------------------------
 // System prompt — hardened against prompt injection
@@ -243,7 +228,11 @@ const RECIPE_GRAPH_SCHEMA: ResponseFormat = {
 // ---------------------------------------------------------------------------
 const MAX_REDIRECTS = 5;
 
-async function fetchUrlContent(url: string, redirectCount = 0): Promise<{ pageText: string; prompt: string }> {
+async function fetchUrlContent(url: string, redirectCount = 0): Promise<{
+  pageText: string;
+  prompt: string;
+  recipeJsonLd: Record<string, unknown> | null;
+}> {
   if (redirectCount > MAX_REDIRECTS) {
     throw new Error('Too many redirects');
   }
@@ -322,8 +311,9 @@ function textContent(prompt: string): string {
   return prompt;
 }
 
-function imageContent(imageBase64: string, sourceUrl?: string): ContentPart[] {
-  const url = `data:image/jpeg;base64,${imageBase64}`;
+function imageContent(imageBase64: string, imageMimeType = 'image/jpeg', sourceUrl?: string): ContentPart[] {
+  const safeMimeType = /^image\/(?:jpeg|png|webp|gif)$/i.test(imageMimeType) ? imageMimeType : 'image/jpeg';
+  const url = `data:${safeMimeType};base64,${imageBase64}`;
   const parts: ContentPart[] = [
     { type: 'text', text: 'Extract the complete recipe from this image. Read all visible text, handwriting, and cooking details.' },
     { type: 'image_url', image_url: { url } },
@@ -345,32 +335,11 @@ function videoContent(videoUrl: string): ContentPart[] {
 }
 
 // ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
-function validateRecipeGraph(draft: RecipeGraphDraft, sourceType: SourceType, sourceUrl?: string): void {
-  if (!draft.title || typeof draft.title !== 'string') {
-    throw new Error('Extraction returned no title');
-  }
-  if (!Array.isArray(draft.ingredientGroups) || draft.ingredientGroups.length === 0) {
-    throw new Error('Extraction returned no ingredient groups');
-  }
-  if (!Array.isArray(draft.stepGroups) || draft.stepGroups.length === 0) {
-    throw new Error('Extraction returned no step groups');
-  }
-
-  // Ensure provenance has the correct source type
-  if (!draft.provenance) {
-    draft.provenance = { sourceType, confidence: 0.5 };
-  }
-  draft.provenance.sourceType = sourceType;
-  if (sourceUrl) draft.provenance.sourceUrl = sourceUrl;
-}
-
-// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsResponse(req);
+  const requestStartedAt = Date.now();
 
   const { error: authError } = await verifyAuth(req);
   if (authError) return authError;
@@ -392,6 +361,7 @@ serve(async (req: Request) => {
 
     let userContent: string | ContentPart[];
     let sourceUrl: string | undefined;
+    let structuredFallback: RecipeGraphDraft | null = null;
 
     if (body.type === 'image') {
       if (!body.imageBase64) return jsonError('Missing imageBase64', 400, req);
@@ -402,7 +372,7 @@ serve(async (req: Request) => {
         const message = validationErr instanceof Error ? validationErr.message : 'Invalid image';
         return jsonError(message, 400, req);
       }
-      userContent = imageContent(imageBase64);
+      userContent = imageContent(imageBase64, body.imageMimeType);
     } else if (body.type === 'video') {
       const videoUrl = (body.videoUrl ?? body.input ?? '').trim();
       if (!videoUrl) return jsonError('Missing video URL', 400, req);
@@ -421,6 +391,7 @@ serve(async (req: Request) => {
         const evidence = await fetchUrlContent(body.input.trim());
         userContent = textContent(evidence.prompt);
         sourceUrl = body.input.trim();
+        structuredFallback = recipeJsonLdToDraft(evidence.recipeJsonLd, sourceUrl);
       } catch (fetchErr) {
         const message = fetchErr instanceof Error ? fetchErr.message : 'Could not import URL';
         return jsonError(message, 400, req);
@@ -431,9 +402,34 @@ serve(async (req: Request) => {
       userContent = textContent(body.input);
     }
 
+    // Most established recipe sites publish complete schema.org Recipe data.
+    // Prefer that deterministic contract over a slow generative round-trip.
+    if (structuredFallback) {
+      validateNormalizedRecipeGraph(structuredFallback);
+      logInfo('extract-recipe completed from structured source', {
+        type: body.type,
+        title: structuredFallback.title,
+        confidence: structuredFallback.provenance.confidence,
+        durationMs: Date.now() - requestStartedAt,
+      });
+      return jsonResponse(
+        {
+          recipeGraph: structuredFallback,
+          confidence: structuredFallback.provenance.confidence ?? 0.9,
+          inferredFields: structuredFallback.provenance.inferredFields ?? [],
+          extractionNotes: structuredFallback.provenance.extractionNotes ?? [],
+        },
+        200,
+        req,
+      );
+    }
+
     // Call the model with structured output enforcement
     const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'system',
+        content: `${SYSTEM_PROMPT}\n\nREQUIRED OUTPUT SCHEMA:\n${JSON.stringify(RECIPE_GRAPH_SCHEMA.json_schema?.schema)}`,
+      },
       { role: 'user', content: userContent },
     ];
 
@@ -451,11 +447,24 @@ serve(async (req: Request) => {
       );
     } catch (modelErr) {
       const message = modelErr instanceof Error ? modelErr.message : 'Extraction failed';
-      logError('extract-recipe model call failed', { error: message, type: body.type });
+      logError('extract-recipe model call failed', {
+        error: message,
+        type: body.type,
+        durationMs: Date.now() - requestStartedAt,
+      });
       return jsonError(message, 502, req);
     }
 
     const text = extractTextContent(response);
+    const finishReason = response.choices?.[0]?.finish_reason;
+    if (finishReason && finishReason !== 'stop') {
+      logError('extract-recipe model returned an incomplete response', {
+        finishReason,
+        type: body.type,
+        completionTokens: response.usage?.completion_tokens,
+      });
+      return jsonError('Recipe extraction did not finish. Please try again.', 502, req);
+    }
     if (!text.trim()) {
       return jsonError('Extraction returned no content', 502, req);
     }
@@ -466,11 +475,11 @@ serve(async (req: Request) => {
       return jsonError((parsed as any).error, 400, req);
     }
 
-    const draft = parsed as RecipeGraphDraft;
+    const draft = normalizeRecipeGraphDraft(parsed, structuredFallback, body.type, sourceUrl);
 
     // Layer 4: Output validation
     try {
-      validateRecipeGraph(draft, body.type, sourceUrl);
+      validateNormalizedRecipeGraph(draft);
     } catch (validationErr) {
       const message = validationErr instanceof Error ? validationErr.message : 'Invalid extraction output';
       logError('extract-recipe validation failed', { error: message });
@@ -482,6 +491,10 @@ serve(async (req: Request) => {
       title: draft.title,
       confidence: draft.provenance.confidence,
       cost: response.usage.cost,
+      promptTokens: response.usage.prompt_tokens,
+      completionTokens: response.usage.completion_tokens,
+      totalTokens: response.usage.total_tokens,
+      durationMs: Date.now() - requestStartedAt,
     });
 
     return jsonResponse(

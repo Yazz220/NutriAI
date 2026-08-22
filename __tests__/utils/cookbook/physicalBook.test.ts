@@ -3,12 +3,47 @@ import {
   computeRowTurnProgress,
   estimateTurnSettleDuration,
   getSheetTurnProgress,
+  resolveBookStageTranslation,
+  resolveNativeBookGeometry,
+  resolveNativeReadingPageGeometry,
   resolveTurnProgress,
   resolveTurnRelease,
   shouldCommitPageTurn,
 } from '@/utils/cookbook/physicalBook';
 
 describe('physical cookbook page turns', () => {
+  describe('native book geometry', () => {
+    it('keeps a compact open spread inside the iPhone viewport', () => {
+      const geometry = resolveNativeBookGeometry(430, 932, true);
+
+      expect(geometry.stageWidth).toBeLessThanOrEqual(430 - 16);
+      expect(geometry.hingeX).toBeCloseTo(215);
+    });
+
+    it('attaches both closed covers to the same center hinge', () => {
+      const geometry = resolveNativeBookGeometry(430, 932, true);
+      const centeredCoverLeft = 430 / 2 - geometry.pageWidth / 2;
+
+      expect(centeredCoverLeft + geometry.frontCoverOffsetX).toBeCloseTo(geometry.hingeX);
+      expect(centeredCoverLeft + geometry.backCoverOffsetX + geometry.pageWidth).toBeCloseTo(geometry.hingeX);
+    });
+
+    it('centers the closed cover and settles the open spread at center', () => {
+      expect(resolveBookStageTranslation(0, 300)).toBe(-150);
+      expect(resolveBookStageTranslation(0.5, 300)).toBe(-75);
+      expect(resolveBookStageTranslation(1, 300)).toBe(0);
+    });
+
+    it('keeps the one-page binding directly across the page hinge', () => {
+      const geometry = resolveNativeReadingPageGeometry(430, 932);
+
+      expect(geometry.pageOffsetX).toBeLessThanOrEqual(10);
+      expect(geometry.bindingLeft).toBeLessThan(geometry.pageOffsetX);
+      expect(geometry.bindingLeft + geometry.bindingWidth).toBeGreaterThan(geometry.pageOffsetX);
+      expect(geometry.stageWidth).toBeLessThan(430);
+    });
+  });
+
   it('keeps every sheet on a stable side except the active sheet', () => {
     expect(getSheetTurnProgress(0, 2, 0, 0)).toBe(1);
     expect(getSheetTurnProgress(1, 2, 0, 0)).toBe(1);

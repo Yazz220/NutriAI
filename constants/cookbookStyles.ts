@@ -14,6 +14,10 @@ export interface CookbookStylePreset {
   id: CookbookStyleId;
   name: string;
   tagline: string;
+  /** Bump when prompts or visual anchors change. Existing books keep their revision. */
+  styleRevision: number;
+  /** Public visual anchors supplied to the image model for this style revision. */
+  pageStyleReferences?: readonly string[];
   palette: CookbookStylePalette;
   pagePromptDescriptor: string;
   theme: CookbookTheme;
@@ -34,6 +38,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'vintage-garden',
     name: 'Classic Kitchen',
     tagline: 'A warm cookbook cover with timeless kitchen character',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.page,
       ink: Colors.inkBlack,
@@ -53,6 +58,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'handwritten',
     name: 'Garden Table',
     tagline: 'Botanical linework with soft margins',
+    styleRevision: 1,
     palette: {
       paper: Colors.white,
       ink: Colors.inkBlack,
@@ -72,6 +78,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'editorial',
     name: 'Sunday Suppers',
     tagline: 'Classic family pages with soft ornament',
+    styleRevision: 1,
     palette: {
       paper: Colors.alabaster,
       ink: Colors.inkBlack,
@@ -91,6 +98,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'watercolor',
     name: 'Family Favorites',
     tagline: 'A beloved book with simple ink marks',
+    styleRevision: 1,
     palette: {
       paper: Colors.white,
       ink: Colors.inkBlack,
@@ -109,6 +117,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'rustic',
     name: 'Notes & Recipes',
     tagline: 'Notebook binding and small kitchen notes',
+    styleRevision: 1,
     palette: {
       paper: Colors.alabaster,
       ink: Colors.inkBlack,
@@ -128,6 +137,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'minimal',
     name: 'Modern Journal',
     tagline: 'A clean cover for a simple contemporary collection',
+    styleRevision: 1,
     palette: {
       paper: Colors.white,
       ink: Colors.inkBlack,
@@ -147,6 +157,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'sage-linen',
     name: 'Sage Linen',
     tagline: 'Sage green linen with gold foil stamping',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.page,
       ink: Colors.inkBlack,
@@ -168,6 +179,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'terracotta-cloth',
     name: 'Terracotta Cloth',
     tagline: 'Warm terracotta cloth with copper foil',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.page,
       ink: Colors.inkBlack,
@@ -189,6 +201,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'navy-leather',
     name: 'Navy Leather',
     tagline: 'Midnight navy leather with silver foil',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.pageAlt,
       ink: Colors.inkBlack,
@@ -210,6 +223,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'charcoal-cloth',
     name: 'Charcoal Cloth',
     tagline: 'Charcoal cloth with gold foil',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.page,
       ink: Colors.inkBlack,
@@ -231,6 +245,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'alabaster-linen',
     name: 'Alabaster Linen',
     tagline: 'Pale alabaster linen with copper foil',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.pageAlt,
       ink: Colors.inkBlack,
@@ -252,6 +267,7 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
     id: 'umber-leather',
     name: 'Umber Leather',
     tagline: 'Dark umber leather with gold foil',
+    styleRevision: 1,
     palette: {
       paper: Colors.book.pageWarm,
       ink: Colors.inkBlack,

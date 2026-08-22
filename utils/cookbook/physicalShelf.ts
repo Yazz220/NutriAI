@@ -32,7 +32,7 @@ export const SHELF_RUBBER_BAND = 0.35;
 export const SHELF_FLING_PROJECTION_SECONDS = 0.12;
 /** Max fling speed carried into the snap (slots/sec) — keeps flicks from
  * whipping through the whole shelf when the flank pitch is narrow. */
-export const SHELF_MAX_FLING_VELOCITY = 2.5;
+export const SHELF_MAX_FLING_VELOCITY = 1.8;
 /** Release speed (slots/sec) at which a flick commits to the next slot even
  * from a shallow drag — a deliberate flick always turns one page. */
 export const SHELF_FLING_COMMIT_VELOCITY = 1.2;
@@ -57,6 +57,8 @@ export interface ShelfPose {
   zIndex: number;
   /** 0 at center → 1 on the flanks: how strongly the spine plane shows. */
   spineBlend: number;
+  /** Front-cover visibility while the volume pivots into its spine-only pose. */
+  coverOpacity: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -92,6 +94,28 @@ export function shelfPitchAt(t: number, geometry: ShelfGeometry): number {
   'worklet';
   const span = geometry.centerPitch - geometry.flankPitch;
   return geometry.flankPitch + span * (1 - smoothstep01(t));
+}
+
+/**
+ * Finger travel for the active book. Gesture sensitivity is based on the
+ * distance from the nearest detent, never the absolute cookbook index.
+ * It softens only slightly mid-swipe so the book follows the finger without
+ * accelerating as it approaches the next slot.
+ */
+export function resolveShelfGesturePitch(offset: number, geometry: ShelfGeometry): number {
+  'worklet';
+  const distanceFromDetent = Math.abs(offset - Math.round(offset));
+  const sweep = smoothstep01(distanceFromDetent * 2);
+  return Math.max(geometry.flankPitch, geometry.centerPitch * (1 - sweep * 0.16));
+}
+
+/** Builds shelf spacing from the faces that remain visible at each pose. */
+export function resolveShelfCarouselGeometry(bookWidth: number, spineWidths: readonly number[]): ShelfGeometry {
+  const largestSpineWidth = spineWidths.reduce((largest, width) => Math.max(largest, width), bookWidth * 0.09);
+  return {
+    centerPitch: bookWidth * SHELF_CENTER_SCALE + 8,
+    flankPitch: largestSpineWidth * SHELF_FLANK_SCALE + 6,
+  };
 }
 
 /**
@@ -132,6 +156,10 @@ export function resolveShelfPose(offset: number, geometry: ShelfGeometry): Shelf
     opacity: interpolateLinear(distance, [0, 2.4, 3.2], [1, 1, 0]),
     zIndex: Math.round(1000 - distance * 10),
     spineBlend: smoothstep01(distance * 1.15),
+    // iOS projects a nearly edge-on RN view as a wide detached plane. Fade
+    // the cover out before the spine reaches its resting flank pose; the
+    // dedicated spine face remains visible and carries the side-book image.
+    coverOpacity: 1 - smoothstep01(distance * 1.25),
   };
 }
 

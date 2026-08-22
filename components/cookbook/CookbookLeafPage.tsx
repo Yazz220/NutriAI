@@ -1,7 +1,7 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BookOpen, Leaf } from 'lucide-react-native';
-import { BookTableOfContentsPage } from '@/components/cookbook/BookTableOfContentsPage';
+import { captureRef, releaseCapture } from 'react-native-view-shot';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -14,39 +14,93 @@ interface CookbookLeafPageProps {
   leaf: CookbookLeaf;
   cookbook: Cookbook | null;
   pages: CookbookPage[];
-  onSelectRecipe: (page: CookbookPage) => void;
   onOpenRecipe: (page: CookbookPage) => void;
+  onPageTextureReady?: (pageId: string, uri: string) => void;
 }
 
-export function CookbookLeafPage({ leaf, cookbook, pages, onSelectRecipe, onOpenRecipe }: CookbookLeafPageProps) {
+export function CookbookLeafPage({
+  leaf,
+  cookbook,
+  pages,
+  onOpenRecipe,
+  onPageTextureReady,
+}: CookbookLeafPageProps) {
   if (leaf.type === 'bookplate') {
     return <Bookplate cookbook={cookbook} pageCount={pages.length} />;
-  }
-
-  if (leaf.type === 'contents') {
-    return <BookTableOfContentsPage cookbook={cookbook} pages={pages} bookMode onSelectPage={onSelectRecipe} />;
   }
 
   if (leaf.type === 'recipe') {
     const page = pages[leaf.pageIndex];
     if (!page) return <BlankLeaf />;
 
-    return (
-      <Pressable
-        style={styles.recipe}
-        onPress={() => onOpenRecipe(page)}
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${page.title} in reading view`}
-      >
-        <PageCanvas page={page} bookMode />
-        <View pointerEvents="none" style={styles.recipePageNumberWrap}>
-          <Text style={styles.recipePageNumber}>{page.pageNumber}</Text>
-        </View>
-      </Pressable>
-    );
+    return <RecipeLeaf page={page} onOpenRecipe={onOpenRecipe} onPageTextureReady={onPageTextureReady} />;
   }
 
   return <BlankLeaf />;
+}
+
+function RecipeLeaf({
+  page,
+  onOpenRecipe,
+  onPageTextureReady,
+}: {
+  page: CookbookPage;
+  onOpenRecipe: (page: CookbookPage) => void;
+  onPageTextureReady?: (pageId: string, uri: string) => void;
+}) {
+  const captureTargetRef = useRef<View>(null);
+  const captureRunRef = useRef(0);
+
+  useEffect(() => () => {
+    captureRunRef.current += 1;
+  }, []);
+
+  const capturePageTexture = useCallback(() => {
+    if (
+      Platform.OS === 'web'
+      || !page.recipeGraph
+      || page.pageImage?.imageUrl
+      || !onPageTextureReady
+      || !captureTargetRef.current
+    ) {
+      return;
+    }
+
+    const runId = captureRunRef.current + 1;
+    captureRunRef.current = runId;
+    requestAnimationFrame(() => {
+      const target = captureTargetRef.current;
+      if (!target) return;
+
+      captureRef(target, { format: 'png', quality: 1, result: 'tmpfile' })
+        .then((uri) => {
+          if (captureRunRef.current !== runId) {
+            releaseCapture(uri);
+            return;
+          }
+          onPageTextureReady(page.id, uri);
+        })
+        .catch((error) => {
+          console.warn('[CookbookLeafPage] Could not capture page texture', error);
+        });
+    });
+  }, [onPageTextureReady, page.id, page.pageImage?.imageUrl, page.recipeGraph]);
+
+  return (
+    <Pressable
+      style={styles.recipe}
+      onPress={() => onOpenRecipe(page)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${page.title} in reading view`}
+    >
+      <View ref={captureTargetRef} collapsable={false} style={styles.recipe}>
+        <PageCanvas page={page} bookMode onRenderReady={capturePageTexture} />
+        <View pointerEvents="none" style={styles.recipePageNumberWrap}>
+          <Text style={styles.recipePageNumber}>{page.pageNumber}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
 }
 
 function Bookplate({ cookbook, pageCount }: { cookbook: Cookbook | null; pageCount: number }) {

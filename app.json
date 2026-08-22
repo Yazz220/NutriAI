@@ -62,7 +62,23 @@
       "expo-localization",
       "expo-router",
       "expo-asset",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-share-intent",
+        {
+          "iosShareExtensionName": "ShareToNosh",
+          "iosShareExtensionBundleIdentifier": "com.yaz12.nosh.share",
+          "iosAppGroupIdentifier": "group.com.yaz12.nosh.share",
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 1
+          },
+          "androidIntentFilters": ["text/*", "image/*"],
+          "androidMultiIntentFilters": []
+        }
+      ]
     ],
     "web": {
       "bundler": "metro"

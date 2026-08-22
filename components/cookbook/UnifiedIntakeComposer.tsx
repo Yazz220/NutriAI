@@ -148,7 +148,7 @@ export function UnifiedIntakeComposer({
       </View>
 
       <Text style={styles.description}>
-        Nosh will extract the recipe from anything — a URL, pasted text, a screenshot, or a video link. Review it before it becomes a page.
+        Nosh reads the source, creates the complete recipe page, and places it in its cookbook automatically.
       </Text>
 
       {/* Image attachment preview (if attached) */}
@@ -215,11 +215,11 @@ export function UnifiedIntakeComposer({
           onPress={submit}
           disabled={!canSubmit}
           accessibilityRole="button"
-          accessibilityLabel="Extract recipe"
+          accessibilityLabel="Create recipe page"
         >
           {submitIcon}
           <Text style={styles.primaryText}>
-            {isSubmitting ? 'Reading recipe' : 'Extract recipe'}
+            {isSubmitting ? 'Starting page' : 'Create page'}
           </Text>
         </Pressable>
       </View>

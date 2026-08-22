@@ -1,5 +1,5 @@
 import React from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
@@ -10,15 +10,28 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
-import type { CookbookStyleId, RecipeTemplateId } from '@/types/cookbook';
+import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
+  const { captureId: captureIdParam } = useLocalSearchParams<{ captureId?: string | string[] }>();
+  const captureId = Array.isArray(captureIdParam) ? captureIdParam[0] : captureIdParam;
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
+  const { prepareDestination } = useRecipeCaptures();
 
-  async function handleCreate(title: string, coverStyle: CookbookStyleId, pageTemplateId: RecipeTemplateId) {
-    const cookbook = await createCookbook({ title, coverStyle, pageTemplateId });
+  async function handleCreate(title: string, coverStyle: CookbookStyleId) {
+    const cookbook = await createCookbook({ title, coverStyle });
+    if (captureId) {
+      try {
+        await prepareDestination({ captureId, destinationCookbookId: cookbook.id });
+      } catch {
+        // The capture workspace can safely retry the destination assignment.
+      }
+      router.replace(`/(book)/imports?captureId=${encodeURIComponent(captureId)}`);
+      return;
+    }
     router.replace(`/(book)/${cookbook.id}`);
   }
 

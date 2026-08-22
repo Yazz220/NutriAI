@@ -9,7 +9,7 @@
  * Function. It's loaded via Skia's useImage hook from a Supabase Storage URL.
  */
 
-import React, { memo, useMemo } from 'react';
+import React, { memo, useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { Canvas, Image, Rect, RoundedRect, useImage } from '@shopify/react-native-skia';
 import type { TypesetterStyleConfig } from '@/constants/typesetterStyles';
@@ -26,6 +26,8 @@ export interface ArtLayerProps {
   styleConfig: TypesetterStyleConfig;
   /** The typesetter layout config for this page's recipe template. */
   layoutConfig: TypesetterLayoutConfig;
+  /** Called after the current art asset has loaded into Skia. */
+  onImageReady?: () => void;
 }
 
 /**
@@ -57,6 +59,7 @@ export const ArtLayer = memo(function ArtLayer({
   artUrl,
   styleConfig,
   layoutConfig,
+  onImageReady,
 }: ArtLayerProps) {
   const artImage = useImage(artUrl ?? undefined);
   const artRect = useMemo(
@@ -68,8 +71,12 @@ export const ArtLayer = memo(function ArtLayer({
   const borderInset = width * styleConfig.borderInsetRatio;
   const titleRuleY = artRect.y + artRect.h + height * layoutConfig.artTextGapRatio;
 
+  useEffect(() => {
+    if (artUrl && artImage) onImageReady?.();
+  }, [artImage, artUrl, onImageReady]);
+
   return (
-    <Canvas style={[styles.canvas, { width, height }]}>
+    <Canvas style={{ ...styles.canvas, width, height }}>
       {/* Page background */}
       <Rect x={0} y={0} width={width} height={height} color={styleConfig.paperColor} />
 

@@ -2,6 +2,8 @@ import {
   clampShelfOffset,
   clampShelfVelocity,
   resolvePagedSnapTarget,
+  resolveShelfCarouselGeometry,
+  resolveShelfGesturePitch,
   resolveShelfPose,
   resolveShelfShadow,
   resolveSlotPosition,
@@ -30,6 +32,7 @@ describe('spine-packed library shelf', () => {
       expect(pose.scale).toBe(SHELF_CENTER_SCALE);
       expect(pose.translateY).toBe(-SHELF_CENTER_LIFT);
       expect(pose.spineBlend).toBe(0);
+      expect(pose.coverOpacity).toBe(1);
       expect(pose.opacity).toBe(1);
       expect(pose.zIndex).toBe(1000);
     });
@@ -44,6 +47,7 @@ describe('spine-packed library shelf', () => {
       expect(right.scale).toBe(SHELF_FLANK_SCALE);
       expect(right.translateY).toBe(0);
       expect(right.spineBlend).toBeGreaterThan(0.99);
+      expect(right.coverOpacity).toBe(0);
       expect(left.translateX).toBeLessThan(0);
       expect(right.translateX).toBeGreaterThan(0);
     });
@@ -54,6 +58,8 @@ describe('spine-packed library shelf', () => {
       expect(halfway.rotateY).toBeLessThan(SHELF_SPINE_ANGLE);
       expect(halfway.spineBlend).toBeGreaterThan(0);
       expect(halfway.spineBlend).toBeLessThan(1);
+      expect(halfway.coverOpacity).toBeGreaterThan(0);
+      expect(halfway.coverOpacity).toBeLessThan(1);
     });
 
     it('fades distant books and stacks the centered book on top', () => {
@@ -88,6 +94,26 @@ describe('spine-packed library shelf', () => {
       expect(shelfPitchAt(0, geometry)).toBe(geometry.centerPitch);
       expect(shelfPitchAt(1, geometry)).toBe(geometry.flankPitch);
       expect(shelfPitchAt(2, geometry)).toBe(geometry.flankPitch);
+    });
+  });
+
+  describe('resolveShelfGesturePitch', () => {
+    it('keeps drag sensitivity consistent at every book index', () => {
+      expect(resolveShelfGesturePitch(0, geometry)).toBe(geometry.centerPitch);
+      expect(resolveShelfGesturePitch(1, geometry)).toBe(geometry.centerPitch);
+      expect(resolveShelfGesturePitch(4, geometry)).toBe(geometry.centerPitch);
+    });
+
+    it('only softens slightly between detents', () => {
+      expect(resolveShelfGesturePitch(2.5, geometry)).toBeGreaterThanOrEqual(geometry.centerPitch * 0.8);
+    });
+  });
+
+  describe('resolveShelfCarouselGeometry', () => {
+    it('packs side books from their visible spine widths', () => {
+      const shelf = resolveShelfCarouselGeometry(180, [20, 28, 24]);
+      expect(shelf.flankPitch).toBeCloseTo(28 * SHELF_FLANK_SCALE + 6);
+      expect(shelf.flankPitch).toBeLessThan(40);
     });
   });
 

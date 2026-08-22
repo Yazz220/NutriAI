@@ -2,9 +2,9 @@ import type { CookbookPage } from '@/types/cookbook';
 
 export type GenerationPhase = 'idle' | 'queued' | 'running' | 'succeeded' | 'failed';
 
-export type CookbookGenerationResult =
+export type CookbookGenerationResult<T = CookbookPage> =
   | { status: 'processing'; requestId: string }
-  | { status: 'ready'; page: CookbookPage };
+  | { status: 'ready'; page: T };
 
 export class GenerationPollingTimeoutError extends Error {
   constructor() {
@@ -31,10 +31,10 @@ interface PollGenerationOptions {
 const waitFor = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
-export async function pollCookbookGeneration(
-  request: () => Promise<CookbookGenerationResult>,
+export async function pollCookbookGeneration<T = CookbookPage>(
+  request: () => Promise<CookbookGenerationResult<T>>,
   options: PollGenerationOptions = {},
-): Promise<CookbookPage> {
+): Promise<T> {
   const intervalMs = options.intervalMs ?? 2_000;
   const maxProcessingResponses = options.maxProcessingResponses ?? 90;
   const wait = options.wait ?? waitFor;

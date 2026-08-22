@@ -21,7 +21,7 @@ function findRecipeNode(value: unknown): Record<string, unknown> | null {
   return findRecipeNode(record['@graph']);
 }
 
-export function extractRecipeJsonLd(html: string): string | null {
+export function extractRecipeJsonLdObject(html: string): Record<string, unknown> | null {
   JSON_LD_SCRIPT_PATTERN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = JSON_LD_SCRIPT_PATTERN.exec(html)) !== null) {
@@ -29,12 +29,17 @@ export function extractRecipeJsonLd(html: string): string | null {
     if (!raw) continue;
     try {
       const recipe = findRecipeNode(JSON.parse(raw));
-      if (recipe) return JSON.stringify(recipe);
+      if (recipe) return recipe;
     } catch {
       // Ignore malformed structured data and continue to the next block.
     }
   }
   return null;
+}
+
+export function extractRecipeJsonLd(html: string): string | null {
+  const recipe = extractRecipeJsonLdObject(html);
+  return recipe ? JSON.stringify(recipe) : null;
 }
 
 export function htmlToRecipePageText(html: string): string {
@@ -72,13 +77,22 @@ export function htmlToRecipePageText(html: string): string {
 const UNTRUSTED_CONTENT_PREFIX = `<UNTRUSTED_WEB_CONTENT>`;
 const UNTRUSTED_CONTENT_SUFFIX = `</UNTRUSTED_WEB_CONTENT>`;
 
-export function buildUrlRecipePrompt(url: string, html: string): { pageText: string; prompt: string } {
+export function buildUrlRecipePrompt(url: string, html: string): {
+  pageText: string;
+  prompt: string;
+  recipeJsonLd: Record<string, unknown> | null;
+} {
   const pageText = htmlToRecipePageText(html);
-  const recipeJsonLd = extractRecipeJsonLd(html);
+  const recipeJsonLdObject = extractRecipeJsonLdObject(html);
+  const recipeJsonLd = recipeJsonLdObject ? JSON.stringify(recipeJsonLdObject) : null;
 
   const evidence = recipeJsonLd
     ? `Recipe JSON-LD (primary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${recipeJsonLd}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
     : `Visible page text:\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`;
 
-  return { pageText, prompt: `Source URL: ${url}\n\n${evidence}` };
+  return {
+    pageText,
+    prompt: `Source URL: ${url}\n\n${evidence}`,
+    recipeJsonLd: recipeJsonLdObject,
+  };
 }

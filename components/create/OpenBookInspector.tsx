@@ -1,6 +1,10 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -12,32 +16,19 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { BookplatePage } from '@/components/create/BookplatePage';
-import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { ContactShadow } from '@/components/physical-book/ContactShadow';
+import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import type { CookbookStylePreset } from '@/constants/cookbookStyles';
-import { Fonts } from '@/utils/fonts';
 import { withAlpha } from '@/utils/cookbook/coverArt';
+import { Fonts } from '@/utils/fonts';
 
 /**
- * The Open Book Inspector — a cinematic closed→open sequence.
- *
- * Phase 1 (intro, ~420ms): the closed volume fades in and settles on the
- * wooden table, front cover facing the viewer.
- *
- * Phase 2 (hold, ~140ms): the closed book rests. This is the stable stop
- * where future cover-customization (stickers, emblems) will live — the
- * closed cover is the customization canvas.
- *
- * Phase 3 (swing, ~820ms): the front cover swings open around the gutter
- * hinge. The cover leaf is two-faced: the front shows the physical cover
- * art (cloth, foil, spine); the back shows the bookplate (stamped with
- * the live title). As the cover passes edge-on, the front face fades and
- * the bookplate face fades in. The quote page is revealed underneath on
- * the right. The cover lands face-down on the left, bookplate up — the
- * final spread: bookplate left, signature quote right.
+ * A small, interactive version of the same physical book used on the shelf
+ * and in the reader. It starts closed on the right, opens around the center
+ * hinge, then reveals the selected cookbook's bookplate and visual identity.
  */
 
 interface OpenBookInspectorProps {
@@ -47,43 +38,51 @@ interface OpenBookInspectorProps {
   width: number;
 }
 
-const INTRO_MS = 420;
-const HOLD_MS = 560;
-const SWING_MS = 820;
+const INTRO_MS = 320;
+const SWING_MS = 760;
+const SWING_END_DEG = -175;
 const INTRO_EASING = Easing.bezier(0.22, 0.72, 0.24, 1);
 const SWING_EASING = Easing.bezier(0.45, 0, 0.15, 1);
-const SWING_END_DEG = -175;
 
-export function OpenBookInspector({ preset, title, width }: OpenBookInspectorProps) {
+export function OpenBookInspector({
+  preset,
+  title,
+  width,
+}: OpenBookInspectorProps) {
   const binding = getCookbookBindingForStyle(preset.id);
-  const pageWidth = Math.min((width - 16) / 2, 168);
+  const pageWidth = Math.min((width - 20) / 2, 164);
   const pageHeight = pageWidth * 1.38;
-  const quote = preset.quote ?? preset.tagline;
+  const spreadWidth = pageWidth * 2;
+  const [isOpen, setIsOpen] = useState(false);
 
   const intro = useSharedValue(0);
   const swing = useSharedValue(0);
 
   useEffect(() => {
     intro.value = withTiming(1, { duration: INTRO_MS, easing: INTRO_EASING });
-    const timer = setTimeout(() => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      swing.value = withTiming(1, { duration: SWING_MS, easing: SWING_EASING });
-    }, HOLD_MS);
-    return () => clearTimeout(timer);
-  }, [intro, swing]);
+  }, [intro]);
 
-  // Whole-book intro: scale + fade + settle onto the table
+  const openBook = useCallback(() => {
+    if (isOpen) return;
+    setIsOpen(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    swing.value = withTiming(1, { duration: SWING_MS, easing: SWING_EASING });
+  }, [isOpen, swing]);
+
   const bookStyle = useAnimatedStyle(() => ({
     opacity: interpolate(intro.value, [0, 1], [0, 1]),
     transform: [
       { perspective: 1200 },
-      { rotateX: '6deg' },
-      { scale: interpolate(intro.value, [0, 1], [0.94, 1]) },
-      { translateY: interpolate(intro.value, [0, 1], [10, 0]) },
+      { rotateX: '5deg' },
+      { scale: interpolate(intro.value, [0, 1], [0.95, 1]) },
+      { translateY: interpolate(intro.value, [0, 1], [8, 0]) },
     ],
   }));
 
-  // Cover leaf: swings from 0 to -175° around the gutter (left edge)
+  const interiorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swing.value, [0, 0.38, 0.58, 1], [0, 0, 1, 1], Extrapolation.CLAMP),
+  }));
+
   const coverLeafStyle = useAnimatedStyle(() => ({
     transform: [
       { perspective: 1200 },
@@ -93,49 +92,82 @@ export function OpenBookInspector({ preset, title, width }: OpenBookInspectorPro
     ],
   }));
 
-  // Front face (cover art): visible until the cover passes edge-on (~-89°)
   const frontFaceStyle = useAnimatedStyle(() => ({
     opacity: interpolate(swing.value, [0.47, 0.52], [1, 0], Extrapolation.CLAMP),
   }));
 
-  // Back face (bookplate): visible after the cover passes edge-on (~-91°)
   const backFaceStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(swing.value, [0.50, 0.56], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(swing.value, [0.5, 0.56], [0, 1], Extrapolation.CLAMP),
   }));
 
-  // Quote page: subtle reveal as the cover lifts away
-  const quotePageStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(swing.value, [0.2, 0.55], [0, 1], Extrapolation.CLAMP),
+  const closedShadowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swing.value, [0, 0.46, 0.68], [1, 1, 0], Extrapolation.CLAMP),
+  }));
+
+  const openShadowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swing.value, [0, 0.44, 0.66, 1], [0, 0, 1, 1], Extrapolation.CLAMP),
   }));
 
   return (
-    <View style={[styles.root, { width: pageWidth * 2, height: pageHeight }]}>
-      <ContactShadow width={pageWidth * 2} opacity={0.34} />
+    <View style={[styles.root, { width: spreadWidth, height: pageHeight + 46 }]}>
+      <Animated.View
+        style={[
+          styles.shadowLayer,
+          { left: pageWidth, width: pageWidth, height: pageHeight },
+          closedShadowStyle,
+        ]}
+        pointerEvents="none"
+      >
+        <ContactShadow width={pageWidth} opacity={0.3} />
+      </Animated.View>
+      <Animated.View
+        style={[styles.shadowLayer, { left: 0, width: spreadWidth, height: pageHeight }, openShadowStyle]}
+        pointerEvents="none"
+      >
+        <ContactShadow width={spreadWidth} opacity={0.3} />
+      </Animated.View>
 
-      <Animated.View style={[styles.book, bookStyle]}>
-        {/* Right page: the signature quote (under the cover when closed) */}
+      <Animated.View style={[styles.book, { width: spreadWidth, height: pageHeight }, bookStyle]}>
         <Animated.View
-          style={[styles.quotePageSlot, { left: pageWidth, width: pageWidth, height: pageHeight }, quotePageStyle]}
+          pointerEvents={isOpen ? 'auto' : 'none'}
+          style={[styles.interior, { width: spreadWidth, height: pageHeight }, interiorStyle]}
         >
-          <QuotePage quote={quote} foil={binding.foil} width={pageWidth} height={pageHeight} />
+          <View
+            style={[
+              styles.coverBoard,
+              {
+                width: spreadWidth + 8,
+                height: pageHeight + 8,
+                backgroundColor: binding.cloth,
+              },
+            ]}
+          />
+
+          <View style={[styles.leftPaper, { width: pageWidth, height: pageHeight }]} />
+
+          <View style={[styles.rightPageSlot, { left: pageWidth, width: pageWidth, height: pageHeight }]}>
+            <QuotePage
+              quote={preset.quote ?? preset.tagline}
+              foil={binding.foil}
+              width={pageWidth}
+              height={pageHeight}
+            />
+          </View>
+
+          <LinearGradient
+            colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.15)', 'rgba(255,255,255,0.18)', 'rgba(23,22,20,0)']}
+            locations={[0, 0.4, 0.58, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.gutterShade, { left: pageWidth - 7, height: pageHeight }]}
+            pointerEvents="none"
+          />
         </Animated.View>
 
-        {/* Gutter shadow at the spine */}
-        <LinearGradient
-          colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.12)', 'rgba(23,22,20,0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.gutterShade, { left: pageWidth - 6, height: pageHeight }]}
-          pointerEvents="none"
-        />
-
-        {/* Cover leaf: two-faced, swings open around the gutter */}
         <Animated.View
           style={[styles.coverLeaf, { left: pageWidth, width: pageWidth, height: pageHeight }, coverLeafStyle]}
-          pointerEvents="none"
         >
-          {/* Front face: the physical cover art */}
-          <Animated.View style={[styles.coverFace, frontFaceStyle]}>
+          <Animated.View style={[styles.coverFace, frontFaceStyle]} pointerEvents="none">
             <PhysicalBook
               title={title.trim() || preset.name}
               coverStyle={preset.id}
@@ -144,23 +176,30 @@ export function OpenBookInspector({ preset, title, width }: OpenBookInspectorPro
             />
           </Animated.View>
 
-          {/* Back face: the bookplate (inside front cover), mirrored to read correctly */}
-          <Animated.View style={[styles.coverFace, styles.coverBack, backFaceStyle]}>
-            <View style={styles.mirror}>
-              <BookplatePage title={title} binding={binding} width={pageWidth} height={pageHeight} />
-            </View>
+          <Animated.View style={[styles.coverFace, styles.coverBack, backFaceStyle]} pointerEvents="none">
+            <BookplatePage title={title} binding={binding} width={pageWidth} height={pageHeight} />
           </Animated.View>
+
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={openBook}
+            disabled={isOpen}
+            accessibilityRole="button"
+            accessibilityLabel={isOpen ? 'Cookbook preview open' : 'Open cookbook preview'}
+            accessibilityState={{ expanded: isOpen, disabled: isOpen }}
+          />
         </Animated.View>
       </Animated.View>
+
+      <View style={styles.previewNavigation}>
+        <Text style={styles.previewLabel}>
+          {isOpen ? `${preset.name} visual identity` : 'Tap the cover to open'}
+        </Text>
+      </View>
     </View>
   );
 }
 
-/**
- * The right page of the open spread: a signature quote in the binding's
- * ink, framed by foil ornaments. Editorial frontispiece — no spec rows,
- * no controls. Those live in the CreationStudio panel below.
- */
 function QuotePage({
   quote,
   foil,
@@ -201,41 +240,62 @@ const styles = StyleSheet.create({
   root: {
     overflow: 'visible',
   },
-  book: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  quotePageSlot: {
+  shadowLayer: {
     position: 'absolute',
     top: 0,
+  },
+  book: {
+    position: 'relative',
+  },
+  interior: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  coverBoard: {
+    position: 'absolute',
+    left: -4,
+    top: -4,
+    borderRadius: 11,
+    boxShadow: '0 14px 28px rgba(35,33,28,0.18)',
+  },
+  leftPaper: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    backgroundColor: Colors.book.page,
+    borderTopLeftRadius: 7,
+    borderBottomLeftRadius: 7,
+  },
+  rightPageSlot: {
+    position: 'absolute',
+    top: 0,
+    overflow: 'hidden',
+    backgroundColor: Colors.book.page,
+    borderTopRightRadius: 7,
+    borderBottomRightRadius: 7,
   },
   gutterShade: {
     position: 'absolute',
     top: 0,
-    width: 12,
+    width: 14,
+    zIndex: 4,
   },
   coverLeaf: {
     position: 'absolute',
     top: 0,
-    // transformOrigin is the left edge (gutter); set via animated transforms
+    zIndex: 5,
   },
   coverFace: {
     ...StyleSheet.absoluteFillObject,
-    backfaceVisibility: 'hidden',
   },
   coverBack: {
-    // The back face is seen after a -180° Y rotation, which mirrors content.
-    // Pre-mirror so the bookplate reads correctly when the cover lands.
     transform: [{ scaleX: -1 }],
-  },
-  mirror: {
-    flex: 1,
   },
   page: {
     backgroundColor: Colors.book.page,
   },
   quotePageContainer: {
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 14,
@@ -269,5 +329,19 @@ const styles = StyleSheet.create({
     color: Colors.book.caption,
     letterSpacing: 2.4,
     textAlign: 'center',
+  },
+  previewNavigation: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    gap: 7,
+  },
+  previewLabel: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 11,
+    lineHeight: 15,
   },
 });

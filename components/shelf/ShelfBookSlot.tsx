@@ -67,7 +67,7 @@ export function ShelfBookSlot({
         { rotateY: `${pose.rotateY}deg` },
         { scale: pose.scale },
       ],
-      opacity: pose.opacity,
+      opacity: pose.opacity * pose.coverOpacity,
       zIndex: pose.zIndex,
     };
   });
@@ -108,7 +108,11 @@ export function ShelfBookSlot({
       </Animated.View>
 
       <Animated.View
-        style={[styles.spineLayer, { left: stageCenterX - spineWidth / 2, bottom, width: spineWidth, height }, spineStyle]}
+        style={[
+          styles.spineLayer,
+          { left: stageCenterX - spineWidth / 2, bottom, width: spineWidth, height },
+          spineStyle,
+        ]}
       >
         <Pressable
           onPress={() => onPress(shelfOffset.value)}
@@ -121,7 +125,11 @@ export function ShelfBookSlot({
       </Animated.View>
 
       <Animated.View
-        style={[styles.coverLayer, { left: stageCenterX - coverWidth / 2, bottom, width: coverWidth, height }, coverStyle]}
+        style={[
+          styles.coverLayer,
+          { left: stageCenterX - coverWidth / 2, bottom, width: coverWidth, height },
+          coverStyle,
+        ]}
       >
         <Pressable
           onPress={() => onPress(shelfOffset.value)}

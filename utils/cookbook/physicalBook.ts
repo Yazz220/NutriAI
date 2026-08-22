@@ -5,6 +5,99 @@ export interface PageCurlPoint {
   z: number;
 }
 
+export interface NativeBookGeometry {
+  pageWidth: number;
+  pageHeight: number;
+  stageWidth: number;
+  stageHeight: number;
+  hingeX: number;
+  frontCoverOffsetX: number;
+  backCoverOffsetX: number;
+  frameInset: number;
+}
+
+export interface NativeReadingPageGeometry {
+  pageWidth: number;
+  pageHeight: number;
+  stageWidth: number;
+  pageOffsetX: number;
+  bindingLeft: number;
+  bindingWidth: number;
+}
+
+const NATIVE_PAGE_ASPECT = 1.38;
+const NATIVE_FRAME_INSET = 10;
+const NATIVE_COMPACT_MARGIN = 8;
+const NATIVE_REGULAR_MARGIN = 16;
+const NATIVE_READING_PAGE_MARGIN = 16;
+const NATIVE_READING_PAGE_RATIO = 1.35;
+const NATIVE_READING_STAGE_GUTTER = 18;
+const NATIVE_READING_BINDING_WIDTH = 14;
+
+/**
+ * Resolves one geometry model for the native cover, spread, and binding.
+ * The stage includes the 10 pt board allowance on each outer edge, so that
+ * allowance must be removed before sizing the two page leaves.
+ */
+export function resolveNativeBookGeometry(
+  viewportWidth: number,
+  viewportHeight: number,
+  compact: boolean,
+): NativeBookGeometry {
+  const horizontalMargin = compact ? NATIVE_COMPACT_MARGIN : NATIVE_REGULAR_MARGIN;
+  const widthBound = (viewportWidth - horizontalMargin * 2 - NATIVE_FRAME_INSET * 2) / 2;
+  const heightBound = (viewportHeight - 210) / NATIVE_PAGE_ASPECT;
+  const pageWidth = Math.max(120, Math.min(340, widthBound, heightBound));
+  const pageHeight = pageWidth * NATIVE_PAGE_ASPECT;
+  const stageWidth = pageWidth * 2 + NATIVE_FRAME_INSET * 2;
+
+  return {
+    pageWidth,
+    pageHeight,
+    stageWidth,
+    stageHeight: pageHeight + 24,
+    hingeX: viewportWidth / 2,
+    frontCoverOffsetX: pageWidth / 2,
+    backCoverOffsetX: -pageWidth / 2,
+    frameInset: NATIVE_FRAME_INSET,
+  };
+}
+
+/**
+ * Keeps the closed front cover centered, then moves the full spread back to
+ * center as the cover opens. The cover still rotates around the same hinge;
+ * this only corrects the visual center of the changing silhouette.
+ */
+export function resolveBookStageTranslation(opening: number, pageWidth: number): number {
+  'worklet';
+  const progress = Math.max(0, Math.min(1, opening));
+  if (progress === 1) return 0;
+  return -(1 - progress) * pageWidth * 0.5;
+}
+
+/** Geometry shared by the one-page stack and its fixed left binding. */
+export function resolveNativeReadingPageGeometry(
+  viewportWidth: number,
+  viewportHeight: number,
+): NativeReadingPageGeometry {
+  const pageWidth = Math.min(
+    viewportWidth - NATIVE_READING_PAGE_MARGIN * 2,
+    (viewportHeight - 190) / NATIVE_READING_PAGE_RATIO,
+  );
+  const pageHeight = pageWidth * NATIVE_READING_PAGE_RATIO;
+  const stageWidth = Math.min(viewportWidth, pageWidth + NATIVE_READING_STAGE_GUTTER);
+  const pageOffsetX = (stageWidth - pageWidth) / 2;
+
+  return {
+    pageWidth,
+    pageHeight,
+    stageWidth,
+    pageOffsetX,
+    bindingLeft: pageOffsetX - NATIVE_READING_BINDING_WIDTH / 2,
+    bindingWidth: NATIVE_READING_BINDING_WIDTH,
+  };
+}
+
 const RELEASE_PROJECTION_SECONDS = 0.18;
 const RELEASE_COMMIT_PROGRESS = 0.5;
 const PAGE_LIFT_RATIO = 0.48;
@@ -101,8 +194,7 @@ export function resolveTurnRelease(input: {
   'worklet';
   const { progress, velocityX, direction, pageWidth } = input;
   const commit = shouldCommitPageTurn(progress, velocityX, direction, pageWidth);
-  const progressVelocity =
-    direction === 1 ? -velocityX / Math.max(pageWidth, 1) : velocityX / Math.max(pageWidth, 1);
+  const progressVelocity = direction === 1 ? -velocityX / Math.max(pageWidth, 1) : velocityX / Math.max(pageWidth, 1);
   const magnitude = Math.max(Math.abs(progressVelocity), MIN_SETTLE_VELOCITY);
   return { commit, settleVelocity: commit ? magnitude : -magnitude };
 }
@@ -112,11 +204,7 @@ export function resolveTurnRelease(input: {
  * turns on a clock rather than a spring). Flicks land faster than slow
  * releases; the result is clamped so the leaf never snaps or drags.
  */
-export function estimateTurnSettleDuration(
-  progress: number,
-  target: 0 | 1,
-  settleVelocity: number,
-): number {
+export function estimateTurnSettleDuration(progress: number, target: 0 | 1, settleVelocity: number): number {
   const distance = Math.abs(target - clampPageTurnProgress(progress));
   const speed = Math.max(Math.abs(settleVelocity), MIN_SETTLE_VELOCITY);
   const duration = speed > 0 ? distance / speed : MAX_SETTLE_DURATION;
@@ -136,11 +224,7 @@ export function getSheetTurnProgress(
   return sheetIndex < currentPageIndex ? 1 : 0;
 }
 
-export function buildPageCurlCurve(
-  width: number,
-  segmentCount: number,
-  progress: number,
-): PageCurlPoint[] {
+export function buildPageCurlCurve(width: number, segmentCount: number, progress: number): PageCurlPoint[] {
   'worklet';
   const safeSegments = Math.max(1, Math.floor(segmentCount));
   const pageProgress = clampPageTurnProgress(progress);
@@ -213,11 +297,7 @@ export const CORNER_SKEW_MAX = 0.22;
  * The envelope uses sin(PI * baseProgress) so all rows start flat at
  * progress=0 and converge smoothly to flat at progress=1.
  */
-export function computeRowTurnProgress(
-  baseProgress: number,
-  rowRatio: number,
-  grabYRatio: number,
-): number {
+export function computeRowTurnProgress(baseProgress: number, rowRatio: number, grabYRatio: number): number {
   'worklet';
   const progress = clampPageTurnProgress(baseProgress);
   const grabY = Math.max(0, Math.min(1, grabYRatio));
@@ -225,4 +305,3 @@ export function computeRowTurnProgress(
   const delta = (rowRatio - 0.5) * 2 * (grabY - 0.5) * CORNER_SKEW_MAX * envelope;
   return clampPageTurnProgress(progress + delta);
 }
-

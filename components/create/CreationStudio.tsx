@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { OpenBookInspector } from '@/components/create/OpenBookInspector';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
@@ -24,17 +23,16 @@ import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle, type BindingMaterial } from '@/constants/cookbookBindings';
 import { listCookbookCreationStyles } from '@/constants/cookbookStyles';
 import type { CookbookStylePreset } from '@/constants/cookbookStyles';
-import { DEFAULT_RECIPE_TEMPLATE_ID, listRecipeTemplates } from '@/constants/recipeTemplates';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { CookbookStyleId, RecipeTemplateId } from '@/types/cookbook';
+import type { CookbookStyleId } from '@/types/cookbook';
 
 /**
  * The 3D Cover Creation Studio. Browse: binding presets stand spine-out on
  * the shelf (the same packed-shelf physics as the library). Inspect: the
- * centered volume cracks open into a spread on the wooden table — bookplate
- * on the left, binding details on the right — with a live title input and
- * the "Use This Binding" CTA.
+ * centered volume opens into an interactive sample book on the wooden table,
+ * with a live title and binding details. Page layout is chosen automatically
+ * from each recipe's structure after import.
  */
 
 const BOARD_HEIGHT = 18;
@@ -43,7 +41,7 @@ const BOARD_CLEARANCE = BOARD_BOTTOM + BOARD_HEIGHT;
 
 interface CreationStudioProps {
   canCreate: boolean;
-  onCreateBook: (title: string, styleId: CookbookStyleId, pageTemplateId: RecipeTemplateId) => Promise<void>;
+  onCreateBook: (title: string, styleId: CookbookStyleId) => Promise<void>;
   onSignIn: () => void;
   bottomInset?: number;
 }
@@ -51,11 +49,9 @@ interface CreationStudioProps {
 export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset = 0 }: CreationStudioProps) {
   const { width } = useWindowDimensions();
   const presets = listCookbookCreationStyles();
-  const pageTemplates = listRecipeTemplates();
   const [mode, setMode] = useState<'browse' | 'inspect'>('browse');
   const [activeIndex, setActiveIndex] = useState(0);
   const [inspected, setInspected] = useState<CookbookStyleId | null>(null);
-  const [pageTemplateId, setPageTemplateId] = useState<RecipeTemplateId>(DEFAULT_RECIPE_TEMPLATE_ID);
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +77,7 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook(trimmed, inspected, pageTemplateId);
+      await onCreateBook(trimmed, inspected);
     } catch (err) {
       setError(getErrorMessage(err));
       setSubmitting(false);
@@ -135,10 +131,7 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
         </Animated.View>
       ) : inspectedPreset ? (
         <Animated.View key="inspect" entering={FadeIn.duration(200)} style={styles.mode}>
-          <KeyboardAvoidingView
-            style={styles.mode}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
+          <KeyboardAvoidingView style={styles.mode} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView
               style={styles.inspectScroll}
               contentContainerStyle={[styles.inspectContent, { paddingBottom: bottomInset + Spacing.xxl }]}
@@ -155,6 +148,11 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
                 <Text style={styles.backText}>All bindings</Text>
               </Pressable>
 
+              <View style={styles.inspectHeading}>
+                <Text style={styles.inspectTitle}>Preview your book</Text>
+                <Text style={styles.inspectSubtitle}>Tap the cover to preview this book’s visual identity.</Text>
+              </View>
+
               <View style={styles.inspectorStage}>
                 <ShelfBoard bottom={-6} height={BOARD_HEIGHT} />
                 <OpenBookInspector
@@ -167,51 +165,18 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
 
               <BindingSpecSummary preset={inspectedPreset} />
 
-              <Animated.View entering={FadeIn.delay(500).duration(400)} style={styles.pageStyleSection}>
-                <Text style={styles.pageStyleLabel}>Page style</Text>
-                <Text style={styles.pageStyleHint}>How your recipes will look inside the book</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.pageStyleScroll}
-                >
-                  {pageTemplates.map((template) => {
-                    const selected = pageTemplateId === template.id;
-                    return (
-                      <Pressable
-                        key={template.id}
-                        style={[styles.pageStyleCard, selected && styles.pageStyleCardSelected]}
-                        onPress={() => setPageTemplateId(template.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Use ${template.name} page style`}
-                        accessibilityState={{ selected }}
-                      >
-                        <View style={styles.pageStylePreviewFrame}>
-                          <Image source={template.previewAsset} style={styles.pageStylePreview} resizeMode="cover" />
-                          {selected ? (
-                            <View style={styles.pageStyleCheck} pointerEvents="none">
-                              <Check size={12} color={Colors.onPrimary} strokeWidth={2.5} />
-                            </View>
-                          ) : null}
-                        </View>
-                        <Text style={styles.pageStyleName} numberOfLines={1}>
-                          {template.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </Animated.View>
-
-              <Animated.View entering={FadeIn.delay(700).duration(400)} style={styles.form}>
-                <Text style={styles.label}>Name your cookbook</Text>
+              <Animated.View entering={FadeIn.delay(500).duration(400)} style={styles.form}>
+                <View style={styles.fieldHeading}>
+                  <Text style={styles.label}>Name your cookbook</Text>
+                  <Text style={styles.characterCount}>{title.length}/48</Text>
+                </View>
+                <Text style={styles.fieldHint}>This title appears on the cover and inside bookplate.</Text>
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
                   placeholder="e.g. Nonna's Kitchen"
                   placeholderTextColor={Colors.textMuted}
                   style={styles.input}
-                  autoFocus
                   returnKeyType="done"
                   onSubmitEditing={() => {
                     void handleCreate();
@@ -225,21 +190,19 @@ export function CreationStudio({ canCreate, onCreateBook, onSignIn, bottomInset 
                     {error}
                   </Text>
                 ) : null}
-                {!canCreate ? (
-                  <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text>
-                ) : null}
+                {!canCreate ? <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text> : null}
 
                 <Pressable
                   style={[styles.cta, ctaDisabled && styles.ctaDisabled]}
                   onPress={canCreate ? () => void handleCreate() : onSignIn}
                   disabled={ctaDisabled}
                   accessibilityRole="button"
-                  accessibilityLabel={canCreate ? 'Use this binding and create the cookbook' : 'Go to sign in'}
+                  accessibilityLabel={canCreate ? 'Add this cookbook to my shelf' : 'Go to sign in'}
                 >
                   {submitting ? (
                     <ActivityIndicator color={Colors.onPrimary} />
                   ) : (
-                    <Text style={styles.ctaText}>{canCreate ? 'Use This Binding' : 'Sign in to save'}</Text>
+                    <Text style={styles.ctaText}>{canCreate ? 'Add to my shelf' : 'Sign in to save'}</Text>
                   )}
                 </Pressable>
               </Animated.View>
@@ -354,6 +317,22 @@ const styles = StyleSheet.create({
   inspectContent: {
     gap: Spacing.lg,
   },
+  inspectHeading: {
+    paddingHorizontal: Spacing.xl,
+    gap: 4,
+  },
+  inspectTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.bold,
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  inspectSubtitle: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,67 +364,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: Spacing.xl,
-  },
-  pageStyleSection: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.xs,
-  },
-  pageStyleLabel: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 14,
-  },
-  pageStyleHint: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  pageStyleScroll: {
-    gap: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  pageStyleCard: {
-    width: 84,
-    gap: 6,
-    alignItems: 'center',
-  },
-  pageStylePreviewFrame: {
-    position: 'relative',
-    width: 84,
-    height: 112,
-    borderRadius: Radii.md,
-    borderWidth: 2,
-    borderColor: Colors.ash,
-    overflow: 'hidden',
-    backgroundColor: Colors.book.page,
-  },
-  pageStyleCardSelected: {
-    borderColor: Colors.charcoal,
-  },
-  pageStylePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  pageStyleCheck: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderWidth: 2,
-    borderColor: Colors.white,
-  },
-  pageStyleName: {
-    color: Colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-    fontFamily: Fonts.ui.medium,
-    textAlign: 'center',
   },
   specName: {
     color: Colors.text,
@@ -485,6 +403,23 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: 14,
+  },
+  fieldHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  characterCount: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+  },
+  fieldHint: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: -8,
   },
   input: {
     minHeight: 48,

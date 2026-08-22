@@ -41,6 +41,7 @@ interface PhysicalBookProps {
   coverStyle: CookbookStyleId;
   pageCount?: number;
   imageAsset?: ImageSourcePropType;
+  face?: 'front' | 'back';
   width?: number;
   /** Static Y-axis rotation in degrees; negative tilts the spine toward the viewer. */
   rotateYDeg?: number;
@@ -59,6 +60,7 @@ export const PhysicalBook = React.memo(function PhysicalBook({
   coverStyle,
   pageCount,
   imageAsset,
+  face = 'front',
   width = DEFAULT_WIDTH,
   rotateYDeg = 0,
   showShadow = true,
@@ -83,23 +85,35 @@ export const PhysicalBook = React.memo(function PhysicalBook({
     >
       {showShadow ? <ContactShadow width={width} /> : null}
 
-      {imageAsset ? (
-        <Image source={imageAsset} style={styles.generatedCover} resizeMode="cover" />
-      ) : binding ? (
-        <>
-          <PageBlockEdges height={height} blockWidth={blockWidth} />
-          <SkiaBookCover binding={binding} width={width} height={height} spineWidth={spineWidth} />
-          <FoilStampedTitle title={title || 'Untitled'} foil={binding.foil} width={width} spineWidth={spineWidth} />
-        </>
-      ) : (
-        <BookCover
-          title={title}
-          coverStyle={coverStyle}
-          pageCount={pageCount}
-          width={width}
-          showPageCount={false}
-        />
-      )}
+      <View style={[styles.face, face === 'back' && styles.backFace]}>
+        {imageAsset ? (
+          <>
+            <PageBlockEdges height={height} blockWidth={blockWidth} />
+            <Image source={imageAsset} style={styles.generatedCover} resizeMode="cover" />
+            {face === 'back' ? <View pointerEvents="none" style={styles.backWash} /> : null}
+          </>
+        ) : face === 'back' && binding ? (
+          <>
+            <PageBlockEdges height={height} blockWidth={blockWidth} />
+            <SkiaBookCover binding={binding} width={width} height={height} spineWidth={spineWidth} />
+          </>
+        ) : binding ? (
+          <>
+            <PageBlockEdges height={height} blockWidth={blockWidth} />
+            <SkiaBookCover binding={binding} width={width} height={height} spineWidth={spineWidth} />
+            <FoilStampedTitle title={title || 'Untitled'} foil={binding.foil} width={width} spineWidth={spineWidth} />
+          </>
+        ) : (
+          <BookCover
+            title={title}
+            coverStyle={coverStyle}
+            pageCount={pageCount}
+            face={face}
+            width={width}
+            showPageCount={false}
+          />
+        )}
+      </View>
     </View>
   );
 });
@@ -108,9 +122,21 @@ const styles = StyleSheet.create({
   wrapper: {
     overflow: 'visible',
   },
+  face: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'visible',
+  },
+  backFace: {
+    transform: [{ scaleX: -1 }],
+  },
   generatedCover: {
     width: '100%',
     height: '100%',
     borderRadius: 12,
+  },
+  backWash: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
+    backgroundColor: 'rgba(19, 18, 14, 0.12)',
   },
 });

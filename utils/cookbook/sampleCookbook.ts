@@ -12,7 +12,9 @@ export const SAMPLE_COOKBOOK: Cookbook = {
     prompt: 'Warm editorial recipe journal with hand-drawn botanical details.',
   },
   sectionOrder: ['dinner', 'healthy', 'sides', 'desserts'],
-  coverStyle: 'handwritten',
+  coverStyle: 'sage-linen',
+  styleRevision: 1,
+  isDefault: false,
   pageTemplateId: 'clean-cream',
   sections: [
     { id: 'dinner', label: 'Dinner', order: 0 },
@@ -128,12 +130,10 @@ export const SAMPLE_COOKBOOK_PAGES: CookbookPage[] = [
   },
 ];
 
-// Currently gated off: both flags are false in .env and eas.json so real Supabase
-// auth and the real shelf take over. The fixtures remain here for offline reader
-// tests and a future seeded-demo-on-first-signup feature. Do not delete.
+// The sample shelf is controlled independently from the development auth bypass
+// so authenticated visual QA can use the fixture without weakening auth.
 export function shouldShowSampleCookbook(cookbookId?: string | null): boolean {
   return (
-    process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true' &&
     process.env.EXPO_PUBLIC_SHOW_DEMO_COOKBOOK === 'true' &&
     (!cookbookId || cookbookId === SAMPLE_COOKBOOK_ID)
   );

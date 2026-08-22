@@ -78,7 +78,10 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     },
   });
 
-  const cookbooks = shouldShowSampleCookbook() ? [SAMPLE_COOKBOOK] : (shelfQuery.data ?? []);
+  const persistedCookbooks = shelfQuery.data ?? [];
+  const cookbooks = shouldShowSampleCookbook()
+    ? [SAMPLE_COOKBOOK, ...persistedCookbooks]
+    : persistedCookbooks;
   const isShelfStale = isStaleCachedData(shelfQuery.error, shelfQuery.data);
 
   return {

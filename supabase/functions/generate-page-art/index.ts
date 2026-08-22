@@ -1,16 +1,10 @@
 /**
  * generate-page-art Edge Function
  *
- * Generates an isolated illustration for a cookbook page using the
- * OpenRouter Image API (Qwen Image 3 Pro). The illustration contains
- * NO text — the typesetter renders the recipe text separately as
- * live vector text.
- *
- * This replaces the legacy generate-cookbook-page function. Key differences:
- *   - Calls OpenRouter Image API (POST /api/v1/images), not OpenAI
- *   - Prompt contains NO recipe text — only dish name, cuisine, style
- *   - Output is an illustration asset, not a full-page PNG
- *   - Reuses the generation_requests idempotency table from the legacy function
+ * Generates the complete, flat recipe page that the cookbook reader displays.
+ * The page includes the exact recipe copy, food imagery, typography, paper,
+ * and decoration. The RecipeGraph remains the canonical reasoning data for
+ * Nosh while this image is the user-facing reading artifact.
  *
  * Required Supabase Function secrets:
  *   AI_API_KEY            — OpenRouter API key
@@ -22,14 +16,15 @@
  *
  * Request body:
  *   { cookbookId: string,
- *     pageId?: string,         // optional, for re-generation
+ *     pageId: string,          // existing page that will own the art asset
  *     recipeGraph: RecipeGraph,
  *     styleId: CookbookStyleId,
+ *     styleRevision?: number,
  *     idempotencyKey: string   // 16-160 chars, alphanumeric + . _ : -
  *   }
  *
  * Response (success, 200):
- *   { artAsset: PageArtAsset }
+ *   { pageImage: GeneratedRecipePage }
  *
  * Response (processing, 202):
  *   { status: "processing", requestId: string }
@@ -43,6 +38,10 @@ import { compensateGenerationFailure } from '../_shared/generationFailure.ts';
 import { errorResponse } from '../_shared/error.ts';
 import { fetchWithRetry } from '../_shared/fetchRetry.ts';
 import { logError, logInfo } from '../_shared/log.ts';
+import {
+  buildRecipePagePrompt,
+  buildOpenRouterImageRequest,
+} from '../_shared/artGeneration.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -53,7 +52,10 @@ const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
 const AI_API_BASE = (Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 const ART_MODEL = Deno.env.get('ART_MODEL') || 'qwen/qwen-image-3-pro';
 const BUCKET = Deno.env.get('COOKBOOK_PAGE_BUCKET') || 'cookbook-pages';
-const IMAGE_GENERATION_TIMEOUT_MS = 120_000;
+// Reference-image edits take longer than text-to-image generations on Qwen.
+// Leave ten seconds for persistence and compensation within Supabase's
+// 150-second Free-plan worker limit.
+const IMAGE_GENERATION_TIMEOUT_MS = 140_000;
 const MAX_STYLE_REFERENCES = 4;
 
 declare const EdgeRuntime: {
@@ -72,18 +74,9 @@ interface RecipeGraphInput {
   cuisine?: string;
   category?: string;
   tags?: unknown[];
-  ingredientGroups?: unknown[];
-  stepGroups?: unknown[];
-}
-
-interface PageArtPromptPayload {
-  styleId: string;
-  styleDescriptor: string;
-  themePrompt: string;
-  dishName: string;
-  cuisine?: string;
-  artInstructions: string;
-  styleReferences?: string[];
+  ingredientGroups?: any[];
+  stepGroups?: any[];
+  notes?: string[];
 }
 
 interface GenerationRequestState {
@@ -120,102 +113,6 @@ const VALID_STYLE_IDS = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// Style preset descriptors (mirrored from constants/cookbookStyles.ts)
-// ---------------------------------------------------------------------------
-interface StylePreset {
-  pagePromptDescriptor: string;
-  themePrompt: string;
-}
-
-const STYLE_PRESETS: Record<string, StylePreset> = {
-  'vintage-garden': {
-    pagePromptDescriptor: 'warm minimal cookbook page, alabaster paper background, black ink line drawing, subtle vintage border, generous white space',
-    themePrompt: 'alabaster cookbook page with black ink line illustration, subtle vintage border, warm minimal editorial style',
-  },
-  'handwritten': {
-    pagePromptDescriptor: 'garden table cookbook page, black ink botanical line art, alabaster surface, airy layout, calm handmade cookbook feel',
-    themePrompt: 'alabaster cookbook page with botanical black ink line art, airy layout, calm handmade cookbook style',
-  },
-  'editorial': {
-    pagePromptDescriptor: 'classic family cookbook page, black ink food illustration, subtle decorative rule, alabaster background, spacious editorial layout',
-    themePrompt: 'classic family cookbook page with black ink food illustration, subtle ornaments, warm alabaster background',
-  },
-  'watercolor': {
-    pagePromptDescriptor: 'beloved family cookbook page, black ink line art, soft blush detail, simple centered composition, calm paper texture',
-    themePrompt: 'beloved family cookbook page with black ink line art, soft blush accent, calm paper texture',
-  },
-  'rustic': {
-    pagePromptDescriptor: 'minimal notes and recipes journal page, black ink line illustration, notebook-inspired margin, alabaster background, handwritten warmth',
-    themePrompt: 'minimal notes and recipes journal page with black ink line illustration, notebook-inspired margin, alabaster background',
-  },
-  'minimal': {
-    pagePromptDescriptor: 'clean citrus cookbook journal page, black ink citrus illustration, alabaster background, refined minimal cookbook layout',
-    themePrompt: 'clean citrus cookbook journal page with black ink citrus illustration, refined minimal layout, alabaster background',
-  },
-  'sage-linen': {
-    pagePromptDescriptor: 'herb garden cookbook page, black ink botanical line illustration, subtle sage green and gold accents, alabaster background, refined country kitchen editorial layout',
-    themePrompt: 'herb garden cookbook page with black ink botanical line illustration, sage green and gold accents, alabaster background',
-  },
-  'terracotta-cloth': {
-    pagePromptDescriptor: 'sun-warmed mediterranean cookbook page, black ink food illustration, subtle terracotta and copper accents, alabaster background, generous editorial spacing',
-    themePrompt: 'sun-warmed mediterranean cookbook page with black ink food illustration, terracotta and copper accents, alabaster background',
-  },
-  'navy-leather': {
-    pagePromptDescriptor: 'midnight bistro cookbook page, black ink line illustration, subtle navy and silver accents, clean alabaster background, refined brasserie editorial layout',
-    themePrompt: 'midnight bistro cookbook page with black ink line illustration, navy and silver accents, clean alabaster background',
-  },
-  'charcoal-cloth': {
-    pagePromptDescriptor: 'modern bistro cookbook page, black ink illustration, single restrained gold accent rule, alabaster background, confident minimal editorial layout',
-    themePrompt: 'modern bistro cookbook page with black ink illustration, restrained gold accent rule, alabaster background, minimal editorial layout',
-  },
-  'alabaster-linen': {
-    pagePromptDescriptor: 'bright farmhouse cookbook page, black ink line illustration, soft copper accent details, alabaster background, airy editorial layout with generous margins',
-    themePrompt: 'bright farmhouse cookbook page with black ink line illustration, soft copper accents, alabaster background, airy layout',
-  },
-  'umber-leather': {
-    pagePromptDescriptor: 'hearth kitchen cookbook page, black ink illustration, warm umber and gold accents, warm parchment background, heritage editorial layout',
-    themePrompt: 'hearth kitchen cookbook page with black ink illustration, warm umber and gold accents, warm parchment background',
-  },
-};
-
-function getStylePreset(styleId: string): StylePreset {
-  return STYLE_PRESETS[styleId] ?? STYLE_PRESETS['vintage-garden'];
-}
-
-// ---------------------------------------------------------------------------
-// Art prompt construction — NO recipe text, only visual description
-// ---------------------------------------------------------------------------
-function buildArtPrompt(graph: RecipeGraphInput, styleId: string): { prompt: string; payload: PageArtPromptPayload } {
-  const preset = getStylePreset(styleId);
-  const dishName = graph.title.trim();
-  const cuisine = typeof graph.cuisine === 'string' && graph.cuisine.trim()
-    ? graph.cuisine.trim()
-    : undefined;
-
-  const cuisineClause = cuisine ? `, ${cuisine} style` : '';
-
-  const prompt = [
-    preset.pagePromptDescriptor,
-    preset.themePrompt,
-    `Illustration of ${dishName}${cuisineClause}.`,
-    'Hero food illustration, beautifully plated, appetizing, cookbook aesthetic.',
-    'NO text, no words, no letters, no numbers, no recipe text, no handwriting, no captions, no labels.',
-    'The illustration must be purely visual — only food, props, and decorative elements.',
-  ].join(' ');
-
-  const payload: PageArtPromptPayload = {
-    styleId,
-    styleDescriptor: preset.pagePromptDescriptor,
-    themePrompt: preset.themePrompt,
-    dishName,
-    cuisine,
-    artInstructions: 'Hero food illustration, beautifully plated, appetizing, cookbook aesthetic. NO text, no words, no letters, no numbers, no recipe text.',
-  };
-
-  return { prompt, payload };
-}
-
-// ---------------------------------------------------------------------------
 // Image generation via OpenRouter Image API
 // ---------------------------------------------------------------------------
 function base64ToBytes(base64: string): Uint8Array {
@@ -225,27 +122,21 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-async function generateArt(prompt: string, styleReferences?: string[]): Promise<{ bytes: Uint8Array; cost: number | undefined }> {
+async function generatePageImage(
+  prompt: string,
+  styleReferences?: string[],
+): Promise<{ bytes: Uint8Array; cost: number | undefined }> {
   if (!AI_API_KEY) throw new Error('OpenRouter is not configured (missing AI_API_KEY)');
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), IMAGE_GENERATION_TIMEOUT_MS);
 
-  const body: Record<string, unknown> = {
-    model: ART_MODEL,
+  const body = buildOpenRouterImageRequest(
+    ART_MODEL,
     prompt,
-    aspect_ratio: '3:4',
-    resolution: '2K',
-    output_format: 'png',
-    n: 1,
-  };
-
-  if (Array.isArray(styleReferences) && styleReferences.length > 0) {
-    body.input_references = styleReferences.slice(0, MAX_STYLE_REFERENCES).map((url) => ({
-      type: 'image_url',
-      image_url: { url },
-    }));
-  }
+    undefined,
+    styleReferences?.slice(0, MAX_STYLE_REFERENCES) ?? [],
+  );
 
   try {
     const res = await fetchWithRetry(`${AI_API_BASE}/images`, {
@@ -358,14 +249,16 @@ async function completeGenerationRequest(
   generationRequestId: string,
   versionId: string,
   responsePayload: JsonRecord,
+  selectVersion: boolean,
 ): Promise<void> {
   const { error } = await admin
     .schema('nutriai')
-    .rpc('complete_generation_request', {
+    .rpc('complete_art_generation_request', {
       p_user_id: userId,
       p_generation_request_id: generationRequestId,
       p_version_id: versionId,
       p_response_payload: responsePayload,
+      p_select_version: selectVersion,
     });
 
   if (error) throw new Error(error.message);
@@ -404,11 +297,42 @@ async function deleteGeneratedVersion(admin: SupabaseAdmin, versionId?: string):
   if (error) logError('Generated art version cleanup failed', { error: error.message });
 }
 
+async function finalizeCapturePage(
+  admin: SupabaseAdmin,
+  userId: string,
+  pageId: string,
+): Promise<void> {
+  const { error } = await admin.schema('nutriai').rpc('finalize_recipe_capture_page', {
+    p_user_id: userId,
+    p_page_id: pageId,
+  });
+  if (error) {
+    logError('Recipe capture page could not be published', { pageId, error: error.message });
+  }
+}
+
+async function failCapturePage(
+  admin: SupabaseAdmin,
+  userId: string,
+  pageId: string,
+  message: string,
+): Promise<void> {
+  const { error } = await admin.schema('nutriai').rpc('fail_recipe_capture_page', {
+    p_user_id: userId,
+    p_page_id: pageId,
+    p_failure_message: message,
+  });
+  if (error) {
+    logError('Recipe capture page failure could not be recorded', { pageId, error: error.message });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsResponse(req);
+  const requestStartedAt = Date.now();
 
   const { user, error: authError } = await verifyAuth(req);
   if (authError) return authError;
@@ -421,7 +345,17 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     if (!isRecord(body)) return jsonError('Invalid JSON body', 400, req);
 
-    const { cookbookId, pageId, recipeGraph, styleId, idempotencyKey } = body;
+    const {
+      cookbookId,
+      pageId,
+      recipeGraph,
+      styleId: requestedStyleId,
+      styleRevision: requestedStyleRevision,
+      idempotencyKey,
+      artDirection,
+      referenceArtUrl,
+      selectOnComplete,
+    } = body;
 
     if (typeof cookbookId !== 'string' || cookbookId.length === 0) {
       return jsonError('Missing cookbookId', 400, req);
@@ -429,30 +363,77 @@ serve(async (req: Request) => {
     if (!isValidRecipeGraph(recipeGraph)) {
       return jsonError('Missing or invalid recipeGraph', 400, req);
     }
-    if (typeof styleId !== 'string' || !VALID_STYLE_IDS.has(styleId)) {
+    if (typeof requestedStyleId !== 'string' || !VALID_STYLE_IDS.has(requestedStyleId)) {
       return jsonError('Invalid styleId', 400, req);
+    }
+    if (requestedStyleRevision !== undefined
+      && (!Number.isInteger(requestedStyleRevision) || Number(requestedStyleRevision) < 1)) {
+      return jsonError('Invalid styleRevision', 400, req);
     }
     if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9._:-]{16,160}$/.test(idempotencyKey)) {
       return jsonError('Invalid idempotencyKey (must be 16-160 chars, alphanumeric + . _ : -)', 400, req);
     }
-    if (pageId !== undefined && typeof pageId !== 'string') {
-      return jsonError('Invalid pageId', 400, req);
+    if (typeof pageId !== 'string' || pageId.length === 0) {
+      return jsonError('Missing or invalid pageId', 400, req);
     }
-
-    logInfo('generate-page-art started', { cookbookId, styleId, dishName: recipeGraph.title });
+    if (artDirection !== undefined && (typeof artDirection !== 'string' || artDirection.length > 600)) {
+      return jsonError('Invalid artDirection', 400, req);
+    }
+    if (referenceArtUrl !== undefined && (
+      typeof referenceArtUrl !== 'string'
+      || !/^https:\/\//i.test(referenceArtUrl)
+      || referenceArtUrl.length > 2048
+    )) {
+      return jsonError('Invalid referenceArtUrl', 400, req);
+    }
+    if (selectOnComplete !== undefined && typeof selectOnComplete !== 'boolean') {
+      return jsonError('Invalid selectOnComplete', 400, req);
+    }
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Verify cookbook ownership
+    // The cookbook owns the page aesthetic. Never let a caller override the
+    // persisted identity or its reference anchors on a per-recipe request.
     const { data: cookbookRow, error: cookbookError } = await admin
       .schema('nutriai')
       .from('cookbooks')
-      .select('id')
+      .select('id, cover_style, style_revision, page_style_references')
       .eq('id', cookbookId)
       .eq('user_id', user!.id)
       .single();
 
     if (cookbookError || !cookbookRow) return jsonError('Cookbook not found', 404, req);
+    const styleId = VALID_STYLE_IDS.has(String(cookbookRow.cover_style))
+      ? String(cookbookRow.cover_style)
+      : requestedStyleId;
+    const styleRevision = Number.isInteger(cookbookRow.style_revision)
+      && Number(cookbookRow.style_revision) > 0
+      ? Number(cookbookRow.style_revision)
+      : Number(requestedStyleRevision ?? 1);
+    const cookbookStyleReferences = Array.isArray(cookbookRow.page_style_references)
+      ? cookbookRow.page_style_references.filter((value: unknown): value is string => (
+          typeof value === 'string' && /^https:\/\//i.test(value) && value.length <= 2048
+        )).slice(0, MAX_STYLE_REFERENCES)
+      : [];
+
+    logInfo('generate recipe page started', {
+      cookbookId,
+      styleId,
+      styleRevision,
+      dishName: recipeGraph.title,
+    });
+
+    // The service-role client bypasses RLS, so bind the requested page to the
+    // authenticated user's cookbook before writing any generation state.
+    const { data: pageRow, error: pageError } = await admin
+      .schema('nutriai')
+      .from('cookbook_pages')
+      .select('id')
+      .eq('id', pageId)
+      .eq('cookbook_id', cookbookId)
+      .single();
+
+    if (pageError || !pageRow) return jsonError('Cookbook page not found', 404, req);
 
     // Begin idempotent generation request
     let generationRequest: GenerationRequestState;
@@ -472,6 +453,12 @@ serve(async (req: Request) => {
 
     // If not claimed, return existing state
     if (!generationRequest.claimed) {
+      logInfo('generate-page-art idempotent replay', {
+        cookbookId,
+        requestId: generationRequest.id,
+        status: generationRequest.status,
+        durationMs: Date.now() - requestStartedAt,
+      });
       if (generationRequest.status === 'ready' && isRecord(generationRequest.response)) {
         return jsonResponse(generationRequest.response, 200, req);
       }
@@ -486,11 +473,33 @@ serve(async (req: Request) => {
 
     const generationRequestId = generationRequest.id;
 
-    // Build the art prompt (NO recipe text)
-    const { prompt, payload: artPayload } = buildArtPrompt(recipeGraph as RecipeGraphInput, styleId);
-    const styleReferences = Array.isArray((body as JsonRecord).styleReferences)
-      ? (body as JsonRecord).styleReferences as string[]
-      : undefined;
+    // complete_generation_request requires generation_requests.page_id and
+    // verifies that the generated version belongs to that page.
+    try {
+      await updateGenerationRequest(admin, generationRequestId, user!.id, {
+        page_id: pageId,
+      });
+    } catch (requestError) {
+      const message = requestError instanceof Error
+        ? requestError.message
+        : 'Could not attach art generation to the cookbook page';
+      await failGenerationRequest(admin, user!.id, generationRequestId, message);
+      return jsonError(message, 500, req);
+    }
+
+    const inputReferences = [
+      ...(typeof referenceArtUrl === 'string' ? [referenceArtUrl] : []),
+      ...cookbookStyleReferences,
+    ].slice(0, MAX_STYLE_REFERENCES);
+    const { prompt, payload: pagePromptPayload } = buildRecipePagePrompt(
+      recipeGraph as RecipeGraphInput,
+      styleId,
+      {
+        styleRevision,
+        visualDirection: typeof artDirection === 'string' ? artDirection : undefined,
+        styleReferences: inputReferences,
+      },
+    );
 
     // Run generation in the background
     const generationTask = (async () => {
@@ -503,12 +512,13 @@ serve(async (req: Request) => {
       } catch (creditError) {
         const message = creditError instanceof Error ? creditError.message : 'Not enough credits';
         await failGenerationRequest(admin, user!.id, generationRequestId, message);
+        await failCapturePage(admin, user!.id, pageId, message);
         const status = message.toLowerCase().includes('not enough credits') ? 402 : 500;
         return jsonError(message, status, req);
       }
 
       try {
-        const { bytes, cost } = await generateArt(prompt, styleReferences);
+        const { bytes, cost } = await generatePageImage(prompt, inputReferences);
 
         storagePath = `${user!.id}/${cookbookId}/${crypto.randomUUID()}.png`;
         const upload = await admin.storage.from(BUCKET).upload(storagePath, bytes, {
@@ -529,10 +539,10 @@ serve(async (req: Request) => {
           .schema('nutriai')
           .from('page_versions')
           .insert({
-            page_id: pageId ?? null,
+            page_id: pageId,
             image_url: artUrl,
             storage_path: storagePath,
-            prompt_payload: artPayload,
+            prompt_payload: pagePromptPayload,
             model: ART_MODEL,
             status: 'ready',
             credit_cost: 1,
@@ -548,18 +558,20 @@ serve(async (req: Request) => {
         });
 
         const responsePayload = {
-          artAsset: {
+          pageImage: {
             id: versionId,
-            pageId: pageId ?? null,
-            artUrl,
+            pageId,
+            imageUrl: artUrl,
             storagePath,
             styleId,
-            artPrompt: prompt,
-            styleReferences: styleReferences ?? [],
+            styleRevision: pagePromptPayload.styleRevision,
+            generationPrompt: prompt,
+            styleReferences: inputReferences,
             model: ART_MODEL,
             status: 'ready',
             creditCost: 1,
             cost,
+            createdAt: new Date().toISOString(),
           },
         };
 
@@ -569,20 +581,27 @@ serve(async (req: Request) => {
           generationRequestId,
           versionId,
           responsePayload,
+          selectOnComplete !== false,
         );
+        await finalizeCapturePage(admin, user!.id, pageId);
 
-        logInfo('generate-page-art completed', {
+        logInfo('generate recipe page completed', {
           cookbookId,
           styleId,
           dishName: recipeGraph.title,
           cost,
           versionId,
+          durationMs: Date.now() - requestStartedAt,
         });
 
         return jsonResponse(responsePayload, 200, req);
       } catch (generationError) {
-        const message = generationError instanceof Error ? generationError.message : 'Art generation failed';
-        logError('generate-page-art failed', { error: message, cookbookId });
+        const message = generationError instanceof Error ? generationError.message : 'Recipe page generation failed';
+        logError('generate recipe page failed', {
+          error: message,
+          cookbookId,
+          durationMs: Date.now() - requestStartedAt,
+        });
 
         await compensateGenerationFailure(
           message,
@@ -609,6 +628,7 @@ serve(async (req: Request) => {
             removeCreatedRows: async () => {}, // no rows created in this function
           },
         );
+        await failCapturePage(admin, user!.id, pageId, message);
 
         return jsonError(message, 502, req);
       }

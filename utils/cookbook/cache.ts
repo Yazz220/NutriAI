@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 
 export const SHELF_CACHE_KEY = 'nosh:cookbook-shelf:v2';
 export const PAGES_CACHE_PREFIX = 'nosh:cookbook-pages:v2';
+export const CAPTURES_CACHE_PREFIX = 'nosh:recipe-captures:v1';
 
 export interface CachedShelf {
   userId: string;
@@ -14,12 +16,50 @@ export interface CachedBookPages {
   pages: CookbookPage[];
 }
 
+export interface CachedCaptures {
+  userId: string;
+  captures: RecipeCapture[];
+  cachedAt: string;
+}
+
 function shelfKey(userId?: string | null): string {
   return userId ? `${SHELF_CACHE_KEY}:${userId}` : SHELF_CACHE_KEY;
 }
 
 function pagesKey(cookbookId: string): string {
   return `${PAGES_CACHE_PREFIX}:${cookbookId}`;
+}
+
+function capturesKey(userId: string): string {
+  return `${CAPTURES_CACHE_PREFIX}:${userId}`;
+}
+
+export async function saveCachedCaptures(userId: string, captures: RecipeCapture[]): Promise<void> {
+  const payload: CachedCaptures = { userId, captures, cachedAt: new Date().toISOString() };
+  await AsyncStorage.setItem(capturesKey(userId), JSON.stringify(payload));
+}
+
+export async function loadCachedCaptures(userId?: string | null): Promise<CachedCaptures | null> {
+  if (!userId) return null;
+  const key = capturesKey(userId);
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as CachedCaptures;
+    if (parsed.userId !== userId || !Array.isArray(parsed.captures)) {
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    await AsyncStorage.removeItem(key);
+    return null;
+  }
+}
+
+export async function clearCachedCaptures(userId?: string | null): Promise<void> {
+  if (!userId) return;
+  await AsyncStorage.removeItem(capturesKey(userId));
 }
 
 export async function saveCachedShelf(userId: string, cookbooks: Cookbook[]): Promise<void> {

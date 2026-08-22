@@ -22,8 +22,8 @@
  * Both layers are absolutely positioned within the page container.
  */
 
-import React, { memo, useMemo } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { ArtLayer } from '@/components/cookbook/typesetter/ArtLayer';
 import { TextLayer } from '@/components/cookbook/typesetter/TextLayer';
 import { getTypesetterStyleConfig } from '@/constants/typesetterStyles';
@@ -45,6 +45,10 @@ export interface TypesetterPageProps {
   bookMode?: boolean;
   /** Fixed width override (for 3D scene rendering). If omitted, uses window size. */
   fixedWidth?: number;
+  /** Fixed height override paired with fixedWidth. */
+  fixedHeight?: number;
+  /** Called after base layout, and again when the current art asset finishes loading. */
+  onRenderReady?: () => void;
 }
 
 /** Standard cookbook page aspect ratio (portrait). */
@@ -57,20 +61,31 @@ export const TypesetterPage = memo(function TypesetterPage({
   templateId,
   bookMode = false,
   fixedWidth,
+  fixedHeight,
+  onRenderReady,
 }: TypesetterPageProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [bookSize, setBookSize] = useState({ width: 0, height: 0 });
+
+  const handleBookLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setBookSize((current) =>
+      current.width === width && current.height === height ? current : { width, height },
+    );
+  }, []);
 
   const pageWidth = useMemo(() => {
     if (fixedWidth) return fixedWidth;
-    if (bookMode) return windowWidth;
+    if (bookMode) return bookSize.width;
     const horizontalInset = windowWidth < 390 ? Spacing.md : Spacing.xl;
     return Math.min(windowWidth - horizontalInset * 2, 430);
-  }, [fixedWidth, bookMode, windowWidth]);
+  }, [fixedWidth, bookMode, bookSize.width, windowWidth]);
 
   const pageHeight = useMemo(() => {
-    if (bookMode) return pageWidth / PAGE_ASPECT_RATIO;
+    if (fixedHeight) return fixedHeight;
+    if (bookMode) return bookSize.height;
     return Math.max(500, Math.min(pageWidth / PAGE_ASPECT_RATIO, windowHeight - 220));
-  }, [pageWidth, bookMode, windowHeight]);
+  }, [fixedHeight, bookMode, bookSize.height, pageWidth, windowHeight]);
 
   const styleConfig = useMemo(() => getTypesetterStyleConfig(styleId), [styleId]);
   const layoutConfig = useMemo(() => getTypesetterLayoutConfig(templateId), [templateId]);
@@ -84,33 +99,60 @@ export const TypesetterPage = memo(function TypesetterPage({
   }, [pageWidth, pageHeight, styleConfig, layoutConfig]);
 
   const artUrl = artAsset?.artUrl ?? null;
+  const [loadedArtUrl, setLoadedArtUrl] = useState<string | null>(null);
+  const hasMeasuredPage = pageWidth > 0 && pageHeight > 0;
+
+  const handleArtReady = useCallback(() => {
+    setLoadedArtUrl(artUrl);
+  }, [artUrl]);
+
+  useEffect(() => {
+    if (hasMeasuredPage) onRenderReady?.();
+  }, [
+    artUrl,
+    hasMeasuredPage,
+    layoutConfig,
+    loadedArtUrl,
+    onRenderReady,
+    pageHeight,
+    pageWidth,
+    recipeGraph,
+    styleConfig,
+  ]);
 
   return (
     <View
+      testID="typesetter-page"
+      onLayout={bookMode ? handleBookLayout : undefined}
       style={[
         styles.page,
         bookMode && styles.pageBookMode,
-        { width: pageWidth, height: pageHeight },
+        !bookMode && { width: pageWidth, height: pageHeight },
       ]}
     >
-      {/* Art layer (z-index 0) — Skia Canvas with art + decorative elements */}
-      <ArtLayer
-        width={pageWidth}
-        height={pageHeight}
-        artUrl={artUrl}
-        styleConfig={styleConfig}
-        layoutConfig={layoutConfig}
-      />
+      {hasMeasuredPage ? (
+        <>
+          {/* Art layer (z-index 0) — Skia Canvas with art + decorative elements */}
+          <ArtLayer
+            width={pageWidth}
+            height={pageHeight}
+            artUrl={artUrl}
+            styleConfig={styleConfig}
+            layoutConfig={layoutConfig}
+            onImageReady={handleArtReady}
+          />
 
-      {/* Text layer (z-index 1) — native RN Views with selectable text */}
-      <TextLayer
-        width={pageWidth}
-        height={pageHeight}
-        recipeGraph={recipeGraph}
-        styleConfig={styleConfig}
-        layoutConfig={layoutConfig}
-        contentStartY={contentStartY}
-      />
+          {/* Text layer (z-index 1) — native RN Views with selectable text */}
+          <TextLayer
+            width={pageWidth}
+            height={pageHeight}
+            recipeGraph={recipeGraph}
+            styleConfig={styleConfig}
+            layoutConfig={layoutConfig}
+            contentStartY={contentStartY}
+          />
+        </>
+      ) : null}
     </View>
   );
 });

@@ -16,12 +16,28 @@
 
 const IS_DEV = process.env.APP_VARIANT === "development";
 
+function withVariantShareIdentifiers(plugins = []) {
+  if (!IS_DEV) return plugins;
+  return plugins.map((plugin) => {
+    if (!Array.isArray(plugin) || plugin[0] !== "expo-share-intent") return plugin;
+    return [
+      plugin[0],
+      {
+        ...plugin[1],
+        iosShareExtensionBundleIdentifier: "com.yaz12.nosh.dev.share",
+        iosAppGroupIdentifier: "group.com.yaz12.nosh.dev.share",
+      },
+    ];
+  });
+}
+
 module.exports = ({ config }) => ({
   ...config,
   // Keep name as "Nosh" always so the Xcode target stays consistent.
   // The home-screen display name is overridden via infoPlist for dev builds.
   name: "Nosh",
   scheme: config.scheme || "nosh",
+  plugins: withVariantShareIdentifiers(config.plugins),
   ios: {
     ...config.ios,
     bundleIdentifier: IS_DEV

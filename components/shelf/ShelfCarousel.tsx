@@ -10,10 +10,8 @@ import {
   clampShelfOffset,
   clampShelfVelocity,
   resolvePagedSnapTarget,
-  shelfPitchAt,
-  SHELF_CENTER_SCALE,
-  SHELF_FLANK_SCALE,
-  SHELF_SPINE_ANGLE,
+  resolveShelfCarouselGeometry,
+  resolveShelfGesturePitch,
   type ShelfGeometry,
 } from '@/utils/cookbook/physicalShelf';
 
@@ -30,7 +28,7 @@ import {
  */
 
 // Gentle settle: books ease into the detent instead of snapping to it.
-const SNAP_SPRING = { damping: 24, stiffness: 120, mass: 1 };
+const SNAP_SPRING = { damping: 23, stiffness: 105, mass: 1.1 };
 
 interface ShelfCarouselTrailingSlot {
   renderCover: (width: number) => React.ReactNode;
@@ -70,19 +68,9 @@ export function ShelfCarousel<T>({
   const bookHeight = bookWidth * PHYSICAL_BOOK_ASPECT;
   const nominalSpineWidth = resolveSpineWidth(bookWidth, 12);
   const geometry: ShelfGeometry = useMemo(() => {
-    // A spine-out book's on-screen footprint is wider than its spine: the
-    // rotated cover contributes a sliver. Pack flanks at the real footprint
-    // plus shelf air so neighbors never overlap.
-    const theta = (SHELF_SPINE_ANGLE * Math.PI) / 180;
-    const flankFootprint =
-      (bookWidth * Math.cos(theta) + nominalSpineWidth * Math.sin(theta)) * SHELF_FLANK_SCALE;
-    return {
-      // The active cover (scaled up at center) must clear the first packed
-      // spine: pitch at the center spans the full facing cover plus air.
-      centerPitch: bookWidth * SHELF_CENTER_SCALE + 8,
-      flankPitch: flankFootprint + 14,
-    };
-  }, [bookWidth, nominalSpineWidth]);
+    const spineWidths = items.map((item) => spineWidthFor?.(item, bookWidth) ?? nominalSpineWidth);
+    return resolveShelfCarouselGeometry(bookWidth, [nominalSpineWidth, ...spineWidths]);
+  }, [bookWidth, items, nominalSpineWidth, spineWidthFor]);
   const trailing = trailingSlot ? 1 : 0;
   const maxIndex = Math.max(0, items.length - 1 + trailing);
 
@@ -108,7 +96,7 @@ export function ShelfCarousel<T>({
           startOffset.value = shelfOffset.value;
         })
         .onUpdate((event) => {
-          const pitch = shelfPitchAt(Math.abs(shelfOffset.value), geometry);
+          const pitch = resolveShelfGesturePitch(shelfOffset.value, geometry);
           const raw = startOffset.value - event.translationX / pitch;
           shelfOffset.value = clampShelfOffset(raw, maxIndex);
           const detent = Math.round(Math.max(0, Math.min(maxIndex, shelfOffset.value)));
@@ -118,7 +106,7 @@ export function ShelfCarousel<T>({
           }
         })
         .onEnd((event) => {
-          const pitch = shelfPitchAt(Math.abs(shelfOffset.value), geometry);
+          const pitch = resolveShelfGesturePitch(shelfOffset.value, geometry);
           // Clamp the fling: narrow flank pitches would otherwise amplify a
           // flick into a multi-slot whip.
           const velocitySlots = clampShelfVelocity(-event.velocityX / pitch);
@@ -183,9 +171,7 @@ export function ShelfCarousel<T>({
         {stageWidth > 0
           ? Array.from({ length: slotCount }).map((_, index) => {
               const item = index < items.length ? items[index] : undefined;
-              const spineWidth = item
-                ? (spineWidthFor?.(item, bookWidth) ?? nominalSpineWidth)
-                : nominalSpineWidth;
+              const spineWidth = item ? (spineWidthFor?.(item, bookWidth) ?? nominalSpineWidth) : nominalSpineWidth;
               return (
                 <ShelfBookSlot
                   key={item ? keyExtractor(item) : 'trailing-slot'}
@@ -198,16 +184,12 @@ export function ShelfCarousel<T>({
                   stageCenterX={stageCenterX}
                   bottom={boardClearance}
                   accessibilityLabel={
-                    item
-                      ? accessibilityLabelFor(item)
-                      : (trailingSlot?.accessibilityLabel ?? 'Create')
+                    item ? accessibilityLabelFor(item) : (trailingSlot?.accessibilityLabel ?? 'Create')
                   }
                   onPress={(liveOffset) => handleSlotPress(index, liveOffset)}
                   cover={item ? renderCover(item, bookWidth) : trailingSlot?.renderCover(bookWidth)}
                   spine={
-                    item
-                      ? renderSpine(item, spineWidth, bookHeight)
-                      : trailingSlot?.renderSpine(spineWidth, bookHeight)
+                    item ? renderSpine(item, spineWidth, bookHeight) : trailingSlot?.renderSpine(spineWidth, bookHeight)
                   }
                 />
               );

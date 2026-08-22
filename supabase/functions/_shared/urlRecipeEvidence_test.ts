@@ -1,4 +1,4 @@
-import { buildUrlRecipePrompt, extractRecipeJsonLd } from './urlRecipeEvidence.ts';
+import { buildUrlRecipePrompt, extractRecipeJsonLd, extractRecipeJsonLdObject } from './urlRecipeEvidence.ts';
 
 function assertEquals(actual: unknown, expected: unknown): void {
   if (actual !== expected) throw new Error(`Expected ${String(expected)}, received ${String(actual)}`);
@@ -11,6 +11,12 @@ function assertStringIncludes(actual: string, expected: string): void {
 Deno.test('extractRecipeJsonLd finds a Recipe inside an @graph', () => {
   const html = `<script type="application/ld+json">{"@graph":[{"@type":"WebPage"},{"@type":"Recipe","name":"Lemon Rice"}]}</script>`;
   assertEquals(JSON.parse(extractRecipeJsonLd(html) ?? '{}').name, 'Lemon Rice');
+});
+
+Deno.test('extractRecipeJsonLdObject exposes structured fallback evidence', () => {
+  const html = `<script type="application/ld+json">{"@type":"Recipe","name":"Berry Salad","recipeIngredient":["berries"],"recipeInstructions":[{"@type":"HowToStep","text":"Fold together."}]}</script>`;
+  const recipe = extractRecipeJsonLdObject(html);
+  assertEquals(recipe?.name, 'Berry Salad');
 });
 
 Deno.test('buildUrlRecipePrompt puts structured evidence before visible text', () => {

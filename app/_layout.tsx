@@ -5,15 +5,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from 'expo-linking';
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { ShareIntentProvider } from 'expo-share-intent';
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, Text, Text as RNText, StyleProp, TextStyle } from "react-native";
+import { View, ActivityIndicator, Platform, Text, Text as RNText, StyleProp, TextStyle } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { CookbooksProvider } from "@/hooks/useCookbooks";
-import { CookbookImportProvider } from "@/hooks/useCookbookImport";
+import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
+import { NoshConversationHost } from '@/components/cookbook/NoshAssistantChat';
+import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResume';
+import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
+import { NoshNativeShareProvider } from '@/contexts/NoshNativeShareContext';
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -23,6 +29,12 @@ import { supabase } from '@/lib/supabase';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+const shareIntentOptions = {
+  scheme: 'nosh',
+  resetOnBackground: false,
+  disabled: Platform.OS === 'web'
+    || Constants.executionEnvironment === ExecutionEnvironment.StoreClient,
+};
 
 type TextWithDefaultProps = typeof RNText & {
   defaultProps?: {
@@ -211,6 +223,9 @@ function RootLayoutNav() {
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(book)" options={{ headerShown: false }} />
         </Stack>
+        <NoshConversationHost />
+        <RecipeCaptureResume />
+        <NativeShareIngestion />
         <OfflineBanner />
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -219,16 +234,20 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <CookbooksProvider>
-        <CookbookImportProvider>
-          <ToastProvider>
-            <GlobalErrorBoundary>
-              <RootLayoutNav />
-            </GlobalErrorBoundary>
-          </ToastProvider>
-        </CookbookImportProvider>
-      </CookbooksProvider>
-    </QueryClientProvider>
+    <ShareIntentProvider options={shareIntentOptions}>
+      <NoshNativeShareProvider>
+        <QueryClientProvider client={queryClient}>
+          <CookbooksProvider>
+            <NoshConversationProvider>
+              <ToastProvider>
+                <GlobalErrorBoundary>
+                  <RootLayoutNav />
+                </GlobalErrorBoundary>
+              </ToastProvider>
+            </NoshConversationProvider>
+          </CookbooksProvider>
+        </QueryClientProvider>
+      </NoshNativeShareProvider>
+    </ShareIntentProvider>
   );
 }

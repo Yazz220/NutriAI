@@ -6,6 +6,7 @@ const DEFAULT_FUNCTION_TIMEOUT_MS = 60_000;
 
 interface FunctionCallOptions {
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export class FunctionTimeoutError extends Error {
@@ -19,6 +20,13 @@ export class FunctionNetworkError extends Error {
   constructor() {
     super('The request could not reach the server. Check your connection and try again.');
     this.name = 'FunctionNetworkError';
+  }
+}
+
+export class FunctionCanceledError extends Error {
+  constructor() {
+    super('The action was canceled.');
+    this.name = 'FunctionCanceledError';
   }
 }
 
@@ -40,12 +48,17 @@ export async function fetchWithTimeout(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const controller = new AbortController();
+  const externalSignal = init.signal;
+  const abortFromExternal = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetchImpl(input, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      if (externalSignal?.aborted) throw new FunctionCanceledError();
       throw new FunctionTimeoutError(timeoutMs);
     }
     if (error instanceof TypeError) {
@@ -54,6 +67,7 @@ export async function fetchWithTimeout(
     throw error;
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener('abort', abortFromExternal);
   }
 }
 
@@ -86,6 +100,7 @@ export async function callAuthenticatedFunction<T>(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      signal: options.signal,
     },
     options.timeoutMs ?? DEFAULT_FUNCTION_TIMEOUT_MS,
   );

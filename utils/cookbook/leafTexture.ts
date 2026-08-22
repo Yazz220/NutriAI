@@ -5,8 +5,8 @@ import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import type { CookbookLeaf } from '@/utils/cookbook/reader';
 
 /**
- * Generates a Skia-rendered texture image for non-recipe leaves (bookplate,
- * contents, blank) so they turn with visible content instead of blank cream.
+ * Generates a Skia-rendered texture image for the bookplate and blank leaves
+ * so they turn with visible content instead of blank cream.
  *
  * Uses an offscreen Skia surface to draw the page content, then snapshots it
  * to a SkImage that can be used as the curl mesh texture in TurningLeafSkia.
@@ -16,9 +16,7 @@ import type { CookbookLeaf } from '@/utils/cookbook/reader';
  * the turning page real content rather than a blank surface.
  */
 
-const TEXT_COLOR = Colors.book.ink;
 const CAPTION_COLOR = Colors.book.caption;
-const EDGE_COLOR = Colors.book.edgeStrong;
 
 function makeFillPaint(color: string): SkPaint {
   const paint = Skia.Paint();
@@ -104,61 +102,6 @@ function drawBookplate(
   drawCenteredText(canvas, meta, centerX, height * 0.64, metaFont, makeFillPaint(CAPTION_COLOR));
 }
 
-function drawContents(
-  canvas: SkCanvas,
-  width: number,
-  height: number,
-  pages: CookbookPage[],
-): void {
-  // Background
-  canvas.drawRect(Skia.XYWHRect(0, 0, width, height), makeFillPaint(Colors.book.page));
-
-  // Header
-  const headerFont = makeFont(Math.max(12, width * 0.05), 'bold');
-  canvas.drawText('Contents', width * 0.1, height * 0.12, makeFillPaint(TEXT_COLOR), headerFont);
-
-  // Header rule
-  canvas.drawLine(width * 0.1, height * 0.15, width * 0.9, height * 0.15, makeStrokePaint(EDGE_COLOR, 0.8));
-
-  // Entry rows
-  const entryFont = makeFont(Math.max(8, width * 0.03));
-  const numberFont = makeFont(Math.max(7, width * 0.025));
-  const entryPaint = makeFillPaint(TEXT_COLOR);
-  const numberPaint = makeFillPaint(CAPTION_COLOR);
-
-  const entriesTop = height * 0.22;
-  const entriesBottom = height * 0.92;
-  const availableHeight = entriesBottom - entriesTop;
-  const maxEntries = Math.min(pages.length, Math.floor(availableHeight / (width * 0.06)));
-  const rowHeight = availableHeight / Math.max(maxEntries, 1);
-
-  for (let i = 0; i < maxEntries; i += 1) {
-    const page = pages[i];
-    if (!page) continue;
-    const y = entriesTop + rowHeight * (i + 0.7);
-
-    // Entry title (truncated to fit)
-    const title = page.title.length > 28 ? `${page.title.slice(0, 27)}…` : page.title;
-    canvas.drawText(title, width * 0.1, y, entryPaint, entryFont);
-
-    // Page number on the right
-    const pageNum = String(page.pageNumber ?? i + 1);
-    const numWidth = numberFont.measureText(pageNum).width;
-    canvas.drawText(pageNum, width * 0.9 - numWidth, y, numberPaint, numberFont);
-
-    // Thin separator line between entries
-    if (i < maxEntries - 1) {
-      canvas.drawLine(
-        width * 0.1,
-        y + rowHeight * 0.35,
-        width * 0.9,
-        y + rowHeight * 0.35,
-        makeStrokePaint(EDGE_COLOR, 0.4),
-      );
-    }
-  }
-}
-
 function drawBlank(canvas: SkCanvas, width: number, height: number): void {
   canvas.drawRect(Skia.XYWHRect(0, 0, width, height), makeFillPaint(Colors.book.pageAlt));
 }
@@ -185,8 +128,6 @@ export function createLeafTexture(
 
   if (leaf.type === 'bookplate') {
     drawBookplate(canvas, w, h, cookbook, pages.length);
-  } else if (leaf.type === 'contents') {
-    drawContents(canvas, w, h, pages);
   } else {
     drawBlank(canvas, w, h);
   }

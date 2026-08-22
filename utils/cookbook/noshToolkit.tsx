@@ -1,5 +1,5 @@
 /**
- * NoshToolkit — tool definitions for the 5 Nosh assistant tools.
+ * Tool definitions and guided cards for Nosh actions.
  *
  * Each tool has:
  *   - A zod parameter schema (matches the nosh-chat Edge Function definitions)
@@ -11,162 +11,35 @@
  */
 
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { defineToolkit } from '@assistant-ui/react-native';
 import { z } from 'zod';
-import { ChefHat, Clock, Scale, Utensils, Wrench } from 'lucide-react-native';
+import { BookOpen, ChefHat, Clock, ScanSearch } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
+import { RecipeActionPreviewCard } from '@/components/nosh/recipe/RecipeActionPreviewCard';
+import { ArtworkActionCard } from '@/components/nosh/recipe/ArtworkActionCard';
+import { CollectionActionCard } from '@/components/nosh/collection/CollectionActionCard';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import type { RecipeGraph } from '@/types/recipeGraph';
+import type { GeneratedRecipePage } from '@/types/cookbook';
+import {
+  proposeGraphPatch,
+  proposeIngredientSubstitution,
+  proposeServingScale,
+  type RecipeActionCommitMode,
+  type RecipeActionProposal,
+} from '@/utils/cookbook/recipeActions';
 import type {
-  IngredientGroup,
-  RecipeGraph,
-} from '@/types/recipeGraph';
-
-// ---------------------------------------------------------------------------
-// Tool execution helpers — mutate the RecipeGraph
-// ---------------------------------------------------------------------------
-
-/** Scale all ingredient quantities by a ratio, preserving originals. */
-function scaleServings(graph: RecipeGraph, targetServings: number): RecipeGraph {
-  const ratio = targetServings / graph.servings;
-  const ingredientGroups: IngredientGroup[] = graph.ingredientGroups.map((group) => ({
-    ...group,
-    ingredients: group.ingredients.map((ing) => ({
-      ...ing,
-      originalQuantity: ing.originalQuantity ?? ing.quantity,
-      quantity: scaleQuantity(ing.quantity, ratio),
-    })),
-  }));
-
-  return { ...graph, servings: targetServings, ingredientGroups };
-}
-
-function scaleQuantity(quantity: string | undefined, ratio: number): string | undefined {
-  if (!quantity) return undefined;
-  const parsed = parseQuantity(quantity);
-  if (parsed === null) return quantity;
-  const scaled = parsed * ratio;
-  const rounded = Math.round(scaled * 100) / 100;
-  return formatQuantity(rounded);
-}
-
-function parseQuantity(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/');
-    if (parts.length === 2) {
-      const num = parseFloat(parts[0]);
-      const den = parseFloat(parts[1]);
-      if (!isNaN(num) && !isNaN(den) && den !== 0) return num / den;
-    }
-  }
-  if (trimmed.includes('-')) {
-    const parts = trimmed.split('-');
-    const lower = parseFloat(parts[0]);
-    if (!isNaN(lower)) return lower;
-  }
-  const num = parseFloat(trimmed);
-  return isNaN(num) ? null : num;
-}
-
-function formatQuantity(value: number): string {
-  if (value === Math.floor(value)) return String(value);
-  const fractionMap: Array<[number, string]> = [
-    [0.25, '1/4'],
-    [0.33, '1/3'],
-    [0.5, '1/2'],
-    [0.67, '2/3'],
-    [0.75, '3/4'],
-  ];
-  const remainder = value - Math.floor(value);
-  for (const [frac, label] of fractionMap) {
-    if (Math.abs(remainder - frac) < 0.02) {
-      const wholePart = Math.floor(value);
-      return wholePart > 0 ? `${wholePart} ${label}` : label;
-    }
-  }
-  return value.toFixed(2).replace(/\.?0+$/, '');
-}
-
-/** Substitute one ingredient for another. */
-function substituteIngredient(
-  graph: RecipeGraph,
-  args: {
-    ingredientName: string;
-    substituteName: string;
-    substituteQuantity?: string;
-    substituteUnit?: string;
-  },
-): RecipeGraph {
-  const target = args.ingredientName.toLowerCase();
-  const ingredientGroups: IngredientGroup[] = graph.ingredientGroups.map((group) => ({
-    ...group,
-    ingredients: group.ingredients.map((ing) => {
-      if (ing.name.toLowerCase().includes(target)) {
-        return {
-          ...ing,
-          name: args.substituteName,
-          quantity: args.substituteQuantity ?? ing.quantity,
-          unit: args.substituteUnit ?? ing.unit,
-        };
-      }
-      return ing;
-    }),
-  }));
-
-  return { ...graph, ingredientGroups };
-}
-
-/** Apply JSON-patch-style operations to the recipe graph. */
-function applyPatchOperations(
-  graph: RecipeGraph,
-  operations: Array<{ path: string; value: unknown }>,
-): RecipeGraph {
-  const clone: RecipeGraph = JSON.parse(JSON.stringify(graph));
-
-  for (const op of operations) {
-    applyPatch(clone, op.path, op.value);
-  }
-
-  return clone;
-}
-
-function applyPatch(target: unknown, path: string, value: unknown): void {
-  const segments = path.split('/').filter(Boolean);
-  if (segments.length === 0) return;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any = target;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const seg = segments[i];
-    const index = parseInt(seg, 10);
-    if (!isNaN(index) && Array.isArray(current)) {
-      current = current[index];
-    } else if (current && typeof current === 'object') {
-      current = current[seg];
-    } else {
-      return;
-    }
-  }
-
-  const lastSeg = segments[segments.length - 1];
-  const lastIndex = parseInt(lastSeg, 10);
-  if (value === null) {
-    if (!isNaN(lastIndex) && Array.isArray(current)) {
-      current.splice(lastIndex, 1);
-    } else if (current && typeof current === 'object') {
-      delete current[lastSeg];
-    }
-  } else {
-    if (!isNaN(lastIndex) && Array.isArray(current)) {
-      current[lastIndex] = value;
-    } else if (current && typeof current === 'object') {
-      current[lastSeg] = value;
-    }
-  }
-}
+  LoadedCollectionRecipe,
+  RecipeCollectionSearchOutcome,
+} from '@/utils/cookbook/recipeCollection';
+import type {
+  CollectionActionKind,
+  CollectionActionPreview,
+  CollectionActionResult,
+} from '@/utils/cookbook/collectionActions';
 
 // ---------------------------------------------------------------------------
 // Tool UI components — inline cards shown when tools execute
@@ -192,35 +65,6 @@ function ToolCard({
       </View>
       {running ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
     </View>
-  );
-}
-
-function ScaleServingsToolUI({ args, status }: {
-  args: { targetServings: number };
-  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-}) {
-  const target = args.targetServings;
-  return (
-    <ToolCard
-      icon={<Scale size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Scaling recipe' : 'Scaled recipe'}
-      detail={`to ${target} servings`}
-      running={status.type === 'running'}
-    />
-  );
-}
-
-function SubstituteIngredientToolUI({ args, status }: {
-  args: { ingredientName: string; substituteName: string };
-  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-}) {
-  return (
-    <ToolCard
-      icon={<Utensils size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Substituting ingredient' : 'Substituted ingredient'}
-      detail={`${args.ingredientName} → ${args.substituteName}`}
-      running={status.type === 'running'}
-    />
   );
 }
 
@@ -251,20 +95,75 @@ function GuideNextStepToolUI({ status }: {
   );
 }
 
-function UpdatePageDataToolUI({ args, status }: {
-  args: { operations: Array<{ path: string }> };
+function WalkthroughStateToolUI({ args, status }: {
+  args: { active: boolean };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
 }) {
-  const ops = args.operations ?? [];
   return (
     <ToolCard
-      icon={<Wrench size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Updating recipe' : 'Updated recipe'}
-      detail={`${ops.length} change${ops.length === 1 ? '' : 's'}`}
+      icon={<ChefHat size={16} color={Colors.primary} />}
+      label={status.type === 'running'
+        ? args.active ? 'Starting walkthrough' : 'Ending walkthrough'
+        : args.active ? 'Walkthrough started' : 'Walkthrough ended'}
+      detail={args.active ? 'Progress stays in this cooking session' : 'Back to open conversation'}
       running={status.type === 'running'}
     />
   );
 }
+
+interface NoshCookbookChoice {
+  id: string;
+  title: string;
+}
+
+function SearchRecipeCollectionToolUI({ args, status, result }: {
+  args: { query: string };
+  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  result?: RecipeCollectionSearchOutcome;
+}) {
+  const count = result?.status === 'resolved'
+    ? result.candidates.length
+    : result?.candidates.length;
+  return (
+    <ToolCard
+      icon={<ScanSearch size={16} color={Colors.primary} />}
+      label={status.type === 'running' ? 'Searching your cookbooks' : 'Searched your cookbooks'}
+      detail={count == null ? args.query : `${count} match${count === 1 ? '' : 'es'}`}
+      running={status.type === 'running'}
+    />
+  );
+}
+
+function LoadRecipeToolUI({ status, result }: {
+  args: { pageId: string };
+  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  result?: LoadedCollectionRecipe;
+}) {
+  return (
+    <ToolCard
+      icon={<BookOpen size={16} color={Colors.primary} />}
+      label={status.type === 'running' ? 'Opening saved recipe' : 'Recipe loaded'}
+      detail={result?.recipeGraph.title}
+      running={status.type === 'running'}
+    />
+  );
+}
+
+function OpenRecipeToolUI({ status, result }: {
+  args: { pageId: string };
+  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  result?: { title?: string };
+}) {
+  return (
+    <ToolCard
+      icon={<BookOpen size={16} color={Colors.primary} />}
+      label={status.type === 'running' ? 'Opening recipe' : 'Recipe opened'}
+      detail={result?.title}
+      running={status.type === 'running'}
+    />
+  );
+}
+
 
 // ---------------------------------------------------------------------------
 // Toolkit hook — creates a toolkit with access to the current page
@@ -273,35 +172,222 @@ function UpdatePageDataToolUI({ args, status }: {
 export interface NoshToolkitContext {
   /** The current page's RecipeGraph (or null if no active page) */
   recipeGraph: RecipeGraph | null;
-  /** Callback to update the page with a new RecipeGraph */
-  onUpdateGraph: (graph: RecipeGraph) => void;
+  /** Apply a confirmed recipe proposal for this session or to the cookbook. */
+  onCommitRecipeAction: (
+    proposal: RecipeActionProposal,
+    mode: RecipeActionCommitMode,
+  ) => Promise<{ pageId?: string }>;
+  /** Generate an unselected artwork candidate for the focused page. */
+  onGenerateArtCandidate?: (instruction: string | undefined, idempotencyKey: string) => Promise<GeneratedRecipePage>;
+  /** Select a generated artwork candidate after explicit approval. */
+  onSelectArtCandidate?: (candidate: GeneratedRecipePage) => Promise<void>;
+  /** Whether the focused page already has selected artwork. */
+  hasCurrentArtwork?: boolean;
+  /** Compact list used by collection tools and capture destination context. */
+  availableCookbooks?: NoshCookbookChoice[];
   /** Callback to start a timer (device-level) */
   onStartTimer?: (durationMinutes: number, label?: string) => void;
   /** Callback to highlight a step on the page */
   onGuideStep?: (stepId: string) => void;
+  /** Enter or leave temporary step-by-step cooking mode. */
+  onSetWalkthrough?: (active: boolean) => void;
+  /** Find likely recipes across every cookbook the signed-in user owns. */
+  onSearchRecipeCollection?: (input: {
+    query: string;
+    cookbookId?: string;
+    recentFirst?: boolean;
+    limit?: number;
+  }) => Promise<RecipeCollectionSearchOutcome>;
+  /** Load the canonical graph after a collection candidate is selected. */
+  onLoadRecipe?: (pageId: string) => Promise<LoadedCollectionRecipe>;
+  /** Navigate only after the user explicitly asks to open or show a recipe. */
+  onOpenRecipe?: (pageId: string) => Promise<{
+    success: true;
+    cookbookId: string;
+    pageId: string;
+    title: string;
+  }>;
+  /** Load verified names for a move or copy confirmation card. */
+  onLoadCollectionActionPreview?: (input: {
+    action: CollectionActionKind;
+    pageId: string;
+    destinationCookbookId: string;
+  }) => Promise<CollectionActionPreview>;
+  /** Commit a confirmed, idempotent collection move or copy. */
+  onCommitCollectionAction?: (input: {
+    action: CollectionActionKind;
+    pageId: string;
+    destinationCookbookId: string;
+    idempotencyKey: string;
+  }) => Promise<CollectionActionResult>;
+  /** Move an explicitly supplied source from conversation into the capture task. */
+  onStartRecipeCapture?: (source: {
+    sourceType: 'url' | 'text' | 'image' | 'video';
+    input?: string;
+  }) => void;
 }
 
 export function useNoshToolkit(ctx: NoshToolkitContext) {
-  const { recipeGraph, onUpdateGraph, onStartTimer, onGuideStep } = ctx;
+  const {
+    recipeGraph,
+    onCommitRecipeAction,
+    onGenerateArtCandidate,
+    onSelectArtCandidate,
+    hasCurrentArtwork,
+    availableCookbooks,
+    onStartTimer,
+    onGuideStep,
+    onSetWalkthrough,
+    onSearchRecipeCollection,
+    onLoadRecipe,
+    onOpenRecipe,
+    onLoadCollectionActionPreview,
+    onCommitCollectionAction,
+    onStartRecipeCapture,
+  } = ctx;
 
   return React.useMemo(() => {
     return defineToolkit({
+      start_recipe_capture: {
+        type: 'human',
+        description: 'Ask before moving a recipe source from general conversation into the capture flow',
+        parameters: z.object({
+          sourceType: z.enum(['url', 'text', 'image', 'video']),
+          input: z.string().optional(),
+        }),
+        render: ({ args, addResult }) => (
+          <View style={styles.handoffCard}>
+            <View style={styles.handoffHeader}>
+              <ChefHat size={18} color={Colors.primary} />
+              <Text style={styles.handoffTitle}>Start recipe capture?</Text>
+            </View>
+            <Text style={styles.handoffCopy}>
+              Nosh will read this source and create a complete page in the right cookbook.
+            </Text>
+            <Pressable
+              style={styles.handoffPrimary}
+              accessibilityRole="button"
+              accessibilityLabel="Start recipe capture"
+              onPress={() => {
+                onStartRecipeCapture?.(args);
+                addResult({ accepted: true, ...args });
+              }}
+            >
+              <Text style={styles.handoffPrimaryText}>Start capture</Text>
+            </Pressable>
+            <Pressable
+              style={styles.handoffSecondary}
+              accessibilityRole="button"
+              accessibilityLabel="Keep talking without capturing"
+              onPress={() => addResult({ accepted: false })}
+            >
+              <Text style={styles.handoffSecondaryText}>Not now</Text>
+            </Pressable>
+          </View>
+        ),
+      },
+
+      search_recipe_collection: {
+        type: 'frontend',
+        description: 'Find saved recipes across the signed-in user\'s cookbook collection',
+        parameters: z.object({
+          query: z.string().min(1),
+          cookbookId: z.string().optional(),
+          recentFirst: z.boolean().optional(),
+          limit: z.number().int().min(1).max(5).optional(),
+        }),
+        execute: async (args) => {
+          if (!onSearchRecipeCollection) throw new Error('Recipe collection search is unavailable');
+          return onSearchRecipeCollection(args);
+        },
+        render: SearchRecipeCollectionToolUI,
+      },
+
+      load_recipe: {
+        type: 'frontend',
+        description: 'Load the full canonical RecipeGraph for one selected saved recipe',
+        parameters: z.object({ pageId: z.string().min(1) }),
+        execute: async ({ pageId }) => {
+          if (!onLoadRecipe) throw new Error('Saved recipe loading is unavailable');
+          return onLoadRecipe(pageId);
+        },
+        render: LoadRecipeToolUI,
+      },
+
+      open_recipe: {
+        type: 'frontend',
+        description: 'Open a resolved saved recipe in its cookbook when the user explicitly asks to open or show it',
+        parameters: z.object({ pageId: z.string().min(1) }),
+        execute: async ({ pageId }) => {
+          if (!onOpenRecipe) throw new Error('Recipe navigation is unavailable');
+          return onOpenRecipe(pageId);
+        },
+        render: OpenRecipeToolUI,
+      },
+
+      list_cookbooks: {
+        type: 'frontend',
+        description: 'Return the signed-in user\'s compact cookbook list for destination resolution',
+        parameters: z.object({}),
+        execute: async () => ({ cookbooks: availableCookbooks ?? [] }),
+        render: ({ status, result }) => (
+          <ToolCard
+            icon={<BookOpen size={16} color={Colors.primary} />}
+            label={status.type === 'running' ? 'Checking your cookbooks' : 'Cookbooks checked'}
+            detail={result ? `${result.cookbooks.length} cookbook${result.cookbooks.length === 1 ? '' : 's'}` : undefined}
+            running={status.type === 'running'}
+          />
+        ),
+      },
+
+      organize_recipe: {
+        type: 'human',
+        description: 'Show an exact move or copy preview and wait for explicit user confirmation',
+        parameters: z.object({
+          action: z.enum(['move', 'copy']),
+          pageId: z.string().min(1),
+          destinationCookbookId: z.string().min(1),
+        }),
+        render: ({ args, addResult }) => {
+          if (!onLoadCollectionActionPreview || !onCommitCollectionAction) {
+            return <ToolCard icon={<BookOpen size={16} color={Colors.primary} />} label="Collection changes are unavailable" />;
+          }
+          return (
+            <CollectionActionCard
+              {...args}
+              onPreview={onLoadCollectionActionPreview}
+              onCommit={onCommitCollectionAction}
+              onResult={addResult}
+            />
+          );
+        },
+      },
+
       scale_servings: {
-        description: 'Scale all ingredient quantities to a new serving count',
+        type: 'human',
+        description: 'Preview scaled ingredient quantities and wait for the user to choose temporary or saved use',
         parameters: z.object({
           targetServings: z.number().int().min(1).max(100),
         }),
-        execute: async ({ targetServings }) => {
-          if (!recipeGraph) throw new Error('No active recipe to scale');
-          const updated = scaleServings(recipeGraph, targetServings);
-          onUpdateGraph(updated);
-          return { success: true, servings: targetServings };
+        render: ({ args, addResult }) => {
+          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          try {
+            return (
+              <RecipeActionPreviewCard
+                proposal={proposeServingScale(recipeGraph, args.targetServings)}
+                onCommit={onCommitRecipeAction}
+                onResult={addResult}
+              />
+            );
+          } catch (error) {
+            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+          }
         },
-        render: ScaleServingsToolUI,
       },
 
       substitute_ingredient: {
-        description: 'Substitute one ingredient for another',
+        type: 'human',
+        description: 'Preview an ingredient substitution and wait for the user to choose temporary or saved use',
         parameters: z.object({
           ingredientName: z.string(),
           substituteName: z.string(),
@@ -309,16 +395,24 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           substituteUnit: z.string().optional(),
           reason: z.string().optional(),
         }),
-        execute: async (args) => {
-          if (!recipeGraph) throw new Error('No active recipe to modify');
-          const updated = substituteIngredient(recipeGraph, args);
-          onUpdateGraph(updated);
-          return { success: true, from: args.ingredientName, to: args.substituteName };
+        render: ({ args, addResult }) => {
+          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          try {
+            return (
+              <RecipeActionPreviewCard
+                proposal={proposeIngredientSubstitution(recipeGraph, args)}
+                onCommit={onCommitRecipeAction}
+                onResult={addResult}
+              />
+            );
+          } catch (error) {
+            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+          }
         },
-        render: SubstituteIngredientToolUI,
       },
 
       start_timer: {
+        type: 'frontend',
         description: 'Start a cooking timer',
         parameters: z.object({
           durationMinutes: z.number().int().min(1).max(600),
@@ -332,6 +426,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
       },
 
       guide_next_step: {
+        type: 'frontend',
         description: 'Highlight a specific step on the page',
         parameters: z.object({
           stepId: z.string(),
@@ -343,8 +438,20 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
         render: GuideNextStepToolUI,
       },
 
+      set_walkthrough: {
+        type: 'frontend',
+        description: 'Start or end temporary step-by-step guidance after an explicit user request',
+        parameters: z.object({ active: z.boolean() }),
+        execute: async ({ active }) => {
+          onSetWalkthrough?.(active);
+          return { success: true, active };
+        },
+        render: WalkthroughStateToolUI,
+      },
+
       update_page_data: {
-        description: 'Update the recipe graph with patch operations',
+        type: 'human',
+        description: 'Preview recipe graph patch operations and wait for the user to choose temporary or saved use',
         parameters: z.object({
           operations: z.array(
             z.object({
@@ -353,16 +460,62 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
             }),
           ),
         }),
-        execute: async ({ operations }) => {
-          if (!recipeGraph) throw new Error('No active recipe to update');
-          const updated = applyPatchOperations(recipeGraph, operations);
-          onUpdateGraph(updated);
-          return { success: true, operationCount: operations.length };
+        render: ({ args, addResult }) => {
+          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          try {
+            return (
+              <RecipeActionPreviewCard
+                proposal={proposeGraphPatch(recipeGraph, args.operations)}
+                onCommit={onCommitRecipeAction}
+                onResult={addResult}
+              />
+            );
+          } catch (error) {
+            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+          }
         },
-        render: UpdatePageDataToolUI,
+      },
+
+      regenerate_recipe_page: {
+        type: 'human',
+        description: 'Show generation cost, create an unselected complete-page candidate, and wait for approval',
+        parameters: z.object({
+          instruction: z.string().max(600).optional(),
+        }),
+        render: ({ args, addResult }) => (
+          <ArtworkActionCard
+            instruction={args.instruction}
+            hasCurrentArtwork={Boolean(hasCurrentArtwork)}
+            onGenerate={async (instruction, idempotencyKey) => {
+              if (!onGenerateArtCandidate) throw new Error('Artwork generation is unavailable');
+              return onGenerateArtCandidate(instruction, idempotencyKey);
+            }}
+            onSelect={async (candidate) => {
+              if (!onSelectArtCandidate) throw new Error('Artwork selection is unavailable');
+              return onSelectArtCandidate(candidate);
+            }}
+            onResult={addResult}
+          />
+        ),
       },
     });
-  }, [recipeGraph, onUpdateGraph, onStartTimer, onGuideStep]);
+  }, [
+    recipeGraph,
+    onCommitRecipeAction,
+    onGenerateArtCandidate,
+    onSelectArtCandidate,
+    hasCurrentArtwork,
+    availableCookbooks,
+    onStartTimer,
+    onGuideStep,
+    onSetWalkthrough,
+    onSearchRecipeCollection,
+    onLoadRecipe,
+    onOpenRecipe,
+    onLoadCollectionActionPreview,
+    onCommitCollectionAction,
+    onStartRecipeCapture,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +523,37 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  handoffCard: {
+    gap: Spacing.sm,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    marginVertical: 4,
+  },
+  handoffHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  handoffTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16 },
+  handoffCopy: { color: Colors.slate, fontSize: 12, lineHeight: 18 },
+  handoffPrimary: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+  },
+  handoffPrimaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  handoffSecondary: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    paddingHorizontal: Spacing.md,
+  },
+  handoffSecondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
   toolCard: {
     flexDirection: 'row',
     alignItems: 'center',

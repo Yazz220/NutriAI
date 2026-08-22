@@ -64,6 +64,9 @@ export interface ChatCompletionRequest {
   tool_choice?: string | { type: string; function?: { name: string } };
   seed?: number;
   top_p?: number;
+  provider?: {
+    require_parameters?: boolean;
+  };
 }
 
 export interface ChatCompletionResponse {

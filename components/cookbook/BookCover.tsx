@@ -14,6 +14,7 @@ interface BookCoverProps {
   coverStyle: CookbookStyleId;
   pageCount?: number;
   imageAsset?: ImageSourcePropType;
+  face?: 'front' | 'back';
   width?: number;
   showPageCount?: boolean;
   style?: ViewStyle;
@@ -27,6 +28,7 @@ export function BookCover({
   coverStyle,
   pageCount,
   imageAsset,
+  face = 'front',
   width = DEFAULT_WIDTH,
   showPageCount = true,
   style,
@@ -96,28 +98,32 @@ export function BookCover({
         <View style={[styles.cornerMark, styles.cornerBottomLeft, { borderColor: preset.palette.accent, left: spineWidth + 20 }]} />
         <View style={[styles.cornerMark, styles.cornerBottomRight, { borderColor: preset.palette.accent }]} />
 
-        <CoverDecoration coverStyle={coverStyle} accent={preset.palette.accent} width={width} />
+        {face === 'front' ? (
+          <CoverDecoration coverStyle={coverStyle} accent={preset.palette.accent} width={width} />
+        ) : null}
 
-        <View style={[styles.titleBlock, { paddingLeft: spineWidth + 10 }]}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: preset.palette.ink,
-                fontSize: titleFontSize,
-                lineHeight: titleFontSize * 1.08,
-              },
-            ]}
-            numberOfLines={3}
-            adjustsFontSizeToFit
-          >
-            {title || 'Untitled'}
-          </Text>
-          <Text style={[styles.cookbookText, { color: preset.palette.ink }]}>COOKBOOK</Text>
-          <View style={[styles.titleRule, { backgroundColor: preset.palette.accent }]} />
-        </View>
+        {face === 'front' ? (
+          <View style={[styles.titleBlock, { paddingLeft: spineWidth + 10 }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: preset.palette.ink,
+                  fontSize: titleFontSize,
+                  lineHeight: titleFontSize * 1.08,
+                },
+              ]}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+            >
+              {title || 'Untitled'}
+            </Text>
+            <Text style={[styles.cookbookText, { color: preset.palette.ink }]}>COOKBOOK</Text>
+            <View style={[styles.titleRule, { backgroundColor: preset.palette.accent }]} />
+          </View>
+        ) : null}
 
-        {showPageCount && typeof pageCount === 'number' ? (
+        {face === 'front' && showPageCount && typeof pageCount === 'number' ? (
           <Text style={[styles.pageCount, { color: preset.palette.ink, paddingLeft: spineWidth + 10 }]}>
             {pageCount === 1 ? '1 page' : `${pageCount} pages`}
           </Text>

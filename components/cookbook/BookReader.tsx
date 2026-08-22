@@ -1,10 +1,10 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, LayoutTemplate, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -17,8 +17,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
-import { PageStyleSheet } from '@/components/cookbook/PageStyleSheet';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -32,7 +32,7 @@ import {
   shouldUseTouchPaging,
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
-import type { Cookbook, CookbookPage, RecipeTemplateId } from '@/types/cookbook';
+import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
 interface BookReaderProps {
   cookbook: Cookbook | null;
@@ -40,8 +40,6 @@ interface BookReaderProps {
   initialPageId?: string;
   onSelectPage: (id: string) => void;
   onShare: (page: CookbookPage) => void;
-  onUpdatePageTemplate?: (templateId: RecipeTemplateId) => Promise<void> | void;
-  onPageUpdate?: (page: CookbookPage) => void;
   isStale?: boolean;
   onRefresh?: () => void;
 }
@@ -52,6 +50,7 @@ interface BookReaderProps {
 // the end of the open, fading early on close) are handled in chromeStyle.
 const OPEN_DURATION = 980;
 const CLOSE_DURATION = 620;
+const ENTRY_OPEN_DELAY = 140;
 const OPEN_EASING = Easing.bezier(0.22, 0.72, 0.24, 1);
 const CLOSE_EASING = Easing.bezier(0.5, 0, 0.75, 0.2);
 
@@ -74,13 +73,19 @@ export function BookReader({
   initialPageId,
   onSelectPage,
   onShare,
-  onUpdatePageTemplate,
-  onPageUpdate,
   isStale = false,
   onRefresh,
 }: BookReaderProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { open, recipePreview, setVisibleBookContext } = useNoshConversation();
+  const renderedPages = useMemo(
+    () =>
+      recipePreview
+        ? pages.map((page) => (page.id === recipePreview.pageId ? { ...page, recipeGraph: recipePreview.graph } : page))
+        : pages,
+    [pages, recipePreview],
+  );
   const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
   const spreads = useMemo(() => buildCookbookSpreads(pageIds), [pageIds]);
   const leaves = useMemo(() => buildCookbookLeaves(pageIds), [pageIds]);
@@ -95,10 +100,14 @@ export function BookReader({
     return index >= 0 ? index : 2;
   }, [initialPageId, leaves]);
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
-  const [pageStyleSheetOpen, setPageStyleSheetOpen] = useState(false);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
+  const renderedFocusedPage =
+    focusedPage && recipePreview?.pageId === focusedPage.id
+      ? { ...focusedPage, recipeGraph: recipePreview.graph }
+      : focusedPage;
   const [isBackClosed, setIsBackClosed] = useState(false);
   const handledInitialPageId = useRef<string | null>(null);
+  const entryOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opening = useSharedValue(initialPageId ? 1 : 0);
   const chromeIdle = useSharedValue(1);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,6 +172,14 @@ export function BookReader({
     usesTouchPaging && readingView === 'page' ? leaves.length : pages.length > 0 ? pages.length : spreads.length;
 
   useEffect(() => {
+    setVisibleBookContext({
+      cookbook,
+      pages,
+      page: selectedPage ?? pages[0] ?? null,
+    });
+  }, [cookbook, pages, selectedPage, setVisibleBookContext]);
+
+  useEffect(() => {
     if (spreadIndex < spreads.length) return;
     setSpreadIndex(Math.max(0, spreads.length - 1));
   }, [spreadIndex, spreads.length]);
@@ -192,22 +209,25 @@ export function BookReader({
     onSelectPage(initialPageId);
   }, [initialPageId, leaves, onSelectPage, opening, spreads]);
 
-  // Auto-open on arrival from the shelf (no deep-link pageId). The route
-  // uses animation: 'none' so the reader appears instantly with the closed
-  // cover; the cover swing IS the entrance transition. A brief settle delay
-  // lets the closed cover paint for one frame before the swing starts, so
-  // the user sees "book placed in hands → open" rather than a mid-swing pop.
-  // Deep-linked opens (with initialPageId) skip this — they start open.
-  const autoOpened = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (autoOpened.current || initialPageId || !cookbook) return;
-      autoOpened.current = true;
-      const timeout = setTimeout(() => openBook(), 100);
-      return () => clearTimeout(timeout);
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- openBook is a hoisted function declaration; we only want this to fire once on focus.
-    }, [cookbook, initialPageId]),
-  );
+  useEffect(() => {
+    if (initialPageId) return;
+
+    entryOpenTimerRef.current = setTimeout(() => {
+      entryOpenTimerRef.current = null;
+      setIsOpen(true);
+      opening.set(
+        withTiming(1, {
+          duration: OPEN_DURATION,
+          easing: OPEN_EASING,
+        }),
+      );
+    }, ENTRY_OPEN_DELAY);
+
+    return () => {
+      if (entryOpenTimerRef.current) clearTimeout(entryOpenTimerRef.current);
+      entryOpenTimerRef.current = null;
+    };
+  }, [initialPageId, opening]);
 
   const chromeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opening.value, [0, 0.82, 1], [0, 0, 1]) * chromeIdle.value,
@@ -225,6 +245,10 @@ export function BookReader({
   }));
 
   function openBook() {
+    if (entryOpenTimerRef.current) {
+      clearTimeout(entryOpenTimerRef.current);
+      entryOpenTimerRef.current = null;
+    }
     setIsOpen(true);
     if (usesTouchPaging && pages.length > 0) {
       const targetPage = readingPage ?? pages[0];
@@ -246,6 +270,7 @@ export function BookReader({
     setFocusedPage(null);
     setIsOpen(false);
     setReadingView('spread');
+    setSpreadIndex(0);
     opening.set(
       withTiming(0, {
         duration: CLOSE_DURATION,
@@ -255,6 +280,8 @@ export function BookReader({
   }
 
   function closeBackBook() {
+    setReadingView('spread');
+    setSpreadIndex(Math.max(0, spreads.length - 1));
     setIsBackClosed(true);
     pokeChrome();
   }
@@ -293,7 +320,9 @@ export function BookReader({
   }
 
   function openAddPage() {
-    if (cookbookId) router.push(`/(book)/${cookbookId}/add`);
+    if (!cookbook) return;
+    setVisibleBookContext({ cookbook, pages, page: selectedPage ?? pages[0] ?? null });
+    open('cookbook-add', { kind: 'cookbook', cookbookId: cookbook.id, title: cookbook.title });
     pokeChrome();
   }
 
@@ -316,21 +345,19 @@ export function BookReader({
     pokeChrome();
   }
 
-  function jumpToRecipe(page: CookbookPage) {
-    const targetSpread = getSpreadIndexForPage(spreads, page.id);
-    if (targetSpread === null) return;
-    setSpreadIndex(targetSpread);
-    setReadingPageId(page.id);
-    onSelectPage(page.id);
-    const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === page.id);
-    if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
-    pokeChrome();
-    if (usesTouchPaging) setReadingView('page');
-  }
-
   function enterReadingView(page?: CookbookPage) {
     const targetPage = page ?? preferredSpreadPage;
-    if (targetPage) setReadingPageId(targetPage.id);
+    if (targetPage) {
+      setReadingPageId(targetPage.id);
+      onSelectPage(targetPage.id);
+      // The web book uses a lightweight art texture for its 3D spread. Open
+      // the live typeset PageCanvas when the user asks to read the page.
+      if (Platform.OS === 'web') {
+        setFocusedPage(targetPage);
+        pokeChrome();
+        return;
+      }
+    }
     setReadingView('page');
     pokeChrome();
   }
@@ -340,7 +367,8 @@ export function BookReader({
       <Animated.View style={[styles.topBar, { paddingTop: insets.top + Spacing.xs }, topBarStyle]}>
         <Pressable
           style={[styles.backButton, { minWidth: topSideWidth }]}
-          onPress={() => router.replace('/(book)')}
+          onPress={() => router.dismissTo('/(book)')}
+          accessibilityRole="button"
           accessibilityLabel="Back to my collection"
         >
           <ChevronLeft size={20} color={Colors.text} />
@@ -377,7 +405,7 @@ export function BookReader({
       <View style={styles.stage}>
         <Cookbook3DScene
           cookbook={cookbook}
-          pages={pages}
+          pages={renderedPages}
           spreads={spreads}
           spreadIndex={spreadIndex}
           isOpen={isOpen}
@@ -391,22 +419,12 @@ export function BookReader({
           isBackClosed={isBackClosed}
           onCloseBack={closeBackBook}
           onOpenBack={openBackBook}
-          onNext={() =>
-            usesTouchPaging && readingView === 'page'
-              ? goToLeaf(1)
-              : goToSpread(spreadIndex + 1)
-          }
-          onPrevious={() =>
-            usesTouchPaging && readingView === 'page'
-              ? goToLeaf(-1)
-              : goToSpread(spreadIndex - 1)
-          }
+          onNext={() => (usesTouchPaging && readingView === 'page' ? goToLeaf(1) : goToSpread(spreadIndex + 1))}
+          onPrevious={() => (usesTouchPaging && readingView === 'page' ? goToLeaf(-1) : goToSpread(spreadIndex - 1))}
           onStageTap={pokeChrome}
           onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
-          onJumpToPage={jumpToRecipe}
         />
-
       </View>
 
       <Animated.View
@@ -416,9 +434,7 @@ export function BookReader({
         {(() => {
           const isPageMode = usesTouchPaging && readingView === 'page';
           const atStart = isPageMode ? leafIndex === 0 : spreadIndex === 0;
-          const atEnd = isPageMode
-            ? leafIndex === leaves.length - 1
-            : spreadIndex === spreads.length - 1;
+          const atEnd = isPageMode ? leafIndex === leaves.length - 1 : spreadIndex === spreads.length - 1;
           const onPrev = isPageMode ? () => goToLeaf(-1) : () => goToSpread(spreadIndex - 1);
           const onNext = isPageMode ? () => goToLeaf(1) : () => goToSpread(spreadIndex + 1);
           const prevLabel = isPageMode ? 'Previous page' : 'Previous spread';
@@ -462,7 +478,7 @@ export function BookReader({
 
         <Pressable
           style={[styles.viewToggleButton, isNative && styles.nativeControl]}
-          onPress={toggleReadingView}
+          onPress={() => (readingView === 'spread' ? enterReadingView(selectedPage ?? undefined) : toggleReadingView())}
           accessibilityRole="button"
           accessibilityLabel={readingView === 'spread' ? 'Read this page' : 'Browse spreads'}
         >
@@ -477,31 +493,11 @@ export function BookReader({
 
       {isOpen && (selectedPage || cookbookId) ? (
         <Animated.View
-          style={[
-            styles.readerActionDock,
-            { top: insets.top + 58 },
-            floatingIdleStyle,
-          ]}
+          style={[styles.readerActionDock, { top: insets.top + 58 }, floatingIdleStyle]}
           pointerEvents="auto"
         >
-          {selectedPage ? (
-            <NoshAssistantChatButton
-              page={selectedPage}
-              pageNumber={selectedPage.pageNumber}
-              cookbookPages={pages}
-              cookbookTitle={cookbookTitle}
-              onPageUpdate={onPageUpdate}
-            />
-          ) : null}
-          {cookbookId && onUpdatePageTemplate ? (
-            <Pressable
-              style={({ pressed }) => [styles.floatingIconButton, pressed && styles.actionPressed]}
-              onPress={() => setPageStyleSheetOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Change page style"
-            >
-              <LayoutTemplate size={18} color={Colors.text} />
-            </Pressable>
+          {selectedPage && cookbook ? (
+            <NoshAssistantChatButton page={selectedPage} cookbook={cookbook} cookbookPages={pages} />
           ) : null}
           {cookbookId ? (
             <Pressable
@@ -517,11 +513,7 @@ export function BookReader({
       ) : null}
 
       {focusedPage ? (
-        <Animated.View
-          entering={FadeIn.duration(170)}
-          exiting={FadeOut.duration(140)}
-          style={styles.focusedOverlay}
-        >
+        <Animated.View entering={FadeIn.duration(170)} exiting={FadeOut.duration(140)} style={styles.focusedOverlay}>
           <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
               <Pressable
@@ -545,8 +537,13 @@ export function BookReader({
               </Pressable>
             </View>
             <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>
+              {recipePreview?.pageId === focusedPage.id ? (
+                <View style={styles.sessionPreviewBadge} accessibilityLabel="Temporary cooking session preview">
+                  <Text style={styles.sessionPreviewText}>Session preview</Text>
+                </View>
+              ) : null}
               <Animated.View entering={focusedPageEnter} exiting={focusedPageExit}>
-                <PageCanvas page={focusedPage} />
+                <PageCanvas page={renderedFocusedPage ?? focusedPage} />
               </Animated.View>
             </View>
             <Pressable
@@ -560,18 +557,6 @@ export function BookReader({
             </Pressable>
           </LinearGradient>
         </Animated.View>
-      ) : null}
-
-      {onUpdatePageTemplate && cookbook ? (
-        <PageStyleSheet
-          visible={pageStyleSheetOpen}
-          selectedId={cookbook.pageTemplateId}
-          onSelect={(id) => {
-            void onUpdatePageTemplate(id);
-          }}
-          onClose={() => setPageStyleSheetOpen(false)}
-          bookDefaultMode
-        />
       ) : null}
     </LinearGradient>
   );
@@ -715,17 +700,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     boxShadow: Colors.book.liftedShadow,
   },
-  floatingIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.alabaster,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    boxShadow: Colors.book.liftedShadow,
-  },
   readerActionDock: {
     position: 'absolute',
     right: Spacing.lg,
@@ -797,6 +771,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
+  },
+  sessionPreviewBadge: {
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.warning,
+  },
+  sessionPreviewText: {
+    color: Colors.onWarning,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 11,
   },
   focusedReturnButton: {
     position: 'absolute',

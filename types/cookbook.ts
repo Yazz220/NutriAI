@@ -52,6 +52,12 @@ export interface Cookbook {
   theme: CookbookTheme;
   sectionOrder: CookbookSection[];
   coverStyle: CookbookStyleId;
+  /** Immutable visual identity revision used by every generated page in this book. */
+  styleRevision: number;
+  /** Locked visual references for this identity revision. */
+  pageStyleReferences?: string[];
+  /** The first cookbook becomes the automatic destination for shared recipes. */
+  isDefault: boolean;
   /** Book-level default page layout for new recipe pages. */
   pageTemplateId: RecipeTemplateId;
   sections: CookbookSectionEntry[];
@@ -95,15 +101,17 @@ export interface CookbookPage {
   imageAsset?: ImageSourcePropType;
   imageUrl?: string;
   recipe?: StructuredRecipe;
-  /**
-   * New-pipeline fields (optional — present when the page was created
-   * via the new typesetter pipeline). When present, PageCanvas renders
-   * via TypesetterPage instead of the legacy full-page PNG Image.
-   */
+  /** Canonical recipe data used by Nosh for reasoning and future changes. */
   recipeGraph?: RecipeGraph;
+  /** Complete generated recipe page displayed to the user. */
+  pageImage?: GeneratedRecipePage;
+  /** Compatibility field for pages created by the retired split-art pipeline. */
   artAsset?: PageArtAsset;
   styleId?: CookbookStyleId;
   templateId?: RecipeTemplateId;
+  /** Processing pages remain hidden until their complete page image is ready. */
+  lifecycleStatus?: 'processing' | 'approved';
+  captureId?: string;
 }
 
 export interface CookbookPageSummary {
@@ -169,25 +177,30 @@ export interface TocSection {
   pages: CookbookPageSummary[];
 }
 
-// ---------------------------------------------------------------------------
-// NEW PIPELINE TYPES — decoupled art + text architecture
-//
-// These types define the new pipeline where:
-//   - The recipe is stored as a RecipeGraph (live, editable, selectable text)
-//   - The art is a separate generated illustration asset (no text in the image)
-//   - The page is rendered live by the typesetter from: graph + style + art
-//
-// The legacy types above (StructuredRecipe, CookbookPage with imageUrl,
-// PageVersion, CookbookPagePromptPayload) remain until Phase 6 cleanup.
-// ---------------------------------------------------------------------------
+// Generated pages keep structured culinary data and the user-facing page image
+// together. Nosh reasons from RecipeGraph. The reader displays the image.
 
 /** Status of the art generation process for a page. */
 export type PageArtStatus = 'pending' | 'generating' | 'ready' | 'failed';
 
+export interface GeneratedRecipePage {
+  id: string;
+  pageId: string;
+  imageUrl?: string;
+  storagePath?: string;
+  styleId: CookbookStyleId;
+  styleRevision: number;
+  generationPrompt: string;
+  styleReferences?: string[];
+  model: string;
+  status: PageArtStatus;
+  creditCost: number;
+  errorMessage?: string;
+  createdAt: string;
+}
+
 /**
- * The generated art asset for a cookbook page.
- * This is an isolated illustration — no text, no layout, no recipe data.
- * The typesetter layers this behind/around the live vector text.
+ * Compatibility shape for artwork created before full-page generation.
  */
 export interface PageArtAsset {
   id: string;
@@ -212,14 +225,7 @@ export interface PageArtAsset {
 /**
  * A cookbook page in the new pipeline.
  *
- * Unlike the legacy CookbookPage (which stored a full-page PNG),
- * this page stores:
- *   - A reference to the RecipeGraph (the live, editable culinary data)
- *   - A PageArtAsset (the generated illustration, separate from text)
- *   - Layout metadata (density hints for the typesetter)
- *
- * The page is rendered live by the typesetter from these three inputs.
- * Editing the recipe re-flows text instantly with zero image re-generation.
+ * Retained while existing split-art pages are migrated to full-page images.
  */
 export interface CookbookPageV2 {
   id: string;

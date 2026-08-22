@@ -5,8 +5,11 @@ import {
   saveCachedShelf,
   loadCachedPages,
   saveCachedPages,
+  loadCachedCaptures,
+  saveCachedCaptures,
 } from '@/utils/cookbook/cache';
 import type { Cookbook } from '@/types/cookbook';
+import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 
 const sampleCookbook: Cookbook = {
   id: 'c1',
@@ -50,5 +53,26 @@ describe('cookbook cache', () => {
     await saveCachedPages('c1', []);
     const cached = await loadCachedPages('c1');
     expect(cached).toEqual([]);
+  });
+
+  it('restores unfinished captures only for their owner', async () => {
+    const capture: RecipeCapture = {
+      id: 'capture-1',
+      userId: 'u1',
+      sourceType: 'url',
+      sourcePayload: { input: 'https://example.com/recipe' },
+      status: 'reading',
+      extractionNotes: [],
+      inferredFields: [],
+      artStatus: 'not_started',
+      idempotencyKey: 'capture-key-0001',
+      processingAttempt: 1,
+      createdAt: '2026-08-21T00:00:00.000Z',
+      updatedAt: '2026-08-21T00:00:00.000Z',
+    };
+    await saveCachedCaptures('u1', [capture]);
+
+    expect((await loadCachedCaptures('u1'))?.captures).toEqual([capture]);
+    expect(await loadCachedCaptures('u2')).toBeNull();
   });
 });

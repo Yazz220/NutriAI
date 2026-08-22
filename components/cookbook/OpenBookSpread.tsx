@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 
@@ -8,15 +9,39 @@ interface OpenBookSpreadProps {
   height: number;
   left: React.ReactNode;
   right: React.ReactNode;
+  coverColor?: string;
 }
 
-export function OpenBookSpread({ width, height, left, right }: OpenBookSpreadProps) {
+export const BOOK_GUTTER_WIDTH = 14;
+
+export function BookGutter({ height, style }: { height: number; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View pointerEvents="none" style={[styles.gutter, { width: BOOK_GUTTER_WIDTH, height }, style]}>
+      <LinearGradient
+        colors={[
+          'rgba(23,22,20,0)',
+          'rgba(23,22,20,0.055)',
+          'rgba(23,22,20,0.12)',
+          'rgba(23,22,20,0.055)',
+          'rgba(23,22,20,0)',
+        ]}
+        locations={[0, 0.32, 0.5, 0.68, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.binding} />
+    </View>
+  );
+}
+
+export function OpenBookSpread({ width, height, left, right, coverColor = Colors.book.coverSpine }: OpenBookSpreadProps) {
   const leafWidth = width / 2;
 
   return (
     <View style={[styles.scene, { width: width + 20, height: height + 24 }]}>
       <View style={[styles.castShadow, { width: width * 0.92, height: height * 0.22 }]} />
-      <View style={[styles.coverEdge, { width: width + 8, height: height + 8 }]} />
+      <View style={[styles.coverEdge, { width: width + 8, height: height + 8, backgroundColor: coverColor }]} />
       <View style={[styles.pageBlock, { width: width + 3, height: height + 5 }]}>
         <View style={styles.pageStriation} />
         <View style={[styles.pageStriation, styles.pageStriationTwo]} />
@@ -25,24 +50,6 @@ export function OpenBookSpread({ width, height, left, right }: OpenBookSpreadPro
       <View style={[styles.spread, { width, height }]}>
         <View style={[styles.leaf, styles.leftLeaf, { width: leafWidth }]}>{left}</View>
         <View style={[styles.leaf, styles.rightLeaf, { width: leafWidth }]}>{right}</View>
-
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(23,22,20,0.10)', 'rgba(23,22,20,0.025)', 'rgba(255,255,255,0.24)']}
-          locations={[0, 0.45, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.leftGutter, { left: leafWidth - 18 }]}
-        />
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(255,255,255,0.18)', 'rgba(23,22,20,0.03)', 'rgba(23,22,20,0.12)']}
-          locations={[0, 0.5, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.rightGutter, { left: leafWidth }]}
-        />
-        <View pointerEvents="none" style={[styles.binding, { left: leafWidth - 1 }]} />
       </View>
     </View>
   );
@@ -64,7 +71,6 @@ const styles = StyleSheet.create({
   coverEdge: {
     position: 'absolute',
     borderRadius: 11,
-    backgroundColor: Colors.book.coverSpine,
     transform: [{ translateY: 4 }],
     boxShadow: '0 18px 32px rgba(23, 22, 20, 0.18)',
   },
@@ -108,24 +114,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 8,
     borderBottomRightRadius: 8,
   },
-  leftGutter: {
+  gutter: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 18,
-  },
-  rightGutter: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 18,
+    overflow: 'hidden',
   },
   binding: {
     position: 'absolute',
+    left: BOOK_GUTTER_WIDTH / 2 - 0.5,
     top: 6,
     bottom: 6,
-    width: 2,
-    borderRadius: 1,
-    backgroundColor: 'rgba(23,22,20,0.09)',
+    width: 1,
+    backgroundColor: 'rgba(23,22,20,0.13)',
   },
 });

@@ -12,6 +12,7 @@ import type { CookbookPage } from '@/types/cookbook';
 interface PageCanvasProps {
   page: CookbookPage;
   bookMode?: boolean;
+  onRenderReady?: () => void;
 }
 
 function PageSkeleton({ page }: { page: CookbookPage }) {
@@ -29,19 +30,27 @@ function PageSkeleton({ page }: { page: CookbookPage }) {
   );
 }
 
-/** Check if a page has new-pipeline fields (recipeGraph) for typesetter rendering. */
-function hasTypesetterData(page: CookbookPage): boolean {
-  return Boolean(page.recipeGraph);
-}
-
-export function PageCanvas({ page, bookMode = false }: PageCanvasProps) {
+export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
   const horizontalInset = width < 390 ? Spacing.md : Spacing.xl;
   const pageWidth = bookMode ? '100%' : Math.min(width - horizontalInset * 2, 430);
   const maxHeight = bookMode ? undefined : Math.max(500, height - 220);
 
-  // New pipeline: render via the typesetter (live vector text + art asset)
-  if (hasTypesetterData(page) && page.recipeGraph) {
+  const completePageSource = page.pageImage?.imageUrl
+    ? { uri: page.pageImage.imageUrl }
+    : page.imageAsset
+      ?? (!page.recipeGraph && page.imageUrl ? { uri: page.imageUrl } : null);
+
+  if (completePageSource) {
+    return (
+      <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
+        <Image source={completePageSource} style={styles.image} resizeMode="cover" onLoad={onRenderReady} />
+      </View>
+    );
+  }
+
+  // Compatibility while existing split-art pages are regenerated.
+  if (page.recipeGraph) {
     return (
       <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
         <TypesetterPage
@@ -50,28 +59,22 @@ export function PageCanvas({ page, bookMode = false }: PageCanvasProps) {
           styleId={page.styleId ?? DEFAULT_COOKBOOK_STYLE}
           templateId={page.templateId ?? DEFAULT_RECIPE_TEMPLATE_ID}
           bookMode={bookMode}
+          onRenderReady={onRenderReady}
         />
       </View>
     );
   }
 
-  // Legacy pipeline: render the full-page PNG
-  const imageSource = page.imageAsset ?? (page.imageUrl ? { uri: page.imageUrl } : null);
-
   return (
     <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
-      {imageSource ? (
-        <Image source={imageSource} style={styles.image} resizeMode="contain" />
-      ) : (
-        <PageSkeleton page={page} />
-      )}
+      <PageSkeleton page={page} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   frame: {
-    aspectRatio: 2 / 3,
+    aspectRatio: 3 / 4,
     borderRadius: Radii.md,
     backgroundColor: Colors.parchment,
     borderWidth: 1,

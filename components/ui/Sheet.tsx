@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -66,7 +65,7 @@ export function Sheet({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         {keyboardAvoiding ? (
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior="height"
             style={styles.keyboard}
           >
             {sheet}
