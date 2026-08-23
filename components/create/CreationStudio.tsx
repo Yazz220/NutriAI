@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,7 +11,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Asset } from 'expo-asset';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, Check, Feather, Leaf, Sparkles } from 'lucide-react-native';
@@ -31,7 +30,6 @@ import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { CookbookStyleId } from '@/types/cookbook';
-import type { ImageSourcePropType } from 'react-native';
 
 /**
  * Production cookbook creation studio. The book remains the focal object while
@@ -40,25 +38,6 @@ import type { ImageSourcePropType } from 'react-native';
  */
 
 type PreviewFace = 'cover' | 'inside';
-
-interface PageStyleSampleSources {
-  brownies: ImageSourcePropType;
-  cookies: ImageSourcePropType;
-}
-
-type PageStyleSampleSourceMap = Partial<Record<CreationPageStyleId, PageStyleSampleSources>>;
-
-interface PageStylePreviewAssets {
-  status: 'loading' | 'ready' | 'failed';
-  sources: PageStyleSampleSourceMap;
-  retry: () => void;
-}
-
-const PAGE_STYLE_OPTIONS = listCreationPageStyles();
-const PAGE_STYLE_SAMPLE_MODULES = PAGE_STYLE_OPTIONS.flatMap((style) => [
-  style.samples.brownies,
-  style.samples.cookies,
-]) as number[];
 
 interface CreationStudioProps {
   canCreate: boolean;
@@ -79,7 +58,7 @@ export function CreationStudio({
 }: CreationStudioProps) {
   const { width } = useWindowDimensions();
   const coverFinishes = listFeaturedCookbookCoverFinishes();
-  const pageStyleAssets = usePageStylePreviewAssets();
+  const pageStyles = listCreationPageStyles();
   const [title, setTitle] = useState('');
   const [coverStyle, setCoverStyle] = useState<CookbookStyleId>(coverFinishes[0].id);
   const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
@@ -138,7 +117,6 @@ export function CreationStudio({
             pageStyleId={pageStyleId}
             face={previewFace}
             availableWidth={Math.min(width - Spacing.xl * 2, 712)}
-            pageStyleAssets={pageStyleAssets}
             onPress={() => selectWithHaptic(setPreviewFace, previewFace === 'cover' ? 'inside' : 'cover')}
           />
           <SelectionSummary coverStyle={coverStyle} pageStyleId={pageStyleId} />
@@ -153,7 +131,7 @@ export function CreationStudio({
             selectWithHaptic(setCoverStyle, value);
             setPreviewFace('cover');
           }} />
-          <PageStyleSelector value={pageStyleId} options={PAGE_STYLE_OPTIONS} onChange={selectPageStyle} />
+          <PageStyleSelector value={pageStyleId} options={pageStyles} onChange={selectPageStyle} />
 
           {error ? <Text style={styles.error} selectable>{error}</Text> : null}
           {!canCreate ? <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text> : null}
@@ -178,57 +156,6 @@ export function CreationStudio({
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
-
-function usePageStylePreviewAssets(): PageStylePreviewAssets {
-  const [attempt, setAttempt] = useState(0);
-  const [status, setStatus] = useState<PageStylePreviewAssets['status']>('loading');
-  const [sources, setSources] = useState<PageStyleSampleSourceMap>({});
-
-  useEffect(() => {
-    let isCurrent = true;
-    setStatus('loading');
-
-    Asset.loadAsync(PAGE_STYLE_SAMPLE_MODULES)
-      .then((assets) => {
-        if (!isCurrent) return;
-        if (assets.length !== PAGE_STYLE_SAMPLE_MODULES.length) {
-          throw new Error('One or more recipe samples did not resolve');
-        }
-
-        const nextSources: PageStyleSampleSourceMap = {};
-        PAGE_STYLE_OPTIONS.forEach((style, index) => {
-          const brownieAsset = assets[index * 2];
-          const cookieAsset = assets[index * 2 + 1];
-          const brownieUri = brownieAsset.localUri ?? brownieAsset.uri;
-          const cookieUri = cookieAsset.localUri ?? cookieAsset.uri;
-          if (!brownieUri || !cookieUri) return;
-          nextSources[style.id] = {
-            brownies: { uri: brownieUri },
-            cookies: { uri: cookieUri },
-          };
-        });
-
-        if (Object.keys(nextSources).length !== PAGE_STYLE_OPTIONS.length) {
-          throw new Error('One or more recipe samples did not resolve');
-        }
-        setSources(nextSources);
-        setStatus('ready');
-      })
-      .catch(() => {
-        if (isCurrent) setStatus('failed');
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [attempt]);
-
-  return {
-    status,
-    sources,
-    retry: () => setAttempt((value) => value + 1),
-  };
 }
 
 function getErrorMessage(error: unknown): string {
@@ -262,7 +189,6 @@ function BookPreview({
   pageStyleId,
   face,
   availableWidth,
-  pageStyleAssets,
   onPress,
 }: {
   title: string;
@@ -270,7 +196,6 @@ function BookPreview({
   pageStyleId: CreationPageStyleId;
   face: PreviewFace;
   availableWidth: number;
-  pageStyleAssets: PageStylePreviewAssets;
   onPress: () => void;
 }) {
   const previewTitle = title.trim() || 'My Cookbook';
@@ -296,12 +221,7 @@ function BookPreview({
           <PhysicalBook title={previewTitle} coverStyle={coverStyle} width={coverWidth} />
         </View>
       ) : (
-        <GeneratedRecipeSpread
-          coverStyle={coverStyle}
-          pageStyleId={pageStyleId}
-          pageStyleAssets={pageStyleAssets}
-          width={spreadWidth}
-        />
+        <GeneratedRecipeSpread coverStyle={coverStyle} pageStyleId={pageStyleId} width={spreadWidth} />
       )}
     </Pressable>
   );
@@ -310,12 +230,10 @@ function BookPreview({
 function GeneratedRecipeSpread({
   coverStyle,
   pageStyleId,
-  pageStyleAssets,
   width,
 }: {
   coverStyle: CookbookStyleId;
   pageStyleId: CreationPageStyleId;
-  pageStyleAssets: PageStylePreviewAssets;
   width: number;
 }) {
   const binding = getCookbookBindingForStyle(coverStyle);
@@ -323,43 +241,16 @@ function GeneratedRecipeSpread({
   const height = width * 0.75;
   const pageWidth = width / 2;
 
-  const samples = pageStyleAssets.sources[pageStyleId];
-
-  if (pageStyleAssets.status !== 'ready' || !samples) {
-    return (
-      <View style={[styles.spreadWrap, styles.sampleStatusWrap, { width, height, backgroundColor: binding.cloth }]}>
-        {pageStyleAssets.status === 'failed' ? (
-          <>
-            <Text style={styles.sampleStatusText}>Couldn’t load page samples.</Text>
-            <Pressable
-              onPress={pageStyleAssets.retry}
-              accessibilityRole="button"
-              accessibilityLabel="Retry loading recipe samples"
-              style={styles.sampleRetry}
-            >
-              <Text style={styles.sampleRetryText}>Try again</Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <ActivityIndicator color={Colors.text} />
-            <Text style={styles.sampleStatusText}>Loading recipe samples</Text>
-          </>
-        )}
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.spreadWrap, { width, height, backgroundColor: binding.cloth }]}> 
+    <View style={[styles.spreadWrap, { width, height, backgroundColor: binding.cloth }]}>
       <Image
-        source={samples.brownies}
+        source={style.samples.brownies}
         resizeMode="cover"
         style={[styles.generatedPage, styles.generatedPageLeft, { width: pageWidth - 4, height: height - 8 }]}
         accessibilityLabel={`${style.name} brownie recipe sample`}
       />
       <Image
-        source={samples.cookies}
+        source={style.samples.cookies}
         resizeMode="cover"
         style={[
           styles.generatedPage,
@@ -613,30 +504,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     boxShadow: '0 18px 34px rgba(23,22,20,0.18)',
     transform: [{ perspective: 900 }, { rotateX: '3deg' }],
-  },
-  sampleStatusWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-  },
-  sampleStatusText: {
-    color: Colors.onPrimary,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  sampleRetry: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radii.full,
-    backgroundColor: Colors.surfaceElevated,
-  },
-  sampleRetryText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: 11,
   },
   generatedPage: {
     position: 'absolute',
