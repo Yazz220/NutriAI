@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { BookOpen, ChefHat, ScanSearch } from 'lucide-react-native';
 import { MessagePrimitive, ThreadPrimitive, useAuiState } from '@assistant-ui/react-native';
@@ -66,16 +66,18 @@ export function NoshConversationDisplay({ interaction, activeTask, contextModelE
 }) {
   return (
     <View style={styles.container}>
-      <ThreadPrimitive.MessagesFlatList autoScroll contentContainerStyle={styles.messagesContent} style={styles.messagesList} components={{ UserMessage, AssistantMessage }} />
-      <ProgressCard task={activeTask} />
-      <NoshConversationStart interaction={interaction} contextModelEnabled={contextModelEnabled} />
+      <Pressable style={styles.messagesArea} onPress={Keyboard.dismiss}>
+        <ThreadPrimitive.MessagesFlatList autoScroll contentContainerStyle={styles.messagesContent} style={styles.messagesList} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" components={{ UserMessage, AssistantMessage }} />
+        <ProgressCard task={activeTask} />
+        <NoshConversationStart interaction={interaction} contextModelEnabled={contextModelEnabled} />
+      </Pressable>
       <NoshComposer interaction={interaction} contextModelEnabled={contextModelEnabled} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, gap: Spacing.sm }, messagesList: { flex: 1, minHeight: 220 }, messagesContent: { gap: Spacing.sm, paddingVertical: Spacing.sm, paddingHorizontal: 2 },
+  container: { flex: 1, gap: Spacing.sm }, messagesArea: { flex: 1, gap: Spacing.sm }, messagesList: { flex: 1, minHeight: 220 }, messagesContent: { gap: Spacing.sm, paddingVertical: Spacing.sm, paddingHorizontal: 2 },
   userRow: { flexDirection: 'row', justifyContent: 'flex-end' }, userBubble: { maxWidth: '86%', borderRadius: Radii.lg, borderBottomRightRadius: Radii.sm, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2 }, userText: { color: Colors.onPrimary, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
   assistantRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' }, avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, marginTop: 2 }, assistantBubble: { flex: 1, maxWidth: '88%', borderRadius: Radii.lg, borderBottomLeftRadius: Radii.sm, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.ash, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2 }, assistantText: { color: Colors.text, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
   progress: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.parchment, padding: Spacing.md, marginHorizontal: 2 },
