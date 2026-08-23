@@ -138,3 +138,42 @@ tree:
               - "Supabase generate-page-art version 7: ACTIVE"
               - "Supabase nosh-chat version 7: ACTIVE"
             status: resolved
+  - id: N10
+    type: decision
+    title: "Reframe Book Explorer as one-book customization"
+    provenance: user
+    timestamp: "2026-08-23T05:37+03:00"
+    choice: >-
+      Replace the catalog-like choice among multiple apparent book products with one
+      cookbook under creation whose title, cover treatment, and recipe-page identity
+      are personalized before it is added to the shelf.
+    alternatives:
+      - "Keep the binding shelf as a product-style browser"
+      - "Expand the existing template grid into a full design editor"
+      - "Keep cover choice coupled to a fixed recipe-page style"
+    evidence:
+      - "User direction: one customizable Nosh book should remain the visual focus"
+      - "User examples: Healthy Meals and Desserts receive distinct identities through customization"
+    status: resolved
+    children:
+      - id: N11
+        type: experiment
+        title: "Audit Book Explorer UI and style coupling"
+        provenance: ai-executed
+        timestamp: "2026-08-23T05:37+03:00"
+        result: >-
+          Phone-sized visual inspection confirmed a two-mode catalog flow labeled Choose a
+          binding and All bindings, with preset names presented as book titles. Code tracing
+          showed cover_style drives both PhysicalBook binding and the Edge Function's page
+          style profile; the persisted page-template default is bypassed by adaptive recipe
+          layout selection in the active capture pipeline.
+        evidence:
+          - "components/create/CreationStudio.tsx"
+          - "constants/cookbookStyles.ts"
+          - "utils/cookbook/api.ts"
+          - "supabase/functions/capture-recipe/index.ts"
+          - "supabase/functions/generate-page-art/index.ts"
+          - "supabase/functions/_shared/artGeneration.ts"
+          - "supabase/functions/_shared/recipeLayout.ts"
+          - "Phone-sized Book Explorer screenshots inspected at 390x844"
+        status: resolved

@@ -19,3 +19,8 @@ entries:
       - "Resolved N07 with user-authored N08: suspend enforcement, preserve history, and defer production entitlement design."
       - "Routed the local/live verification and version-7 deployments as N09; the unrelated AddPageScreen mock failure remains outside this decision."
       - "Reclassified O02's historical diagnosis as falsifiable C01 and crystallized it through empirical resolution after the user acted on N06."
+  - turn: "2026-08-23_001#5"
+    notes:
+      - "Routed the user's one-book customization direction as N10 and the responsive/code audit as N11."
+      - "Staged O03-O05 because cover/page/layout separation and the exact control count are recommendations awaiting user confirmation and implementation commitment."
+      - "Did not crystallize O04 despite direct code evidence because the researcher has not yet commented on the audit result."
