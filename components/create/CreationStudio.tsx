@@ -217,9 +217,7 @@ function BookPreview({
         style={StyleSheet.absoluteFill}
       />
       {face === 'cover' ? (
-        <View style={styles.closedBookWrap}>
-          <PhysicalBook title={previewTitle} coverStyle={coverStyle} width={coverWidth} />
-        </View>
+        <PhysicalBook title={previewTitle} coverStyle={coverStyle} width={coverWidth} />
       ) : (
         <GeneratedRecipeSpread coverStyle={coverStyle} pageStyleId={pageStyleId} width={spreadWidth} />
       )}
@@ -495,15 +493,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
     boxShadow: Colors.book.cardShadow,
   },
-  closedBookWrap: {
-    transform: [{ perspective: 900 }, { rotateX: '2deg' }, { rotateY: '-4deg' }],
-  },
   spreadWrap: {
     padding: 4,
     borderRadius: 12,
     position: 'relative',
     boxShadow: '0 18px 34px rgba(23,22,20,0.18)',
-    transform: [{ perspective: 900 }, { rotateX: '3deg' }],
   },
   generatedPage: {
     position: 'absolute',
