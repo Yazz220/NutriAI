@@ -4,3 +4,8 @@ entries:
       - "Routed the user's consolidation choice directly as N01 because it selects between concrete UX alternatives."
       - "Routed implementation and verification as N02; no interpretive claim required staging this turn."
       - "Did not record routine status, formatting, or environment checks."
+  - turn: "2026-08-23_001#2"
+    notes:
+      - "Routed the failing then passing regression loops as N03 and N05, with N04 capturing the defense-in-depth choice."
+      - "Staged O01 as a heuristic, then crystallized it through artifact commitment because the normalizer was deployed as active function version 7."
+      - "Kept iPhone confirmation open because automated and server verification cannot dismiss the device overlay for the user."

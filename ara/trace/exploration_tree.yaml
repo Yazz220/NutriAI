@@ -30,3 +30,48 @@ tree:
           - "__tests__/components/NoshCaptureWorkspace.test.tsx"
           - "__tests__/utils/cookbook/capturePresentation.test.ts"
         status: resolved
+  - id: N03
+    type: experiment
+    title: "Reproduce duplicate recipe group keys"
+    provenance: ai-executed
+    timestamp: "2026-08-23T04:35+03:00"
+    result: >-
+      A two-group recipe fixture using the model fallback id `default` failed at both
+      boundaries: normalization preserved one unique id for two groups, and TextLayer
+      emitted two duplicate-key warnings matching the iPhone screenshot.
+    evidence:
+      - "__tests__/utils/cookbook/recipeGraphNormalization.test.ts"
+      - "__tests__/components/cookbook/TextLayer.test.tsx"
+      - "User screenshot dated 2026-08-23 04:23"
+    status: resolved
+    children:
+      - id: N04
+        type: decision
+        title: "Repair IDs at extraction and tolerate legacy collisions"
+        provenance: ai-suggested
+        timestamp: "2026-08-23T04:35+03:00"
+        choice: >-
+          Generate deterministic unique group and step ids in the shared extraction
+          normalizer, and use collision-safe React keys when rendering persisted graphs.
+        alternatives:
+          - "Change only the renderer and keep persisting invalid IDs"
+          - "Change only extraction and leave existing saved recipes broken"
+          - "Rewrite existing recipe rows in the database"
+        evidence:
+          - N03
+          - O01
+        status: resolved
+      - id: N05
+        type: experiment
+        title: "Verify and deploy duplicate-ID repair"
+        provenance: ai-executed
+        timestamp: "2026-08-23T04:35+03:00"
+        result: >-
+          The focused reproduction and broader typesetter suite passed 8 tests,
+          TypeScript and lint checks passed, iOS rebuilt without the duplicate-key error,
+          and extract-recipe deployed as active Supabase function version 7.
+        evidence:
+          - "components/cookbook/typesetter/TextLayer.tsx"
+          - "supabase/functions/_shared/recipeGraphNormalization.ts"
+          - "Supabase extract-recipe version 7: ACTIVE"
+        status: resolved

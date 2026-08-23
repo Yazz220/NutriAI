@@ -1,1 +1,16 @@
-observations: []
+observations:
+  - id: O01
+    timestamp: "2026-08-23T04:35+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat model-authored structural IDs as untrusted at extraction, while keeping list
+      rendering collision-safe for already-persisted legacy Recipe Graphs.
+    context: >-
+      Duplicate `default` group IDs from an uploaded recipe reached TextLayer and triggered
+      the React Native developer error overlay.
+    potential_type: heuristic
+    bound_to: [N03, N04, N05]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H01"
+    crystallized_via: artifact-commitment
+    stale: false
