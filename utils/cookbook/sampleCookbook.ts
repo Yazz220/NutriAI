@@ -13,6 +13,7 @@ export const SAMPLE_COOKBOOK: Cookbook = {
   },
   sectionOrder: ['dinner', 'healthy', 'sides', 'desserts'],
   coverStyle: 'sage-linen',
+  pageStyleId: 'illustrated',
   styleRevision: 1,
   isDefault: false,
   pageTemplateId: 'clean-cream',

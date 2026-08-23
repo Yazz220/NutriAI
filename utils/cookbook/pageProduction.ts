@@ -3,14 +3,14 @@ import {
   generateRecipePageImage,
 } from '@/utils/cookbook/api';
 import { pollCookbookGeneration } from '@/utils/cookbook/generationPolling';
-import type { CookbookPage, CookbookStyleId, GeneratedRecipePage } from '@/types/cookbook';
+import type { CookbookPage, CookbookPageStyleId, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
 
 interface FinishRecipePageImageInput {
   cookbookId: string;
   pageId: string;
   recipeGraph: RecipeGraphDraft;
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   styleRevision?: number;
   styleReferences?: string[];
   idempotencyKey: string;

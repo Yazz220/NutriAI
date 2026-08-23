@@ -41,6 +41,7 @@ import { logError, logInfo } from '../_shared/log.ts';
 import {
   buildRecipePagePrompt,
   buildOpenRouterImageRequest,
+  isRecipePageStyleId,
 } from '../_shared/artGeneration.ts';
 
 // ---------------------------------------------------------------------------
@@ -105,12 +106,6 @@ function isValidRecipeGraph(value: unknown): value is RecipeGraphInput {
   if (!isRecord(value)) return false;
   return typeof value.title === 'string' && value.title.trim().length > 0;
 }
-
-const VALID_STYLE_IDS = new Set([
-  'vintage-garden', 'handwritten', 'editorial', 'watercolor', 'rustic', 'minimal',
-  'sage-linen', 'terracotta-cloth', 'navy-leather', 'charcoal-cloth',
-  'alabaster-linen', 'umber-leather',
-]);
 
 // ---------------------------------------------------------------------------
 // Image generation via OpenRouter Image API
@@ -346,7 +341,7 @@ serve(async (req: Request) => {
     if (!isValidRecipeGraph(recipeGraph)) {
       return jsonError('Missing or invalid recipeGraph', 400, req);
     }
-    if (typeof requestedStyleId !== 'string' || !VALID_STYLE_IDS.has(requestedStyleId)) {
+    if (!isRecipePageStyleId(requestedStyleId)) {
       return jsonError('Invalid styleId', 400, req);
     }
     if (requestedStyleRevision !== undefined
@@ -380,14 +375,14 @@ serve(async (req: Request) => {
     const { data: cookbookRow, error: cookbookError } = await admin
       .schema('nutriai')
       .from('cookbooks')
-      .select('id, cover_style, style_revision, page_style_references')
+      .select('id, page_style_id, style_revision, page_style_references')
       .eq('id', cookbookId)
       .eq('user_id', user!.id)
       .single();
 
     if (cookbookError || !cookbookRow) return jsonError('Cookbook not found', 404, req);
-    const styleId = VALID_STYLE_IDS.has(String(cookbookRow.cover_style))
-      ? String(cookbookRow.cover_style)
+    const styleId = isRecipePageStyleId(cookbookRow.page_style_id)
+      ? cookbookRow.page_style_id
       : requestedStyleId;
     const styleRevision = Number.isInteger(cookbookRow.style_revision)
       && Number(cookbookRow.style_revision) > 0

@@ -2,10 +2,18 @@ import { supabase } from '@/lib/supabase';
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
 import { COOKBOOK_STYLE_PRESETS, getCookbookStyle } from '@/constants/cookbookStyles';
+import {
+  getCookbookPageStyleModelDescription,
+  getCookbookPageStyleName,
+  getCookbookPageStyleReferences,
+  getCookbookPageStyleRevision,
+  normalizeCookbookPageStyleId,
+} from '@/constants/cookbookCustomization';
 import { DEFAULT_RECIPE_TEMPLATE_ID, getRecipeTemplate, isRecipeTemplateId } from '@/constants/recipeTemplates';
 import type {
   Cookbook,
   CookbookPage,
+  CookbookPageStyleId,
   CookbookSectionEntry,
   CookbookStyleId,
   GeneratedRecipePage,
@@ -29,6 +37,7 @@ type CookbookInsertPayload = {
   theme_name: string;
   theme_prompt: string;
   cover_style?: CookbookStyleId;
+  page_style_id?: CookbookPageStyleId;
   page_template_id?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
   style_revision?: number;
@@ -44,6 +53,7 @@ interface CookbookRow {
   theme_prompt: string;
   section_order?: unknown;
   cover_style?: string | null;
+  page_style_id?: string | null;
   page_template_id?: string | null;
   sections?: unknown;
   style_revision?: number | null;
@@ -168,6 +178,7 @@ function getEmbeddedVersion(row: CookbookPageRow): PageVersionRow | undefined {
 
 export function mapCookbook(row: CookbookRow): Cookbook {
   const coverStyle = normalizeCoverStyle(row.cover_style, row.theme_name);
+  const pageStyleId = normalizeCookbookPageStyleId(row.page_style_id, coverStyle);
   const pageTemplateId = normalizePageTemplateId(row.page_template_id);
   const sections = normalizeSections(row.sections);
   return {
@@ -177,7 +188,8 @@ export function mapCookbook(row: CookbookRow): Cookbook {
     theme: { name: row.theme_name, prompt: row.theme_prompt },
     sectionOrder: normalizeSectionOrder(row.section_order),
     coverStyle,
-    styleRevision: row.style_revision ?? 1,
+    pageStyleId,
+    styleRevision: row.style_revision ?? getCookbookPageStyleRevision(pageStyleId),
     pageStyleReferences: asStringArray(row.page_style_references),
     isDefault: row.is_default === true,
     pageTemplateId,
@@ -240,7 +252,7 @@ export function mapPage(
       pageId: row.id,
       imageUrl: selectedVersion.image_url,
       storagePath: selectedVersion.storage_path ?? undefined,
-      styleId: row.style_id as CookbookStyleId,
+      styleId: row.style_id as CookbookPageStyleId,
       styleRevision: (row.style_revision ?? Number((promptPayload as { styleRevision?: unknown }).styleRevision)) || 1,
       generationPrompt: '',
       model: selectedVersion.model ?? '',
@@ -257,7 +269,7 @@ export function mapPage(
       pageId: row.id,
       artUrl: selectedVersion.image_url,
       storagePath: selectedVersion.storage_path ?? undefined,
-      styleId: row.style_id as CookbookStyleId,
+      styleId: row.style_id as CookbookPageStyleId,
       artPrompt: '', // Not stored on the version row; available in prompt_payload
       model: selectedVersion.model ?? '',
       status: (selectedVersion.status as PageArtStatus) ?? 'ready',
@@ -267,7 +279,7 @@ export function mapPage(
   }
 
   if (row.style_id) {
-    page.styleId = row.style_id as CookbookStyleId;
+    page.styleId = row.style_id as CookbookPageStyleId;
   }
 
   if (row.template_id) {
@@ -371,6 +383,7 @@ export interface CreateCookbookInput {
   userId: string;
   title: string;
   coverStyle: CookbookStyleId;
+  pageStyleId: CookbookPageStyleId;
   pageTemplateId?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
 }
@@ -382,6 +395,7 @@ function isMissingCookbookColumnError(error: unknown): boolean {
   return (
     record.code === 'PGRST204' ||
     message.includes("Could not find the 'cover_style' column") ||
+    message.includes("Could not find the 'page_style_id' column") ||
     message.includes("Could not find the 'sections' column")
   );
 }
@@ -406,22 +420,24 @@ async function insertCookbook(payload: CookbookInsertPayload): Promise<CookbookR
 }
 
 export async function createCookbook(input: CreateCookbookInput): Promise<Cookbook> {
-  const preset = getCookbookStyle(input.coverStyle);
+  const coverPreset = getCookbookStyle(input.coverStyle);
+  const pageStyleId = normalizeCookbookPageStyleId(input.pageStyleId, coverPreset.id);
   const templateId = getRecipeTemplate(input.pageTemplateId).id;
   const title = input.title.trim() || 'My Cookbook';
   const basePayload = {
     user_id: input.userId,
     title,
-    theme_name: preset.theme.name,
-    theme_prompt: preset.theme.prompt,
+    theme_name: getCookbookPageStyleName(pageStyleId),
+    theme_prompt: getCookbookPageStyleModelDescription(pageStyleId),
   };
 
   try {
     const row = await insertCookbook({
       ...basePayload,
-      cover_style: preset.id,
-      style_revision: preset.styleRevision,
-      page_style_references: [...(preset.pageStyleReferences ?? [])],
+      cover_style: coverPreset.id,
+      page_style_id: pageStyleId,
+      style_revision: getCookbookPageStyleRevision(pageStyleId),
+      page_style_references: getCookbookPageStyleReferences(pageStyleId),
       page_template_id: templateId,
       sections: input.sections ?? [],
     });
@@ -431,6 +447,9 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
       const row = await insertCookbook({
         ...basePayload,
         cover_style: 'handwritten',
+        page_style_id: pageStyleId,
+        style_revision: getCookbookPageStyleRevision(pageStyleId),
+        page_style_references: getCookbookPageStyleReferences(pageStyleId),
         page_template_id: templateId,
         sections: input.sections ?? [],
       });
@@ -603,7 +622,7 @@ export async function createRecipePageWithGraph(input: {
   cookbookId: string;
   userId: string;
   recipeGraph: RecipeGraphDraft;
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   templateId: RecipeTemplateId;
 }): Promise<CookbookPage> {
   const { cookbookId, userId, recipeGraph, styleId, templateId } = input;
@@ -670,7 +689,7 @@ export async function createRecipePageWithGraph(input: {
       sort_order: maxSortOrder + 1,
       recipe_graph: recipeGraph as unknown as Record<string, unknown>,
       style_id: styleId,
-      style_revision: getCookbookStyle(styleId).styleRevision,
+      style_revision: getCookbookPageStyleRevision(styleId),
       template_id: templateId,
       lifecycle_status: 'processing',
     })
@@ -687,7 +706,7 @@ export async function generateRecipePageImage(payload: {
   cookbookId: string;
   pageId: string;
   recipeGraph: RecipeGraphDraft;
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   styleRevision?: number;
   styleReferences?: string[];
   idempotencyKey: string;

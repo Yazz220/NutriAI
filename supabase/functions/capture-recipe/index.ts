@@ -164,12 +164,12 @@ async function processCapture(
       const { data: cookbook, error: cookbookError } = await admin
         .schema('nutriai')
         .from('cookbooks')
-        .select('cover_style, style_revision, page_style_references')
+        .select('cover_style, page_style_id, style_revision, page_style_references')
         .eq('id', destinationCookbookId)
         .eq('user_id', userId)
         .single();
       if (cookbookError || !cookbook) throw new Error('The destination cookbook is unavailable');
-      const styleId = cookbook.cover_style ?? 'handwritten';
+      const styleId = cookbook.page_style_id ?? cookbook.cover_style ?? 'handwritten';
       const styleRevision = Number(cookbook.style_revision ?? 1);
       const styleReferences = Array.isArray(cookbook.page_style_references)
         ? cookbook.page_style_references.filter((value: unknown): value is string => typeof value === 'string')
@@ -270,13 +270,13 @@ async function prepareCaptureDestination(
     const { data: cookbook, error: cookbookError } = await admin
       .schema('nutriai')
       .from('cookbooks')
-      .select('cover_style, style_revision, page_style_references')
+      .select('cover_style, page_style_id, style_revision, page_style_references')
       .eq('id', destinationCookbookId)
       .eq('user_id', userId)
       .single();
     if (cookbookError || !cookbook) throw new Error('The destination cookbook is unavailable');
 
-    const styleId = cookbook.cover_style ?? 'handwritten';
+    const styleId = cookbook.page_style_id ?? cookbook.cover_style ?? 'handwritten';
     const styleRevision = Number(cookbook.style_revision ?? 1);
     const styleReferences = Array.isArray(cookbook.page_style_references)
       ? cookbook.page_style_references.filter((value: unknown): value is string => typeof value === 'string')

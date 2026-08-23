@@ -68,7 +68,31 @@ interface RecipePageStyleProfile {
   composition: string;
 }
 
-const RECIPE_PAGE_STYLE_PROFILES: Record<string, RecipePageStyleProfile> = {
+export const RECIPE_PAGE_STYLE_PROFILES: Record<string, RecipePageStyleProfile> = {
+  illustrated: {
+    revision: 1,
+    paper: 'warm alabaster paper with a subtle natural tooth and pristine finish',
+    typography: 'elegant warm serif display titles with calm, highly legible editorial sans-serif recipe text',
+    illustration: 'refined hand-drawn black ink food illustration with delicate translucent watercolor and natural ingredient detail',
+    palette: 'warm alabaster, muted sage green, restrained ochre, food-led natural color, and black ink',
+    composition: 'airy contemporary cookbook publishing with generous safe margins, a balanced ingredient-and-method grid, and one integrated food illustration',
+  },
+  'studio-editorial': {
+    revision: 1,
+    paper: 'clean warm-white paper with a smooth premium editorial finish',
+    typography: 'confident high-contrast serif display titles with precise modern sans-serif recipe text and crisp uppercase labels',
+    illustration: 'appetizing realistic overhead culinary photography with natural texture and restrained styling',
+    palette: 'warm white, charcoal black, food-led natural color, and one restrained terracotta accent',
+    composition: 'disciplined contemporary culinary-magazine grid with strong hierarchy, generous whitespace, and an integrated photographic hero',
+  },
+  heritage: {
+    revision: 1,
+    paper: 'pristine warm parchment with a subtle archival tooth and no stains or distressing',
+    typography: 'dignified heritage serif display titles with traditional but highly readable cookbook body type',
+    illustration: 'refined engraved copperplate-style food artwork with controlled cross-hatching and accurate dish detail',
+    palette: 'warm parchment, deep umber ink, restrained antique gold rules, and muted food-led color',
+    composition: 'refined archival cookbook publishing with balanced columns, quiet classical ornament, generous margins, and modern legibility',
+  },
   'vintage-garden': {
     revision: 1,
     paper: 'warm alabaster paper with a subtle natural tooth',
@@ -167,8 +191,14 @@ const RECIPE_PAGE_STYLE_PROFILES: Record<string, RecipePageStyleProfile> = {
   },
 };
 
+export const RECIPE_PAGE_STYLE_IDS = Object.freeze(Object.keys(RECIPE_PAGE_STYLE_PROFILES));
+
+export function isRecipePageStyleId(value: unknown): value is string {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(RECIPE_PAGE_STYLE_PROFILES, value);
+}
+
 function getRecipePageStyleProfile(styleId: string): RecipePageStyleProfile {
-  return RECIPE_PAGE_STYLE_PROFILES[styleId] ?? RECIPE_PAGE_STYLE_PROFILES['vintage-garden'];
+  return RECIPE_PAGE_STYLE_PROFILES[styleId] ?? RECIPE_PAGE_STYLE_PROFILES.illustrated;
 }
 
 function clean(value: unknown): string | undefined {
@@ -274,6 +304,7 @@ export function buildRecipePagePrompt(
     'Use a clear hierarchy and text large enough to read on an iPhone.',
     'Keep all text and important artwork inside a generous safe margin.',
     'Include an appetizing illustration or editorial food image of the finished dish as part of the page composition.',
+    'Treat the locked style profile as a publishing design system: keep its typography, palette, image treatment, spacing, and ornament consistent across recipes.',
     'Do not print a page number because recipes may be reordered later.',
     visualDirection ? `Requested visual adjustment: ${visualDirection}. Keep the cookbook identity unchanged.` : '',
   ].filter(Boolean).join(' ');
