@@ -65,7 +65,7 @@ export function Sheet({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         {keyboardAvoiding ? (
           <KeyboardAvoidingView
-            behavior="height"
+            behavior="padding"
             style={styles.keyboard}
           >
             {sheet}

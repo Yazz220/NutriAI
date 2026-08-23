@@ -42,9 +42,12 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 
 ## Friction
 
-- [ ] **Chat keyboard covers composer / no dismiss gesture** (user-reported) —
-  `Sheet` uses `KeyboardAvoidingView behavior="height"`; the messages list has no
-  `keyboardDismissMode`; no tap-to-dismiss. First fix target.
+- [x] **Chat keyboard covers composer / no dismiss gesture** (user-reported) —
+  Fixed: `Sheet` `KeyboardAvoidingView` changed from `behavior="height"` to
+  `"padding"` so the bottom sheet lifts above the keyboard instead of shrinking
+  proportionally; messages `FlatList` now has `keyboardDismissMode="interactive"`
+  for scroll-to-dismiss; the conversation area is wrapped in a `Pressable` that
+  calls `Keyboard.dismiss()` for tap-to-dismiss.
 - [ ] **Silent photo-permission denial** — `UnifiedIntakeComposer.tsx` (~line 95)
   returns silently when library access is denied; `NoshComposer` alerts. Align.
 - [ ] **Capture retry can't edit the source** — failed extraction retries the
