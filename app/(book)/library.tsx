@@ -29,7 +29,7 @@ export default function BookLibraryScreen() {
       } catch {
         // The capture workspace can safely retry the destination assignment.
       }
-      router.replace(`/(book)/imports?captureId=${encodeURIComponent(captureId)}`);
+      router.replace(`/(book)?saveRecipe=1&captureId=${encodeURIComponent(captureId)}`);
       return;
     }
     router.replace(`/(book)/${cookbook.id}`);

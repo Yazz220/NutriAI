@@ -23,7 +23,7 @@ export function getNoshStartConfig(
   if (interaction.task === 'capture') {
     return {
       title: 'Bring in a recipe',
-      copy: 'Send the source. Nosh will prepare the full page, then ask before adding it to your cookbook.',
+      copy: 'Send the source. Nosh will prepare the full page and add it to the right cookbook automatically.',
       prompts: ['Add a recipe link', 'Read a recipe photo', 'Paste recipe text'],
     };
   }
@@ -37,7 +37,7 @@ export function getNoshStartConfig(
   return {
     title: 'What can Nosh help with?',
     copy: 'Find something you saved, plan from your cookbooks, or tidy up your collection.',
-    prompts: ['Find a recipe I saved', 'Help me choose what to cook', 'Review recent imports', 'Organize my cookbooks', 'Create a new cookbook'],
+    prompts: ['Find a recipe I saved', 'Help me choose what to cook', 'Save or check a recipe', 'Organize my cookbooks', 'Create a new cookbook'],
   };
 }
 

@@ -39,12 +39,7 @@ export default function AddPageScreen() {
           </View>
         </View>
 
-        <NoshCaptureWorkspace
-          destinationCookbookId={cookbookId}
-          onReady={(readyCookbookId, pageId) => {
-            router.replace(`/(book)/${readyCookbookId}?pageId=${pageId}`);
-          }}
-        />
+        <NoshCaptureWorkspace destinationCookbookId={cookbookId} />
       </ScrollView>
     </LinearGradient>
   );

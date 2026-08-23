@@ -10,7 +10,7 @@ export default function RecipeReviewScreen() {
 
   useEffect(() => {
     router.replace(captureId
-      ? `/(book)/imports?captureId=${encodeURIComponent(captureId)}`
+      ? `/(book)?saveRecipe=1&captureId=${encodeURIComponent(captureId)}`
       : `/(book)/${cookbookId}/add`);
   }, [captureId, cookbookId]);
 

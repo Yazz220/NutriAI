@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import { Check, Inbox, Share2, TriangleAlert } from 'lucide-react-native';
+import { Check, Clock3, Share2, TriangleAlert } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -42,9 +42,9 @@ export default function NativeShareReceiptScreen() {
             <Text style={styles.title}>Nosh is making your page</Text>
             <Text style={styles.copy}>You can return to the app you shared from. The finished page will appear in its cookbook automatically.</Text>
             <Button
-              title="Track in Nosh"
-              icon={<Inbox size={17} color={Colors.onPrimary} />}
-              onPress={() => router.replace(`/(book)/imports?captureId=${receipt.captureId}`)}
+              title="View progress"
+              icon={<Clock3 size={17} color={Colors.onPrimary} />}
+              onPress={() => router.replace(`/(book)?saveRecipe=1&captureId=${receipt.captureId}`)}
               fullWidth
             />
             <Button title="Done" variant="ghost" onPress={finish} fullWidth />
@@ -62,7 +62,7 @@ export default function NativeShareReceiptScreen() {
           <>
             <View style={styles.icon}><Share2 size={24} color={Colors.text} /></View>
             <Text style={styles.title}>No shared recipe is waiting</Text>
-            <Button title="Open Recent imports" onPress={() => router.replace('/(book)/imports')} fullWidth />
+            <Button title="Open Save a recipe" onPress={() => router.replace('/(book)?saveRecipe=1')} fullWidth />
           </>
         )}
       </View>

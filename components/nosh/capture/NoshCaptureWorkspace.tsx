@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, BookOpen, Check, Clock3 } from 'lucide-react-native';
+import {
+  AlertTriangle,
+  BookOpen,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+} from 'lucide-react-native';
 import {
   UnifiedIntakeComposer,
   type UnifiedIntakePayload,
@@ -15,20 +22,26 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import type { Cookbook } from '@/types/cookbook';
+import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
   createCaptureRequestKey,
   isCaptureReadyToOpen,
   normalizeCaptureDestinationCookbookId,
+  type RecipeCapture,
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
-import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
+import {
+  captureProgressSteps,
+  getCapturePresentation,
+  prioritizeCaptureActivity,
+  type CapturePresentationPhase,
+} from '@/utils/cookbook/capturePresentation';
 import { Fonts } from '@/utils/fonts';
 
 interface NoshCaptureWorkspaceProps {
   destinationCookbookId?: string;
   captureId?: string;
   initialSource?: NoshCaptureHandoffSource | null;
-  onReady?: (cookbookId: string, pageId: string) => void;
 }
 
 export interface NoshCaptureHandoffSource {
@@ -37,11 +50,12 @@ export interface NoshCaptureHandoffSource {
   imageBase64?: string;
 }
 
+const INITIAL_ACTIVITY_LIMIT = 4;
+
 export function NoshCaptureWorkspace({
   destinationCookbookId,
   captureId: initialCaptureId,
   initialSource,
-  onReady,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -51,27 +65,28 @@ export function NoshCaptureWorkspace({
   const [input, setInput] = useState('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const completedCaptureRef = useRef<string | null>(null);
+  const [activityLimit, setActivityLimit] = useState(INITIAL_ACTIVITY_LIMIT);
   const handoffStartedRef = useRef(false);
   const availableCookbooks = useMemo(
     () => cookbooks.filter((cookbook) => cookbook.userId === user?.id),
     [cookbooks, user?.id],
   );
+  const cookbookTitles = useMemo(
+    () => new Map(availableCookbooks.map((cookbook) => [cookbook.id, cookbook.title])),
+    [availableCookbooks],
+  );
+  const activity = useMemo(
+    () => prioritizeCaptureActivity(captureState.captures),
+    [captureState.captures],
+  );
   const capture = captureState.captures.find((candidate) => candidate.id === captureId);
-  const destination = availableCookbooks.find((cookbook) => cookbook.id === capture?.destinationCookbookId);
+  const destination = availableCookbooks.find(
+    (cookbook) => cookbook.id === capture?.destinationCookbookId,
+  );
 
   useEffect(() => {
-    if (
-      !onReady
-      || !capture
-      || !isCaptureReadyToOpen(capture)
-      || !capture.destinationCookbookId
-      || !capture.pageId
-      || completedCaptureRef.current === capture.id
-    ) return;
-    completedCaptureRef.current = capture.id;
-    onReady(capture.destinationCookbookId, capture.pageId);
-  }, [capture, onReady]);
+    if (initialCaptureId) setCaptureId(initialCaptureId);
+  }, [initialCaptureId]);
 
   const submit = useCallback(async (payload: UnifiedIntakePayload) => {
     if (!user) return;
@@ -131,11 +146,45 @@ export function NoshCaptureWorkspace({
     }
   }
 
-  if (!capture) {
-    if (initialCaptureId && captureState.isLoading) {
-      return <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>;
-    }
+  function showComposer() {
+    setCaptureId(undefined);
+    setError(null);
+    setActivityLimit(INITIAL_ACTIVITY_LIMIT);
+  }
+
+  if (capture) {
     return (
+      <CaptureDetail
+        capture={capture}
+        destination={destination}
+        availableCookbooks={availableCookbooks}
+        error={error}
+        isPreparingDestination={captureState.isPreparingDestination}
+        isRetrying={captureState.isRetrying}
+        onBack={showComposer}
+        onChooseDestination={chooseDestination}
+        onRetry={() => void captureState.retryCapture(capture.id)}
+        onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
+        onOpenRecipe={() => {
+          if (capture.destinationCookbookId && capture.pageId) {
+            router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`);
+          }
+        }}
+      />
+    );
+  }
+
+  if (initialCaptureId && captureState.isLoading) {
+    return (
+      <View style={styles.center} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={Colors.primary} />
+        <Text style={styles.loadingCopy}>Opening recipe activity…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.workspace}>
       <UnifiedIntakeComposer
         isSubmitting={captureState.isStarting}
         input={input}
@@ -145,108 +194,308 @@ export function NoshCaptureWorkspace({
         onImageBase64Change={setImageBase64}
         onSubmit={submit}
       />
-    );
-  }
+
+      <CaptureActivitySection
+        captures={activity.slice(0, activityLimit)}
+        totalCount={activity.length}
+        cookbookTitles={cookbookTitles}
+        isLoading={captureState.isLoading}
+        isStale={captureState.isStale}
+        hasError={Boolean(captureState.error)}
+        onOpen={setCaptureId}
+        onRefresh={() => { void captureState.refresh(); }}
+        onShowMore={() => setActivityLimit((current) => current + INITIAL_ACTIVITY_LIMIT)}
+      />
+    </View>
+  );
+}
+
+function CaptureDetail({
+  capture,
+  destination,
+  availableCookbooks,
+  error,
+  isPreparingDestination,
+  isRetrying,
+  onBack,
+  onChooseDestination,
+  onRetry,
+  onCreateCookbook,
+  onOpenRecipe,
+}: {
+  capture: RecipeCapture;
+  destination?: Cookbook;
+  availableCookbooks: Cookbook[];
+  error: string | null;
+  isPreparingDestination: boolean;
+  isRetrying: boolean;
+  onBack: () => void;
+  onChooseDestination: (cookbookId: string) => Promise<void>;
+  onRetry: () => void;
+  onCreateCookbook: () => void;
+  onOpenRecipe: () => void;
+}) {
+  const presentation = getCapturePresentation(capture, destination?.title);
 
   if (capture.status === 'processing') {
-    const hasRecipe = Boolean(capture.recipeGraph?.title);
-    const isMakingPage = capture.pageStatus === 'generating' || Boolean(capture.pageId);
     return (
-      <StateCard
-        icon={<Clock3 size={21} color={Colors.text} />}
-        eyebrow={isMakingPage ? destination?.title : undefined}
-        title={isMakingPage ? 'Creating your cookbook page' : hasRecipe ? 'Preparing your recipe' : 'Reading your recipe'}
-        copy={isMakingPage
-          ? `Nosh is designing ${capture.recipeGraph?.title ?? 'this recipe'} in ${destination?.title ?? 'your cookbook'}’s visual style.`
-          : 'You can leave this screen. Nosh will keep working and add the finished page automatically.'}
-      />
+      <View style={styles.detailStack}>
+        <DetailBackButton onPress={onBack} />
+        <View style={styles.processingCard} accessibilityLiveRegion="polite">
+          <View style={styles.workingIcon}>
+            <ActivityIndicator color={Colors.primary} />
+          </View>
+          <Text style={styles.eyebrow}>{presentation.label}</Text>
+          <Text style={styles.title}>{presentation.title}</Text>
+          <Text style={styles.copy}>{presentation.detail}</Text>
+          <CaptureProgress capture={capture} />
+          <View style={styles.reassurance}>
+            <Clock3 size={15} color={Colors.textSecondary} />
+            <Text style={styles.reassuranceText}>
+              Nosh is still working. You can close this sheet and come back—nothing will be lost.
+            </Text>
+          </View>
+        </View>
+      </View>
     );
   }
 
   if (capture.status === 'needs_destination') {
     return (
-      <View style={styles.destinationCard}>
-        <View style={styles.icon}><BookOpen size={21} color={Colors.text} /></View>
-        <Text style={styles.eyebrow}>Recipe ready</Text>
-        <Text style={styles.title}>{capture.recipeGraph?.title ?? 'Choose a cookbook'}</Text>
-        <Text style={styles.copy}>
-          Pick its book. The page will automatically inherit that cookbook’s visual identity.
-        </Text>
-        {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
-        <View style={styles.bookList}>
-          {availableCookbooks.map((cookbook) => (
-            <CookbookChoice
-              key={cookbook.id}
-              cookbook={cookbook}
-              disabled={captureState.isPreparingDestination}
-              onPress={() => void chooseDestination(cookbook.id)}
-            />
-          ))}
+      <View style={styles.detailStack}>
+        <DetailBackButton onPress={onBack} />
+        <View style={styles.destinationCard} accessibilityLiveRegion="polite">
+          <View style={styles.icon}><BookOpen size={21} color={Colors.text} /></View>
+          <Text style={styles.eyebrow}>{presentation.label}</Text>
+          <Text style={styles.title}>{presentation.title}</Text>
+          <Text style={styles.copy}>Pick its book. The finished page will inherit that cookbook’s visual identity.</Text>
+          {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
+          <View style={styles.bookList}>
+            {availableCookbooks.map((cookbook) => (
+              <CookbookChoice
+                key={cookbook.id}
+                cookbook={cookbook}
+                disabled={isPreparingDestination}
+                onPress={() => void onChooseDestination(cookbook.id)}
+              />
+            ))}
+          </View>
+          {availableCookbooks.length === 0 ? (
+            <Button title="Create a cookbook" onPress={onCreateCookbook} fullWidth />
+          ) : null}
         </View>
-        {availableCookbooks.length === 0 ? (
-          <Button
-            title="Create a cookbook"
-            onPress={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
-            fullWidth
-          />
-        ) : null}
       </View>
     );
   }
 
   if (capture.status === 'needs_attention') {
     return (
-      <StateCard
-        icon={<AlertTriangle size={21} color={Colors.error} />}
-        iconTone="error"
-        title="This page needs another try"
-        copy={capture.failureMessage ?? capture.pageWarning ?? 'Nosh could not finish the recipe page.'}
-        action={
-          <Button
-            title="Try again"
-            onPress={() => void captureState.retryCapture(capture.id)}
-            loading={captureState.isRetrying}
-            fullWidth
-          />
-        }
-      />
+      <View style={styles.detailStack}>
+        <DetailBackButton onPress={onBack} />
+        <StateCard
+          icon={<AlertTriangle size={21} color={Colors.error} />}
+          iconTone="error"
+          eyebrow={presentation.label}
+          title="This page needs another try"
+          copy={presentation.detail}
+          action={<Button title="Try again" onPress={onRetry} loading={isRetrying} fullWidth />}
+        />
+      </View>
     );
   }
 
   if (isCaptureReadyToOpen(capture)) {
     return (
-      <StateCard
-        icon={<Check size={21} color={Colors.onSuccess} />}
-        iconTone="success"
-        eyebrow={destination?.title}
-        title="Your page is in the book"
-        copy={`${capture.recipeGraph?.title ?? 'The recipe'} is ready to read and cook from.`}
-        action={
-          <Button
-            title="Open recipe"
-            onPress={() => router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`)}
-            fullWidth
-          />
-        }
-      />
+      <View style={styles.detailStack}>
+        <DetailBackButton onPress={onBack} label="Save another recipe" />
+        <StateCard
+          icon={<Check size={21} color={Colors.onSuccess} />}
+          iconTone="success"
+          eyebrow={presentation.detail}
+          title="Your page is ready"
+          copy={`${capture.recipeGraph?.title ?? 'The recipe'} is in the book and ready to read.`}
+          action={<Button title="Open recipe" onPress={onOpenRecipe} fullWidth />}
+        />
+      </View>
     );
   }
 
   return (
-    <StateCard
-      icon={<AlertTriangle size={21} color={Colors.error} />}
-      iconTone="error"
-      title="This page needs another try"
-      copy="Nosh accepted the recipe but did not publish a finished page. Try the capture again."
-      action={
-        <Button
-          title="Try again"
-          onPress={() => void captureState.retryCapture(capture.id)}
-          loading={captureState.isRetrying}
-          fullWidth
-        />
-      }
-    />
+    <View style={styles.detailStack}>
+      <DetailBackButton onPress={onBack} />
+      <StateCard
+        icon={<AlertTriangle size={21} color={Colors.error} />}
+        iconTone="error"
+        title="This page needs another try"
+        copy="Nosh saved the recipe but did not publish a finished page. Try it again from here."
+        action={<Button title="Try again" onPress={onRetry} loading={isRetrying} fullWidth />}
+      />
+    </View>
+  );
+}
+
+function CaptureProgress({ capture }: { capture: RecipeCapture }) {
+  return (
+    <View style={styles.progress} accessibilityLabel="Recipe page progress">
+      {captureProgressSteps(capture).map((step, index, steps) => (
+        <View key={step.label} style={styles.progressRow}>
+          <View style={styles.progressRail}>
+            <View style={[
+              styles.progressDot,
+              step.state === 'complete' && styles.progressDotComplete,
+              step.state === 'active' && styles.progressDotActive,
+            ]}>
+              {step.state === 'complete' ? <Check size={11} color={Colors.onSuccess} /> : null}
+            </View>
+            {index < steps.length - 1 ? (
+              <View style={[
+                styles.progressLine,
+                step.state === 'complete' && styles.progressLineComplete,
+              ]} />
+            ) : null}
+          </View>
+          <Text style={[
+            styles.progressLabel,
+            step.state === 'upcoming' && styles.progressLabelUpcoming,
+          ]}>{step.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function CaptureActivitySection({
+  captures,
+  totalCount,
+  cookbookTitles,
+  isLoading,
+  isStale,
+  hasError,
+  onOpen,
+  onRefresh,
+  onShowMore,
+}: {
+  captures: RecipeCapture[];
+  totalCount: number;
+  cookbookTitles: Map<string, string>;
+  isLoading: boolean;
+  isStale: boolean;
+  hasError: boolean;
+  onOpen: (captureId: string) => void;
+  onRefresh: () => void;
+  onShowMore: () => void;
+}) {
+  if (isLoading && captures.length === 0) {
+    return (
+      <View style={styles.activityLoading} accessibilityLiveRegion="polite">
+        <ActivityIndicator size="small" color={Colors.primary} />
+        <Text style={styles.activityHint}>Checking recipe activity…</Text>
+      </View>
+    );
+  }
+
+  if (hasError && captures.length === 0) {
+    return (
+      <View style={styles.activityEmpty}>
+        <Text style={styles.activityTitle}>Recipe activity is unavailable</Text>
+        <Text style={styles.activityHint}>Your recipes are still safe. Check your connection and try again.</Text>
+        <Button title="Refresh" variant="ghost" onPress={onRefresh} />
+      </View>
+    );
+  }
+
+  if (captures.length === 0) return null;
+
+  return (
+    <View style={styles.activitySection}>
+      <View style={styles.activityHeader}>
+        <View style={styles.activityHeaderCopy}>
+          <Text style={styles.activityTitle}>Recipe activity</Text>
+          <Text style={styles.activityHint}>Follow pages that are working, need a retry, or are ready.</Text>
+        </View>
+        {isStale ? <Text style={styles.syncing}>Reconnecting…</Text> : null}
+      </View>
+
+      <View style={styles.activityList}>
+        {captures.map((capture) => (
+          <CaptureActivityRow
+            key={capture.id}
+            capture={capture}
+            cookbookTitle={capture.destinationCookbookId
+              ? cookbookTitles.get(capture.destinationCookbookId)
+              : undefined}
+            onPress={() => onOpen(capture.id)}
+          />
+        ))}
+      </View>
+
+      {totalCount > captures.length ? (
+        <Pressable style={styles.showMore} onPress={onShowMore} accessibilityRole="button">
+          <Text style={styles.showMoreText}>Show more activity</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function CaptureActivityRow({
+  capture,
+  cookbookTitle,
+  onPress,
+}: {
+  capture: RecipeCapture;
+  cookbookTitle?: string;
+  onPress: () => void;
+}) {
+  const presentation = getCapturePresentation(capture, cookbookTitle);
+  const title = capture.recipeGraph?.title ?? presentation.title;
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.activityRow, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${presentation.label}: ${title}`}
+    >
+      <CaptureStatusIcon phase={presentation.phase} />
+      <View style={styles.activityRowCopy}>
+        <Text style={styles.activityRowTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.activityRowDetail} numberOfLines={1}>{presentation.detail}</Text>
+      </View>
+      <View style={styles.activityRowState}>
+        <Text style={[
+          styles.activityRowLabel,
+          presentation.phase === 'attention' && styles.activityRowLabelError,
+        ]}>{presentation.label}</Text>
+        <ChevronRight size={15} color={Colors.textMuted} />
+      </View>
+    </Pressable>
+  );
+}
+
+function CaptureStatusIcon({ phase }: { phase: CapturePresentationPhase }) {
+  if (phase === 'reading' || phase === 'preparing' || phase === 'designing') {
+    return <View style={styles.activityIcon}><ActivityIndicator size="small" color={Colors.primary} /></View>;
+  }
+  if (phase === 'ready') {
+    return <View style={[styles.activityIcon, styles.activityIconReady]}><Check size={16} color={Colors.onSuccess} /></View>;
+  }
+  if (phase === 'attention') {
+    return <View style={[styles.activityIcon, styles.activityIconError]}><AlertTriangle size={16} color={Colors.error} /></View>;
+  }
+  return <View style={styles.activityIcon}><BookOpen size={16} color={Colors.text} /></View>;
+}
+
+function DetailBackButton({ onPress, label = 'All recipe activity' }: { onPress: () => void; label?: string }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.detailBack, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <ChevronLeft size={17} color={Colors.text} />
+      <Text style={styles.detailBackText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -309,11 +558,35 @@ function CookbookChoice({
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center' },
+  workspace: { gap: Spacing.lg },
+  center: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  loadingCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: 13 },
+  detailStack: { gap: Spacing.sm },
+  detailBack: {
+    minHeight: 40,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.sm,
+  },
+  detailBackText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   stateCard: {
     minHeight: 248,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+    padding: Spacing.xl,
+  },
+  processingCard: {
+    minHeight: 300,
+    alignItems: 'center',
     gap: Spacing.sm,
     borderRadius: Radii.xl,
     borderWidth: 1,
@@ -334,6 +607,14 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.parchment,
+  },
+  workingIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
@@ -363,6 +644,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   action: { width: '100%', marginTop: Spacing.sm },
+  reassurance: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.parchment,
+    padding: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  reassuranceText: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  progress: { width: '100%', maxWidth: 360, marginTop: Spacing.sm },
+  progressRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start' },
+  progressRail: { width: 28, alignItems: 'center' },
+  progressDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressDotComplete: { borderColor: Colors.success, backgroundColor: Colors.success },
+  progressDotActive: { borderColor: Colors.charcoal, borderWidth: 5 },
+  progressLine: { width: 1, flex: 1, minHeight: 24, backgroundColor: Colors.ash },
+  progressLineComplete: { backgroundColor: Colors.success },
+  progressLabel: {
+    flex: 1,
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingLeft: Spacing.sm,
+  },
+  progressLabelUpcoming: { color: Colors.textMuted, fontFamily: Fonts.ui.regular },
   errorText: {
     width: '100%',
     color: Colors.error,
@@ -391,4 +715,61 @@ const styles = StyleSheet.create({
   bookTitle: { color: Colors.text, fontFamily: Fonts.display.semibold, fontSize: 15 },
   bookStyle: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11, marginTop: 2 },
   choose: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  activitySection: {
+    gap: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.ash,
+    paddingTop: Spacing.lg,
+  },
+  activityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  activityHeaderCopy: { flex: 1, gap: 2 },
+  activityTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 17, lineHeight: 22 },
+  activityHint: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11, lineHeight: 16 },
+  syncing: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 10 },
+  activityLoading: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.ash,
+  },
+  activityEmpty: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.ash,
+    paddingTop: Spacing.lg,
+  },
+  activityList: { gap: Spacing.sm },
+  activityRow: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+    padding: Spacing.sm,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.parchment,
+  },
+  activityIconReady: { backgroundColor: Colors.success },
+  activityIconError: { backgroundColor: Colors.errorLight },
+  activityRowCopy: { flex: 1, minWidth: 0 },
+  activityRowTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  activityRowDetail: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 10, marginTop: 2 },
+  activityRowState: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  activityRowLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 10 },
+  activityRowLabelError: { color: Colors.error },
+  showMore: { minHeight: 38, alignItems: 'center', justifyContent: 'center' },
+  showMoreText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 11 },
 });

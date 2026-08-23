@@ -621,11 +621,6 @@ export function NoshConversationHost() {
                 captureId={interaction.focus.kind === 'capture'
                   ? interaction.focus.captureId
                   : undefined}
-                onReady={(cookbookId, pageId) => {
-                  setCaptureHandoffSource(null);
-                  close();
-                  router.replace(`/(book)/${cookbookId}?pageId=${pageId}`);
-                }}
               />
             ) : (
               <NoshConversationDisplay
