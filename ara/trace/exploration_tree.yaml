@@ -75,3 +75,29 @@ tree:
           - "supabase/functions/_shared/recipeGraphNormalization.ts"
           - "Supabase extract-recipe version 7: ACTIVE"
         status: resolved
+  - id: N06
+    type: experiment
+    title: "Trace repeated page-generation credit failures"
+    provenance: ai-executed
+    timestamp: "2026-08-23T05:01+03:00"
+    result: >-
+      Image and URL captures both completed extraction and page creation, then failed before
+      the OpenRouter image call because the Nosh credit ledger balance was zero. The configured
+      OpenRouter key remained valid with approximately $4.48 of provider credit available.
+    evidence:
+      - "Recent nutriai.recipe_captures rows: page_generation_failed / Not enough credits"
+      - "Nosh ledger: two grants, three spends, one refund; net balance zero"
+      - "OpenRouter /api/v1/credits: approximately $4.48 remaining"
+      - "supabase/functions/generate-page-art/index.ts"
+      - "nutriai.reserve_generation_credit"
+    status: resolved
+    children:
+      - id: N07
+        type: question
+        title: "Choose the developer credit policy"
+        provenance: ai-suggested
+        timestamp: "2026-08-23T05:01+03:00"
+        description: >-
+          Decide whether to grant the developer account test credits, bypass the Nosh ledger
+          in development builds, or retain the gate and implement a real replenishment path.
+        status: open

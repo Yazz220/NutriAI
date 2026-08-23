@@ -14,3 +14,18 @@ observations:
     promoted_to: "logic/solution/heuristics.md:H01"
     crystallized_via: artifact-commitment
     stale: false
+  - id: O02
+    timestamp: "2026-08-23T05:01+03:00"
+    provenance: ai-suggested
+    content: >-
+      Nosh generation credits are an independent application ledger and can block page
+      generation even when the configured OpenRouter account has provider credit.
+    context: >-
+      Repeated image and URL captures extracted successfully but failed at the internal
+      reserve_generation_credit call before OpenRouter image generation.
+    potential_type: constraint
+    bound_to: [N06, N07]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false

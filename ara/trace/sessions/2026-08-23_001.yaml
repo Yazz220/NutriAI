@@ -2,9 +2,9 @@ session:
   id: "2026-08-23_001"
   date: "2026-08-23"
   started: "2026-08-23T04:08+03:00"
-  last_turn: "2026-08-23T04:35+03:00"
-  turn_count: 2
-  summary: "Unified the Save flow and repaired duplicate model-generated IDs that broke uploaded recipe rendering."
+  last_turn: "2026-08-23T05:01+03:00"
+  turn_count: 3
+  summary: "Unified recipe saving, hardened rendering, and isolated page-generation failures to Nosh's empty internal credit ledger."
 
 events_logged:
   - turn: 1
@@ -43,6 +43,24 @@ events_logged:
     routing: crystallized
     provenance: ai-suggested
     summary: "Normalize model IDs and render persisted legacy graphs defensively."
+  - turn: 3
+    type: experiment
+    id: N06
+    routing: direct
+    provenance: ai-executed
+    summary: "Confirmed Nosh balance zero while the configured OpenRouter account retained provider credit."
+  - turn: 3
+    type: question
+    id: N07
+    routing: direct
+    provenance: ai-suggested
+    summary: "Choose test grant, development bypass, or a retained credit gate with replenishment."
+  - turn: 3
+    type: observation
+    id: O02
+    routing: staged
+    provenance: ai-suggested
+    summary: "Nosh and OpenRouter maintain independent credit balances."
 
 ai_actions:
   - turn: 1
@@ -73,6 +91,10 @@ ai_actions:
     files_changed:
       - "__tests__/utils/cookbook/recipeGraphNormalization.test.ts"
       - "__tests__/components/cookbook/TextLayer.test.tsx"
+  - turn: 3
+    action: "Traced production captures, Edge Function requests, the Nosh credit ledger, and the configured OpenRouter account balance."
+    provenance: ai-executed
+    files_changed: []
 
 claims_touched: []
 
@@ -81,8 +103,10 @@ key_context:
     excerpt: "Recipes now go directly to books; there should be no separate approval or review screen."
   - turn: 2
     excerpt: "An uploaded recipe opened a developer error reporting two children with the key `default` in TextLayer."
+  - turn: 3
+    excerpt: "Image and URL captures reached page generation but repeatedly reported Not enough credits despite OpenRouter funds."
 
 open_threads:
-  - "Confirm the repaired saved recipe opens on Nosh (Dev) after reload, then validate one new live import."
+  - "Choose the developer/test credit policy, then retry an existing failed capture without re-uploading."
 
 ai_suggestions_pending: []

@@ -1,8 +1,8 @@
 sessions:
   - id: "2026-08-23_001"
     date: "2026-08-23"
-    summary: "Unified the Save flow and repaired duplicate model-generated IDs that broke uploaded recipe rendering."
-    turn_count: 2
-    events_count: 6
+    summary: "Unified recipe saving, hardened rendering, and isolated page-generation failures to Nosh's empty internal credit ledger."
+    turn_count: 3
+    events_count: 9
     claims_touched: []
     open_threads: 1
