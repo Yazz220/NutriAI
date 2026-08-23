@@ -9,12 +9,16 @@ The user's collection of personal cookbooks and the home of the signed-in produc
 _Avoid_: Dashboard, recipe manager
 
 **Cookbook**:
-A named physical-looking book that owns a visual identity and contains the user's recipe pages.
+A named physical-looking book that owns a cover finish, a recipe-page style, and the user's recipe pages.
 _Avoid_: Folder, collection
 
-**Cookbook style**:
-The visual identity shared by a cookbook's cover and every generated recipe page inside it. It includes paper, palette, typography, illustration treatment, and composition.
-_Avoid_: Per-recipe theme, page template
+**Cover finish**:
+The book's physical skin: its color, cloth or leather material, binding, and foil treatment.
+_Avoid_: Recipe style, page template
+
+**Recipe-page style**:
+The book-owned visual language shared by every generated recipe page inside it. It includes paper, palette, typography, image treatment, ornament, and composition. It is independent from the cover finish.
+_Avoid_: Per-recipe theme, cover style, page template
 
 **Default cookbook**:
 The cookbook Nosh chooses when a recipe capture has no explicit destination.

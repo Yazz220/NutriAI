@@ -169,4 +169,4 @@ npx eas-cli submit --platform ios
 | Capture stays in processing | stale worker, failed generator callback, or migration mismatch | inspect `recipe_captures`, `generation_requests`, and `capture-recipe` logs; retry the same capture id |
 | Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |
 | New page uses the typesetter | caller bypassed the capture contract or page has no complete image | trace the source through `capture-recipe`; do not add another generation path |
-| Page style differs from its book | stale cookbook style fields or caller-defined references | inspect `cover_style`, `style_revision`, and `page_style_references`; generation must read them from the database |
+| Page style differs from its book | stale cookbook page-style fields or caller-defined references | inspect `page_style_id`, `style_revision`, and `page_style_references`; generation must read them from the database |

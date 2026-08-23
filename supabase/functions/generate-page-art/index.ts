@@ -18,7 +18,7 @@
  *   { cookbookId: string,
  *     pageId: string,          // existing page that will own the art asset
  *     recipeGraph: RecipeGraph,
- *     styleId: CookbookStyleId,
+ *     styleId: CookbookPageStyleId,
  *     styleRevision?: number,
  *     idempotencyKey: string   // 16-160 chars, alphanumeric + . _ : -
  *   }

@@ -63,7 +63,7 @@ Route responsibilities:
 | `app/(auth)/forgot-password.tsx` | Password reset email request |
 | `app/(auth)/reset-password.tsx` | Password reset form reached via recovery callback |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
-| `app/(book)/library.tsx` | Two-cover cookbook picker and cookbook creation |
+| `app/(book)/library.tsx` | Single-book customization studio and cookbook creation |
 | `app/(book)/save.tsx` | The single recipe source composer plus processing, destination, retry, and ready activity |
 | `app/(book)/imports.tsx` | Compatibility redirect into Save a recipe |
 | `app/(book)/share.tsx` | Native share receipt and retry screen |
@@ -226,7 +226,7 @@ ART_MODEL
 
 ## Cookbook Visual Identity And Page Composition
 
-`constants/cookbookStyles.ts` defines the twelve persisted cookbook style IDs so existing books remain stable while the creation flow can expose a curated subset:
+`constants/cookbookStyles.ts` defines the twelve persisted physical cover IDs and legacy cover-linked page identities so existing books remain stable:
 
 ```text
 vintage-garden
@@ -243,9 +243,11 @@ alabaster-linen
 umber-leather
 ```
 
-`cover_style` on `nutriai.cookbooks` is the visual-identity key for the whole book. `style_revision` freezes the identity contract used for a given generation era, and `page_style_references` stores optional visual anchors. Together they own paper treatment, palette, typography, decorative language, food rendering, and composition. `_shared/artGeneration.ts` turns that contract and the exact RecipeGraph copy into the complete-page prompt.
+`constants/cookbookCustomization.ts` is the creation-studio catalog. It marks the small set of inline featured cover finishes, defines the new Illustrated, Editorial, and Heritage page styles, and links each page style to its brownie and cookie preview assets. Adding catalog entries does not require restructuring the Studio UI. A future expanded picker or sticker editor can consume the same catalog; neither is exposed yet.
 
-New imports do not ask the user to choose a per-recipe visual template. The image model composes each page from the RecipeGraph's actual structure and the cookbook's persisted style contract. The capture function still writes a density-derived `cookbook_pages.template_id`, and books still have `page_template_id`, but those are compatibility metadata for legacy vector rendering. The complete-page generator does not receive either field. Do not turn them into a second style or generation pipeline.
+`cover_style` on `nutriai.cookbooks` owns only the physical book skin. `page_style_id` owns the generated-page visual language. `style_revision` freezes that page-style contract for a generation era, and `page_style_references` stores optional visual anchors. Together the page fields own paper treatment, palette, typography, decorative language, food rendering, and composition. `_shared/artGeneration.ts` turns that database-owned contract and the exact RecipeGraph copy into the complete-page prompt.
+
+New imports do not ask the user to choose a per-recipe visual template. The image model composes each page from the RecipeGraph's actual structure and the cookbook's persisted `page_style_id`. The capture function still writes a density-derived `cookbook_pages.template_id`, and books still have `page_template_id`, but those are compatibility metadata for legacy vector rendering. The complete-page generator does not receive either field. Do not turn them into a second style or generation pipeline.
 
 Page requests include the exact visible recipe copy and structured visual ingredients, use the immutable cookbook style contract, and generate a 3:4, 2K portrait page. Explicit visual regeneration can use the currently selected page as an image-editing reference, but a generated candidate remains unselected until the user selects it.
 
