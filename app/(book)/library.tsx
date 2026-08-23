@@ -4,6 +4,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { CreationStudio } from '@/components/create/CreationStudio';
+import {
+  BookCreationPrototype,
+  type BookCreationPrototypeVariant,
+} from '@/components/create/BookCreationPrototype';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
@@ -15,8 +19,12 @@ import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
-  const { captureId: captureIdParam } = useLocalSearchParams<{ captureId?: string | string[] }>();
+  const { captureId: captureIdParam, variant: variantParam } = useLocalSearchParams<{
+    captureId?: string | string[];
+    variant?: string | string[];
+  }>();
   const captureId = Array.isArray(captureIdParam) ? captureIdParam[0] : captureIdParam;
+  const prototypeVariant = resolvePrototypeVariant(variantParam);
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
@@ -51,9 +59,20 @@ export default function BookLibraryScreen() {
         <View style={styles.topSpacer} />
       </View>
 
-      <CreationStudio canCreate={!!user} onCreateBook={handleCreate} onSignIn={openSignIn} />
+      {__DEV__ && prototypeVariant ? (
+        <BookCreationPrototype variant={prototypeVariant} bottomInset={insets.bottom} />
+      ) : (
+        <CreationStudio canCreate={!!user} onCreateBook={handleCreate} onSignIn={openSignIn} />
+      )}
     </View>
   );
+}
+
+function resolvePrototypeVariant(value?: string | string[]): BookCreationPrototypeVariant | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (candidate === 'current') return null;
+  if (candidate === 'B' || candidate === 'C') return candidate;
+  return 'A';
 }
 
 const styles = StyleSheet.create({

@@ -24,3 +24,9 @@ entries:
       - "Routed the user's one-book customization direction as N10 and the responsive/code audit as N11."
       - "Staged O03-O05 because cover/page/layout separation and the exact control count are recommendations awaiting user confirmation and implementation commitment."
       - "Did not crystallize O04 despite direct code evidence because the researcher has not yet commented on the audit result."
+  - turn: "2026-08-23_001#6"
+    notes:
+      - "Routed the prototype authorization as N12 and the responsive three-variant result as N13."
+      - "Crystallized O03 to A01 and O05 to H02 via verbal affirmation; the user explicitly liked the recommendation and authorized the prototype/full implementation sequence."
+      - "Left O04 staged because this turn validated UI behavior, not the unused generator-field audit."
+      - "Staged O06 as a heuristic pending the user's direct comparison of the three variants."

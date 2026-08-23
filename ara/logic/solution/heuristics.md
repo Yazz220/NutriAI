@@ -7,3 +7,11 @@
 - **Sensitivity**: low
 - **Code ref**: [`supabase/functions/_shared/recipeGraphNormalization.ts`, `components/cookbook/typesetter/TextLayer.tsx`]
 - **From staging**: O01
+
+## H02: Keep first-release cookbook customization curated
+- **Rationale**: One live book preview, one title field, a few combined cover finishes, and at most three pinned page-look previews make the experience personal without turning creation into a design tool or spending model calls on previews.
+- **Provenance**: user-revised
+- **Crystallized via**: verbal-affirmation
+- **Sensitivity**: medium
+- **Code ref**: [`components/create/BookCreationPrototype.tsx`]
+- **From staging**: O05

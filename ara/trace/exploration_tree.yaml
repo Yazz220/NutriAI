@@ -177,3 +177,39 @@ tree:
           - "supabase/functions/_shared/recipeLayout.ts"
           - "Phone-sized Book Explorer screenshots inspected at 390x844"
         status: resolved
+      - id: N12
+        type: decision
+        title: "Prototype the customization studio before production implementation"
+        provenance: user
+        timestamp: "2026-08-23T05:57+03:00"
+        choice: >-
+          Build a throwaway, interactive comparison of three one-book customization
+          flows before replacing the production Book Explorer.
+        alternatives:
+          - "Implement the previously recommended studio directly"
+          - "Keep the current binding catalog"
+          - "Expand immediately into an advanced cover and page designer"
+        evidence:
+          - N10
+          - N11
+          - "User affirmation: I like it; create the prototype, then proceed to full implementation"
+        status: resolved
+        children:
+          - id: N13
+            type: experiment
+            title: "Verify three cookbook customization variants"
+            provenance: ai-executed
+            timestamp: "2026-08-23T05:57+03:00"
+            result: >-
+              Three development-only variants ran on the existing Book Explorer route:
+              a continuous studio, a tactile customization tray, and guided steps. Phone
+              and desktop inspection confirmed live title, cover, inside-page style, URL
+              switching, and non-saving completion states. TypeScript, targeted lint, and
+              diff checks passed; the current explorer remained available via variant=current.
+            evidence:
+              - "components/create/BookCreationPrototype.tsx"
+              - "app/(book)/library.tsx"
+              - "Browser verification at 390x844 and 1280x900"
+              - "npm run typecheck"
+              - "targeted ESLint and git diff checks"
+            status: resolved

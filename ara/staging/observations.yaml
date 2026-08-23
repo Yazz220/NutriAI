@@ -41,9 +41,9 @@ observations:
       capture independently selects a layout from recipe density.
     potential_type: architecture
     bound_to: [N10, N11]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/solution/architecture.md:A01"
+    crystallized_via: verbal-affirmation
     stale: false
   - id: O04
     timestamp: "2026-08-23T05:37+03:00"
@@ -72,6 +72,22 @@ observations:
       The desired experience is tactile and personal but explicitly not an advanced design editor.
     potential_type: heuristic
     bound_to: [N10, N11]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H02"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O06
+    timestamp: "2026-08-23T05:57+03:00"
+    provenance: ai-suggested
+    content: >-
+      Use the continuous studio as the production foundation, borrow the tactile preview
+      emphasis from the tray variant, and avoid requiring three separate steps for the
+      small initial choice set.
+    context: >-
+      Responsive interaction testing compared three development-only variants while all
+      shared the same title, cover, page-look, preview, and completion state.
+    potential_type: heuristic
+    bound_to: [N12, N13]
     promoted: false
     promoted_to: null
     crystallized_via: null
