@@ -2,9 +2,9 @@ session:
   id: "2026-08-23_001"
   date: "2026-08-23"
   started: "2026-08-23T04:08+03:00"
-  last_turn: "2026-08-23T04:35+03:00"
-  turn_count: 2
-  summary: "Unified the Save flow and repaired duplicate model-generated IDs that broke uploaded recipe rendering."
+  last_turn: "2026-08-23T05:18+03:00"
+  turn_count: 4
+  summary: "Unified recipe saving, hardened rendering, diagnosed the internal credit failure, and deployed a credit-free development generation path."
 
 events_logged:
   - turn: 1
@@ -43,6 +43,42 @@ events_logged:
     routing: crystallized
     provenance: ai-suggested
     summary: "Normalize model IDs and render persisted legacy graphs defensively."
+  - turn: 3
+    type: experiment
+    id: N06
+    routing: direct
+    provenance: ai-executed
+    summary: "Confirmed Nosh balance zero while the configured OpenRouter account retained provider credit."
+  - turn: 3
+    type: question
+    id: N07
+    routing: direct
+    provenance: ai-suggested
+    summary: "Choose test grant, development bypass, or a retained credit gate with replenishment."
+  - turn: 3
+    type: observation
+    id: O02
+    routing: staged
+    provenance: ai-suggested
+    summary: "Nosh and OpenRouter maintain independent credit balances."
+  - turn: 4
+    type: decision
+    id: N08
+    routing: direct
+    provenance: user
+    summary: "Suspend internal generation credits now; preserve history and redesign production entitlement later."
+  - turn: 4
+    type: experiment
+    id: N09
+    routing: direct
+    provenance: ai-executed
+    summary: "Credit-free completion passed live database proof and deployed as active generator version 7."
+  - turn: 4
+    type: claim
+    id: C01
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Pre-change failures were caused by Nosh's ledger rather than depleted OpenRouter funds."
 
 ai_actions:
   - turn: 1
@@ -73,16 +109,46 @@ ai_actions:
     files_changed:
       - "__tests__/utils/cookbook/recipeGraphNormalization.test.ts"
       - "__tests__/components/cookbook/TextLayer.test.tsx"
+  - turn: 3
+    action: "Traced production captures, Edge Function requests, the Nosh credit ledger, and the configured OpenRouter account balance."
+    provenance: ai-executed
+    files_changed: []
+  - turn: 4
+    action: "Removed credit reservation from active generation, set new page credit metadata to zero, and retired credit balance UI and assistant language."
+    provenance: ai-executed
+    files_changed:
+      - "supabase/functions/generate-page-art/index.ts"
+      - "supabase/functions/nosh-chat/index.ts"
+      - "hooks/useCookbooks.ts"
+      - "app/(book)/settings.tsx"
+      - "utils/cookbook/api.ts"
+  - turn: 4
+    action: "Applied the compatibility migration, deployed both affected Edge Functions, and documented the deferred production policy."
+    provenance: ai-executed
+    files_changed:
+      - "supabase/migrations/20260823020628_suspend_internal_generation_credits.sql"
+      - "docs/adr/0003-suspend-internal-generation-credits.md"
+      - "docs/ARCHITECTURE.md"
+      - "docs/DATABASE.md"
+      - "docs/PRODUCT_FLOW.md"
 
-claims_touched: []
+claims_touched:
+  - id: C01
+    action: crystallized
+    turn: 4
 
 key_context:
   - turn: 1
     excerpt: "Recipes now go directly to books; there should be no separate approval or review screen."
   - turn: 2
     excerpt: "An uploaded recipe opened a developer error reporting two children with the key `default` in TextLayer."
+  - turn: 3
+    excerpt: "Image and URL captures reached page generation but repeatedly reported Not enough credits despite OpenRouter funds."
+  - turn: 4
+    excerpt: "Make it so it generates now; we will design the right credit implementation later for production."
 
 open_threads:
-  - "Confirm the repaired saved recipe opens on Nosh (Dev) after reload, then validate one new live import."
+  - "Retry an existing failed capture from the iPhone and observe the provider-side generation result."
+  - "Before production, design entitlement, pricing, purchase/restore, abuse controls, and failure compensation."
 
 ai_suggestions_pending: []

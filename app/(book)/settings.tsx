@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight,
-  Coins,
   LogOut,
   Mail,
   Sparkles,
@@ -25,7 +24,7 @@ export default function CookbookSettingsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
-  const { cookbooks, creditBalance } = useCookbooks();
+  const { cookbooks } = useCookbooks();
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -119,11 +118,6 @@ export default function CookbookSettingsScreen() {
             icon={<Sparkles size={18} color={Colors.textSecondary} />}
             label="Cookbooks"
             value={String(cookbooks.length)}
-          />
-          <Row
-            icon={<Coins size={18} color={Colors.textSecondary} />}
-            label="Generation credits"
-            value={String(creditBalance)}
           />
         </Section>
 

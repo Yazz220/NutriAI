@@ -122,7 +122,7 @@ Live functions:
 - `capture-recipe`
 - `nosh-chat`
 - `generate-page-art`
-- `credits`
+- `credits` (legacy endpoint; not used by the active client or generation path)
 - `delete-account`
 
 Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. For the simplified pipeline, apply `20260822153000_simplify_recipe_page_pipeline.sql` before the matching `capture-recipe` and `generate-page-art` versions.
@@ -155,7 +155,7 @@ npx eas-cli submit --platform ios
 
 ## Sample Book
 
-`utils/cookbook/sampleCookbook.ts` provides static cookbooks and pages. The shelf and empty state expose sample preview paths so reader UI can be checked without database writes, parser calls, or page-generation credits.
+`utils/cookbook/sampleCookbook.ts` provides static cookbooks and pages. The shelf and empty state expose sample preview paths so reader UI can be checked without database writes, parser calls, or provider generation.
 
 ## Common Pitfalls
 

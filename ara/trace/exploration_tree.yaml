@@ -75,3 +75,66 @@ tree:
           - "supabase/functions/_shared/recipeGraphNormalization.ts"
           - "Supabase extract-recipe version 7: ACTIVE"
         status: resolved
+  - id: N06
+    type: experiment
+    title: "Trace repeated page-generation credit failures"
+    provenance: ai-executed
+    timestamp: "2026-08-23T05:01+03:00"
+    result: >-
+      Image and URL captures both completed extraction and page creation, then failed before
+      the OpenRouter image call because the Nosh credit ledger balance was zero. The configured
+      OpenRouter key remained valid with approximately $4.48 of provider credit available.
+    evidence:
+      - "Recent nutriai.recipe_captures rows: page_generation_failed / Not enough credits"
+      - "Nosh ledger: two grants, three spends, one refund; net balance zero"
+      - "OpenRouter /api/v1/credits: approximately $4.48 remaining"
+      - "supabase/functions/generate-page-art/index.ts"
+      - "nutriai.reserve_generation_credit"
+    status: resolved
+    children:
+      - id: N07
+        type: question
+        title: "Choose the developer credit policy"
+        provenance: ai-suggested
+        timestamp: "2026-08-23T05:01+03:00"
+        description: >-
+          Decide whether to grant the developer account test credits, bypass the Nosh ledger
+          in development builds, or retain the gate and implement a real replenishment path.
+        status: resolved
+        children:
+          - id: N08
+            type: decision
+            title: "Suspend internal generation-credit enforcement"
+            provenance: user
+            timestamp: "2026-08-23T05:18+03:00"
+            choice: >-
+              Remove the internal credit gate from active page generation during product
+              development, preserve the historical ledger as dormant infrastructure, and
+              defer a production entitlement model until the product policy is designed.
+            alternatives:
+              - "Grant the developer account an arbitrary test balance"
+              - "Keep enforcing the old ledger and add replenishment now"
+              - "Delete the ledger and all historical credit data"
+            evidence:
+              - N06
+              - "User direction: make generation proceed now and redesign credits later for production"
+              - "docs/adr/0003-suspend-internal-generation-credits.md"
+            status: resolved
+          - id: N09
+            type: experiment
+            title: "Verify credit-free generation completion"
+            provenance: ai-executed
+            timestamp: "2026-08-23T05:18+03:00"
+            result: >-
+              A rollback-only live database proof completed a request without a ledger spend,
+              selected its page version, and stored credit_cost 0. The focused regression,
+              TypeScript, and lint passed; generate-page-art and nosh-chat deployed active as
+              version 7. The full Jest run passed 182 of 183 tests, with one unrelated stale
+              AddPageScreen mock failure.
+            evidence:
+              - "supabase/migrations/20260823020628_suspend_internal_generation_credits.sql"
+              - "supabase/tests/art_candidate_selection.sql"
+              - "__tests__/utils/cookbook/artCandidateSafety.test.ts"
+              - "Supabase generate-page-art version 7: ACTIVE"
+              - "Supabase nosh-chat version 7: ACTIVE"
+            status: resolved

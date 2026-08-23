@@ -135,10 +135,6 @@ export interface PageVersion {
   createdAt: string;
 }
 
-export interface CreditBalance {
-  balance: number;
-}
-
 export interface ParsedRecipeDraft extends Omit<StructuredRecipe, 'id' | 'tags' | 'category'> {
   id?: string;
   tags?: string[];

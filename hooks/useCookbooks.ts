@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   createCookbook as createCookbookRow,
   deleteCookbook as deleteCookbookRow,
-  fetchCreditBalance,
   listCookbooks,
   type CreateCookbookInput,
 } from '@/utils/cookbook/api';
@@ -24,12 +23,6 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     queryKey: SHELF_QUERY_KEY(user?.id),
     enabled: !!user,
     queryFn: () => listCookbooks(user!.id),
-  });
-
-  const creditsQuery = useQuery({
-    queryKey: ['credits', user?.id],
-    enabled: !!user,
-    queryFn: fetchCreditBalance,
   });
 
   // Hydrate from cache on mount, then keep cache in sync as Supabase responds.
@@ -89,9 +82,7 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     isLoading: shelfQuery.isLoading,
     isShelfStale,
     shelfError: shelfQuery.error,
-    creditsError: creditsQuery.error,
-    error: shelfQuery.error ?? creditsQuery.error,
-    creditBalance: creditsQuery.data?.balance ?? 0,
+    error: shelfQuery.error,
     refresh: () => queryClient.invalidateQueries({ queryKey: SHELF_QUERY_KEY(user?.id) }),
     createCookbook: createMutation.mutateAsync,
     isCreating: createMutation.isPending,

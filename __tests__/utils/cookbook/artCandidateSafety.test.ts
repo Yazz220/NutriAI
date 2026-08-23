@@ -20,6 +20,22 @@ describe('art candidate safety contract', () => {
     expect(edgeFunction).toContain('selectOnComplete !== false');
   });
 
+  it('does not gate page generation on the retired internal credit ledger', () => {
+    const edgeFunction = fs.readFileSync(path.join(
+      root,
+      'supabase/functions/generate-page-art/index.ts',
+    ), 'utf8');
+    const migration = fs.readFileSync(path.join(
+      root,
+      'supabase/migrations/20260823020628_suspend_internal_generation_credits.sql',
+    ), 'utf8');
+
+    expect(edgeFunction).not.toContain(".rpc('reserve_generation_credit'");
+    expect(edgeFunction).toContain('credit_cost: 0');
+    expect(edgeFunction).toContain('creditCost: 0');
+    expect(migration).not.toContain("raise exception 'Generation credit reservation not found'");
+  });
+
   it('binds artwork selection to the owned page and matching version', () => {
     const migration = fs.readFileSync(path.join(
       root,
