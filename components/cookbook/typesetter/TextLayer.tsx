@@ -169,9 +169,9 @@ export const TextLayer = memo(function TextLayer({
       {hasTwoColumns ? (
         <View style={styles.twoColumnContent}>
           <View style={styles.column}>
-            {recipeGraph.ingredientGroups.map((group) => (
+            {recipeGraph.ingredientGroups.map((group, index) => (
               <IngredientGroupView
-                key={group.id}
+                key={`${group.id || 'ingredient-group'}-${index}`}
                 group={group}
                 labelStyle={labelStyle}
                 bodyStyle={bodyStyle}
@@ -181,9 +181,9 @@ export const TextLayer = memo(function TextLayer({
             ))}
           </View>
           <View style={styles.column}>
-            {recipeGraph.stepGroups.map((group) => (
+            {recipeGraph.stepGroups.map((group, index) => (
               <StepGroupView
-                key={group.id}
+                key={`${group.id || 'step-group'}-${index}`}
                 group={group}
                 labelStyle={labelStyle}
                 bodyStyle={bodyStyle}
@@ -194,9 +194,9 @@ export const TextLayer = memo(function TextLayer({
         </View>
       ) : (
         <View style={styles.singleColumnContent}>
-          {recipeGraph.ingredientGroups.map((group) => (
+          {recipeGraph.ingredientGroups.map((group, index) => (
             <IngredientGroupView
-              key={group.id}
+              key={`${group.id || 'ingredient-group'}-${index}`}
               group={group}
               labelStyle={labelStyle}
               bodyStyle={bodyStyle}
@@ -205,9 +205,9 @@ export const TextLayer = memo(function TextLayer({
             />
           ))}
           <View style={{ height: sectionGap }} />
-          {recipeGraph.stepGroups.map((group) => (
+          {recipeGraph.stepGroups.map((group, index) => (
             <StepGroupView
-              key={group.id}
+              key={`${group.id || 'step-group'}-${index}`}
               group={group}
               labelStyle={labelStyle}
               bodyStyle={bodyStyle}
@@ -283,7 +283,7 @@ function StepGroupView({
     <View>
       {group.label ? <Text style={labelStyle as object} selectable>{group.label}</Text> : null}
       {group.steps.map((step, i) => (
-        <Text key={step.id} style={bodyStyle as object} selectable>
+        <Text key={`${step.id || 'step'}-${i}`} style={bodyStyle as object} selectable>
           <Text style={stepNumberStyle as object}>{i + 1}.</Text>
           {' '}
           {step.text}

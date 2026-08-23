@@ -54,4 +54,33 @@ describe('recipe graph normalization', () => {
     expect(normalized.stepGroups[0].steps).toEqual([{ id: 'step-1', text: 'Toast the bread.' }]);
     expect(() => validateNormalizedRecipeGraph(normalized)).not.toThrow();
   });
+
+  it('repairs duplicate model-generated group and step ids', () => {
+    const normalized = normalizeRecipeGraphDraft({
+      title: 'Layered Pasta',
+      servings: 4,
+      category: 'dinner',
+      ingredientGroups: [
+        { id: 'default', label: 'Sauce', ingredients: [{ name: 'tomatoes' }] },
+        { id: 'default', label: 'Pasta', ingredients: [{ name: 'spaghetti' }] },
+      ],
+      stepGroups: [
+        { id: 'default', label: 'Sauce', steps: [{ id: 'step-1', text: 'Cook the sauce.' }] },
+        { id: 'default', label: 'Pasta', steps: [{ id: 'step-1', text: 'Boil the pasta.' }] },
+      ],
+      tags: [],
+      provenance: { sourceType: 'image', confidence: 0.9 },
+    }, null, 'image');
+
+    expect(new Set(normalized.ingredientGroups.map((group) => group.id)).size)
+      .toBe(normalized.ingredientGroups.length);
+    expect(new Set(normalized.stepGroups.map((group) => group.id)).size)
+      .toBe(normalized.stepGroups.length);
+    const stepIds = normalized.stepGroups.flatMap((group) =>
+      Array.isArray(group.steps)
+        ? group.steps.map((step) => (step as { id?: unknown }).id)
+        : [],
+    );
+    expect(new Set(stepIds).size).toBe(stepIds.length);
+  });
 });
