@@ -14,3 +14,8 @@ entries:
       - "Routed the cross-system balance trace as N06 because live queries produced a decisive result."
       - "Opened N07 rather than changing balances or bypassing the gate; that policy choice requires user direction."
       - "Staged O02 as a constraint and did not crystallize it because the user has not selected the intended product credit policy."
+  - turn: "2026-08-23_001#4"
+    notes:
+      - "Resolved N07 with user-authored N08: suspend enforcement, preserve history, and defer production entitlement design."
+      - "Routed the local/live verification and version-7 deployments as N09; the unrelated AddPageScreen mock failure remains outside this decision."
+      - "Reclassified O02's historical diagnosis as falsifiable C01 and crystallized it through empirical resolution after the user acted on N06."

@@ -25,7 +25,7 @@ observations:
       reserve_generation_credit call before OpenRouter image generation.
     potential_type: constraint
     bound_to: [N06, N07]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/claims.md:C01"
+    crystallized_via: empirical-resolution
     stale: false
