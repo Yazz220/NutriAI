@@ -19,3 +19,20 @@ entries:
       - "Resolved N07 with user-authored N08: suspend enforcement, preserve history, and defer production entitlement design."
       - "Routed the local/live verification and version-7 deployments as N09; the unrelated AddPageScreen mock failure remains outside this decision."
       - "Reclassified O02's historical diagnosis as falsifiable C01 and crystallized it through empirical resolution after the user acted on N06."
+  - turn: "2026-08-23_001#5"
+    notes:
+      - "Routed the user's one-book customization direction as N10 and the responsive/code audit as N11."
+      - "Staged O03-O05 because cover/page/layout separation and the exact control count are recommendations awaiting user confirmation and implementation commitment."
+      - "Did not crystallize O04 despite direct code evidence because the researcher has not yet commented on the audit result."
+  - turn: "2026-08-23_001#6"
+    notes:
+      - "Routed the prototype authorization as N12 and the responsive three-variant result as N13."
+      - "Crystallized O03 to A01 and O05 to H02 via verbal affirmation; the user explicitly liked the recommendation and authorized the prototype/full implementation sequence."
+      - "Left O04 staged because this turn validated UI behavior, not the unused generator-field audit."
+      - "Staged O06 as a heuristic pending the user's direct comparison of the three variants."
+  - turn: "2026-08-23_001#7"
+    notes:
+      - "Routed the explicit Studio A verdict and deferral of expanded pickers/stickers as user-authored N14."
+      - "Routed image generation, production implementation, live migration/deployments, mobile QA, and the 192-test pass as N15."
+      - "Crystallized O06 to H03 via verbal affirmation and rebound H02/A01 from the throwaway prototype to production code."
+      - "Left O04 staged as a historical pre-split implementation observation; this turn replaced the coupling rather than validating it as a current claim."

@@ -29,3 +29,66 @@ observations:
     promoted_to: "logic/claims.md:C01"
     crystallized_via: empirical-resolution
     stale: false
+  - id: O03
+    timestamp: "2026-08-23T05:37+03:00"
+    provenance: ai-suggested
+    content: >-
+      Model cookbook identity as three separate concerns: a physical cover finish, a
+      book-owned recipe-page visual language, and an adaptive per-recipe layout strategy.
+      Cover and page look are user choices; layout remains automatic for legibility.
+    context: >-
+      The current CookbookStyleId combines physical binding and AI page-art behavior, while
+      capture independently selects a layout from recipe density.
+    potential_type: architecture
+    bound_to: [N10, N11]
+    promoted: true
+    promoted_to: "logic/solution/architecture.md:A01"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O04
+    timestamp: "2026-08-23T05:37+03:00"
+    provenance: ai-suggested
+    content: >-
+      The active page generator does not use CookbookStylePreset.pagePromptDescriptor,
+      persisted theme_prompt, or the cookbook page-template default. It uses a separate
+      server-side style profile keyed by cover_style, and capture chooses layout adaptively.
+    context: >-
+      Static inspection compared cookbook creation, capture orchestration, and complete-page
+      prompt construction while reviewing the proposed customization experience.
+    potential_type: claim
+    bound_to: [N11]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O05
+    timestamp: "2026-08-23T05:37+03:00"
+    provenance: ai-suggested
+    content: >-
+      Keep first-release customization curated: one live preview, one title field, a small
+      set of combined cover finishes, and at most three recipe-page looks previewed with
+      pinned sample assets rather than live model calls.
+    context: >-
+      The desired experience is tactile and personal but explicitly not an advanced design editor.
+    potential_type: heuristic
+    bound_to: [N10, N11]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H02"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O06
+    timestamp: "2026-08-23T05:57+03:00"
+    provenance: ai-suggested
+    content: >-
+      Use the continuous studio as the production foundation, borrow the tactile preview
+      emphasis from the tray variant, and avoid requiring three separate steps for the
+      small initial choice set.
+    context: >-
+      Responsive interaction testing compared three development-only variants while all
+      shared the same title, cover, page-look, preview, and completion state.
+    potential_type: heuristic
+    bound_to: [N12, N13]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H03"
+    crystallized_via: verbal-affirmation
+    stale: false

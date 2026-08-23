@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { CreationStudio } from '@/components/create/CreationStudio';
 import { Text } from '@/components/ui/Text';
+import type { CreationPageStyleId } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
@@ -15,14 +16,20 @@ import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
-  const { captureId: captureIdParam } = useLocalSearchParams<{ captureId?: string | string[] }>();
+  const { captureId: captureIdParam } = useLocalSearchParams<{
+    captureId?: string | string[];
+  }>();
   const captureId = Array.isArray(captureIdParam) ? captureIdParam[0] : captureIdParam;
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
 
-  async function handleCreate(title: string, coverStyle: CookbookStyleId) {
-    const cookbook = await createCookbook({ title, coverStyle });
+  async function handleCreate(
+    title: string,
+    coverStyle: CookbookStyleId,
+    pageStyleId: CreationPageStyleId,
+  ) {
+    const cookbook = await createCookbook({ title, coverStyle, pageStyleId });
     if (captureId) {
       try {
         await prepareDestination({ captureId, destinationCookbookId: cookbook.id });
@@ -51,7 +58,12 @@ export default function BookLibraryScreen() {
         <View style={styles.topSpacer} />
       </View>
 
-      <CreationStudio canCreate={!!user} onCreateBook={handleCreate} onSignIn={openSignIn} />
+      <CreationStudio
+        bottomInset={insets.bottom}
+        canCreate={!!user}
+        onCreateBook={handleCreate}
+        onSignIn={openSignIn}
+      />
     </View>
   );
 }

@@ -1,8 +1,8 @@
 sessions:
   - id: "2026-08-23_001"
     date: "2026-08-23"
-    summary: "Unified recipe saving, hardened rendering, diagnosed the internal credit failure, and deployed a credit-free development generation path."
-    turn_count: 4
-    events_count: 12
+    summary: "Stabilized recipe generation and shipped Studio A with generated style previews and independent cover/page identities."
+    turn_count: 7
+    events_count: 25
     claims_touched: [C01]
-    open_threads: 2
+    open_threads: 3

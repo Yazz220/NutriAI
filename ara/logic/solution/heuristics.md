@@ -7,3 +7,19 @@
 - **Sensitivity**: low
 - **Code ref**: [`supabase/functions/_shared/recipeGraphNormalization.ts`, `components/cookbook/typesetter/TextLayer.tsx`]
 - **From staging**: O01
+
+## H02: Keep first-release cookbook customization curated
+- **Rationale**: One live book preview, one title field, a few combined cover finishes, and at most three pinned page-look previews make the experience personal without turning creation into a design tool or spending model calls on previews.
+- **Provenance**: user-revised
+- **Crystallized via**: verbal-affirmation
+- **Sensitivity**: medium
+- **Code ref**: [`components/create/CreationStudio.tsx`, `constants/cookbookCustomization.ts`]
+- **From staging**: O05
+
+## H03: Use one continuous studio for a small customization set
+- **Rationale**: Keeping the live book, title, cover finishes, page languages, and final action in one continuous flow makes cause and effect immediate without adding navigation overhead. Selecting a page language can open the same book to its pinned sample spread, preserving tactile feedback while the choice set remains small.
+- **Provenance**: user-revised
+- **Crystallized via**: verbal-affirmation
+- **Sensitivity**: medium
+- **Code ref**: [`components/create/CreationStudio.tsx`, `app/(book)/library.tsx`]
+- **From staging**: O06

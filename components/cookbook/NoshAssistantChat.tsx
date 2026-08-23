@@ -31,7 +31,7 @@ import {
   type NoshActiveTask,
 } from '@/components/nosh/conversation/NoshConversationDisplay';
 import { Colors } from '@/constants/colors';
-import { getCookbookStyle } from '@/constants/cookbookStyles';
+import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
@@ -86,7 +86,7 @@ const COLLECTION_SESSION: NoshInteractionSession = {
 function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
   const references = cookbook.pageStyleReferences?.length
     ? cookbook.pageStyleReferences
-    : getCookbookStyle(cookbook.coverStyle).pageStyleReferences;
+    : getCookbookPageStyleReferences(cookbook.pageStyleId);
   return references?.length ? [...references] : undefined;
 }
 
@@ -219,7 +219,7 @@ export function NoshConversationHost() {
         cookbookId: cookbook.id,
         pageId: focus.pageId,
         recipeGraph: savedGraph,
-        styleId: cookbook.coverStyle,
+        styleId: cookbook.pageStyleId,
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
         idempotencyKey: createGenerationRequestKey(),
@@ -276,7 +276,7 @@ export function NoshConversationHost() {
       cookbookId: cookbook.id,
       userId: user.id,
       recipeGraph: copiedGraph,
-      styleId: cookbook.coverStyle,
+      styleId: cookbook.pageStyleId,
       templateId: cookbook.pageTemplateId,
     });
     try {
@@ -284,7 +284,7 @@ export function NoshConversationHost() {
         cookbookId: cookbook.id,
         pageId: copiedPage.id,
         recipeGraph: copiedGraph,
-        styleId: cookbook.coverStyle,
+        styleId: cookbook.pageStyleId,
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
         idempotencyKey: createGenerationRequestKey(),
@@ -317,7 +317,7 @@ export function NoshConversationHost() {
       cookbookId: focus.cookbookId,
       pageId: focus.pageId,
       recipeGraph: graph,
-      styleId: cookbook.coverStyle,
+      styleId: cookbook.pageStyleId,
       styleRevision: cookbook.styleRevision,
       styleReferences: pageStyleReferences(cookbook),
       idempotencyKey,
@@ -485,7 +485,7 @@ export function NoshConversationHost() {
       recipeGraph: focusedRecipeGraphRef.current,
       cookbookTitle: currentBook?.title,
       activeCookbookId: currentBook?.id,
-      styleId: currentBook?.coverStyle,
+      styleId: currentBook?.pageStyleId,
       availableCookbooks: cookbooksRef.current
         .filter((book) => book.id !== SAMPLE_COOKBOOK_ID)
         .map((book) => ({ id: book.id, title: book.title })),

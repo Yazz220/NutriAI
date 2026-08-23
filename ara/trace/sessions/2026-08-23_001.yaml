@@ -2,9 +2,9 @@ session:
   id: "2026-08-23_001"
   date: "2026-08-23"
   started: "2026-08-23T04:08+03:00"
-  last_turn: "2026-08-23T05:18+03:00"
-  turn_count: 4
-  summary: "Unified recipe saving, hardened rendering, diagnosed the internal credit failure, and deployed a credit-free development generation path."
+  last_turn: "2026-08-23T07:27+03:00"
+  turn_count: 7
+  summary: "Stabilized recipe generation and shipped Studio A with generated style previews and independent cover/page identities."
 
 events_logged:
   - turn: 1
@@ -79,6 +79,84 @@ events_logged:
     routing: crystallized
     provenance: ai-suggested
     summary: "Pre-change failures were caused by Nosh's ledger rather than depleted OpenRouter funds."
+  - turn: 5
+    type: decision
+    id: N10
+    routing: direct
+    provenance: user
+    summary: "Replace the catalog-like binding browser with one cookbook customization experience."
+  - turn: 5
+    type: experiment
+    id: N11
+    routing: direct
+    provenance: ai-executed
+    summary: "Responsive UI and code audit confirmed catalog framing and cover/page-style coupling."
+  - turn: 5
+    type: observation
+    id: O03
+    routing: staged
+    provenance: ai-suggested
+    summary: "Separate physical cover, book-owned page language, and adaptive recipe layout."
+  - turn: 5
+    type: observation
+    id: O04
+    routing: staged
+    provenance: ai-suggested
+    summary: "Several client and persisted style fields do not drive the active page generator."
+  - turn: 5
+    type: observation
+    id: O05
+    routing: staged
+    provenance: ai-suggested
+    summary: "Limit initial customization to a live preview and a few curated choices."
+  - turn: 6
+    type: decision
+    id: N12
+    routing: direct
+    provenance: user
+    summary: "Prototype three one-book customization flows before replacing the production explorer."
+  - turn: 6
+    type: experiment
+    id: N13
+    routing: direct
+    provenance: ai-executed
+    summary: "Three variants passed phone, desktop, interaction, TypeScript, lint, and diff verification."
+  - turn: 6
+    type: architecture
+    id: A01
+    routing: crystallized
+    provenance: user-revised
+    summary: "Separate cover finish, book-owned page language, and adaptive per-recipe layout."
+  - turn: 6
+    type: heuristic
+    id: H02
+    routing: crystallized
+    provenance: user-revised
+    summary: "Keep initial customization curated and preview it without live model calls."
+  - turn: 6
+    type: observation
+    id: O06
+    routing: staged
+    provenance: ai-suggested
+    summary: "Continuous studio appears strongest, with tactile preview cues borrowed from the tray."
+  - turn: 7
+    type: decision
+    id: N14
+    routing: direct
+    provenance: user
+    summary: "Adopt Studio A, keep customization catalog-backed, and defer expanded pickers and stickers."
+  - turn: 7
+    type: experiment
+    id: N15
+    routing: direct
+    provenance: ai-executed
+    summary: "Six generated samples, production Studio, live schema split, deployments, mobile QA, and 192 tests passed."
+  - turn: 7
+    type: heuristic
+    id: H03
+    routing: crystallized
+    provenance: user-revised
+    summary: "Use one continuous studio for the small initial customization set."
 
 ai_actions:
   - turn: 1
@@ -131,6 +209,43 @@ ai_actions:
       - "docs/ARCHITECTURE.md"
       - "docs/DATABASE.md"
       - "docs/PRODUCT_FLOW.md"
+  - turn: 5
+    action: "Inspected the Book Explorer at desktop and iPhone dimensions and traced cover selection through creation, capture, and AI page generation."
+    provenance: ai-executed
+    files_changed: []
+  - turn: 6
+    action: "Built three interactive, development-only cookbook customization variants on the existing Book Explorer route."
+    provenance: ai-executed
+    files_changed:
+      - "components/create/BookCreationPrototype.tsx"
+      - "app/(book)/library.tsx"
+  - turn: 6
+    action: "Verified live customization and non-saving completion at phone and desktop sizes while preserving the current explorer reference."
+    provenance: ai-executed
+    files_changed: []
+  - turn: 7
+    action: "Generated and optimized six complete brownie and cookie page previews for Illustrated, Editorial, and Heritage."
+    provenance: ai-executed
+    files_changed:
+      - "assets/cookbook/style-previews/"
+      - "docs/RECIPE_PAGE_STYLES.md"
+  - turn: 7
+    action: "Replaced the prototype with production Studio A and separated physical covers from book-owned page styles throughout persistence and generation."
+    provenance: ai-executed
+    files_changed:
+      - "components/create/CreationStudio.tsx"
+      - "constants/cookbookCustomization.ts"
+      - "utils/cookbook/api.ts"
+      - "supabase/functions/capture-recipe/index.ts"
+      - "supabase/functions/generate-page-art/index.ts"
+      - "supabase/migrations/20260823041346_add_cookbook_page_styles.sql"
+  - turn: 7
+    action: "Applied the live migration, preserved all existing book identities, deployed both affected functions, and verified the Studio at iPhone size."
+    provenance: ai-executed
+    files_changed:
+      - "docs/adr/0004-separate-cover-and-page-style.md"
+      - "__tests__/components/create/CreationStudio.test.tsx"
+      - "__tests__/constants/cookbookCustomization.test.ts"
 
 claims_touched:
   - id: C01
@@ -146,9 +261,16 @@ key_context:
     excerpt: "Image and URL captures reached page generation but repeatedly reported Not enough credits despite OpenRouter funds."
   - turn: 4
     excerpt: "Make it so it generates now; we will design the right credit implementation later for production."
+  - turn: 5
+    excerpt: "There should be one book the user is creating; designs become customization options, and page-generation style should be chosen rather than tied to the book skin."
+  - turn: 6
+    excerpt: "I like it. Create the prototype, then we can go ahead with the full implementation."
+  - turn: 7
+    excerpt: "Single studio prototype A is the most I like; keep it expandable, show two generated recipes for each page style, and leave expanded pickers and stickers for later."
 
 open_threads:
   - "Retry an existing failed capture from the iPhone and observe the provider-side generation result."
   - "Before production, design entitlement, pricing, purchase/restore, abuse controls, and failure compensation."
+  - "Design the expanded cover/page-style picker and normalized cover-sticker editor in a later session."
 
 ai_suggestions_pending: []

@@ -28,6 +28,17 @@ export type CookbookStyleId =
   | 'alabaster-linen'
   | 'umber-leather';
 
+/**
+ * The book-owned visual language used by complete-page generation.
+ * Legacy cover-linked ids remain valid so existing cookbooks preserve their
+ * visual identity while new books use the three Studio page languages.
+ */
+export type CookbookPageStyleId =
+  | CookbookStyleId
+  | 'illustrated'
+  | 'studio-editorial'
+  | 'heritage';
+
 export type RecipeTemplateId =
   | 'clean-cream'
   | 'ink-sketch'
@@ -51,8 +62,11 @@ export interface Cookbook {
   coverImageAsset?: ImageSourcePropType;
   theme: CookbookTheme;
   sectionOrder: CookbookSection[];
+  /** Physical binding/skin shown on the shelf and closed book. */
   coverStyle: CookbookStyleId;
-  /** Immutable visual identity revision used by every generated page in this book. */
+  /** Book-owned recipe-page visual language, independent of its cover. */
+  pageStyleId: CookbookPageStyleId;
+  /** Immutable page-style revision used by every generated page in this book. */
   styleRevision: number;
   /** Locked visual references for this identity revision. */
   pageStyleReferences?: string[];
@@ -107,7 +121,7 @@ export interface CookbookPage {
   pageImage?: GeneratedRecipePage;
   /** Compatibility field for pages created by the retired split-art pipeline. */
   artAsset?: PageArtAsset;
-  styleId?: CookbookStyleId;
+  styleId?: CookbookPageStyleId;
   templateId?: RecipeTemplateId;
   /** Processing pages remain hidden until their complete page image is ready. */
   lifecycleStatus?: 'processing' | 'approved';
@@ -184,7 +198,7 @@ export interface GeneratedRecipePage {
   pageId: string;
   imageUrl?: string;
   storagePath?: string;
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   styleRevision: number;
   generationPrompt: string;
   styleReferences?: string[];
@@ -205,7 +219,7 @@ export interface PageArtAsset {
   artUrl?: string;
   storagePath?: string;
   /** Which cookbook style preset conditioned the art. */
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   /** The art-generation prompt used (for debugging / re-generation). */
   artPrompt: string;
   /** Reference image URLs passed to the art model for style conditioning. */
@@ -263,7 +277,7 @@ export interface CookbookPageSummaryV2 {
  */
 export interface PageArtPromptPayload {
   /** The cookbook style preset that conditions the art. */
-  styleId: CookbookStyleId;
+  styleId: CookbookPageStyleId;
   /** Human-readable style descriptor from the preset. */
   styleDescriptor: string;
   /** Theme prompt from the preset. */

@@ -17,8 +17,9 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 | `title` | text | User-provided ("Desserts", "Italian", "Family") |
 | `theme_name`, `theme_prompt` | text | Legacy theme fields, kept for backward compat |
 | `section_order` | jsonb | Default order of the seven canonical sections |
-| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Drives the cover and complete-page generation prompt |
-| `style_revision` | integer | Version of the book-wide visual identity contract |
+| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Physical cover color, material, binding, and foil |
+| `page_style_id` | text CHECK including the legacy style ids plus {`illustrated`, `studio-editorial`, `heritage`} | Database-owned visual language for complete-page generation; independent from the cover |
+| `style_revision` | integer | Version of the book-owned page-style contract |
 | `page_style_references` | jsonb string array | Optional immutable visual anchors for page consistency |
 | `is_default` | boolean | At most one per user; automatic destination for new captures |
 | `page_template_id` | text CHECK ∈ {`clean-cream`, `ink-sketch`, `modern-editorial`} default `clean-cream` | Legacy vector-layout default. It is not an input to complete-page image generation. |
@@ -142,6 +143,7 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260822002000_cookbook_page_selected_version_index.sql` | Adds selected-version lookup support |
 | `supabase/migrations/20260822153000_simplify_recipe_page_pipeline.sql` | Collapses capture/review into processing, optional destination choice, retry, and ready; adds default books and versioned page-style anchors |
 | `supabase/migrations/20260823020628_suspend_internal_generation_credits.sql` | Suspends the legacy internal credit gate while preserving ledger history and compatibility RPCs |
+| `supabase/migrations/20260823041346_add_cookbook_page_styles.sql` | Separates physical `cover_style` from book-owned `page_style_id` and preserves existing books' page identities |
 
 ## RLS posture
 

@@ -1,6 +1,7 @@
 import {
   buildOpenRouterImageRequest,
   buildRecipePagePrompt,
+  RECIPE_PAGE_STYLE_PROFILES,
   stableCookbookSeed,
 } from '../../../supabase/functions/_shared/artGeneration';
 
@@ -73,5 +74,19 @@ describe('complete recipe page generation contract', () => {
     expect(stableCookbookSeed(cookbookId)).toBe(stableCookbookSeed(cookbookId));
     expect(stableCookbookSeed(cookbookId)).not.toBe(stableCookbookSeed('af5eff3e-a9e0-4884-925f-bdd03e824cc7'));
     expect(productionRequest).not.toHaveProperty('seed');
+  });
+
+  it.each([
+    ['illustrated', 'translucent watercolor'],
+    ['studio-editorial', 'culinary photography'],
+    ['heritage', 'copperplate-style'],
+  ])('gives %s a distinctive polished visual contract', (styleId, signature) => {
+    const profile = RECIPE_PAGE_STYLE_PROFILES[styleId];
+    const { prompt, payload } = buildRecipePagePrompt(recipe, styleId);
+
+    expect(profile.illustration).toContain(signature);
+    expect(prompt).toContain(profile.paper);
+    expect(prompt).toContain(profile.typography);
+    expect(payload.styleId).toBe(styleId);
   });
 });

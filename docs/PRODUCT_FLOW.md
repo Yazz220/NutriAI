@@ -78,11 +78,11 @@ When a saved recipe changes, Nosh first generates a replacement page from the pr
 
 ## Cookbook visual identity
 
-Each cookbook persists a style id, style revision, and optional visual reference images. Page generation reads that identity from the database. It does not trust a caller to choose a different style for one recipe.
+Each cookbook persists two independent choices: `cover_style` for its physical binding and `page_style_id` for the visual language of its generated recipe pages. The page style also owns a revision and optional visual reference images. Page generation reads that identity from the database. It does not trust a caller to choose a different style for one recipe.
 
-The style controls the complete page: paper, palette, typography, decorative language, food treatment, and composition. Layout may vary with recipe density, but the book's visual identity stays fixed.
+The page style controls paper, palette, typography, decorative language, food treatment, and composition. Layout may vary with recipe density, but the book's page identity stays fixed. Changing the cover finish never changes the pages.
 
-Sample pages in the creation studio preview a style. They are not copied into the user's new cookbook.
+The creation studio presents one live book, not a grid of separate products. The user names it, chooses a featured cover finish, and chooses Illustrated, Editorial, or Heritage pages. The brownie and cookie sample spread previews the selected page style; those samples are bundled previews and are not copied into the user's new cookbook.
 
 ## Reading and cooking
 
@@ -116,7 +116,7 @@ See [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) for th
 | Capture is missing or duplicated | `supabase/functions/capture-recipe/index.ts`, `captureLifecycle.ts`, capture idempotency keys, and `recipe_captures` |
 | Recipe extraction is wrong | `supabase/functions/extract-recipe/index.ts`, URL evidence helpers, and the stored Recipe Graph |
 | Wrong cookbook selected | `begin_recipe_capture`, the cookbook `is_default` field, and the explicit destination passed by the entry point |
-| Page style does not match the book | Cookbook `cover_style`, `style_revision`, `page_style_references`, then `_shared/artGeneration.ts` |
+| Page style does not match the book | Cookbook `page_style_id`, `style_revision`, `page_style_references`, then `_shared/artGeneration.ts` |
 | Page generation is stuck | `generation_requests`, `page_versions`, `generate-page-art` logs, OpenRouter availability, then capture `pageStatus` |
 | Finished page is absent from the reader | Capture `status`, page `lifecycle_status`, `selected_version_id`, and `useRecipeCaptures` reconciliation |
 | Nosh answers from the wrong recipe | `NoshConversationContext`, interaction focus, `noshChatAdapter.ts`, and collection retrieval tools |

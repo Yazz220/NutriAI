@@ -14,17 +14,14 @@ jest.mock('@/hooks/useCookbook', () => ({
 
 jest.mock('@/components/nosh/capture/NoshCaptureWorkspace', () => {
   const ReactModule = require('react');
-  const { Pressable, Text } = require('react-native');
+  const { Text } = require('react-native');
   return {
-    NoshCaptureWorkspace: ({ destinationCookbookId, onReady }: {
+    NoshCaptureWorkspace: ({ destinationCookbookId }: {
       destinationCookbookId: string;
-      onReady: (cookbookId: string, pageId: string) => void;
     }) => ReactModule.createElement(
-      Pressable,
+      Text,
       {
-        accessibilityRole: 'button',
         accessibilityLabel: `Capture for ${destinationCookbookId}`,
-        onPress: () => onReady(destinationCookbookId, 'page-1'),
       },
       ReactModule.createElement(Text, null, 'Capture workspace'),
     ),
@@ -34,13 +31,13 @@ jest.mock('@/components/nosh/capture/NoshCaptureWorkspace', () => {
 describe('AddPageScreen durable capture flow', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('uses the cookbook-scoped capture workspace and opens only after approval', () => {
+  it('uses the cookbook-scoped capture workspace without a blocking approval callback', () => {
     const screen = render(<AddPageScreen />);
 
-    expect(screen.getByRole('button', { name: 'Capture for cookbook-1' })).toBeTruthy();
-    expect(router.replace).not.toHaveBeenCalledWith(expect.stringContaining('pageId'));
+    expect(screen.getByLabelText('Capture for cookbook-1')).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Capture for cookbook-1' }));
-    expect(router.replace).toHaveBeenCalledWith('/(book)/cookbook-1?pageId=page-1');
+    fireEvent.press(screen.getByLabelText('Back to cookbook'));
+    expect(router.replace).toHaveBeenCalledWith('/(book)/cookbook-1');
   });
 });

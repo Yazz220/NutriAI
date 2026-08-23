@@ -86,7 +86,7 @@ Key route behavior:
 
 - `app/_layout.tsx`: root providers, auth guard, font/splash loading, root stack, offline banner.
 - `app/(book)/index.tsx`: authenticated shelf.
-- `app/(book)/library.tsx`: style picker and cookbook creation.
+- `app/(book)/library.tsx`: single-book customization studio and cookbook creation.
 - `app/(book)/imports.tsx`: recipe-capture history, destination choice, retry, and completed-page links.
 - `app/(book)/share.tsx`: native Share to Nosh receipt and retry surface.
 - `app/(book)/settings.tsx`: account, library stats, sign out.
@@ -156,7 +156,7 @@ Pipeline invariants:
 - `generate-page-art` is a legacy route name for complete-page generation. Its output includes the visible recipe text and imagery.
 - `recipe_graph` is the canonical reasoning record. The selected `page_versions` image is the reading artifact.
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
-- The cookbook row owns style id, style revision, and visual references. Never accept a caller-defined per-recipe style as canonical.
+- The cookbook row owns an independent physical `cover_style` and generated-page `page_style_id`; page style revision and visual references belong to `page_style_id`. Never accept a caller-defined per-recipe style as canonical.
 - The typesetter is a compatibility renderer for old pages only. It is not a second generation pipeline.
 - Internal generation credits are suspended. New generations use `credit_cost = 0` and must not call `reserve_generation_credit`; see ADR 0003 before changing this policy.
 

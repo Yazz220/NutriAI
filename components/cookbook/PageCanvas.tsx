@@ -6,6 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
+import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 
@@ -56,7 +57,11 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
         <TypesetterPage
           recipeGraph={page.recipeGraph}
           artAsset={page.artAsset ?? null}
-          styleId={page.styleId ?? DEFAULT_COOKBOOK_STYLE}
+          styleId={
+            page.styleId && !isCreationPageStyleId(page.styleId)
+              ? page.styleId
+              : DEFAULT_COOKBOOK_STYLE
+          }
           templateId={page.templateId ?? DEFAULT_RECIPE_TEMPLATE_ID}
           bookMode={bookMode}
           onRenderReady={onRenderReady}
