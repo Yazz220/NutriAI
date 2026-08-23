@@ -102,7 +102,7 @@ ShareIntentProvider
 Active hooks:
 
 - `useAuth`: Supabase session/user state and sign-out. It is a hook, not an `AuthProvider`.
-- `useCookbooks`: shelf state, create/delete cookbook mutations, credit balance.
+- `useCookbooks`: shelf state, create/delete cookbook mutations, and shelf cache hydration.
 - `useCookbook(cookbookId)`: per-book data, page selection, refresh, and page upsert. It is a parameterized hook, not a global provider.
 - `useRecipeCaptures`: durable capture state, retry, polling, and the occasional destination choice.
 - The Nosh assistant uses `@assistant-ui/react-native` with a `LocalRuntime`, device-persisted conversation history, and a bridge to the `nosh-chat` Edge Function; each active chat is scoped by the current page and book.

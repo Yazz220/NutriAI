@@ -281,7 +281,6 @@ Major UI:
 
 - Account email.
 - Cookbook count.
-- Generation credit balance.
 - Sign out.
 - Delete account.
 
@@ -297,7 +296,6 @@ States:
 - Deleting changes the row label and disables both account actions.
 - Sign-out and deletion errors appear in native alerts.
 - Missing user during delete produces a "Sign in required" alert.
-- Credit-fetch errors are not surfaced. A failed or unavailable balance appears as `0`.
 
 There is no UI for deleting one cookbook even though the hook and API support it.
 
@@ -719,7 +717,7 @@ States:
 | Scale servings | Preview; use this session, save update, save as copy, or cancel | Temporary mode swaps the visible graph; update persists; copy creates another page. |
 | Substitute ingredient | Same confirmation modes as scaling | Applies proposed substitution temporarily or persistently. |
 | Update page data | Same confirmation modes | Applies model-generated graph patch operations. |
-| Regenerate artwork | Shows one-credit cost; Generate or Cancel; then Use new artwork or Keep current | Candidate does not replace current art until explicit approval. |
+| Regenerate artwork | Generate or Cancel; then Use new artwork or Keep current | Candidate does not replace current art until explicit approval. |
 | Start timer | Automatic tool card | Schedules an in-memory JavaScript timeout and later shows a native alert. |
 | Guide next step | Automatic tool card | Logs the requested step ID. It does not currently highlight or navigate the visible page. |
 | Walkthrough state | Automatic tool card | Changes the interaction entry point/task. No separate walkthrough screen, step tracker, or page highlight appears. |
@@ -872,7 +870,7 @@ Shelf
   -> ellipsis
   -> Library popover
   -> Settings
-  -> inspect email, counts, credits / sign out / delete account / back
+  -> inspect email and cookbook count / sign out / delete account / back
 ```
 
 ### Reader navigation
@@ -1071,7 +1069,7 @@ Recipe-focused Nosh
 
 Recipe-focused Nosh
   -> request new or replacement artwork
-  -> one-credit confirmation card
+  -> regeneration confirmation card
   -> Generate
   -> candidate preview, current art unchanged
   -> Use new artwork

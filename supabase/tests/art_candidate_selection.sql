@@ -65,11 +65,8 @@ begin
   where id = proof_page_id;
 
   insert into nutriai.page_versions (page_id, prompt_payload, model, status, credit_cost)
-  values (proof_page_id, '{"proof":"candidate"}'::jsonb, 'proof-model', 'ready', 1)
+  values (proof_page_id, '{"proof":"candidate"}'::jsonb, 'proof-model', 'ready', 0)
   returning id into candidate_version_id;
-
-  insert into nutriai.credit_ledger (user_id, event_type, amount)
-  values (proof_user_id, 'grant', 1);
 
   request_state := nutriai.begin_generation_request(
     proof_user_id,
@@ -83,7 +80,6 @@ begin
   set page_id = proof_page_id
   where id = request_id;
 
-  perform nutriai.reserve_generation_credit(proof_user_id, request_id);
   perform nutriai.complete_art_generation_request(
     proof_user_id,
     request_id,
@@ -98,6 +94,14 @@ begin
 
   if selected_version_id <> current_version_id then
     raise exception 'Completing a candidate replaced the current artwork';
+  end if;
+
+  if exists (
+    select 1
+    from nutriai.credit_ledger
+    where generation_request_id = request_id
+  ) then
+    raise exception 'Credit-free completion unexpectedly wrote to the legacy ledger';
   end if;
 
 end

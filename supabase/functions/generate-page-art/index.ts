@@ -226,23 +226,6 @@ async function updateGenerationRequest(
   if (error || !data) throw new Error(error?.message ?? 'Generation request not found');
 }
 
-async function reserveCredit(
-  admin: SupabaseAdmin,
-  userId: string,
-  generationRequestId: string,
-): Promise<string> {
-  const { data, error } = await admin
-    .schema('nutriai')
-    .rpc('reserve_generation_credit', {
-      p_user_id: userId,
-      p_generation_request_id: generationRequestId,
-    });
-
-  if (error) throw new Error(error.message);
-  if (typeof data !== 'string') throw new Error('Credit reservation failed');
-  return data;
-}
-
 async function completeGenerationRequest(
   admin: SupabaseAdmin,
   userId: string,
@@ -507,17 +490,6 @@ serve(async (req: Request) => {
       let versionId: string | undefined;
 
       try {
-        // Reserve credit before spending on generation
-        await reserveCredit(admin, user!.id, generationRequestId);
-      } catch (creditError) {
-        const message = creditError instanceof Error ? creditError.message : 'Not enough credits';
-        await failGenerationRequest(admin, user!.id, generationRequestId, message);
-        await failCapturePage(admin, user!.id, pageId, message);
-        const status = message.toLowerCase().includes('not enough credits') ? 402 : 500;
-        return jsonError(message, status, req);
-      }
-
-      try {
         const { bytes, cost } = await generatePageImage(prompt, inputReferences);
 
         storagePath = `${user!.id}/${cookbookId}/${crypto.randomUUID()}.png`;
@@ -545,7 +517,7 @@ serve(async (req: Request) => {
             prompt_payload: pagePromptPayload,
             model: ART_MODEL,
             status: 'ready',
-            credit_cost: 1,
+            credit_cost: 0,
           })
           .select('id')
           .single();
@@ -569,7 +541,7 @@ serve(async (req: Request) => {
             styleReferences: inputReferences,
             model: ART_MODEL,
             status: 'ready',
-            creditCost: 1,
+            creditCost: 0,
             cost,
             createdAt: new Date().toISOString(),
           },

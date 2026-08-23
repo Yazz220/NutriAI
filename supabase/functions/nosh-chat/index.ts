@@ -358,7 +358,7 @@ const ALL_TOOLS: Record<string, ToolDefinition> = {
     function: {
       name: 'regenerate_recipe_page',
       description:
-        'Propose a visually revised complete page for the focused recipe. Use only when the user explicitly asks to change the page design or imagery. The client shows the one-credit cost and keeps the current page selected until the user approves a finished candidate.',
+        'Propose a visually revised complete page for the focused recipe. Use only when the user explicitly asks to change the page design or imagery. The client keeps the current page selected until the user approves a finished candidate.',
       parameters: {
         type: 'object',
         properties: {

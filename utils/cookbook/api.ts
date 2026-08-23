@@ -8,7 +8,6 @@ import type {
   CookbookPage,
   CookbookSectionEntry,
   CookbookStyleId,
-  CreditBalance,
   GeneratedRecipePage,
   PageArtStatus,
   RecipeSourceType,
@@ -769,16 +768,4 @@ export async function updatePageRecipeGraph(
     .eq('id', pageId);
 
   if (error) throw error;
-}
-
-export async function fetchCreditBalance(): Promise<CreditBalance> {
-  try {
-    return await callAuthenticatedFunction('credits', { action: 'balance' });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes('(404)')) {
-      return { balance: 0 };
-    }
-    throw err;
-  }
 }

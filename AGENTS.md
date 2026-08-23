@@ -12,7 +12,7 @@ Do not frame the app as a legacy non-cookbook product or a chat-first recipe man
 - Expo Router for file-based navigation.
 - TypeScript strict mode.
 - Supabase backend in the private `nutriai` schema with RLS.
-- Supabase Edge Functions for AI, import, generation, credits, and account deletion.
+- Supabase Edge Functions for AI, import, generation, and account deletion. The legacy credits function is dormant.
 - TanStack React Query for server state.
 - AsyncStorage for shelf and per-book page cache.
 - `@nkzw/create-context-hook` for shared context hooks.
@@ -115,7 +115,7 @@ ShareIntentProvider
 Current provider/hook reality:
 
 - `useAuth`: Supabase auth state; no `AuthProvider` exists.
-- `CookbooksProvider` / `useCookbooks`: shelf state, cookbook creation/deletion, credit balance.
+- `CookbooksProvider` / `useCookbooks`: shelf state and cookbook creation/deletion.
 - `useCookbook(cookbookId)`: per-book data; no `CookbookProvider` exists.
 - `useRecipeCaptures`: durable capture state, polling, retry, and destination selection.
 - `NoshConversationProvider` / `useNoshConversation`: persistent chat visibility, intake state, and active cookbook/page context across shelf-to-reader navigation.
@@ -146,7 +146,7 @@ Active functions:
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
-- `credits`: credit balance.
+- `credits`: dormant legacy balance endpoint; the active client and generation path do not use it.
 - `delete-account`: account deletion.
 
 Pipeline invariants:
@@ -158,6 +158,7 @@ Pipeline invariants:
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
 - The cookbook row owns style id, style revision, and visual references. Never accept a caller-defined per-recipe style as canonical.
 - The typesetter is a compatibility renderer for old pages only. It is not a second generation pipeline.
+- Internal generation credits are suspended. New generations use `credit_cost = 0` and must not call `reserve_generation_credit`; see ADR 0003 before changing this policy.
 
 ## Environment Variables
 

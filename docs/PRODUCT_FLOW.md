@@ -117,7 +117,7 @@ See [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) for th
 | Recipe extraction is wrong | `supabase/functions/extract-recipe/index.ts`, URL evidence helpers, and the stored Recipe Graph |
 | Wrong cookbook selected | `begin_recipe_capture`, the cookbook `is_default` field, and the explicit destination passed by the entry point |
 | Page style does not match the book | Cookbook `cover_style`, `style_revision`, `page_style_references`, then `_shared/artGeneration.ts` |
-| Page generation is stuck | `generation_requests`, `page_versions`, `generate-page-art` logs, credit ledger, then capture `pageStatus` |
+| Page generation is stuck | `generation_requests`, `page_versions`, `generate-page-art` logs, OpenRouter availability, then capture `pageStatus` |
 | Finished page is absent from the reader | Capture `status`, page `lifecycle_status`, `selected_version_id`, and `useRecipeCaptures` reconciliation |
 | Nosh answers from the wrong recipe | `NoshConversationContext`, interaction focus, `noshChatAdapter.ts`, and collection retrieval tools |
 

@@ -89,16 +89,16 @@ Each cookbook page image generation pass produces a version. Used to keep histor
 | `prompt_payload` | jsonb | The exact complete-page prompt contract, style revision, and references used |
 | `model` | text | For example, `qwen/qwen-image-3-pro` |
 | `status` | text CHECK ∈ {`pending`, `generating`, `ready`, `failed`} | |
-| `credit_cost` | integer | Almost always 1 |
+| `credit_cost` | integer | Historical internal-credit metadata; new generations use 0 |
 | `error_message` | text | |
 
 ### `nutriai.credit_ledger`
-Append-only generation credit ledger. Sum of `amount` per `user_id` is the current balance. Generation spend and refund rows reference a generation request and are protected by partial unique indexes, so one request can spend and refund at most once.
+Historical append-only generation credit ledger. Existing spend and refund rows remain available for audit, but the active generation pipeline neither checks the balance nor creates new spend rows. The legacy reservation RPC remains for compatibility only. See [ADR 0003](./adr/0003-suspend-internal-generation-credits.md).
 
 ### `nutriai.generation_requests`
 Server-owned idempotency records for cookbook page generation. A row stores the user-scoped request key, original payload, processing state, created recipe/page/version references, storage path, and cached successful response.
 
-The Edge Function claims a request, returns a processing response, and completes image generation as a background task. The client polls with the same idempotency key until it receives the cached page or terminal failure. Repeated calls do not start another generation. Requests that remain processing for more than ten minutes are expired and refunded on the next lookup.
+The Edge Function claims a request, returns a processing response, and completes image generation as a background task. The client polls with the same idempotency key until it receives the cached page or terminal failure. Repeated calls do not start another generation. Requests that remain processing for more than ten minutes are expired on the next lookup. Historical requests with a spend row are also refunded.
 
 `supabase/tests/generation_idempotency.sql` is a rollback-only live proof that duplicate claims spend once and duplicate failures refund once.
 
@@ -141,6 +141,7 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260821171438_phase9_security_performance_hardening.sql` | Hardens RLS helpers and adds query-supporting indexes |
 | `supabase/migrations/20260822002000_cookbook_page_selected_version_index.sql` | Adds selected-version lookup support |
 | `supabase/migrations/20260822153000_simplify_recipe_page_pipeline.sql` | Collapses capture/review into processing, optional destination choice, retry, and ready; adds default books and versioned page-style anchors |
+| `supabase/migrations/20260823020628_suspend_internal_generation_credits.sql` | Suspends the legacy internal credit gate while preserving ledger history and compatibility RPCs |
 
 ## RLS posture
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the live book-first Nosh app. Read [PRODUCT_FLOW.md](./PRODUCT_FLOW.md) for the user journey and [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) before changing recipe capture or page generation. Dated plans under `docs/superpowers/` are historical.
+This document describes the live book-first Nosh app. Read [PRODUCT_FLOW.md](./PRODUCT_FLOW.md), [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md), and [ADR 0003](./adr/0003-suspend-internal-generation-credits.md) before changing recipe capture or page generation. Dated plans under `docs/superpowers/` are historical.
 
 ## Product Surface
 
@@ -107,7 +107,7 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | Hook | Role |
 |---|---|
 | `useAuth` | Supabase session, user, and sign-out |
-| `useCookbooks` | Shelf list, create/delete cookbook, credit balance, shelf cache hydration |
+| `useCookbooks` | Shelf list, create/delete cookbook, and shelf cache hydration |
 | `useCookbook(cookbookId)` | One cookbook, its pages, selected page, refresh, and optimistic page upsert |
 | `useRecipeCaptures` | Durable capture list, polling, retry, and destination selection |
 | `useNoshConversation` | Persistent conversation visibility, intake state, and active book/page context |
@@ -165,6 +165,8 @@ The pipeline has four cooperating modules with one public capture lifecycle:
 4. **Complete Page Generation (Qwen Image 3 Pro):** Produces the dish imagery, visible recipe text, typography, paper, and composition as one style-conditioned portrait page
 
 The selected generated image is the page the user reads. The canonical `recipe_graph` is a separate machine-readable layer used by Nosh for questions, substitutions, scaling, and revisions. Legacy vector/typesetter pages remain readable, but new captures do not use that rendering pipeline.
+
+Internal generation credits are suspended during product development. `generate-page-art` does not reserve a ledger credit, new page versions record `credit_cost = 0`, and OpenRouter provider availability is the only cost-side generation dependency. The historical ledger and reservation RPC remain dormant until a future product policy supersedes [ADR 0003](./adr/0003-suspend-internal-generation-credits.md).
 
 ### Assistant Chat
 
