@@ -1,0 +1,6 @@
+entries:
+  - turn: "2026-08-23_001#1"
+    notes:
+      - "Routed the user's consolidation choice directly as N01 because it selects between concrete UX alternatives."
+      - "Routed implementation and verification as N02; no interpretive claim required staging this turn."
+      - "Did not record routine status, formatting, or environment checks."

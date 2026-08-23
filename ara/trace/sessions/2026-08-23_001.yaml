@@ -1,0 +1,50 @@
+session:
+  id: "2026-08-23_001"
+  date: "2026-08-23"
+  started: "2026-08-23T04:08+03:00"
+  last_turn: "2026-08-23T04:08+03:00"
+  turn_count: 1
+  summary: "Replaced the approval-era recipe queue with a unified, state-aware Save a Recipe flow."
+
+events_logged:
+  - turn: 1
+    type: decision
+    id: N01
+    routing: direct
+    provenance: user
+    summary: "Consolidate all capture phases into Save a Recipe; remove separate approval-era queue."
+  - turn: 1
+    type: experiment
+    id: N02
+    routing: direct
+    provenance: ai-executed
+    summary: "Unified flow passed mobile browser, TypeScript, lint, and 25-test verification."
+
+ai_actions:
+  - turn: 1
+    action: "Implemented a dedicated Save a Recipe route with inline capture activity and explicit lifecycle states."
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/save.tsx"
+      - "app/(book)/index.tsx"
+      - "app/(book)/imports.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "utils/cookbook/capturePresentation.ts"
+  - turn: 1
+    action: "Added capture lifecycle regression coverage and verified the flow at a phone-sized viewport."
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+      - "__tests__/utils/cookbook/capturePresentation.test.ts"
+      - "__tests__/components/noshConversationWrappers.test.ts"
+
+claims_touched: []
+
+key_context:
+  - turn: 1
+    excerpt: "Recipes now go directly to books; there should be no separate approval or review screen."
+
+open_threads:
+  - "Validate one live image or URL import in Nosh (Dev) on iPhone."
+
+ai_suggestions_pending: []

@@ -1,0 +1,8 @@
+sessions:
+  - id: "2026-08-23_001"
+    date: "2026-08-23"
+    summary: "Replaced the approval-era recipe queue with a unified, state-aware Save a Recipe flow."
+    turn_count: 1
+    events_count: 2
+    claims_touched: []
+    open_threads: 1

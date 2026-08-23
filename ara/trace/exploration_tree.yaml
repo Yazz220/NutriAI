@@ -1,0 +1,32 @@
+tree:
+  - id: N01
+    type: decision
+    title: "Consolidate recipe capture into Save a Recipe"
+    provenance: user
+    timestamp: "2026-08-23T04:08+03:00"
+    choice: >-
+      Remove the approval-era attention entry point and show processing, failure,
+      destination, and ready states inside one Save a Recipe experience.
+    alternatives:
+      - "Keep a separate recipes-need-you queue"
+      - "Auto-open a different screen after processing"
+    evidence:
+      - "User direction: imported recipes now proceed directly to books without approval or review"
+      - "Pre-change browser reproduction showed a separate recipes-need-you shelf action"
+    status: resolved
+    children:
+      - id: N02
+        type: experiment
+        title: "Verify unified capture states and mobile flow"
+        provenance: ai-executed
+        timestamp: "2026-08-23T04:08+03:00"
+        result: >-
+          Phone-sized browser verification showed one Save a Recipe entry point,
+          inline recipe activity, destination selection, and compatibility redirect.
+          TypeScript, targeted lint, five Jest suites, 25 tests, and diff checks passed.
+        evidence:
+          - "app/(book)/save.tsx"
+          - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+          - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+          - "__tests__/utils/cookbook/capturePresentation.test.ts"
+        status: resolved
