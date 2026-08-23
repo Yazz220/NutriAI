@@ -1,20 +1,17 @@
 import React from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { NoshCaptureWorkspace } from '@/components/nosh/capture/NoshCaptureWorkspace';
 import { Text } from '@/components/ui/Text';
-import { useCookbook } from '@/hooks/useCookbook';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
-export default function AddPageScreen() {
-  const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
-  const { cookbook } = useCookbook(cookbookId);
-
-  const cookbookTitle = cookbook?.title ?? 'Cookbook';
+export default function SaveRecipeScreen() {
+  const params = useLocalSearchParams<{ captureId?: string | string[] }>();
+  const captureId = Array.isArray(params.captureId) ? params.captureId[0] : params.captureId;
 
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
@@ -25,42 +22,42 @@ export default function AddPageScreen() {
       >
         <View style={styles.topBar}>
           <Pressable
-            style={styles.backButton}
-            onPress={() => router.replace(`/(book)/${cookbookId}`)}
-            accessibilityLabel="Back to cookbook"
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+            onPress={() => router.replace('/(book)')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to my cookbooks"
           >
             <ChevronLeft size={20} color={Colors.text} />
           </Pressable>
           <View style={styles.heading}>
-            <Text style={styles.eyebrow}>Add page</Text>
-            <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
-              Add a page to {cookbookTitle}
+            <Text style={styles.eyebrow}>Nosh intake</Text>
+            <Text style={styles.title}>Save a recipe</Text>
+            <Text style={styles.copy}>
+              Add a source and follow it here until the finished page is in its cookbook.
             </Text>
           </View>
         </View>
 
-        <NoshCaptureWorkspace destinationCookbookId={cookbookId} />
+        <NoshCaptureWorkspace captureId={captureId} />
       </ScrollView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     flexGrow: 1,
     width: '100%',
     maxWidth: 760,
     alignSelf: 'center',
+    gap: Spacing.lg,
     padding: Spacing.lg,
     paddingBottom: Spacing.xxxl,
-    gap: Spacing.lg,
   },
   topBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.md,
     paddingTop: Spacing.md,
   },
@@ -70,24 +67,29 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.ash,
+    backgroundColor: Colors.white,
   },
-  heading: {
-    flex: 1,
-  },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
+  heading: { flex: 1, gap: 2 },
   eyebrow: {
     color: Colors.textMuted,
-    fontSize: 10,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    fontSize: 10,
+    letterSpacing: 0.4,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  copy: {
+    maxWidth: 520,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

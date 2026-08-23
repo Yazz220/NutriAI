@@ -54,9 +54,9 @@ _Avoid_: Pending review
 A capture that stopped because extraction or page generation failed and can be retried.
 _Avoid_: Needs help, rejected
 
-**Recent imports**:
-The status history for recipe captures, including work in progress, destination choices, failures, and completed pages.
-_Avoid_: Approval inbox
+**Recipe activity**:
+The compact status section inside Save a recipe, including work in progress, destination choices, failures, and completed pages.
+_Avoid_: Approval inbox, separate imports queue
 
 ## Nosh
 

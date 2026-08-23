@@ -29,7 +29,7 @@ describe('purpose-built Nosh conversation wrappers', () => {
     expect(config.title).toBe('What can Nosh help with?');
     expect(config.prompts).toEqual(expect.arrayContaining([
       'Find a recipe I saved',
-      'Review recent imports',
+      'Save or check a recipe',
       'Organize my cookbooks',
       'Create a new cookbook',
     ]));
@@ -55,6 +55,8 @@ describe('purpose-built Nosh conversation wrappers', () => {
   });
 
   it('keeps source controls in the dedicated capture task', () => {
+    expect(getNoshStartConfig(capture, true).copy).toContain('add it to the right cookbook automatically');
+    expect(getNoshStartConfig(capture, true).copy).not.toContain('ask before');
     expect(getNoshComposerMode(capture, true)).toEqual({
       allowsRecipePhoto: true,
       placeholder: 'Send a recipe link, text, or photo...',

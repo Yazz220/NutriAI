@@ -1,0 +1,8 @@
+sessions:
+  - id: "2026-08-23_001"
+    date: "2026-08-23"
+    summary: "Unified the Save flow and repaired duplicate model-generated IDs that broke uploaded recipe rendering."
+    turn_count: 2
+    events_count: 6
+    claims_touched: []
+    open_threads: 1

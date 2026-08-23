@@ -142,6 +142,61 @@ function groupItemCount(groups: unknown, field: 'ingredients' | 'steps'): number
   }, 0);
 }
 
+function uniqueId(value: unknown, fallback: string, seen: Set<string>): string {
+  const base = typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  let candidate = base;
+  let suffix = 2;
+
+  while (seen.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  seen.add(candidate);
+  return candidate;
+}
+
+function normalizeIngredientGroupIds(value: unknown): JsonRecord[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+
+  return value.flatMap((group, index) => {
+    const groupRecord = record(group);
+    if (!groupRecord) return [];
+    return [{
+      ...groupRecord,
+      id: uniqueId(groupRecord.id, `ingredient-group-${index + 1}`, seen),
+    }];
+  });
+}
+
+function normalizeStepGroupIds(value: unknown): JsonRecord[] {
+  if (!Array.isArray(value)) return [];
+  const seenGroups = new Set<string>();
+  const seenSteps = new Set<string>();
+
+  return value.flatMap((group, groupIndex) => {
+    const groupRecord = record(group);
+    if (!groupRecord) return [];
+    const steps = Array.isArray(groupRecord.steps)
+      ? groupRecord.steps.flatMap((step, stepIndex) => {
+        const stepRecord = record(step);
+        if (!stepRecord) return [];
+        return [{
+          ...stepRecord,
+          id: uniqueId(stepRecord.id, `step-${groupIndex + 1}-${stepIndex + 1}`, seenSteps),
+        }];
+      })
+      : [];
+
+    return [{
+      ...groupRecord,
+      id: uniqueId(groupRecord.id, `step-group-${groupIndex + 1}`, seenGroups),
+      steps,
+    }];
+  });
+}
+
 /** Repair common model omissions, then merge deterministic source evidence. */
 export function normalizeRecipeGraphDraft(
   candidate: unknown,
@@ -160,6 +215,9 @@ export function normalizeRecipeGraphDraft(
     const aliasGroups = stepGroupsFrom(source.steps ?? source.instructions ?? source.recipeInstructions);
     draft.stepGroups = aliasGroups.length > 0 ? aliasGroups : fallback?.stepGroups ?? [];
   }
+
+  draft.ingredientGroups = normalizeIngredientGroupIds(draft.ingredientGroups);
+  draft.stepGroups = normalizeStepGroupIds(draft.stepGroups);
 
   draft.title = typeof source.title === 'string' && source.title.trim()
     ? source.title.trim()

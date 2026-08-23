@@ -25,7 +25,7 @@ export function NoshConversationStart({
         <Text style={styles.title}>{config.title}</Text>
         <Text style={styles.copy}>{config.copy}</Text>
         <View style={styles.actions}>
-          {config.prompts.map((prompt) => prompt === 'Review recent imports' ? (
+          {config.prompts.map((prompt) => prompt === 'Save or check a recipe' ? (
             <Pressable
               key={prompt}
               style={styles.action}
@@ -33,7 +33,7 @@ export function NoshConversationStart({
               accessibilityLabel={prompt}
               onPress={() => {
                 close();
-                router.push('/(book)/imports');
+                router.push('/(book)/save');
               }}
             >
               <Text style={styles.actionText}>{prompt}</Text>

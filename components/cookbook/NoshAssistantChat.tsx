@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChefHat } from 'lucide-react-native';
@@ -613,20 +613,22 @@ export function NoshConversationHost() {
               />
             ) : null}
             {interaction.task === 'capture' ? (
-              <NoshCaptureWorkspace
-                initialSource={captureHandoffSource}
-                destinationCookbookId={interaction.focus.kind === 'cookbook'
-                  ? interaction.focus.cookbookId
-                  : undefined}
-                captureId={interaction.focus.kind === 'capture'
-                  ? interaction.focus.captureId
-                  : undefined}
-                onReady={(cookbookId, pageId) => {
-                  setCaptureHandoffSource(null);
-                  close();
-                  router.replace(`/(book)/${cookbookId}?pageId=${pageId}`);
-                }}
-              />
+              <ScrollView
+                style={styles.captureScroll}
+                contentContainerStyle={styles.captureScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <NoshCaptureWorkspace
+                  initialSource={captureHandoffSource}
+                  destinationCookbookId={interaction.focus.kind === 'cookbook'
+                    ? interaction.focus.cookbookId
+                    : undefined}
+                  captureId={interaction.focus.kind === 'capture'
+                    ? interaction.focus.captureId
+                    : undefined}
+                />
+              </ScrollView>
             ) : (
               <NoshConversationDisplay
                 interaction={interaction}
@@ -654,6 +656,8 @@ const styles = StyleSheet.create({
   },
   handle: { backgroundColor: Colors.duskGrey },
   closeButton: { backgroundColor: Colors.white },
+  captureScroll: { flex: 1 },
+  captureScrollContent: { paddingBottom: Spacing.lg },
   iconBadge: {
     width: 42,
     height: 42,

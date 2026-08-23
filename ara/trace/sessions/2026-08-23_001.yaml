@@ -1,0 +1,88 @@
+session:
+  id: "2026-08-23_001"
+  date: "2026-08-23"
+  started: "2026-08-23T04:08+03:00"
+  last_turn: "2026-08-23T04:35+03:00"
+  turn_count: 2
+  summary: "Unified the Save flow and repaired duplicate model-generated IDs that broke uploaded recipe rendering."
+
+events_logged:
+  - turn: 1
+    type: decision
+    id: N01
+    routing: direct
+    provenance: user
+    summary: "Consolidate all capture phases into Save a Recipe; remove separate approval-era queue."
+  - turn: 1
+    type: experiment
+    id: N02
+    routing: direct
+    provenance: ai-executed
+    summary: "Unified flow passed mobile browser, TypeScript, lint, and 25-test verification."
+  - turn: 2
+    type: experiment
+    id: N03
+    routing: direct
+    provenance: ai-executed
+    summary: "Reproduced duplicate `default` group IDs in normalization and TextLayer."
+  - turn: 2
+    type: decision
+    id: N04
+    routing: direct
+    provenance: ai-suggested
+    summary: "Repair future IDs at extraction and tolerate existing collisions at rendering."
+  - turn: 2
+    type: experiment
+    id: N05
+    routing: direct
+    provenance: ai-executed
+    summary: "Eight tests passed and extract-recipe version 7 deployed active."
+  - turn: 2
+    type: heuristic
+    id: H01
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Normalize model IDs and render persisted legacy graphs defensively."
+
+ai_actions:
+  - turn: 1
+    action: "Implemented a dedicated Save a Recipe route with inline capture activity and explicit lifecycle states."
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/save.tsx"
+      - "app/(book)/index.tsx"
+      - "app/(book)/imports.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "utils/cookbook/capturePresentation.ts"
+  - turn: 1
+    action: "Added capture lifecycle regression coverage and verified the flow at a phone-sized viewport."
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+      - "__tests__/utils/cookbook/capturePresentation.test.ts"
+      - "__tests__/components/noshConversationWrappers.test.ts"
+  - turn: 2
+    action: "Added deterministic unique-ID normalization and collision-safe recipe rendering."
+    provenance: ai-executed
+    files_changed:
+      - "supabase/functions/_shared/recipeGraphNormalization.ts"
+      - "components/cookbook/typesetter/TextLayer.tsx"
+  - turn: 2
+    action: "Added exact regression coverage and deployed extract-recipe version 7."
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/utils/cookbook/recipeGraphNormalization.test.ts"
+      - "__tests__/components/cookbook/TextLayer.test.tsx"
+
+claims_touched: []
+
+key_context:
+  - turn: 1
+    excerpt: "Recipes now go directly to books; there should be no separate approval or review screen."
+  - turn: 2
+    excerpt: "An uploaded recipe opened a developer error reporting two children with the key `default` in TextLayer."
+
+open_threads:
+  - "Confirm the repaired saved recipe opens on Nosh (Dev) after reload, then validate one new live import."
+
+ai_suggestions_pending: []
