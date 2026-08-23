@@ -30,3 +30,9 @@ entries:
       - "Crystallized O03 to A01 and O05 to H02 via verbal affirmation; the user explicitly liked the recommendation and authorized the prototype/full implementation sequence."
       - "Left O04 staged because this turn validated UI behavior, not the unused generator-field audit."
       - "Staged O06 as a heuristic pending the user's direct comparison of the three variants."
+  - turn: "2026-08-23_001#7"
+    notes:
+      - "Routed the explicit Studio A verdict and deferral of expanded pickers/stickers as user-authored N14."
+      - "Routed image generation, production implementation, live migration/deployments, mobile QA, and the 192-test pass as N15."
+      - "Crystallized O06 to H03 via verbal affirmation and rebound H02/A01 from the throwaway prototype to production code."
+      - "Left O04 staged as a historical pre-split implementation observation; this turn replaced the coupling rather than validating it as a current claim."

@@ -1,8 +1,8 @@
 sessions:
   - id: "2026-08-23_001"
     date: "2026-08-23"
-    summary: "Stabilized recipe generation and prototyped three one-book customization flows with separable cover and page identities."
-    turn_count: 6
-    events_count: 22
+    summary: "Stabilized recipe generation and shipped Studio A with generated style previews and independent cover/page identities."
+    turn_count: 7
+    events_count: 25
     claims_touched: [C01]
-    open_threads: 4
+    open_threads: 3

@@ -13,5 +13,13 @@
 - **Provenance**: user-revised
 - **Crystallized via**: verbal-affirmation
 - **Sensitivity**: medium
-- **Code ref**: [`components/create/BookCreationPrototype.tsx`]
+- **Code ref**: [`components/create/CreationStudio.tsx`, `constants/cookbookCustomization.ts`]
 - **From staging**: O05
+
+## H03: Use one continuous studio for a small customization set
+- **Rationale**: Keeping the live book, title, cover finishes, page languages, and final action in one continuous flow makes cause and effect immediate without adding navigation overhead. Selecting a page language can open the same book to its pinned sample spread, preserving tactile feedback while the choice set remains small.
+- **Provenance**: user-revised
+- **Crystallized via**: verbal-affirmation
+- **Sensitivity**: medium
+- **Code ref**: [`components/create/CreationStudio.tsx`, `app/(book)/library.tsx`]
+- **From staging**: O06

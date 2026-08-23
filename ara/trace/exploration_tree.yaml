@@ -213,3 +213,45 @@ tree:
               - "npm run typecheck"
               - "targeted ESLint and git diff checks"
             status: resolved
+          - id: N14
+            type: decision
+            title: "Adopt the continuous Studio A as production book creation"
+            provenance: user
+            timestamp: "2026-08-23T07:27+03:00"
+            choice: >-
+              Replace the production Book Explorer with Studio A, keep cover finishes and
+              recipe-page styles catalog-backed, show three curated page languages with
+              generated brownie and cookie samples, and defer expanded pickers and cover
+              stickers to later work.
+            alternatives:
+              - "Adopt the tactile tray prototype"
+              - "Adopt the guided three-step prototype"
+              - "Expose every future style and sticker control in the initial Studio"
+            evidence:
+              - N13
+              - "User verdict: single Studio prototype A is the preferred direction"
+              - "User requirement: keep future cover finishes, recipe styles, and stickers extensible"
+            status: resolved
+            children:
+              - id: N15
+                type: experiment
+                title: "Implement and verify production Studio A"
+                provenance: ai-executed
+                timestamp: "2026-08-23T07:27+03:00"
+                result: >-
+                  Generated six distinct brownie/cookie preview pages for Illustrated,
+                  Editorial, and Heritage; replaced the prototype with one live production
+                  Studio; separated cover_style from page_style_id in client, database, and
+                  generation functions; preserved all four live books; and deployed
+                  capture-recipe version 4 and generate-page-art version 8. Phone-sized visual
+                  checks passed for all spreads and live title/cover changes. TypeScript, lint,
+                  50 Jest suites, and 192 tests passed.
+                evidence:
+                  - "components/create/CreationStudio.tsx"
+                  - "constants/cookbookCustomization.ts"
+                  - "assets/cookbook/style-previews/"
+                  - "supabase/migrations/20260823041346_add_cookbook_page_styles.sql"
+                  - "supabase/functions/_shared/artGeneration.ts"
+                  - "Browser verification at 390x844"
+                  - "Supabase capture-recipe version 4 and generate-page-art version 8: ACTIVE"
+                status: resolved

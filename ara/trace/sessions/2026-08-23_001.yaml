@@ -2,9 +2,9 @@ session:
   id: "2026-08-23_001"
   date: "2026-08-23"
   started: "2026-08-23T04:08+03:00"
-  last_turn: "2026-08-23T05:57+03:00"
-  turn_count: 6
-  summary: "Stabilized recipe generation and prototyped three one-book customization flows with separable cover and page identities."
+  last_turn: "2026-08-23T07:27+03:00"
+  turn_count: 7
+  summary: "Stabilized recipe generation and shipped Studio A with generated style previews and independent cover/page identities."
 
 events_logged:
   - turn: 1
@@ -139,6 +139,24 @@ events_logged:
     routing: staged
     provenance: ai-suggested
     summary: "Continuous studio appears strongest, with tactile preview cues borrowed from the tray."
+  - turn: 7
+    type: decision
+    id: N14
+    routing: direct
+    provenance: user
+    summary: "Adopt Studio A, keep customization catalog-backed, and defer expanded pickers and stickers."
+  - turn: 7
+    type: experiment
+    id: N15
+    routing: direct
+    provenance: ai-executed
+    summary: "Six generated samples, production Studio, live schema split, deployments, mobile QA, and 192 tests passed."
+  - turn: 7
+    type: heuristic
+    id: H03
+    routing: crystallized
+    provenance: user-revised
+    summary: "Use one continuous studio for the small initial customization set."
 
 ai_actions:
   - turn: 1
@@ -205,6 +223,29 @@ ai_actions:
     action: "Verified live customization and non-saving completion at phone and desktop sizes while preserving the current explorer reference."
     provenance: ai-executed
     files_changed: []
+  - turn: 7
+    action: "Generated and optimized six complete brownie and cookie page previews for Illustrated, Editorial, and Heritage."
+    provenance: ai-executed
+    files_changed:
+      - "assets/cookbook/style-previews/"
+      - "docs/RECIPE_PAGE_STYLES.md"
+  - turn: 7
+    action: "Replaced the prototype with production Studio A and separated physical covers from book-owned page styles throughout persistence and generation."
+    provenance: ai-executed
+    files_changed:
+      - "components/create/CreationStudio.tsx"
+      - "constants/cookbookCustomization.ts"
+      - "utils/cookbook/api.ts"
+      - "supabase/functions/capture-recipe/index.ts"
+      - "supabase/functions/generate-page-art/index.ts"
+      - "supabase/migrations/20260823041346_add_cookbook_page_styles.sql"
+  - turn: 7
+    action: "Applied the live migration, preserved all existing book identities, deployed both affected functions, and verified the Studio at iPhone size."
+    provenance: ai-executed
+    files_changed:
+      - "docs/adr/0004-separate-cover-and-page-style.md"
+      - "__tests__/components/create/CreationStudio.test.tsx"
+      - "__tests__/constants/cookbookCustomization.test.ts"
 
 claims_touched:
   - id: C01
@@ -224,12 +265,12 @@ key_context:
     excerpt: "There should be one book the user is creating; designs become customization options, and page-generation style should be chosen rather than tied to the book skin."
   - turn: 6
     excerpt: "I like it. Create the prototype, then we can go ahead with the full implementation."
+  - turn: 7
+    excerpt: "Single studio prototype A is the most I like; keep it expandable, show two generated recipes for each page style, and leave expanded pickers and stickers for later."
 
 open_threads:
   - "Retry an existing failed capture from the iPhone and observe the provider-side generation result."
   - "Before production, design entitlement, pricing, purchase/restore, abuse controls, and failure compensation."
-  - "Have the user compare prototype variants and confirm the production interaction model."
-  - "Implement the cover/page identity schema and generator split after the prototype verdict."
+  - "Design the expanded cover/page-style picker and normalized cover-sticker editor in a later session."
 
-ai_suggestions_pending:
-  - "Use the continuous studio as the base and borrow the tactile preview emphasis from the tray variant."
+ai_suggestions_pending: []
