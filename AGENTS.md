@@ -47,6 +47,10 @@ npx eas-cli build --profile production --platform ios
 npx eas-cli submit --platform ios
 ```
 
+### Local Simulator Loop
+
+The `ios/` project is prebuilt and gitignored. Build once with `xcodebuild -workspace ios/Nosh.xcworkspace -scheme Nosh -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`, then launch with `xcrun simctl launch booted com.yaz12.nosh --initialUrl http://localhost:8081` to skip the dev-client launcher UI. Fast Refresh notifications are unreliable on this machine (no watchman); force a fresh bundle with `curl 'http://localhost:8081/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&lazy=true'` and relaunch the app to pick up changes.
+
 ### Supabase Edge Functions
 
 ```bash
@@ -215,6 +219,7 @@ Never expose provider API keys through `EXPO_PUBLIC_*`.
 - Keep generated page prompts tied to the active cookbook style.
 - Route every new recipe source through `capture-recipe`; do not add a parallel import or image pipeline.
 - Keep provider order in `app/_layout.tsx` stable unless all consumers are checked.
+- Do not put `perspective`/`rotateX`/`rotateY` transforms on views inside the creation studio's preview panel: iOS mis-clips out-of-plane transformed views there (the cover rendered as a diagonal wedge, the spread half-cut). The shelf's Reanimated 3D poses in an unclipped stage are fine.
 - Only packages with config plugins belong in `app.json` plugins.
 - Do not edit another worker's unrelated files on the shared cleanup branch.
 - Do not commit unless the user explicitly asks.
