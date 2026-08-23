@@ -71,7 +71,8 @@ app/
     index.tsx                  My Cookbooks shelf
     library.tsx                style picker and cookbook creation
     settings.tsx               account, stats, sign out
-    imports.tsx                durable capture status and destination choices
+    save.tsx                   recipe source composer and durable capture activity
+    imports.tsx                compatibility redirect to Save a recipe
     share.tsx                  native Share to Nosh handoff
     [cookbookId]/
       _layout.tsx              per-book stack

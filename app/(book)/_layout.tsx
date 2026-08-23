@@ -7,6 +7,7 @@ export default function BookLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="library" options={{ presentation: 'card' }} />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="save" />
       <Stack.Screen name="imports" />
       <Stack.Screen name="share" />
       <Stack.Screen

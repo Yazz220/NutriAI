@@ -30,7 +30,7 @@ The same flow starts from the shelf's Save a recipe action, a cookbook's Add pag
 | Save a recipe from the bookshelf | No | The capture uses the default or sole cookbook when available. |
 | Add page from an open cookbook | Yes | The finished page returns to that book and opens at the new recipe. |
 | Send a recipe source to Nosh | Depends on active context | Nosh asks before switching to capture, then hands the source to the same capture workspace. |
-| Retry from Recipe imports | Preserved | The existing capture resumes. It does not create a second capture or page. |
+| Retry from Save a recipe activity | Preserved | The existing capture resumes. It does not create a second capture or page. |
 
 Supported sources are a URL, pasted text, one image, or a video link. Audio and multi-file share are not implemented.
 

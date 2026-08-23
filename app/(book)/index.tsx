@@ -1,5 +1,5 @@
 import React from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { ShelfScene } from '@/components/shelf/ShelfScene';
@@ -11,28 +11,9 @@ import { useCookbooks } from '@/hooks/useCookbooks';
 import type { Cookbook } from '@/types/cookbook';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { useNoshConversation } from '@/contexts/NoshConversationContext';
 
 export default function MyCookbooksScreen() {
-  const params = useLocalSearchParams<{ captureId?: string | string[]; saveRecipe?: string | string[] }>();
   const { cookbooks, isLoading, isShelfStale, shelfError, refresh } = useCookbooks();
-  const { open, setVisibleBookContext } = useNoshConversation();
-  const handledRequestRef = React.useRef<string | null>(null);
-  const captureId = Array.isArray(params.captureId) ? params.captureId[0] : params.captureId;
-  const saveRecipe = Array.isArray(params.saveRecipe) ? params.saveRecipe[0] : params.saveRecipe;
-
-  React.useEffect(() => {
-    const requestKey = captureId ? `capture:${captureId}` : saveRecipe === '1' ? 'save-recipe' : null;
-    if (!requestKey || handledRequestRef.current === requestKey) return;
-    handledRequestRef.current = requestKey;
-    setVisibleBookContext({ cookbook: null, pages: [], page: null });
-    open(
-      'share-to-nosh',
-      captureId
-        ? { kind: 'capture', captureId, title: 'Recipe activity' }
-        : { kind: 'collection' },
-    );
-  }, [captureId, open, saveRecipe, setVisibleBookContext]);
 
   function openLibrary() {
     router.push('/(book)/library');
@@ -81,15 +62,12 @@ export default function MyCookbooksScreen() {
       <NoshShelfChatButton />
       <Pressable
         style={styles.captureButton}
-        onPress={() => {
-          setVisibleBookContext({ cookbook: null, pages: [], page: null });
-          open('share-to-nosh', { kind: 'collection' });
-        }}
+        onPress={() => router.push('/(book)/save')}
         accessibilityRole="button"
         accessibilityLabel="Save a recipe with Nosh"
       >
         <Plus size={17} color={Colors.text} />
-        <Text style={styles.importsText}>Save a recipe</Text>
+        <Text style={styles.captureButtonText}>Save a recipe</Text>
       </Pressable>
     </View>
   );
@@ -105,7 +83,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.background,
   },
-  importsText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  captureButtonText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
   captureButton: {
     position: 'absolute',
     right: Spacing.md,

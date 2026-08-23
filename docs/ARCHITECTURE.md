@@ -39,6 +39,7 @@ app/
     _layout.tsx
     index.tsx
     library.tsx
+    save.tsx
     imports.tsx
     share.tsx
     settings.tsx
@@ -63,7 +64,8 @@ Route responsibilities:
 | `app/(auth)/reset-password.tsx` | Password reset form reached via recovery callback |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
 | `app/(book)/library.tsx` | Two-cover cookbook picker and cookbook creation |
-| `app/(book)/imports.tsx` | Capture status history, destination choice, retry, and completed-page links |
+| `app/(book)/save.tsx` | The single recipe source composer plus processing, destination, retry, and ready activity |
+| `app/(book)/imports.tsx` | Compatibility redirect into Save a recipe |
 | `app/(book)/share.tsx` | Native share receipt and retry screen |
 | `app/(book)/settings.tsx` | Account, library stats, sign out |
 | `app/(book)/[cookbookId]/index.tsx` | Swipeable reader for a single cookbook |
@@ -198,7 +200,7 @@ AI_MODEL
 
 ### Recipe Import
 
-Share to Nosh, Cookbook Add, assistant handoff, and Recent imports all use `capture-recipe` through `utils/cookbook/api.ts`. Structured recipe pages bypass the extraction model through schema.org Recipe JSON-LD normalization; other text, images, and video links use strict-schema model extraction. Image MIME types are preserved. Video remains URL-only and provider-dependent. Audio intake is not implemented and must not be advertised as available. The review route redirects into the capture workspace and does not own state or generation.
+Share to Nosh, Cookbook Add, assistant handoff, and Save a recipe activity all use `capture-recipe` through `utils/cookbook/api.ts`. Structured recipe pages bypass the extraction model through schema.org Recipe JSON-LD normalization; other text, images, and video links use strict-schema model extraction. Image MIME types are preserved. Video remains URL-only and provider-dependent. Audio intake is not implemented and must not be advertised as available. The retired imports and review routes redirect into the capture workspace and do not own state or generation.
 
 Secrets:
 

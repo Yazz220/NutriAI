@@ -8,8 +8,8 @@ export default function RecipeImportsCompatibilityRoute() {
 
   useEffect(() => {
     router.replace(captureId
-      ? `/(book)?saveRecipe=1&captureId=${encodeURIComponent(captureId)}`
-      : '/(book)?saveRecipe=1');
+      ? `/(book)/save?captureId=${encodeURIComponent(captureId)}`
+      : '/(book)/save');
   }, [captureId]);
 
   return null;

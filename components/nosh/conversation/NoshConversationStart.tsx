@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { AuiIf, ThreadPrimitive } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -16,7 +17,7 @@ export function NoshConversationStart({
   interaction: NoshInteractionSession;
   contextModelEnabled: boolean;
 }) {
-  const { open } = useNoshConversation();
+  const { close } = useNoshConversation();
   const config = getNoshStartConfig(interaction, contextModelEnabled);
   return (
     <AuiIf condition={(state) => state.thread.isEmpty}>
@@ -31,7 +32,8 @@ export function NoshConversationStart({
               accessibilityRole="button"
               accessibilityLabel={prompt}
               onPress={() => {
-                open('share-to-nosh', { kind: 'collection' });
+                close();
+                router.push('/(book)/save');
               }}
             >
               <Text style={styles.actionText}>{prompt}</Text>

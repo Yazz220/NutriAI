@@ -44,7 +44,7 @@ export default function NativeShareReceiptScreen() {
             <Button
               title="View progress"
               icon={<Clock3 size={17} color={Colors.onPrimary} />}
-              onPress={() => router.replace(`/(book)?saveRecipe=1&captureId=${receipt.captureId}`)}
+              onPress={() => router.replace(`/(book)/save?captureId=${receipt.captureId}`)}
               fullWidth
             />
             <Button title="Done" variant="ghost" onPress={finish} fullWidth />
@@ -62,7 +62,7 @@ export default function NativeShareReceiptScreen() {
           <>
             <View style={styles.icon}><Share2 size={24} color={Colors.text} /></View>
             <Text style={styles.title}>No shared recipe is waiting</Text>
-            <Button title="Open Save a recipe" onPress={() => router.replace('/(book)?saveRecipe=1')} fullWidth />
+            <Button title="Open Save a recipe" onPress={() => router.replace('/(book)/save')} fullWidth />
           </>
         )}
       </View>
