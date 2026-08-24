@@ -2,9 +2,9 @@ session:
   id: "2026-08-25_001"
   date: "2026-08-25"
   started: "2026-08-25T01:21+03:00"
-  last_turn: "2026-08-25T02:05+03:00"
-  turn_count: 2
-  summary: "Researched, adopted, and implemented a hybrid interactive first-book onboarding for Nosh."
+  last_turn: "2026-08-25T02:31+03:00"
+  turn_count: 3
+  summary: "Implemented Nosh onboarding from welcome through first personally sourced recipe activation."
 
 events_logged:
   - turn: 1
@@ -73,6 +73,24 @@ events_logged:
     routing: crystallized
     provenance: user-revised
     summary: "Keep sample recipes in an explicit read-only preview, not the personal collection."
+  - turn: 3
+    type: decision
+    id: N19
+    routing: direct
+    provenance: user
+    summary: "Continue onboarding through real source capture, durable progress, ready open, and reader introduction."
+  - turn: 3
+    type: experiment
+    id: N20
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented activation guidance and milestone events; 205 tests and all static/iOS bundle checks passed."
+  - turn: 3
+    type: claim
+    id: C02
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Treat first_ready_recipe_opened as the instrumented but unvalidated activation hypothesis."
 
 ai_actions:
   - turn: 1
@@ -117,8 +135,32 @@ ai_actions:
       product-pattern workstreams; deep-read high-signal official, research, and practitioner sources.
     provenance: ai-executed
     files_changed: []
+  - turn: 3
+    action: >-
+      Extended first-run persistence and UI through first source capture, durable processing,
+      ready-page open, and a dismissible one-time reader introduction; added privacy-safe
+      activation milestone calls through the existing analytics shim.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/library.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 3
+    action: >-
+      Added state-machine, capture-guidance, ready activation, and first-page cue regressions;
+      ran 205 Jest tests, strict TypeScript, lint, diff checks, iOS bundle generation, and simulator relaunch.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
 
-claims_touched: []
+claims_touched:
+  - id: C02
+    action: crystallized
+    turn: 3
 
 key_context:
   - turn: 1
@@ -127,12 +169,14 @@ key_context:
       research alternatives before implementation, and end with one recommended flow.
   - turn: 2
     excerpt: "Proceed with the first sequence."
+  - turn: 3
+    excerpt: "Go ahead to the next sequence."
 
 open_threads:
   - "Run the authenticated first-run sequence visually on the simulator."
-  - "Instrument and validate the candidate first_ready_recipe_opened activation event."
+  - "Connect the analytics shim to production transport and validate first_ready_recipe_opened against D1/D7 return."
   - "Complete reduced-motion, generated-page VoiceOver, RTL, and localization verification."
 
 ai_suggestions_pending:
-  - "Validate first_ready_recipe_opened against D1 and D7 return before treating it as the activation metric."
+  - "Validate first_ready_recipe_opened against D1 and D7 return before promoting it from candidate to established activation metric."
   - "Finish the broader onboarding accessibility contract beyond this sequence's scroll, target-size, semantics, and text-reflow support."

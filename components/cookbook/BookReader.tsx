@@ -4,7 +4,7 @@ import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -18,6 +18,7 @@ import Animated, {
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAuth } from '@/hooks/useAuth';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
@@ -33,6 +34,14 @@ import {
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import { trackEvent } from '@/utils/analytics';
+import {
+  defaultFirstRunOnboardingState,
+  loadFirstRunOnboardingState,
+  markFirstPageReaderCueSeen,
+  recordFirstReadyRecipeOpened,
+  type FirstRunOnboardingState,
+} from '@/utils/cookbook/firstRunOnboarding';
 
 interface BookReaderProps {
   cookbook: Cookbook | null;
@@ -80,6 +89,7 @@ export function BookReader({
 }: BookReaderProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { open, recipePreview, setVisibleBookContext } = useNoshConversation();
   const renderedPages = useMemo(
     () =>
@@ -103,6 +113,10 @@ export function BookReader({
   }, [initialPageId, leaves]);
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
+    defaultFirstRunOnboardingState,
+  );
+  const [firstRunReady, setFirstRunReady] = useState(false);
   const renderedFocusedPage =
     focusedPage && recipePreview?.pageId === focusedPage.id
       ? { ...focusedPage, recipeGraph: recipePreview.graph }
@@ -172,6 +186,51 @@ export function BookReader({
         : spreadIndex + 1;
   const counterTotal =
     usesTouchPaging && readingView === 'page' ? leaves.length : pages.length > 0 ? pages.length : spreads.length;
+  const firstPageCue = firstRunReady
+    && firstRunState.status === 'completed'
+    && firstRunState.firstCookbookId === cookbookId
+    && !firstRunState.readerCueSeen
+    ? pages.find((page) => page.id === firstRunState.firstPageId) ?? null
+    : null;
+  const firstAvailablePageId = pages[0]?.id;
+
+  useEffect(() => {
+    if (!user?.id || !cookbookId) {
+      setFirstRunState(defaultFirstRunOnboardingState());
+      setFirstRunReady(false);
+      return;
+    }
+    let cancelled = false;
+    setFirstRunReady(false);
+    void loadFirstRunOnboardingState(user.id)
+      .then(async (state) => {
+        let nextState = state;
+        if (
+          firstAvailablePageId &&
+          state.status === 'started' &&
+          state.firstCookbookId === cookbookId
+        ) {
+          const activation = await recordFirstReadyRecipeOpened(user.id, cookbookId, firstAvailablePageId);
+          nextState = activation.state;
+          if (activation.didActivate) {
+            trackEvent({
+              type: 'first_ready_recipe_opened',
+              data: { cookbookId, pageId: firstAvailablePageId, entryPoint: 'reader' },
+            });
+          }
+        }
+        if (cancelled) return;
+        setFirstRunState(nextState);
+        setFirstRunReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFirstRunReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cookbookId, firstAvailablePageId, user?.id]);
 
   useEffect(() => {
     setVisibleBookContext({
@@ -328,6 +387,13 @@ export function BookReader({
     pokeChrome();
   }
 
+  function dismissFirstPageCue() {
+    setFirstRunState((current) => ({ ...current, readerCueSeen: true }));
+    if (user?.id) {
+      void markFirstPageReaderCueSeen(user.id).catch(() => undefined);
+    }
+  }
+
   function toggleReadingView() {
     setReadingView((prev) => {
       if (prev === 'spread') {
@@ -443,6 +509,38 @@ export function BookReader({
             >
               <Plus size={18} color={Colors.onPrimary} />
               <Text style={styles.emptyBookButtonText}>Add my first recipe</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!readOnly && isOpen && firstPageCue ? (
+          <View
+            style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={styles.firstPageEyebrow}>YOUR FIRST PAGE IS HOME</Text>
+            <Text style={styles.firstPageTitle} numberOfLines={2}>{firstPageCue.title}</Text>
+            <Text style={styles.firstPageCopy}>
+              This is your designed recipe page. Open it to read, cook, and ask Nosh about the recipe.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
+              onPress={() => {
+                dismissFirstPageCue();
+                enterReadingView(firstPageCue);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Read my first recipe, ${firstPageCue.title}`}
+            >
+              <BookOpen size={18} color={Colors.onPrimary} />
+              <Text style={styles.emptyBookButtonText}>Read my recipe</Text>
+            </Pressable>
+            <Pressable
+              style={styles.firstPageDismiss}
+              onPress={dismissFirstPageCue}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss first page introduction"
+            >
+              <Text style={styles.firstPageDismissText}>Keep browsing</Text>
             </Pressable>
           </View>
         ) : null}
@@ -699,6 +797,58 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.semibold,
     fontSize: 14,
     lineHeight: 20,
+  },
+  firstPageMoment: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+    maxWidth: 360,
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.97)',
+    boxShadow: Colors.book.liftedShadow,
+    zIndex: 9,
+  },
+  firstPageEyebrow: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  firstPageTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.bold,
+    fontSize: 22,
+    lineHeight: 27,
+    textAlign: 'center',
+  },
+  firstPageCopy: {
+    maxWidth: 310,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  firstPageDismiss: {
+    minHeight: 44,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+  },
+  firstPageDismissText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 13,
+    lineHeight: 18,
   },
   readerControls: {
     position: 'absolute',

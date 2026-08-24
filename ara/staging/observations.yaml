@@ -120,9 +120,9 @@ observations:
       Nosh audit showed that an empty cookbook does not yet demonstrate the designed-page promise.
     potential_type: claim
     bound_to: [N16]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/claims.md:C02"
+    crystallized_via: artifact-commitment
     stale: false
   - id: O09
     timestamp: "2026-08-25T01:21+03:00"

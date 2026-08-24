@@ -1,8 +1,10 @@
 import React from 'react';
 import { act, fireEvent, render } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookReader } from '@/components/cookbook/BookReader';
 import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
 import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleCookbook';
+import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -16,6 +18,12 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
   NoshAssistantChatButton: () => null,
 }));
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+jest.mock('@/utils/analytics', () => ({ trackEvent: jest.fn() }));
 
 jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   const ReactModule = require('react');
@@ -57,19 +65,29 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   };
 });
 
+beforeEach(async () => {
+  await AsyncStorage.clear();
+});
+
+async function renderReader(props: React.ComponentProps<typeof BookReader>) {
+  const screen = render(
+    <NoshConversationProvider>
+      <BookReader {...props} />
+    </NoshConversationProvider>,
+  );
+  await act(async () => {});
+  return screen;
+}
+
 describe('BookReader cover entry', () => {
-  it('shows the closed cover briefly, then opens it once on shelf entry', () => {
+  it('shows the closed cover briefly, then opens it once on shelf entry', async () => {
     jest.useFakeTimers();
-    const screen = render(
-      <NoshConversationProvider>
-        <BookReader
-          cookbook={SAMPLE_COOKBOOK}
-          pages={SAMPLE_COOKBOOK_PAGES}
-          onSelectPage={jest.fn()}
-          onShare={jest.fn()}
-        />
-      </NoshConversationProvider>,
-    );
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
 
     expect(screen.getByText('Cookbook closed')).toBeTruthy();
     act(() => jest.runAllTimers());
@@ -77,53 +95,41 @@ describe('BookReader cover entry', () => {
     jest.useRealTimers();
   });
 
-  it('returns to the existing shelf screen instead of replacing it', () => {
+  it('returns to the existing shelf screen instead of replacing it', async () => {
     const { router } = require('expo-router');
-    const screen = render(
-      <NoshConversationProvider>
-        <BookReader
-          cookbook={SAMPLE_COOKBOOK}
-          pages={SAMPLE_COOKBOOK_PAGES}
-          onSelectPage={jest.fn()}
-          onShare={jest.fn()}
-        />
-      </NoshConversationProvider>,
-    );
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
 
     fireEvent.press(screen.getByRole('button', { name: 'Back to my collection' }));
     expect(router.dismissTo).toHaveBeenCalledWith('/(book)');
   });
 
-  it('marks the sample as read-only and hides recipe capture actions', () => {
-    const screen = render(
-      <NoshConversationProvider>
-        <BookReader
-          cookbook={SAMPLE_COOKBOOK}
-          pages={SAMPLE_COOKBOOK_PAGES}
-          initialPageId={SAMPLE_COOKBOOK_PAGES[0].id}
-          onSelectPage={jest.fn()}
-          onShare={jest.fn()}
-          readOnly
-        />
-      </NoshConversationProvider>,
-    );
+  it('marks the sample as read-only and hides recipe capture actions', async () => {
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+      readOnly: true,
+    });
 
     expect(screen.getByText('SAMPLE COOKBOOK')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
   });
 
-  it('gives an empty real book one clear first-recipe action', () => {
+  it('gives an empty real book one clear first-recipe action', async () => {
     jest.useFakeTimers();
-    const screen = render(
-      <NoshConversationProvider>
-        <BookReader
-          cookbook={SAMPLE_COOKBOOK}
-          pages={[]}
-          onSelectPage={jest.fn()}
-          onShare={jest.fn()}
-        />
-      </NoshConversationProvider>,
-    );
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [],
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
 
     act(() => jest.runAllTimers());
 
@@ -133,21 +139,35 @@ describe('BookReader cover entry', () => {
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
     jest.useRealTimers();
   });
+
+  it('introduces the first finished page once, then opens reading view', async () => {
+    await recordFirstCookbookCreated('user-1', SAMPLE_COOKBOOK.id);
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    const readButton = await screen.findByRole('button', {
+      name: `Read my first recipe, ${SAMPLE_COOKBOOK_PAGES[0].title}`,
+    });
+    fireEvent.press(readButton);
+
+    expect(screen.queryByText('YOUR FIRST PAGE IS HOME')).toBeNull();
+  });
 });
 
 describe('BookReader focused recipe', () => {
-  it('keeps clear return controls available and returns to the open cookbook', () => {
-    const screen = render(
-      <NoshConversationProvider>
-        <BookReader
-          cookbook={SAMPLE_COOKBOOK}
-          pages={SAMPLE_COOKBOOK_PAGES}
-          initialPageId={SAMPLE_COOKBOOK_PAGES[0].id}
-          onSelectPage={jest.fn()}
-          onShare={jest.fn()}
-        />
-      </NoshConversationProvider>,
-    );
+  it('keeps clear return controls available and returns to the open cookbook', async () => {
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
 
     fireEvent.press(screen.getByRole('button', { name: 'Open focused recipe' }));
 

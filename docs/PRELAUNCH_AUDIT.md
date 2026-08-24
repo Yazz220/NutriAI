@@ -31,8 +31,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [x] **Onboarding / first-run experience** — Added a skippable, user-scoped
   welcome; a short first-book studio with three coherent looks and progressively
   disclosed detail controls; an explicit read-only sample; and a direct handoff
-  to the real empty book's first-recipe action. Native share receipts take
-  precedence so onboarding never interrupts inbound work.
+  to the real empty book's first-recipe action. The state now continues through
+  the first real capture, durable processing, ready-page open, and a one-time
+  reader introduction. Native share receipts take precedence so onboarding
+  never interrupts inbound work.
 - [ ] **Camera capture in intake** — `UnifiedIntakeComposer` /
   `NoshCaptureWorkspace` only offer the photo library, though camera permission
   is declared in `app.json`.
@@ -71,6 +73,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 
 - [ ] No markdown rendering in chat messages (plain `Text` only).
 - [ ] Analytics/Sentry are stubs — `utils/analytics.ts` TODOs (lines 23, 39, 55).
+  First-book creation, first capture start, and first ready recipe open now emit
+  stable event names through the shim, but no production analytics transport exists.
 - [ ] Settings footer hardcodes `v0.1` — read from `Constants.expoConfig.version`.
 - [ ] `app.json` declares `userInterfaceStyle: "automatic"` but there is no dark
   palette — iOS will ask for dark and get light. Either build dark mode or pin

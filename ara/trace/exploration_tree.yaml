@@ -309,3 +309,46 @@ tree:
               - "npm run lint"
               - "iOS Metro bundle: HTTP 200, 19,555,756 bytes"
             status: resolved
+          - id: N19
+            type: decision
+            title: "Continue onboarding through first-recipe activation"
+            provenance: user
+            timestamp: "2026-08-25T02:31+03:00"
+            choice: >-
+              Extend the approved first-run journey from the empty book through a real
+              source capture, durable progress, the finished-page open, and one contextual
+              reader introduction.
+            alternatives:
+              - "End onboarding after the first cookbook is created"
+              - "Use a separate tutorial capture instead of the production pipeline"
+              - "Hide background processing and only notify when a page is complete"
+            evidence:
+              - N17
+              - N18
+              - "User direction: go ahead to the next sequence"
+            status: resolved
+            children:
+              - id: N20
+                type: experiment
+                title: "Implement and verify first-recipe activation guidance"
+                provenance: ai-executed
+                timestamp: "2026-08-25T02:31+03:00"
+                result: >-
+                  Extended versioned user-scoped state across first book, first capture,
+                  first ready page, and one-time reader cue; added contextual source and
+                  durability guidance; and emitted stable first_cookbook_created,
+                  first_recipe_capture_started, and first_ready_recipe_opened events through
+                  the analytics shim without recipe content. All 52 Jest suites and 205 tests,
+                  TypeScript, lint, diff checks, iOS bundle, and simulator relaunch passed.
+                  Authenticated visual walkthrough remains pending because the simulator is signed out.
+                evidence:
+                  - "utils/cookbook/firstRunOnboarding.ts"
+                  - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+                  - "components/cookbook/BookReader.tsx"
+                  - "app/(book)/library.tsx"
+                  - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+                  - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+                  - "__tests__/components/cookbook/BookReader.test.tsx"
+                  - "npm test -- --runInBand: 52 suites, 205 tests passed"
+                  - "iOS Metro bundle: HTTP 200, 19,577,262 bytes"
+                status: resolved

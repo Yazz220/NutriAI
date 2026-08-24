@@ -8,8 +8,8 @@ sessions:
     open_threads: 3
   - id: "2026-08-25_001"
     date: "2026-08-25"
-    summary: "Researched, adopted, and implemented a hybrid interactive first-book onboarding for Nosh."
-    turn_count: 2
-    events_count: 11
-    claims_touched: []
+    summary: "Implemented Nosh onboarding from welcome through first personally sourced recipe activation."
+    turn_count: 3
+    events_count: 14
+    claims_touched: [C02]
     open_threads: 3

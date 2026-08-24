@@ -47,3 +47,9 @@ entries:
       - "Routed implementation and verification as N18; recorded the signed-out simulator as a remaining visual-QA boundary rather than overstating device coverage."
       - "Crystallized O07, O09, and O10 via verbal affirmation into A02, H04, and K01; each is directly embodied by the approved implementation."
       - "Left O08 staged because activation instrumentation and return-correlation evidence do not exist, and left O11 staged because reduced-motion, generated-page VoiceOver, RTL, and localization work remain incomplete."
+  - turn: "2026-08-25_001#3"
+    notes:
+      - "Routed the user's continuation authorization as N19 and the implemented/tested first-recipe activation slice as N20."
+      - "Crystallized O08 to untested C02 via artifact commitment because stable milestone event names now exist in production code; did not claim retention validation because analytics transport and cohort data are absent."
+      - "Kept O11 staged: this turn improved semantics and dismissibility but did not complete Reduce Motion, image-backed VoiceOver reading, RTL, or localization verification."
+      - "Preserved authenticated simulator walkthrough as open because a successful bundle/relaunch on the signed-out device cannot validate the protected first-run UI."

@@ -12,7 +12,8 @@ import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
-import { saveFirstRunOnboardingStatus } from '@/utils/cookbook/firstRunOnboarding';
+import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
+import { trackEvent } from '@/utils/analytics';
 import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
@@ -44,7 +45,11 @@ export default function BookLibraryScreen() {
       return;
     }
     if (isFirstRun && user?.id) {
-      await saveFirstRunOnboardingStatus(user.id, 'completed').catch(() => undefined);
+      await recordFirstCookbookCreated(user.id, cookbook.id).catch(() => undefined);
+      trackEvent({
+        type: 'first_cookbook_created',
+        data: { cookbookId: cookbook.id, coverStyle, pageStyleId },
+      });
     }
     router.replace(`/(book)/${cookbook.id}`);
   }
