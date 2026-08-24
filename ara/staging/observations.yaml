@@ -92,3 +92,83 @@ observations:
     promoted_to: "logic/solution/heuristics.md:H03"
     crystallized_via: verbal-affirmation
     stale: false
+  - id: O07
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Use a hybrid first-run model: one warm optional threshold screen followed by
+      interactive onboarding inside the real creation studio, empty book, capture
+      pipeline, and reader, with later features introduced contextually.
+    context: >-
+      Comparative-app, activation, and Apple-platform research favored learning by doing
+      and contextual guidance while Nosh's empty shelf alone appeared too cold.
+    potential_type: architecture
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O08
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat first_ready_recipe_opened as the candidate activation event, with book
+      creation, capture start, capture readiness, and reader open tracked as separate
+      leading milestones; validate that it predicts D1 and D7 return.
+    context: >-
+      Research distinguished onboarding completion from received product value, and the
+      Nosh audit showed that an empty cookbook does not yet demonstrate the designed-page promise.
+    potential_type: claim
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O09
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Keep first-book personalization consequential and compact: preselect a coherent
+      cover/page look, let the user name and preview the book, and expose independent
+      fine-tuning later rather than requiring all style decisions before value.
+    context: >-
+      Apple recommends defaults and postponed customization; creative-app patterns use
+      templates to remove blank-state friction; Nosh already persists cover and page style separately.
+    potential_type: heuristic
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O10
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Keep sample content outside the user's personal cookbook as a reversible preview
+      path until users can reliably delete starter pages; the preferred activation path
+      uses the user's own link, text, image, or video source.
+    context: >-
+      Sample content reduces empty-state friction, but Nosh's pre-launch audit still lacks
+      complete deletion surfaces and the product promise is a personal cookbook.
+    potential_type: constraint
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O11
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Onboarding accessibility requires Dynamic Type reflow, VoiceOver semantics backed
+      by recipe_graph rather than image-only pages, non-color progress, Reduce Motion
+      alternatives for book animation, and RTL/localization testing from the first prototype.
+    context: >-
+      Apple accessibility guidance was compared with Nosh's generated-image reading artifact
+      and current lack of Dynamic Type coverage.
+    potential_type: constraint
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false

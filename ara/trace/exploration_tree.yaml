@@ -255,3 +255,13 @@ tree:
                   - "Browser verification at 390x844"
                   - "Supabase capture-recipe version 4 and generate-page-art version 8: ACTIVE"
                 status: resolved
+  - id: N16
+    type: question
+    title: "Choose Nosh's first-run onboarding model"
+    provenance: user
+    timestamp: "2026-08-25T01:21+03:00"
+    description: >-
+      Determine whether Nosh should use a guided multi-screen flow, an interactive
+      first-book experience, lightweight progressive onboarding, or a hybrid that
+      reaches a finished personal recipe page without obscuring the book-first product.
+    status: open

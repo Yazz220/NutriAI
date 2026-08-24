@@ -6,3 +6,10 @@ sessions:
     events_count: 25
     claims_touched: [C01]
     open_threads: 3
+  - id: "2026-08-25_001"
+    date: "2026-08-25"
+    summary: "Researched and proposed a hybrid interactive first-book onboarding for Nosh."
+    turn_count: 1
+    events_count: 6
+    claims_touched: []
+    open_threads: 1

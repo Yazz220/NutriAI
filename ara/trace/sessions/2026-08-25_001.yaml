@@ -1,0 +1,73 @@
+session:
+  id: "2026-08-25_001"
+  date: "2026-08-25"
+  started: "2026-08-25T01:21+03:00"
+  last_turn: "2026-08-25T01:21+03:00"
+  turn_count: 1
+  summary: "Researched and proposed a hybrid interactive first-book onboarding for Nosh."
+
+events_logged:
+  - turn: 1
+    type: question
+    id: N16
+    routing: direct
+    provenance: user
+    summary: "Choose among guided, interactive first-book, progressive, and hybrid onboarding models."
+  - turn: 1
+    type: observation
+    id: O07
+    routing: staged
+    provenance: ai-suggested
+    summary: "Use one optional welcome threshold, then teach inside the real first-book flow."
+  - turn: 1
+    type: observation
+    id: O08
+    routing: staged
+    provenance: ai-suggested
+    summary: "Validate first ready recipe opened as the activation event."
+  - turn: 1
+    type: observation
+    id: O09
+    routing: staged
+    provenance: ai-suggested
+    summary: "Preselect a coherent first-book look and defer independent fine-tuning."
+  - turn: 1
+    type: observation
+    id: O10
+    routing: staged
+    provenance: ai-suggested
+    summary: "Keep sample content as preview, not undeletable content in a personal book."
+  - turn: 1
+    type: observation
+    id: O11
+    routing: staged
+    provenance: ai-suggested
+    summary: "Make first-run and generated recipe reading accessible, reduced-motion, and localization-ready."
+
+ai_actions:
+  - turn: 1
+    action: >-
+      Audited Nosh's current auth, shelf, creation studio, sample cookbook, reader,
+      capture, and contextual conversation surfaces.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 1
+    action: >-
+      Reviewed 393 Exa search candidates across comparable-app, activation/iOS, and
+      product-pattern workstreams; deep-read high-signal official, research, and practitioner sources.
+    provenance: ai-executed
+    files_changed: []
+
+claims_touched: []
+
+key_context:
+  - turn: 1
+    excerpt: >-
+      Design a warm, memorable first-run experience for a book-first personal cookbook,
+      research alternatives before implementation, and end with one recommended flow.
+
+open_threads:
+  - "User acceptance or revision of the proposed hybrid interactive first-book flow."
+
+ai_suggestions_pending:
+  - "Adopt the hybrid flow and prototype it before production implementation."
