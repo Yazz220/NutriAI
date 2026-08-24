@@ -21,15 +21,18 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [ ] **Reader page image failure = blank page** — `components/cookbook/PageCanvas.tsx`.
   `Image` has no `onError`; skeleton ("Page artwork is being prepared") has no
   retry. A failed/stuck generation leaves a silent blank page.
-- [ ] **Empty book reader is undesigned** — `components/cookbook/BookReader.tsx`.
-  No empty-state path: blank leaves and a meaningless counter. Needs a
-  bookplate-first empty state with "add your first recipe" CTA.
-  (Partially verified — confirm on device.)
+- [x] **Empty book reader is undesigned** — Fixed: a newly created book opens
+  into its real reader with a focused "Add my first recipe" prompt routed
+  through the existing Nosh capture workspace; the duplicate floating add
+  action stays hidden until the book has pages.
 
 ## Missing
 
-- [ ] **Onboarding / first-run experience** — no flow exists; empty shelf copy is
-  one sentence; no first-run flag in storage. New users get no orientation.
+- [x] **Onboarding / first-run experience** — Added a skippable, user-scoped
+  welcome; a short first-book studio with three coherent looks and progressively
+  disclosed detail controls; an explicit read-only sample; and a direct handoff
+  to the real empty book's first-recipe action. Native share receipts take
+  precedence so onboarding never interrupts inbound work.
 - [ ] **Camera capture in intake** — `UnifiedIntakeComposer` /
   `NoshCaptureWorkspace` only offer the photo library, though camera permission
   is declared in `app.json`.

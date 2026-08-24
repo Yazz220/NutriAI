@@ -264,4 +264,48 @@ tree:
       Determine whether Nosh should use a guided multi-screen flow, an interactive
       first-book experience, lightweight progressive onboarding, or a hybrid that
       reaches a finished personal recipe page without obscuring the book-first product.
-    status: open
+    status: resolved
+    children:
+      - id: N17
+        type: decision
+        title: "Adopt the hybrid interactive first-book onboarding"
+        provenance: user
+        timestamp: "2026-08-25T02:05+03:00"
+        choice: >-
+          Begin with one skippable, book-first welcome; use the real creation studio
+          with compact matched looks; keep the sample explicitly read-only; then open
+          the user's real empty book with one first-recipe capture action.
+        alternatives:
+          - "Use a guided multi-screen feature tour before the shelf"
+          - "Start immediately on an empty shelf with only contextual hints"
+          - "Insert sample recipes into the user's first personal cookbook"
+        evidence:
+          - N16
+          - O07
+          - O09
+          - O10
+          - "User direction: proceed with the first sequence"
+        status: resolved
+        children:
+          - id: N18
+            type: experiment
+            title: "Implement and verify the first-run sequence"
+            provenance: ai-executed
+            timestamp: "2026-08-25T02:05+03:00"
+            result: >-
+              Added user-scoped versioned first-run state, a skippable welcome, three
+              matched first-book looks with progressive detail controls, an explicit
+              read-only sample route, and a focused empty-book capture action. All 52
+              Jest suites and 200 tests passed with strict TypeScript and lint; the iOS
+              bundle returned HTTP 200 and relaunched on iPhone 17 Pro. Authenticated
+              visual walkthrough remains pending because the simulator is signed out.
+            evidence:
+              - "components/onboarding/FirstRunWelcome.tsx"
+              - "utils/cookbook/firstRunOnboarding.ts"
+              - "components/create/CreationStudio.tsx"
+              - "components/cookbook/BookReader.tsx"
+              - "npm test -- --runInBand: 52 suites, 200 tests passed"
+              - "npm run typecheck"
+              - "npm run lint"
+              - "iOS Metro bundle: HTTP 200, 19,555,756 bytes"
+            status: resolved

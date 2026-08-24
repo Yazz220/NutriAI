@@ -2,9 +2,9 @@ session:
   id: "2026-08-25_001"
   date: "2026-08-25"
   started: "2026-08-25T01:21+03:00"
-  last_turn: "2026-08-25T01:21+03:00"
-  turn_count: 1
-  summary: "Researched and proposed a hybrid interactive first-book onboarding for Nosh."
+  last_turn: "2026-08-25T02:05+03:00"
+  turn_count: 2
+  summary: "Researched, adopted, and implemented a hybrid interactive first-book onboarding for Nosh."
 
 events_logged:
   - turn: 1
@@ -43,6 +43,36 @@ events_logged:
     routing: staged
     provenance: ai-suggested
     summary: "Make first-run and generated recipe reading accessible, reduced-motion, and localization-ready."
+  - turn: 2
+    type: decision
+    id: N17
+    routing: direct
+    provenance: user
+    summary: "Adopt the skippable welcome, compact first-book studio, read-only sample, and real first-recipe path."
+  - turn: 2
+    type: experiment
+    id: N18
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented the sequence; 200 tests, TypeScript, lint, iOS bundle, and simulator relaunch passed."
+  - turn: 2
+    type: architecture
+    id: A02
+    routing: crystallized
+    provenance: user-revised
+    summary: "Teach first run through production creation, reader, and capture surfaces."
+  - turn: 2
+    type: heuristic
+    id: H04
+    routing: crystallized
+    provenance: user-revised
+    summary: "Offer matched first-book looks before independent fine-tuning."
+  - turn: 2
+    type: constraint
+    id: K01
+    routing: crystallized
+    provenance: user-revised
+    summary: "Keep sample recipes in an explicit read-only preview, not the personal collection."
 
 ai_actions:
   - turn: 1
@@ -51,6 +81,36 @@ ai_actions:
       capture, and contextual conversation surfaces.
     provenance: ai-executed
     files_changed: []
+  - turn: 2
+    action: >-
+      Implemented the approved first-run sequence with versioned user-scoped state,
+      progressive first-book personalization, a read-only sample path, and an empty-book
+      first-recipe prompt.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/index.tsx"
+      - "app/(book)/library.tsx"
+      - "app/(book)/[cookbookId]/index.tsx"
+      - "components/onboarding/FirstRunWelcome.tsx"
+      - "components/create/CreationStudio.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "constants/cookbookCustomization.ts"
+      - "hooks/useCookbook.ts"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "utils/cookbook/sampleCookbook.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 2
+    action: >-
+      Added first-run, welcome, creation preset, read-only sample, and empty-book regression
+      coverage; ran the complete Jest, TypeScript, lint, iOS bundle, and simulator checks.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/onboarding/FirstRunWelcome.test.tsx"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+      - "__tests__/components/create/CreationStudio.test.tsx"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
+      - "__tests__/constants/cookbookCustomization.test.ts"
+      - "__tests__/utils/cookbook/sampleCookbook.test.ts"
   - turn: 1
     action: >-
       Reviewed 393 Exa search candidates across comparable-app, activation/iOS, and
@@ -65,9 +125,14 @@ key_context:
     excerpt: >-
       Design a warm, memorable first-run experience for a book-first personal cookbook,
       research alternatives before implementation, and end with one recommended flow.
+  - turn: 2
+    excerpt: "Proceed with the first sequence."
 
 open_threads:
-  - "User acceptance or revision of the proposed hybrid interactive first-book flow."
+  - "Run the authenticated first-run sequence visually on the simulator."
+  - "Instrument and validate the candidate first_ready_recipe_opened activation event."
+  - "Complete reduced-motion, generated-page VoiceOver, RTL, and localization verification."
 
 ai_suggestions_pending:
-  - "Adopt the hybrid flow and prototype it before production implementation."
+  - "Validate first_ready_recipe_opened against D1 and D7 return before treating it as the activation metric."
+  - "Finish the broader onboarding accessibility contract beyond this sequence's scroll, target-size, semantics, and text-reflow support."

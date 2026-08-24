@@ -42,6 +42,7 @@ interface BookReaderProps {
   onShare: (page: CookbookPage) => void;
   isStale?: boolean;
   onRefresh?: () => void;
+  readOnly?: boolean;
 }
 
 // Unified open/close durations and easings shared with Cookbook3DScene so
@@ -75,6 +76,7 @@ export function BookReader({
   onShare,
   isStale = false,
   onRefresh,
+  readOnly = false,
 }: BookReaderProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -378,6 +380,7 @@ export function BookReader({
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
             {cookbookTitle}
           </Text>
+          {readOnly ? <Text style={styles.sampleLabel}>SAMPLE COOKBOOK</Text> : null}
         </View>
         {isOpen && selectedPage ? (
           <Pressable
@@ -425,6 +428,24 @@ export function BookReader({
           onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
         />
+        {!readOnly && isOpen && pages.length === 0 ? (
+          <View
+            style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={styles.emptyBookEyebrow}>YOUR BOOK IS READY</Text>
+            <Text style={styles.emptyBookTitle}>Turn a recipe you love into its first page.</Text>
+            <Pressable
+              style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
+              onPress={openAddPage}
+              accessibilityRole="button"
+              accessibilityLabel={`Add the first recipe to ${cookbookTitle}`}
+            >
+              <Plus size={18} color={Colors.onPrimary} />
+              <Text style={styles.emptyBookButtonText}>Add my first recipe</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
       <Animated.View
@@ -491,7 +512,7 @@ export function BookReader({
         </Pressable>
       </Animated.View>
 
-      {isOpen && (selectedPage || cookbookId) ? (
+      {!readOnly && pages.length > 0 && isOpen && (selectedPage || cookbookId) ? (
         <Animated.View
           style={[styles.readerActionDock, { top: insets.top + 58 }, floatingIdleStyle]}
           pointerEvents="auto"
@@ -606,6 +627,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
+  sampleLabel: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 8,
+    lineHeight: 11,
+    letterSpacing: 1.1,
+    textAlign: 'center',
+  },
   iconButton: {
     width: 38,
     height: 38,
@@ -622,6 +651,54 @@ const styles = StyleSheet.create({
   stage: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
+  },
+  emptyBookPrompt: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+    maxWidth: 340,
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.96)',
+    boxShadow: Colors.book.cardShadow,
+    zIndex: 8,
+  },
+  emptyBookEyebrow: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  emptyBookTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 18,
+    lineHeight: 23,
+    textAlign: 'center',
+  },
+  emptyBookButton: {
+    minHeight: 48,
+    minWidth: 220,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+  },
+  emptyBookButtonText: {
+    color: Colors.onPrimary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 14,
+    lineHeight: 20,
   },
   readerControls: {
     position: 'absolute',

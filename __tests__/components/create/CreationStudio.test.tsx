@@ -52,4 +52,34 @@ describe('CreationStudio', () => {
     expect(screen.getByLabelText('Heritage brownie recipe sample')).toBeTruthy();
     expect(screen.getByLabelText('Heritage cookie recipe sample')).toBeTruthy();
   });
+
+  it('keeps first-book setup short while preserving detailed customization', async () => {
+    const onCreateBook = jest.fn().mockResolvedValue(undefined);
+    const screen = render(
+      <CreationStudio
+        mode="first-run"
+        canCreate
+        onCreateBook={onCreateBook}
+        onSignIn={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('My Cookbook')).toBeTruthy();
+    expect(screen.queryByText('Cover finish')).toBeNull();
+
+    fireEvent.press(screen.getByLabelText('Editorial: Clay book cloth with bold culinary pages'));
+    fireEvent.press(screen.getByRole('button', { name: 'Put this cookbook on my shelf' }));
+
+    await waitFor(() => {
+      expect(onCreateBook).toHaveBeenCalledWith(
+        'My Cookbook',
+        'terracotta-cloth',
+        'studio-editorial',
+      );
+    });
+
+    fireEvent.press(screen.getByText('Customize details'));
+    expect(screen.getByText('Cover finish')).toBeTruthy();
+    expect(screen.getByText('Recipe pages')).toBeTruthy();
+  });
 });

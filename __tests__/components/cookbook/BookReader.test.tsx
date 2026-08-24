@@ -93,6 +93,46 @@ describe('BookReader cover entry', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Back to my collection' }));
     expect(router.dismissTo).toHaveBeenCalledWith('/(book)');
   });
+
+  it('marks the sample as read-only and hides recipe capture actions', () => {
+    const screen = render(
+      <NoshConversationProvider>
+        <BookReader
+          cookbook={SAMPLE_COOKBOOK}
+          pages={SAMPLE_COOKBOOK_PAGES}
+          initialPageId={SAMPLE_COOKBOOK_PAGES[0].id}
+          onSelectPage={jest.fn()}
+          onShare={jest.fn()}
+          readOnly
+        />
+      </NoshConversationProvider>,
+    );
+
+    expect(screen.getByText('SAMPLE COOKBOOK')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
+  });
+
+  it('gives an empty real book one clear first-recipe action', () => {
+    jest.useFakeTimers();
+    const screen = render(
+      <NoshConversationProvider>
+        <BookReader
+          cookbook={SAMPLE_COOKBOOK}
+          pages={[]}
+          onSelectPage={jest.fn()}
+          onShare={jest.fn()}
+        />
+      </NoshConversationProvider>,
+    );
+
+    act(() => jest.runAllTimers());
+
+    expect(
+      screen.getByRole('button', { name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}` }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
+    jest.useRealTimers();
+  });
 });
 
 describe('BookReader focused recipe', () => {

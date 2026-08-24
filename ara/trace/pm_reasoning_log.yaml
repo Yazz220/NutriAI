@@ -41,3 +41,9 @@ entries:
       - "Opened N16 as a user-authored research question; no onboarding model is resolved until the user accepts or revises the proposal."
       - "Staged O07-O11 because the hybrid flow, activation event, personalization rule, sample boundary, and accessibility contract are recommendations rather than committed architecture."
       - "Did not promote O04 or mark it stale: only two calendar days have elapsed and the current onboarding work does not establish a closure signal for that historical generator audit."
+  - turn: "2026-08-25_001#2"
+    notes:
+      - "Resolved N16 with user-authored N17 because 'proceed with the first sequence' selected the recommended hybrid flow over the researched alternatives."
+      - "Routed implementation and verification as N18; recorded the signed-out simulator as a remaining visual-QA boundary rather than overstating device coverage."
+      - "Crystallized O07, O09, and O10 via verbal affirmation into A02, H04, and K01; each is directly embodied by the approved implementation."
+      - "Left O08 staged because activation instrumentation and return-correlation evidence do not exist, and left O11 staged because reduced-motion, generated-page VoiceOver, RTL, and localization work remain incomplete."

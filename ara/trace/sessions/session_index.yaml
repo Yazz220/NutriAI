@@ -8,8 +8,8 @@ sessions:
     open_threads: 3
   - id: "2026-08-25_001"
     date: "2026-08-25"
-    summary: "Researched and proposed a hybrid interactive first-book onboarding for Nosh."
-    turn_count: 1
-    events_count: 6
+    summary: "Researched, adopted, and implemented a hybrid interactive first-book onboarding for Nosh."
+    turn_count: 2
+    events_count: 11
     claims_touched: []
-    open_threads: 1
+    open_threads: 3

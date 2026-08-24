@@ -2,6 +2,10 @@ import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
 export const SAMPLE_COOKBOOK_ID = 'demo-cookbook';
 
+export function isSampleCookbookId(cookbookId?: string | null): boolean {
+  return cookbookId === SAMPLE_COOKBOOK_ID;
+}
+
 export const SAMPLE_COOKBOOK: Cookbook = {
   id: SAMPLE_COOKBOOK_ID,
   userId: 'demo-user',
@@ -136,6 +140,6 @@ export const SAMPLE_COOKBOOK_PAGES: CookbookPage[] = [
 export function shouldShowSampleCookbook(cookbookId?: string | null): boolean {
   return (
     process.env.EXPO_PUBLIC_SHOW_DEMO_COOKBOOK === 'true' &&
-    (!cookbookId || cookbookId === SAMPLE_COOKBOOK_ID)
+    (!cookbookId || isSampleCookbookId(cookbookId))
   );
 }

@@ -104,9 +104,9 @@ observations:
       and contextual guidance while Nosh's empty shelf alone appeared too cold.
     potential_type: architecture
     bound_to: [N16]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/solution/architecture.md:A02"
+    crystallized_via: verbal-affirmation
     stale: false
   - id: O08
     timestamp: "2026-08-25T01:21+03:00"
@@ -136,9 +136,9 @@ observations:
       templates to remove blank-state friction; Nosh already persists cover and page style separately.
     potential_type: heuristic
     bound_to: [N16]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H04"
+    crystallized_via: verbal-affirmation
     stale: false
   - id: O10
     timestamp: "2026-08-25T01:21+03:00"
@@ -152,9 +152,9 @@ observations:
       complete deletion surfaces and the product promise is a personal cookbook.
     potential_type: constraint
     bound_to: [N16]
-    promoted: false
-    promoted_to: null
-    crystallized_via: null
+    promoted: true
+    promoted_to: "logic/solution/constraints.md:K01"
+    crystallized_via: verbal-affirmation
     stale: false
   - id: O11
     timestamp: "2026-08-25T01:21+03:00"

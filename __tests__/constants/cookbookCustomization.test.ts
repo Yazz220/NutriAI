@@ -1,6 +1,7 @@
 import {
   COOKBOOK_COVER_FINISHES,
   COOKBOOK_PAGE_STYLES,
+  FIRST_BOOK_LOOKS,
   listCreationPageStyles,
   listFeaturedCookbookCoverFinishes,
   normalizeCookbookPageStyleId,
@@ -43,5 +44,13 @@ describe('cookbook customization catalog', () => {
     expect(normalizeCookbookPageStyleId(null, 'sage-linen')).toBe('sage-linen');
     expect(normalizeCookbookPageStyleId('studio-editorial', 'sage-linen'))
       .toBe('studio-editorial');
+  });
+
+  it('offers three coherent first-book presets backed by the active catalogs', () => {
+    expect(FIRST_BOOK_LOOKS).toHaveLength(3);
+    FIRST_BOOK_LOOKS.forEach((look) => {
+      expect(COOKBOOK_COVER_FINISHES.some((cover) => cover.id === look.coverStyle)).toBe(true);
+      expect(COOKBOOK_PAGE_STYLES[look.pageStyleId]).toBeTruthy();
+    });
   });
 });

@@ -12,14 +12,18 @@ import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { saveFirstRunOnboardingStatus } from '@/utils/cookbook/firstRunOnboarding';
 import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
-  const { captureId: captureIdParam } = useLocalSearchParams<{
+  const { captureId: captureIdParam, firstRun: firstRunParam } = useLocalSearchParams<{
     captureId?: string | string[];
+    firstRun?: string | string[];
   }>();
   const captureId = Array.isArray(captureIdParam) ? captureIdParam[0] : captureIdParam;
+  const firstRun = Array.isArray(firstRunParam) ? firstRunParam[0] : firstRunParam;
+  const isFirstRun = firstRun === '1' && !captureId;
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
@@ -38,6 +42,9 @@ export default function BookLibraryScreen() {
       }
       router.replace(`/(book)/save?captureId=${encodeURIComponent(captureId)}`);
       return;
+    }
+    if (isFirstRun && user?.id) {
+      await saveFirstRunOnboardingStatus(user.id, 'completed').catch(() => undefined);
     }
     router.replace(`/(book)/${cookbook.id}`);
   }
@@ -61,6 +68,7 @@ export default function BookLibraryScreen() {
       <CreationStudio
         bottomInset={insets.bottom}
         canCreate={!!user}
+        mode={isFirstRun ? 'first-run' : 'standard'}
         onCreateBook={handleCreate}
         onSignIn={openSignIn}
       />

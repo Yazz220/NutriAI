@@ -23,3 +23,11 @@
 - **Sensitivity**: medium
 - **Code ref**: [`components/create/CreationStudio.tsx`, `app/(book)/library.tsx`]
 - **From staging**: O06
+
+## H04: Start with matched looks, then disclose independent controls
+- **Rationale**: Three coherent cover-and-page presets make the first meaningful choice quick and visual, while the existing detailed cover and page-language controls remain available without blocking first value.
+- **Provenance**: user-revised
+- **Crystallized via**: verbal-affirmation
+- **Sensitivity**: medium
+- **Code ref**: [`constants/cookbookCustomization.ts`, `components/create/CreationStudio.tsx`]
+- **From staging**: O09

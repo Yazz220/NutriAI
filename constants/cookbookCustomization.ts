@@ -26,6 +26,14 @@ export interface CookbookPageStyleOption {
   studioOrder: number;
 }
 
+export interface FirstBookLookOption {
+  id: 'garden' | 'editorial' | 'heirloom';
+  name: string;
+  description: string;
+  coverStyle: CookbookStyleId;
+  pageStyleId: CreationPageStyleId;
+}
+
 /**
  * Catalog-backed customization keeps Studio rendering independent from the
  * number of available finishes. A future picker can show the full catalog
@@ -86,6 +94,30 @@ export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyle
 };
 
 export const DEFAULT_CREATION_PAGE_STYLE_ID: CreationPageStyleId = 'illustrated';
+
+export const FIRST_BOOK_LOOKS: readonly FirstBookLookOption[] = [
+  {
+    id: 'garden',
+    name: 'Garden',
+    description: 'Sage linen with gentle illustrated pages',
+    coverStyle: 'sage-linen',
+    pageStyleId: 'illustrated',
+  },
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Clay book cloth with bold culinary pages',
+    coverStyle: 'terracotta-cloth',
+    pageStyleId: 'studio-editorial',
+  },
+  {
+    id: 'heirloom',
+    name: 'Heirloom',
+    description: 'Midnight leather with classic heritage pages',
+    coverStyle: 'navy-leather',
+    pageStyleId: 'heritage',
+  },
+];
 
 const CREATION_PAGE_STYLE_IDS = new Set<string>(Object.keys(COOKBOOK_PAGE_STYLES));
 
