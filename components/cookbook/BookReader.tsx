@@ -4,7 +4,7 @@ import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { BookOpen, ChefHat, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2, X } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -38,6 +38,7 @@ import { trackEvent } from '@/utils/analytics';
 import {
   defaultFirstRunOnboardingState,
   loadFirstRunOnboardingState,
+  markFirstNoshTipSeen,
   markFirstPageReaderCueSeen,
   recordFirstReadyRecipeOpened,
   type FirstRunOnboardingState,
@@ -117,6 +118,7 @@ export function BookReader({
     defaultFirstRunOnboardingState,
   );
   const [firstRunReady, setFirstRunReady] = useState(false);
+  const [firstPageCueDismissedThisSession, setFirstPageCueDismissedThisSession] = useState(false);
   const renderedFocusedPage =
     focusedPage && recipePreview?.pageId === focusedPage.id
       ? { ...focusedPage, recipeGraph: recipePreview.graph }
@@ -192,6 +194,16 @@ export function BookReader({
     && !firstRunState.readerCueSeen
     ? pages.find((page) => page.id === firstRunState.firstPageId) ?? null
     : null;
+  const showFirstNoshTip = Boolean(
+    firstRunReady &&
+    firstRunState.status === 'completed' &&
+    firstRunState.firstCookbookId === cookbookId &&
+    firstRunState.readerCueSeen &&
+    !firstRunState.noshTipSeen &&
+    !firstPageCueDismissedThisSession &&
+    selectedPage &&
+    cookbook,
+  );
   const firstAvailablePageId = pages[0]?.id;
 
   useEffect(() => {
@@ -231,6 +243,10 @@ export function BookReader({
       cancelled = true;
     };
   }, [cookbookId, firstAvailablePageId, user?.id]);
+
+  useEffect(() => {
+    setFirstPageCueDismissedThisSession(false);
+  }, [cookbookId]);
 
   useEffect(() => {
     setVisibleBookContext({
@@ -388,10 +404,34 @@ export function BookReader({
   }
 
   function dismissFirstPageCue() {
+    setFirstPageCueDismissedThisSession(true);
     setFirstRunState((current) => ({ ...current, readerCueSeen: true }));
     if (user?.id) {
       void markFirstPageReaderCueSeen(user.id).catch(() => undefined);
     }
+  }
+
+  function dismissFirstNoshTip() {
+    setFirstRunState((current) => ({ ...current, noshTipSeen: true }));
+    if (user?.id) {
+      void markFirstNoshTipSeen(user.id).catch(() => undefined);
+    }
+  }
+
+  function openNoshFromFirstTip() {
+    if (!cookbook || !selectedPage) return;
+    dismissFirstNoshTip();
+    setVisibleBookContext({ cookbook, pages, page: selectedPage });
+    open('recipe-ask', {
+      kind: 'recipe',
+      cookbookId: cookbook.id,
+      pageId: selectedPage.id,
+      title: selectedPage.title,
+    });
+    trackEvent({
+      type: 'first_contextual_nosh_opened',
+      data: { cookbookId: cookbook.id, pageId: selectedPage.id },
+    });
   }
 
   function toggleReadingView() {
@@ -616,7 +656,12 @@ export function BookReader({
           pointerEvents="auto"
         >
           {selectedPage && cookbook ? (
-            <NoshAssistantChatButton page={selectedPage} cookbook={cookbook} cookbookPages={pages} />
+            <NoshAssistantChatButton
+              page={selectedPage}
+              cookbook={cookbook}
+              cookbookPages={pages}
+              onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
+            />
           ) : null}
           {cookbookId ? (
             <Pressable
@@ -628,6 +673,45 @@ export function BookReader({
               <Plus size={20} color={Colors.onPrimary} />
             </Pressable>
           ) : null}
+        </Animated.View>
+      ) : null}
+
+      {!readOnly && isOpen && showFirstNoshTip && selectedPage ? (
+        <Animated.View
+          style={[
+            styles.firstNoshTip,
+            { top: insets.top + 112, width: Math.min(width - Spacing.xl * 2, 310) },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          <View style={styles.firstNoshTipHeader}>
+            <View style={styles.firstNoshTipIcon}>
+              <ChefHat size={17} color={Colors.onPrimary} />
+            </View>
+            <View style={styles.firstNoshTipHeadingCopy}>
+              <Text style={styles.firstNoshTipEyebrow}>NOSH IS HERE, TOO</Text>
+              <Text style={styles.firstNoshTipTitle}>Your chef knows this recipe.</Text>
+            </View>
+            <Pressable
+              style={styles.firstNoshTipClose}
+              onPress={dismissFirstNoshTip}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss Ask Nosh introduction"
+            >
+              <X size={16} color={Colors.textSecondary} />
+            </Pressable>
+          </View>
+          <Text style={styles.firstNoshTipCopy}>
+            Ask about substitutions, technique, timing, or anything on this page.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.firstNoshTipButton, pressed && styles.actionPressed]}
+            onPress={openNoshFromFirstTip}
+            accessibilityRole="button"
+            accessibilityLabel={`Ask Nosh about ${selectedPage.title} now`}
+          >
+            <Text style={styles.firstNoshTipButtonText}>Ask Nosh about this recipe</Text>
+          </Pressable>
         </Animated.View>
       ) : null}
 
@@ -934,6 +1018,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  firstNoshTip: {
+    position: 'absolute',
+    right: Spacing.lg,
+    zIndex: 14,
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.98)',
+    boxShadow: Colors.book.liftedShadow,
+  },
+  firstNoshTipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  firstNoshTipIcon: {
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+  },
+  firstNoshTipHeadingCopy: { flex: 1 },
+  firstNoshTipEyebrow: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 8,
+    lineHeight: 12,
+    letterSpacing: 1,
+  },
+  firstNoshTipTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  firstNoshTipClose: {
+    width: 44,
+    height: 44,
+    margin: -Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+  },
+  firstNoshTipCopy: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  firstNoshTipButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+  },
+  firstNoshTipButtonText: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   actionPressed: {
     opacity: 0.82,

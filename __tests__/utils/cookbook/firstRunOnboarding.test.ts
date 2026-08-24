@@ -3,6 +3,7 @@ import {
   defaultFirstRunOnboardingState,
   isFirstRunCapture,
   loadFirstRunOnboardingState,
+  markFirstNoshTipSeen,
   markFirstPageReaderCueSeen,
   recordFirstCaptureStarted,
   recordFirstCookbookCreated,
@@ -66,6 +67,9 @@ describe('first-run onboarding state', () => {
 
     const seen = await markFirstPageReaderCueSeen('user-a');
     expect(seen.readerCueSeen).toBe(true);
+
+    const noshSeen = await markFirstNoshTipSeen('user-a');
+    expect(noshSeen.noshTipSeen).toBe(true);
   });
 
   it('does not attach skipped onboarding to later cookbook activity', async () => {

@@ -1,10 +1,15 @@
 import React from 'react';
-import { act, fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookReader } from '@/components/cookbook/BookReader';
 import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
 import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleCookbook';
-import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
+import {
+  loadFirstRunOnboardingState,
+  markFirstPageReaderCueSeen,
+  recordFirstCookbookCreated,
+  recordFirstReadyRecipeOpened,
+} from '@/utils/cookbook/firstRunOnboarding';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -156,6 +161,33 @@ describe('BookReader cover entry', () => {
     fireEvent.press(readButton);
 
     expect(screen.queryByText('YOUR FIRST PAGE IS HOME')).toBeNull();
+    expect(screen.queryByText('NOSH IS HERE, TOO')).toBeNull();
+  });
+
+  it('defers the contextual Nosh introduction until a later book visit', async () => {
+    await recordFirstCookbookCreated('user-1', SAMPLE_COOKBOOK.id);
+    await recordFirstReadyRecipeOpened(
+      'user-1',
+      SAMPLE_COOKBOOK.id,
+      SAMPLE_COOKBOOK_PAGES[0].id,
+    );
+    await markFirstPageReaderCueSeen('user-1');
+
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    expect(await screen.findByText('NOSH IS HERE, TOO')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Dismiss Ask Nosh introduction' }));
+
+    expect(screen.queryByText('NOSH IS HERE, TOO')).toBeNull();
+    await waitFor(async () => {
+      expect((await loadFirstRunOnboardingState('user-1')).noshTipSeen).toBe(true);
+    });
   });
 });
 

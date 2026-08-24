@@ -172,3 +172,19 @@ observations:
     promoted_to: null
     crystallized_via: null
     stale: false
+  - id: O12
+    timestamp: "2026-08-25T02:45+03:00"
+    provenance: ai-suggested
+    content: >-
+      Do not stack progressive onboarding prompts in one visit. Finish the first-page
+      introduction first, then reveal a small contextual Nosh callout on a later book
+      visit with permanent dismissal and a direct path into the real recipe conversation.
+    context: >-
+      The approved onboarding had reached first-page activation; Nosh remained the most
+      important deferred capability to introduce without turning the flow into a tour.
+    potential_type: heuristic
+    bound_to: [N21, N22]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H05"
+    crystallized_via: artifact-commitment
+    stale: false

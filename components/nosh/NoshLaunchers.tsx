@@ -8,10 +8,11 @@ import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 
-export function NoshAssistantChatButton({ page, cookbook, cookbookPages }: {
+export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen }: {
   page: CookbookPage;
   cookbook: Cookbook;
   cookbookPages: CookbookPage[];
+  onOpen?: () => void;
 }) {
   const { open, setVisibleBookContext } = useNoshConversation();
   return (
@@ -20,6 +21,7 @@ export function NoshAssistantChatButton({ page, cookbook, cookbookPages }: {
       accessibilityLabel={`Ask Nosh about ${page.title}`}
       accessibilityRole="button"
       onPress={() => {
+        onOpen?.();
         setVisibleBookContext({ cookbook, pages: cookbookPages, page });
         open('recipe-ask', { kind: 'recipe', cookbookId: cookbook.id, pageId: page.id, title: page.title });
       }}

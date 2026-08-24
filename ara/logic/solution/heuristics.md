@@ -31,3 +31,11 @@
 - **Sensitivity**: medium
 - **Code ref**: [`constants/cookbookCustomization.ts`, `components/create/CreationStudio.tsx`]
 - **From staging**: O09
+
+## H05: Defer contextual tips across visits
+- **Rationale**: Completing the first-page moment before showing a small in-book Nosh callout prevents stacked prompts, preserves reading as the reward, and introduces the conversational chef only where its recipe context is immediately meaningful.
+- **Provenance**: ai-suggested
+- **Crystallized via**: artifact-commitment
+- **Sensitivity**: medium
+- **Code ref**: [`components/cookbook/BookReader.tsx`, `components/nosh/NoshLaunchers.tsx`, `utils/cookbook/firstRunOnboarding.ts`]
+- **From staging**: O12

@@ -13,6 +13,7 @@ export interface FirstRunOnboardingState {
   firstPageId?: string;
   activatedAt?: string;
   readerCueSeen?: boolean;
+  noshTipSeen?: boolean;
 }
 
 function storageKey(userId: string): string {
@@ -50,6 +51,7 @@ export async function loadFirstRunOnboardingState(
       firstPageId: typeof parsed.firstPageId === 'string' ? parsed.firstPageId : undefined,
       activatedAt: typeof parsed.activatedAt === 'string' ? parsed.activatedAt : undefined,
       readerCueSeen: parsed.readerCueSeen === true,
+      noshTipSeen: parsed.noshTipSeen === true,
     };
   } catch {
     await AsyncStorage.removeItem(storageKey(userId)).catch(() => undefined);
@@ -142,6 +144,18 @@ export async function markFirstPageReaderCueSeen(
   return saveFirstRunOnboardingState(userId, {
     ...current,
     readerCueSeen: true,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function markFirstNoshTipSeen(
+  userId: string,
+): Promise<FirstRunOnboardingState> {
+  const current = await loadFirstRunOnboardingState(userId);
+  if (current.noshTipSeen) return current;
+  return saveFirstRunOnboardingState(userId, {
+    ...current,
+    noshTipSeen: true,
     updatedAt: new Date().toISOString(),
   });
 }

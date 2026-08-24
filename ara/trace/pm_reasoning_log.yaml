@@ -53,3 +53,9 @@ entries:
       - "Crystallized O08 to untested C02 via artifact commitment because stable milestone event names now exist in production code; did not claim retention validation because analytics transport and cohort data are absent."
       - "Kept O11 staged: this turn improved semantics and dismissibility but did not complete Reduce Motion, image-backed VoiceOver reading, RTL, or localization verification."
       - "Preserved authenticated simulator walkthrough as open because a successful bundle/relaunch on the signed-out device cannot validate the protected first-run UI."
+  - turn: "2026-08-25_001#4"
+    notes:
+      - "Routed the user's instruction to continue with a live simulator loop as N21 and the deferred Nosh-tip implementation/verification as N22."
+      - "Staged O12 as a progressive-disclosure heuristic and crystallized it to H05 via artifact commitment because persisted state, UI, and regression tests now depend on the across-visit deferral."
+      - "Did not treat the signed-out screenshot as authenticated onboarding evidence; it verifies process/bundle health only."
+      - "Left O11 staged because this slice adds accessible dismissal and avoids animation, but does not complete the full reduced-motion, VoiceOver reading, RTL, or localization contract."

@@ -352,3 +352,45 @@ tree:
                   - "npm test -- --runInBand: 52 suites, 205 tests passed"
                   - "iOS Metro bundle: HTTP 200, 19,577,262 bytes"
                 status: resolved
+              - id: N21
+                type: decision
+                title: "Proceed with progressive Nosh discovery in a live simulator loop"
+                provenance: user
+                timestamp: "2026-08-25T02:45+03:00"
+                choice: >-
+                  Continue the onboarding implementation with contextual Nosh discovery
+                  while keeping Metro, the iPhone simulator, and the app process running
+                  for iterative bundle and launch checks.
+                alternatives:
+                  - "Stop after first-recipe activation"
+                  - "Add Nosh to the initial welcome or first-page modal"
+                  - "Pause the simulator between implementation passes"
+                evidence:
+                  - N17
+                  - N19
+                  - "User direction: keep Simulation running, so you keep iterative waiting as you go, then proceed"
+                status: resolved
+                children:
+                  - id: N22
+                    type: experiment
+                    title: "Implement and verify deferred in-book Nosh discovery"
+                    provenance: ai-executed
+                    timestamp: "2026-08-25T02:45+03:00"
+                    result: >-
+                      Added a user-scoped, permanently dismissible Nosh callout that appears
+                      on a later visit after the first-page introduction, opens the existing
+                      recipe-aware conversation, and never overlays the read-only sample.
+                      Removed auto-hide animation from the callout to avoid invisible touch
+                      interception. All 52 Jest suites and 206 tests, TypeScript, lint, diff
+                      checks, two iOS bundle/relaunch iterations, Metro health, and booted
+                      iPhone 17 Pro checks passed. Authenticated reader visual QA remains pending.
+                    evidence:
+                      - "components/cookbook/BookReader.tsx"
+                      - "components/nosh/NoshLaunchers.tsx"
+                      - "utils/cookbook/firstRunOnboarding.ts"
+                      - "__tests__/components/cookbook/BookReader.test.tsx"
+                      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+                      - "npm test -- --runInBand: 52 suites, 206 tests passed"
+                      - "Final iOS Metro bundle: HTTP 200, 19,585,998 bytes"
+                      - "Metro packager-status: running; iPhone 17 Pro: Booted"
+                    status: resolved

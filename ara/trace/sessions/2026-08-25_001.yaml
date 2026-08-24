@@ -2,9 +2,9 @@ session:
   id: "2026-08-25_001"
   date: "2026-08-25"
   started: "2026-08-25T01:21+03:00"
-  last_turn: "2026-08-25T02:31+03:00"
-  turn_count: 3
-  summary: "Implemented Nosh onboarding from welcome through first personally sourced recipe activation."
+  last_turn: "2026-08-25T02:45+03:00"
+  turn_count: 4
+  summary: "Implemented Nosh onboarding through activation and deferred in-book chef discovery."
 
 events_logged:
   - turn: 1
@@ -91,6 +91,24 @@ events_logged:
     routing: crystallized
     provenance: ai-suggested
     summary: "Treat first_ready_recipe_opened as the instrumented but unvalidated activation hypothesis."
+  - turn: 4
+    type: decision
+    id: N21
+    routing: direct
+    provenance: user
+    summary: "Proceed with progressive Nosh discovery while keeping the simulator loop live."
+  - turn: 4
+    type: experiment
+    id: N22
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented a later-visit in-book Nosh callout; 206 tests and iterative iOS checks passed."
+  - turn: 4
+    type: heuristic
+    id: H05
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Avoid stacked prompts by deferring contextual feature discovery across visits."
 
 ai_actions:
   - turn: 1
@@ -156,6 +174,25 @@ ai_actions:
       - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
       - "__tests__/components/NoshCaptureWorkspace.test.tsx"
       - "__tests__/components/cookbook/BookReader.test.tsx"
+  - turn: 4
+    action: >-
+      Added later-visit, permanently dismissible in-book Nosh discovery backed by user-scoped
+      first-run state and the existing recipe conversation; kept the sample read-only and
+      removed auto-hide behavior that could leave an invisible touch target.
+    provenance: ai-executed
+    files_changed:
+      - "components/cookbook/BookReader.tsx"
+      - "components/nosh/NoshLaunchers.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+  - turn: 4
+    action: >-
+      Kept Metro and iPhone 17 Pro running, loaded two successive iOS bundles, inspected
+      the live signed-out screen, and completed the 206-test, TypeScript, lint, and diff checks.
+    provenance: ai-executed
+    files_changed: []
 
 claims_touched:
   - id: C02
@@ -171,6 +208,8 @@ key_context:
     excerpt: "Proceed with the first sequence."
   - turn: 3
     excerpt: "Go ahead to the next sequence."
+  - turn: 4
+    excerpt: "Keep Simulation running, so you keep iterative waiting as you go, then proceed."
 
 open_threads:
   - "Run the authenticated first-run sequence visually on the simulator."
