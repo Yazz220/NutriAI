@@ -8,6 +8,7 @@ import {
   capturePageIdempotencyKey,
   capturePagePolicy,
   captureFailure,
+  reusableCaptureExtraction,
 } from '../_shared/capturePolicy.ts';
 import { selectRecipeLayoutStrategy } from '../_shared/recipeLayout.ts';
 
@@ -138,23 +139,34 @@ async function processCapture(
   const processingStartedAt = Date.now();
 
   try {
-    const extractPayload = await readSource(admin, capture);
-    const extraction = await callFunction('extract-recipe', authHeader, extractPayload);
-    if (!extraction.response.ok || !isRecord(extraction.data.recipeGraph)) {
-      throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Nosh could not read this recipe');
+    const savedExtraction = reusableCaptureExtraction(capture);
+    let recipeGraph: JsonRecord;
+    let confidence: number;
+    let extractionNotes: unknown[];
+    let inferredFields: unknown[];
+
+    if (savedExtraction) {
+      ({ recipeGraph, confidence, extractionNotes, inferredFields } = savedExtraction);
+      logInfo('Recipe capture retry reused saved extraction', { captureId });
+    } else {
+      const extractPayload = await readSource(admin, capture);
+      const extraction = await callFunction('extract-recipe', authHeader, extractPayload);
+      if (!extraction.response.ok || !isRecord(extraction.data.recipeGraph)) {
+        throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Nosh could not read this recipe');
+      }
+
+      recipeGraph = extraction.data.recipeGraph;
+      confidence = typeof extraction.data.confidence === 'number' ? extraction.data.confidence : 0;
+      extractionNotes = Array.isArray(extraction.data.extractionNotes) ? extraction.data.extractionNotes : [];
+      inferredFields = Array.isArray(extraction.data.inferredFields) ? extraction.data.inferredFields : [];
+
+      await admin.schema('nutriai').from('recipe_captures').update({
+        recipe_graph: recipeGraph,
+        confidence,
+        extraction_notes: extractionNotes,
+        inferred_fields: inferredFields,
+      }).eq('id', captureId).eq('user_id', userId);
     }
-
-    const recipeGraph = extraction.data.recipeGraph;
-    const confidence = typeof extraction.data.confidence === 'number' ? extraction.data.confidence : 0;
-    const extractionNotes = Array.isArray(extraction.data.extractionNotes) ? extraction.data.extractionNotes : [];
-    const inferredFields = Array.isArray(extraction.data.inferredFields) ? extraction.data.inferredFields : [];
-
-    await admin.schema('nutriai').from('recipe_captures').update({
-      recipe_graph: recipeGraph,
-      confidence,
-      extraction_notes: extractionNotes,
-      inferred_fields: inferredFields,
-    }).eq('id', captureId).eq('user_id', userId);
 
     let { pageStatus, pageWarning } = capturePagePolicy(false);
     let pendingPageId: string | undefined;
