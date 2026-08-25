@@ -2,9 +2,9 @@ session:
   id: "2026-08-25_001"
   date: "2026-08-25"
   started: "2026-08-25T01:21+03:00"
-  last_turn: "2026-08-25T02:45+03:00"
-  turn_count: 4
-  summary: "Implemented Nosh onboarding through activation and deferred in-book chef discovery."
+  last_turn: "2026-08-25T02:58+03:00"
+  turn_count: 5
+  summary: "Implemented Nosh onboarding through activation, deferred chef discovery, and accessibility hardening."
 
 events_logged:
   - turn: 1
@@ -109,6 +109,18 @@ events_logged:
     routing: crystallized
     provenance: ai-suggested
     summary: "Avoid stacked prompts by deferring contextual feature discovery across visits."
+  - turn: 5
+    type: decision
+    id: N23
+    routing: direct
+    provenance: user
+    summary: "Proceed with reduced-motion, spoken progress, and generated-page VoiceOver hardening in the live simulator loop."
+  - turn: 5
+    type: experiment
+    id: N24
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented accessibility hardening; 208 tests and all static/iOS bundle checks passed."
 
 ai_actions:
   - turn: 1
@@ -193,6 +205,26 @@ ai_actions:
       the live signed-out screen, and completed the 206-test, TypeScript, lint, and diff checks.
     provenance: ai-executed
     files_changed: []
+  - turn: 5
+    action: >-
+      Added system Reduce Motion alternatives across reader transitions, non-color native
+      capture progress semantics, and canonical Recipe Graph narration for image-backed pages.
+    provenance: ai-executed
+    files_changed:
+      - "components/cookbook/BookReader.tsx"
+      - "components/cookbook/Cookbook3DScene.tsx"
+      - "components/cookbook/Cookbook3DScene.types.ts"
+      - "components/cookbook/PageCanvas.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 5
+    action: >-
+      Added accessibility regressions; ran 208 Jest tests, strict TypeScript, lint, diff
+      checks, a fresh iOS bundle, simulator health checks, relaunch, and signed-out screenshot inspection.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/cookbook/PageCanvas.test.tsx"
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
 
 claims_touched:
   - id: C02
@@ -210,12 +242,14 @@ key_context:
     excerpt: "Go ahead to the next sequence."
   - turn: 4
     excerpt: "Keep Simulation running, so you keep iterative waiting as you go, then proceed."
+  - turn: 5
+    excerpt: "Go ahead to the next sequence and then tell me how to review it; is the app running on the dev Expo?"
 
 open_threads:
   - "Run the authenticated first-run sequence visually on the simulator."
   - "Connect the analytics shim to production transport and validate first_ready_recipe_opened against D1/D7 return."
-  - "Complete reduced-motion, generated-page VoiceOver, RTL, and localization verification."
+  - "Run Dynamic Type, VoiceOver, Reduce Motion, RTL, and localization device verification; implementation now covers reduced motion, spoken progress, and generated-page semantics."
 
 ai_suggestions_pending:
   - "Validate first_ready_recipe_opened against D1 and D7 return before promoting it from candidate to established activation metric."
-  - "Finish the broader onboarding accessibility contract beyond this sequence's scroll, target-size, semantics, and text-reflow support."
+  - "Finish Dynamic Type visual QA plus RTL and localization coverage for the onboarding contract."

@@ -9,6 +9,7 @@ import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
 import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
+import type { RecipeGraph } from '@/types/recipeGraph';
 
 interface PageCanvasProps {
   page: CookbookPage;
@@ -31,6 +32,51 @@ function PageSkeleton({ page }: { page: CookbookPage }) {
   );
 }
 
+function formatRecipeTime(minutes?: number): string | null {
+  if (!minutes) return null;
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder > 0
+    ? `${hours} ${hours === 1 ? 'hour' : 'hours'} ${remainder} minutes`
+    : `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
+export function buildRecipePageAccessibilityLabel(page: CookbookPage): string {
+  const graph: RecipeGraph | undefined = page.recipeGraph;
+  if (!graph) return `${page.title}. Designed cookbook page.`;
+
+  const details = [
+    `${graph.title}.`,
+    graph.description,
+    graph.servings ? `Serves ${graph.servings}.` : null,
+    formatRecipeTime(graph.prepTimeMinutes)
+      ? `Prep time ${formatRecipeTime(graph.prepTimeMinutes)}.`
+      : null,
+    formatRecipeTime(graph.cookTimeMinutes)
+      ? `Cook time ${formatRecipeTime(graph.cookTimeMinutes)}.`
+      : null,
+    'Ingredients.',
+    ...graph.ingredientGroups.flatMap((group) => [
+      group.label ? `${group.label}.` : null,
+      ...group.ingredients.map((ingredient) => {
+        const amount = [ingredient.quantity, ingredient.unit].filter(Boolean).join(' ');
+        const preparation = ingredient.preparation ? `, ${ingredient.preparation}` : '';
+        const optional = ingredient.isOptional ? ', optional' : '';
+        return `${[amount, ingredient.name].filter(Boolean).join(' ')}${preparation}${optional}.`;
+      }),
+    ]),
+    'Instructions.',
+    ...graph.stepGroups.flatMap((group) => [
+      group.label ? `${group.label}.` : null,
+      ...group.steps.map((step, index) => `Step ${index + 1}. ${step.heading ? `${step.heading}. ` : ''}${step.text}`),
+    ]),
+    ...(graph.notes?.length ? ['Notes.', ...graph.notes] : []),
+  ];
+
+  return details.filter((detail): detail is string => Boolean(detail)).join(' ');
+}
+
 export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
   const horizontalInset = width < 390 ? Spacing.md : Spacing.xl;
@@ -43,9 +89,18 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
       ?? (!page.recipeGraph && page.imageUrl ? { uri: page.imageUrl } : null);
 
   if (completePageSource) {
+    const accessibilityLabel = buildRecipePageAccessibilityLabel(page);
     return (
       <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
-        <Image source={completePageSource} style={styles.image} resizeMode="cover" onLoad={onRenderReady} />
+        <Image
+          source={completePageSource}
+          style={styles.image}
+          resizeMode="cover"
+          onLoad={onRenderReady}
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={accessibilityLabel}
+        />
       </View>
     );
   }

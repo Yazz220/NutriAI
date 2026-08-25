@@ -12,6 +12,7 @@ import Animated, {
   interpolate,
   Keyframe,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -89,6 +90,7 @@ export function BookReader({
   readOnly = false,
 }: BookReaderProps) {
   const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { open, recipePreview, setVisibleBookContext } = useNoshConversation();
@@ -141,9 +143,9 @@ export function BookReader({
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (!autoHideChrome) return;
     idleTimerRef.current = setTimeout(() => {
-      chromeIdle.value = withTiming(0, { duration: 700 });
+      chromeIdle.value = reduceMotion ? 0 : withTiming(0, { duration: 700 });
     }, 3500);
-  }, [autoHideChrome, chromeIdle]);
+  }, [autoHideChrome, chromeIdle, reduceMotion]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -289,6 +291,12 @@ export function BookReader({
   useEffect(() => {
     if (initialPageId) return;
 
+    if (reduceMotion) {
+      setIsOpen(true);
+      opening.set(1);
+      return;
+    }
+
     entryOpenTimerRef.current = setTimeout(() => {
       entryOpenTimerRef.current = null;
       setIsOpen(true);
@@ -304,7 +312,7 @@ export function BookReader({
       if (entryOpenTimerRef.current) clearTimeout(entryOpenTimerRef.current);
       entryOpenTimerRef.current = null;
     };
-  }, [initialPageId, opening]);
+  }, [initialPageId, opening, reduceMotion]);
 
   const chromeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opening.value, [0, 0.82, 1], [0, 0, 1]) * chromeIdle.value,
@@ -335,10 +343,12 @@ export function BookReader({
       if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
     }
     opening.set(
-      withTiming(1, {
-        duration: OPEN_DURATION,
-        easing: OPEN_EASING,
-      }),
+      reduceMotion
+        ? 1
+        : withTiming(1, {
+            duration: OPEN_DURATION,
+            easing: OPEN_EASING,
+          }),
     );
     pokeChrome();
   }
@@ -349,10 +359,12 @@ export function BookReader({
     setReadingView('spread');
     setSpreadIndex(0);
     opening.set(
-      withTiming(0, {
-        duration: CLOSE_DURATION,
-        easing: CLOSE_EASING,
-      }),
+      reduceMotion
+        ? 0
+        : withTiming(0, {
+            duration: CLOSE_DURATION,
+            easing: CLOSE_EASING,
+          }),
     );
   }
 
@@ -518,6 +530,7 @@ export function BookReader({
           spreads={spreads}
           spreadIndex={spreadIndex}
           isOpen={isOpen}
+          reduceMotion={reduceMotion}
           opening={opening}
           readingView={readingView}
           readingPageId={readingPageId}
@@ -716,7 +729,11 @@ export function BookReader({
       ) : null}
 
       {focusedPage ? (
-        <Animated.View entering={FadeIn.duration(170)} exiting={FadeOut.duration(140)} style={styles.focusedOverlay}>
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(170)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(140)}
+          style={styles.focusedOverlay}
+        >
           <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
               <Pressable
@@ -745,7 +762,10 @@ export function BookReader({
                   <Text style={styles.sessionPreviewText}>Session preview</Text>
                 </View>
               ) : null}
-              <Animated.View entering={focusedPageEnter} exiting={focusedPageExit}>
+              <Animated.View
+                entering={reduceMotion ? undefined : focusedPageEnter}
+                exiting={reduceMotion ? undefined : focusedPageExit}
+              >
                 <PageCanvas page={renderedFocusedPage ?? focusedPage} />
               </Animated.View>
             </View>

@@ -8,8 +8,8 @@ sessions:
     open_threads: 3
   - id: "2026-08-25_001"
     date: "2026-08-25"
-    summary: "Implemented Nosh onboarding through activation and deferred in-book chef discovery."
-    turn_count: 4
-    events_count: 17
+    summary: "Implemented Nosh onboarding through activation, deferred chef discovery, and accessibility hardening."
+    turn_count: 5
+    events_count: 19
     claims_touched: [C02]
     open_threads: 3

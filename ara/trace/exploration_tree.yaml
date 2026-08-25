@@ -394,3 +394,47 @@ tree:
                       - "Final iOS Metro bundle: HTTP 200, 19,585,998 bytes"
                       - "Metro packager-status: running; iPhone 17 Pro: Booted"
                     status: resolved
+  - id: N23
+    type: decision
+    title: "Harden onboarding accessibility in the live simulator sequence"
+    provenance: user
+    timestamp: "2026-08-25T02:58+03:00"
+    choice: >-
+      Continue to the next onboarding sequence with the development client and simulator
+      kept live, addressing reduced motion, spoken capture progress, and generated-page
+      VoiceOver access before handing off review instructions.
+    alternatives:
+      - "Stop after contextual Nosh discovery"
+      - "Defer all accessibility work until App Store submission"
+      - "Rely on the generated page image without canonical spoken recipe content"
+    evidence:
+      - O11
+      - N22
+      - "User direction: go ahead to the next sequence and then tell me how to review it"
+    status: resolved
+    children:
+      - id: N24
+        type: experiment
+        title: "Implement and verify onboarding accessibility hardening"
+        provenance: ai-executed
+        timestamp: "2026-08-25T02:58+03:00"
+        result: >-
+          Book entry, cover, back-cover, mode, focused-page, and page-settle transitions now
+          honor the system Reduce Motion preference; capture progress exposes a native
+          progressbar with spoken step counts; complete generated page images expose the
+          canonical recipe title, timing, ingredients, instructions, and notes to VoiceOver.
+          All 53 Jest suites and 208 tests, strict TypeScript, lint, and diff checks passed.
+          Metro remained healthy, a 19,591,493-byte iOS bundle loaded, and Nosh relaunched
+          on the booted iPhone 17 Pro development client. Authenticated and assistive-
+          technology visual walkthroughs remain pending because the simulator is signed out.
+        evidence:
+          - "components/cookbook/BookReader.tsx"
+          - "components/cookbook/Cookbook3DScene.tsx"
+          - "components/cookbook/PageCanvas.tsx"
+          - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+          - "docs/PRELAUNCH_AUDIT.md"
+          - "__tests__/components/cookbook/PageCanvas.test.tsx"
+          - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+          - "npm test -- --runInBand: 53 suites, 208 tests passed"
+          - "Metro packager-status: running; iPhone 17 Pro: Booted"
+        status: resolved

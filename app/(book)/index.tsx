@@ -132,26 +132,34 @@ export default function MyCookbooksScreen() {
 
   return (
     <View style={styles.container}>
-      <ShelfScene
-        cookbooks={cookbooks}
-        onSelectCookbook={openCookbook}
-        onAddCookbook={openLibrary}
-        onOpenSettings={openSettings}
-        isStale={isShelfStale}
-        onRefresh={() => {
-          void refresh();
-        }}
-      />
-      <NoshShelfChatButton />
-      <Pressable
-        style={styles.captureButton}
-        onPress={() => router.push('/(book)/save')}
-        accessibilityRole="button"
-        accessibilityLabel="Save a recipe with Nosh"
+      <View
+        testID="cookbook-shelf-content"
+        style={styles.shelfContent}
+        pointerEvents={showFirstRunWelcome ? 'none' : 'auto'}
+        accessibilityElementsHidden={showFirstRunWelcome}
+        importantForAccessibility={showFirstRunWelcome ? 'no-hide-descendants' : 'auto'}
       >
-        <Plus size={17} color={Colors.text} />
-        <Text style={styles.captureButtonText}>Save a recipe</Text>
-      </Pressable>
+        <ShelfScene
+          cookbooks={cookbooks}
+          onSelectCookbook={openCookbook}
+          onAddCookbook={openLibrary}
+          onOpenSettings={openSettings}
+          isStale={isShelfStale}
+          onRefresh={() => {
+            void refresh();
+          }}
+        />
+        <NoshShelfChatButton />
+        <Pressable
+          style={styles.captureButton}
+          onPress={() => router.push('/(book)/save')}
+          accessibilityRole="button"
+          accessibilityLabel="Save a recipe with Nosh"
+        >
+          <Plus size={17} color={Colors.text} />
+          <Text style={styles.captureButtonText}>Save a recipe</Text>
+        </Pressable>
+      </View>
       {showFirstRunWelcome ? (
         <FirstRunWelcome
           onCreateCookbook={() => {
@@ -169,6 +177,9 @@ export default function MyCookbooksScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  shelfContent: {
     flex: 1,
   },
   loading: {

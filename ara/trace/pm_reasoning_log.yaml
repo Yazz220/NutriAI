@@ -59,3 +59,8 @@ entries:
       - "Staged O12 as a progressive-disclosure heuristic and crystallized it to H05 via artifact commitment because persisted state, UI, and regression tests now depend on the across-visit deferral."
       - "Did not treat the signed-out screenshot as authenticated onboarding evidence; it verifies process/bundle health only."
       - "Left O11 staged because this slice adds accessible dismissal and avoids animation, but does not complete the full reduced-motion, VoiceOver reading, RTL, or localization contract."
+  - turn: "2026-08-25_001#5"
+    notes:
+      - "Routed the user's next-sequence authorization as N23 and the implemented/tested accessibility slice as N24."
+      - "Kept O11 staged: Reduce Motion, non-color progress, and generated-image VoiceOver semantics are now committed, but Dynamic Type device QA, RTL, and localization verification remain open parts of the compound constraint."
+      - "Recorded the signed-out simulator as bundle/process evidence only; it still does not validate protected onboarding or VoiceOver interaction."

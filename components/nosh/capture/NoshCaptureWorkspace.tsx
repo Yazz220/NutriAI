@@ -442,9 +442,22 @@ function FirstCaptureIntro({ cookbookTitle }: { cookbookTitle?: string }) {
 }
 
 function CaptureProgress({ capture }: { capture: RecipeCapture }) {
+  const steps = captureProgressSteps(capture);
+  const activeStep = steps.find((step) => step.state === 'active');
+  const completeCount = steps.filter((step) => step.state === 'complete').length;
+  const progressText = activeStep
+    ? `${activeStep.label} in progress. ${completeCount} of ${steps.length} steps complete.`
+    : `${completeCount} of ${steps.length} steps complete.`;
+
   return (
-    <View style={styles.progress} accessibilityLabel="Recipe page progress">
-      {captureProgressSteps(capture).map((step, index, steps) => (
+    <View
+      style={styles.progress}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Recipe page progress"
+      accessibilityValue={{ min: 0, max: steps.length, now: completeCount, text: progressText }}
+    >
+      {steps.map((step, index) => (
         <View key={step.label} style={styles.progressRow}>
           <View style={styles.progressRail}>
             <View style={[

@@ -137,6 +137,12 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Recipe understood')).toBeTruthy();
     expect(screen.getByText('Page added to cookbook')).toBeTruthy();
     expect(screen.getByText(/nothing will be lost/i)).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: 'Recipe page progress' }).props.accessibilityValue).toEqual({
+      min: 0,
+      max: 3,
+      now: 2,
+      text: 'Page added to cookbook in progress. 2 of 3 steps complete.',
+    });
   });
 
   it('keeps failure recovery in the same workspace', async () => {

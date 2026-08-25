@@ -9,6 +9,8 @@ export interface Cookbook3DSceneProps {
   spreads: CookbookSpread[];
   spreadIndex: number;
   isOpen: boolean;
+  /** Honor the system Reduce Motion preference for non-interactive transitions. */
+  reduceMotion?: boolean;
   /**
    * Shared open/close progress (0 = closed, 1 = open). When provided, the
    * parent owns the animation and the scene reads this value directly instead

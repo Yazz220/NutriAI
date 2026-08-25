@@ -36,6 +36,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   reader introduction. A small in-book Nosh tip is deferred until a later visit,
   can be dismissed permanently, and opens the existing recipe-aware conversation.
   Native share receipts take precedence so onboarding never interrupts inbound work.
+  Reader transitions now honor Reduce Motion, capture progress exposes spoken
+  step state instead of relying on color, and image-backed generated pages expose
+  canonical recipe content to VoiceOver. Authenticated assistive-technology,
+  RTL, and localization walkthroughs remain before release.
 - [ ] **Camera capture in intake** — `UnifiedIntakeComposer` /
   `NoshCaptureWorkspace` only offer the photo library, though camera permission
   is declared in `app.json`.
@@ -81,7 +85,10 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [ ] `app.json` declares `userInterfaceStyle: "automatic"` but there is no dark
   palette — iOS will ask for dark and get light. Either build dark mode or pin
   `light`.
-- [ ] No Dynamic Type scaling anywhere.
+- [~] **Dynamic Type visual QA incomplete** — native text scaling is enabled and
+  the first-run welcome scrolls while the creation presets reflow at larger font
+  scales, but the complete onboarding path and broader app still need device checks
+  at accessibility sizes.
 - [ ] Long cookbook titles truncate without ellipsis affordance (shelf meta,
   spine).
 - [ ] Create-book volume on shelf lacks a distinct accessibility label.
