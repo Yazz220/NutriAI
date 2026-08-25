@@ -616,7 +616,7 @@ export function BookReader({
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
             {isCompactReading && readingPage ? readingPage.title : cookbookTitle}
           </Text>
-          {readOnly ? <Text style={styles.sampleLabel}>SAMPLE COOKBOOK</Text> : null}
+          {readOnly ? <Text style={styles.sampleLabel} maxFontSizeMultiplier={1}>SAMPLE COOKBOOK</Text> : null}
         </View>
         {isOpen && (canOpenRecipeActions || canOpenCookbookSettings) ? (
           <Pressable
@@ -980,6 +980,7 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     alignItems: 'center',
+    gap: Spacing.values[1],
   },
   title: {
     color: Colors.text,
@@ -990,7 +991,7 @@ const styles = StyleSheet.create({
   sampleLabel: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.xxxs,
     lineHeight: Typography.metrics.lineHeight11,
     letterSpacing: Typography.metrics.letterSpacing11,
     textAlign: 'center',

@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookReader } from '@/components/cookbook/BookReader';
 import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
@@ -10,6 +11,7 @@ import {
   recordFirstCookbookCreated,
   recordFirstReadyRecipeOpened,
 } from '@/utils/cookbook/firstRunOnboarding';
+import { Typography } from '@/constants/spacing';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -141,7 +143,12 @@ describe('BookReader cover entry', () => {
       readOnly: true,
     });
 
-    expect(screen.getByText('SAMPLE COOKBOOK')).toBeTruthy();
+    const sampleLabel = screen.getByText('SAMPLE COOKBOOK');
+    expect(StyleSheet.flatten(sampleLabel.props.style)).toMatchObject({
+      fontSize: Typography.sizes.xxxs,
+      lineHeight: Typography.metrics.lineHeight11,
+    });
+    expect(sampleLabel.props.maxFontSizeMultiplier).toBe(1);
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
   });
 
