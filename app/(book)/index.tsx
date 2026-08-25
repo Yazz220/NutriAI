@@ -1,19 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { ShelfScene } from '@/components/shelf/ShelfScene';
 import { NoshShelfChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { FirstRunWelcome } from '@/components/onboarding/FirstRunWelcome';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
-import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import type { Cookbook } from '@/types/cookbook';
 import { Radii, Spacing } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
 import {
   defaultFirstRunOnboardingState,
   consumeFirstRunOnboardingReset,
@@ -26,8 +24,6 @@ import { isSampleCookbookId, SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleC
 
 export default function MyCookbooksScreen() {
   const { cookbooks, isLoading, isShelfStale, shelfError, refresh } = useCookbooks();
-  const { fontScale } = useWindowDimensions();
-  const usesAccessibilityText = fontScale >= 2;
   const { user } = useAuth();
   const { receipt } = useNoshNativeShare();
   const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
@@ -156,13 +152,12 @@ export default function MyCookbooksScreen() {
         />
         <NoshShelfChatButton />
         <Pressable
-          style={[styles.captureButton, usesAccessibilityText && styles.captureButtonAccessibilityText]}
+          style={styles.captureButton}
           onPress={() => router.push('/(book)/save')}
           accessibilityRole="button"
           accessibilityLabel="Save a recipe with Nosh"
         >
-          <Plus size={17} color={Colors.text} />
-          {!usesAccessibilityText ? <Text style={styles.captureButtonText}>Save a recipe</Text> : null}
+          <Plus size={Spacing.values[22]} color={Colors.text} />
         </Pressable>
       </View>
       {showFirstRunWelcome ? (
@@ -193,27 +188,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.background,
   },
-  captureButtonText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
   captureButton: {
     position: 'absolute',
     right: Spacing.md,
     top: 198,
-    minHeight: 42,
-    flexDirection: 'row',
+    width: Spacing.values[54],
+    height: Spacing.values[54],
     alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.full,
+    justifyContent: 'center',
+    borderRadius: Radii.numeric[27],
     borderWidth: 1,
     borderColor: Colors.charcoal,
     backgroundColor: Colors.parchment,
-    paddingHorizontal: Spacing.md,
     boxShadow: Colors.book.cardShadow,
-  },
-  captureButtonAccessibilityText: {
-    width: 54,
-    height: 54,
-    minHeight: 54,
-    justifyContent: 'center',
-    paddingHorizontal: 0,
   },
 });

@@ -4,7 +4,7 @@ import { BookOpen, ChevronLeft, Download, ExternalLink, FileDown, Pencil, Refres
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
@@ -93,7 +93,6 @@ export function RecipeActionsSheet({
             </Pressable>
           ) : null}
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>{view === 'move' ? 'MOVE RECIPE' : 'RECIPE ACTIONS'}</Text>
             <Text style={styles.sheetTitle} numberOfLines={2}>
               {view === 'move' ? 'Choose a cookbook' : page.title}
             </Text>
@@ -108,7 +107,6 @@ export function RecipeActionsSheet({
               <ActionRow
                 icon={<Pencil size={19} color={Colors.text} />}
                 title="Edit recipe"
-                description="Fix text or details"
                 pending={false}
                 disabled={Boolean(pendingAction)}
                 onPress={() => {
@@ -121,7 +119,6 @@ export function RecipeActionsSheet({
               <ActionRow
                 icon={<RefreshCw size={19} color={Colors.text} />}
                 title="Try another design"
-                description="Preview a new page"
                 pending={false}
                 disabled={Boolean(pendingAction)}
                 onPress={() => {
@@ -134,7 +131,6 @@ export function RecipeActionsSheet({
               <ActionRow
                 icon={<ExternalLink size={19} color={Colors.text} />}
                 title="Visit original source"
-                description={getSourceHost(sourceUrl)}
                 pending={pendingAction === 'source'}
                 disabled={Boolean(pendingAction)}
                 onPress={() => void runAction('source', () => onVisitSource(page))}
@@ -145,7 +141,6 @@ export function RecipeActionsSheet({
                 <ActionRow
                   icon={<Download size={19} color={Colors.text} />}
                   title="Export page image"
-                  description="Save page image"
                   pending={pendingAction === 'export'}
                   disabled={Boolean(pendingAction)}
                   onPress={() => void runAction('export', () => onExport(page))}
@@ -153,7 +148,6 @@ export function RecipeActionsSheet({
                 <ActionRow
                   icon={<Share2 size={19} color={Colors.text} />}
                   title="Share recipe"
-                  description="Send page and link"
                   pending={pendingAction === 'share'}
                   disabled={Boolean(pendingAction)}
                   onPress={() => void runAction('share', () => onShare(page))}
@@ -164,7 +158,6 @@ export function RecipeActionsSheet({
               <ActionRow
                 icon={<BookOpen size={19} color={Colors.text} />}
                 title="Move to another cookbook"
-                description="Choose cookbook"
                 pending={false}
                 disabled={Boolean(pendingAction)}
                 onPress={() => {
@@ -202,7 +195,6 @@ export function RecipeActionsSheet({
                   key={destination.id}
                   icon={<BookOpen size={19} color={Colors.text} />}
                   title={destination.title}
-                  description={formatRecipeCount(destination.pageCount)}
                   pending={pendingAction === actionKey}
                   disabled={Boolean(pendingAction)}
                   onPress={() => void runAction(actionKey, () => onMove?.(page, destination))}
@@ -289,7 +281,6 @@ export function CookbookSettingsSheet({
       closeButtonStyle={styles.closeButton}
       header={
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>BOOK</Text>
           <Text style={styles.sheetTitle}>Cookbook settings</Text>
         </View>
       }
@@ -330,7 +321,6 @@ export function CookbookSettingsSheet({
           <ActionRow
             icon={<FileDown size={19} color={Colors.text} />}
             title="Export cookbook"
-            description="PDF"
             pending={exporting}
             disabled={saving || exporting}
             onPress={() => void exportCookbook()}
@@ -360,14 +350,12 @@ export function CookbookSettingsSheet({
 function ActionRow({
   icon,
   title,
-  description,
   pending,
   disabled,
   onPress,
 }: {
   icon: ReactNode;
   title: string;
-  description?: string;
   pending: boolean;
   disabled: boolean;
   onPress: () => void;
@@ -379,28 +367,11 @@ function ActionRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={title}
-      accessibilityHint={description}
     >
       <View style={styles.actionIcon}>{pending ? <ActivityIndicator color={Colors.text} /> : icon}</View>
-      <View style={styles.actionCopy}>
-        <Text style={styles.actionTitle}>{title}</Text>
-        {description ? <Text style={styles.actionDescription} numberOfLines={1}>{description}</Text> : null}
-      </View>
+      <Text style={styles.actionTitle}>{title}</Text>
     </Pressable>
   );
-}
-
-function getSourceHost(sourceUrl: string): string {
-  try {
-    return new URL(sourceUrl).hostname.replace(/^www\./, '');
-  } catch {
-    return 'Open source link';
-  }
-}
-
-function formatRecipeCount(pageCount?: number): string {
-  const count = pageCount ?? 0;
-  return `${count} ${count === 1 ? 'recipe' : 'recipes'}`;
 }
 
 const styles = StyleSheet.create({
@@ -410,7 +381,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: {
     flex: 1,
-    gap: 2,
+    gap: Spacing.values[2],
   },
   sheetHeader: {
     flex: 1,
@@ -431,15 +402,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 9,
-    lineHeight: 13,
-    letterSpacing: 1.1,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight13,
+    letterSpacing: Typography.metrics.letterSpacing11,
   },
   sheetTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 23,
-    lineHeight: 29,
+    fontSize: Typography.sizes.xxlMd,
+    lineHeight: Typography.metrics.lineHeight29,
   },
   actionGroup: {
     overflow: 'hidden',
@@ -455,8 +426,8 @@ const styles = StyleSheet.create({
   destinationIntro: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   actionRow: {
     minHeight: 64,
@@ -478,19 +449,19 @@ const styles = StyleSheet.create({
   },
   actionCopy: {
     flex: 1,
-    gap: 2,
+    gap: Spacing.values[2],
   },
   actionTitle: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight19,
   },
   actionDescription: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   field: {
     gap: Spacing.xs,
@@ -498,8 +469,8 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   input: {
     minHeight: 50,
@@ -510,7 +481,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 15,
+    fontSize: Typography.sizes.md,
   },
   saveButton: {
     minHeight: 48,
@@ -522,7 +493,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   disabledButton: {
     opacity: 0.38,
@@ -541,14 +512,14 @@ const styles = StyleSheet.create({
   dangerHeading: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   dangerCopy: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 11,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
   },
   deleteButton: {
     minHeight: 48,
@@ -564,7 +535,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: Colors.error,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
   removeRecipeButton: {
     minHeight: 48,
@@ -577,8 +548,8 @@ const styles = StyleSheet.create({
   error: {
     color: Colors.error,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   pressed: {
     opacity: 0.72,

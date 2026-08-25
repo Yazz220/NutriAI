@@ -17,7 +17,7 @@ describe('Phase 8 collection organization contract', () => {
 
   it('keeps move and copy behind a human confirmation card', () => {
     expect(toolkit).toMatch(/organize_recipe:\s*{\s*type: 'human'/);
-    expect(card).toContain('Confirm collection change');
+    expect(card).toContain('`Confirm ${action}`');
     expect(card).toContain("onResult({ cancelled: true })");
   });
 

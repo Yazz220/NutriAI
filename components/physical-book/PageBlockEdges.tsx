@@ -1,3 +1,4 @@
+import { Spacing } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Colors } from '@/constants/colors';
@@ -53,8 +54,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 3,
     justifyContent: 'center',
     alignItems: 'flex-end',
-    gap: 4,
-    paddingRight: 1,
+    gap: Spacing.values[4],
+    paddingRight: Spacing.values[1],
   },
   striation: {
     height: 1,

@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 42,
     height: 4,
-    borderRadius: 999,
+    borderRadius: Radii.numeric[999],
     backgroundColor: Tokens.component.sheet.handle,
   },
   header: {

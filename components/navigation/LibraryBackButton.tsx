@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 export function LibraryBackButton() {
@@ -32,8 +32,8 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    gap: Spacing.values[4],
+    backgroundColor: Colors.legacySurface.v81,
     borderWidth: 1,
     borderColor: Colors.ash,
   },
@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
   label: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
 });

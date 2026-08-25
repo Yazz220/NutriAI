@@ -3,7 +3,7 @@ import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
 import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
@@ -21,7 +21,6 @@ function PageSkeleton({ page }: { page: CookbookPage }) {
   return (
     <View style={styles.skeleton}>
       <View style={styles.skeletonInner}>
-        <Text style={styles.skeletonEyebrow}>Cookbook page</Text>
         <Text style={styles.skeletonTitle} numberOfLines={2} adjustsFontSizeToFit>
           {page.title}
         </Text>
@@ -145,9 +144,9 @@ const styles = StyleSheet.create({
   bookFrame: {
     height: '100%',
     aspectRatio: undefined,
-    borderRadius: 0,
+    borderRadius: Radii.numeric[0],
     borderWidth: 0,
-    boxShadow: 'none',
+    boxShadow: Shadows.level0.boxShadow,
   },
   image: {
     width: '100%',
@@ -167,16 +166,16 @@ const styles = StyleSheet.create({
   },
   skeletonEyebrow: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   skeletonTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
+    letterSpacing: Typography.metrics.letterSpacing0,
     textAlign: 'center',
   },
   skeletonRule: {
@@ -186,8 +185,8 @@ const styles = StyleSheet.create({
   },
   skeletonHint: {
     color: Colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
     fontStyle: 'italic',
   },

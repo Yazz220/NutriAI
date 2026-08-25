@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { RefreshCw } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 interface StaleDataNoticeProps {
@@ -50,18 +50,18 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
-    gap: 1,
+    gap: Spacing.values[1],
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   detail: {
     color: Colors.slate,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   refresh: {
     minHeight: 32,
@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
   refreshLabel: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
   },
 });

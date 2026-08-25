@@ -17,7 +17,7 @@
  */
 
 import type { ChatModelAdapter, ThreadMessage, ThreadAssistantMessagePart } from '@assistant-ui/react-native';
-import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+import { streamAuthenticatedFunction } from '@/utils/supabaseEdge';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { NoshInteractionEnvelope, NoshTask } from '@/types/noshInteraction';
 
@@ -54,6 +54,7 @@ interface NoshChatRequest {
     hasAttachedImage: boolean;
   };
   tools: string[];
+  stream?: boolean;
 }
 
 interface NoshChatResponse {
@@ -66,6 +67,11 @@ interface NoshChatResponse {
   finishReason?: string;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
 }
+
+type NoshChatStreamEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'result'; result: NoshChatResponse }
+  | { type: 'error'; error: string };
 
 // ---------------------------------------------------------------------------
 // Message conversion: assistant-ui ThreadMessage[] → OpenAI-compatible format
@@ -221,7 +227,7 @@ export function createNoshChatAdapter(
   getContext: () => NoshChatAdapterContext,
 ): ChatModelAdapter {
   return {
-    async run({ messages, context, abortSignal }) {
+    async *run({ messages, context, abortSignal }) {
       const ctx = getContext();
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),
@@ -237,13 +243,31 @@ export function createNoshChatAdapter(
           hasAttachedImage: ctx.hasAttachedImage ?? false,
         },
         tools: TOOLS_BY_TASK[ctx.interaction.task],
+        stream: true,
       };
 
-      const response = await callAuthenticatedFunction<NoshChatResponse>(
+      let response: NoshChatResponse | null = null;
+      let streamedText = '';
+      for await (const event of streamAuthenticatedFunction<NoshChatStreamEvent | NoshChatResponse>(
         'nosh-chat',
         requestBody as unknown as Record<string, unknown>,
-        { timeoutMs: 60_000 },
-      );
+        { timeoutMs: 60_000, signal: abortSignal },
+      )) {
+        if ('type' in event && event.type === 'text-delta') {
+          streamedText += event.delta;
+          yield { content: [{ type: 'text', text: streamedText }] };
+        } else if ('type' in event && event.type === 'result') {
+          response = event.result;
+        } else if ('type' in event && event.type === 'error') {
+          throw new Error(event.error);
+        } else {
+          // Compatibility with a nosh-chat deployment that has not yet been
+          // upgraded to NDJSON streaming.
+          response = event;
+        }
+      }
+
+      if (!response) throw new Error('Nosh returned an incomplete response.');
 
       // Build the content parts from the response
       const content: ThreadAssistantMessagePart[] = [];
@@ -313,7 +337,7 @@ export function createNoshChatAdapter(
         content.push({ type: 'text', text: 'I can help with this recipe.' });
       }
 
-      return {
+      yield {
         content,
         status: toolExecutionFailed
           ? { type: 'complete', reason: 'stop' }

@@ -5,9 +5,10 @@ import {
   AlertTriangle,
   BookOpen,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock3,
+  History,
 } from 'lucide-react-native';
 import {
   UnifiedIntakeComposer,
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getCookbookStyle } from '@/constants/cookbookStyles';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
@@ -52,6 +53,8 @@ interface NoshCaptureWorkspaceProps {
   destinationCookbookId?: string;
   captureId?: string;
   initialSource?: NoshCaptureHandoffSource | null;
+  activityVisible?: boolean;
+  onActivitySummaryChange?: (summary: { pendingCount: number; attentionCount: number }) => void;
 }
 
 export interface NoshCaptureHandoffSource {
@@ -60,12 +63,14 @@ export interface NoshCaptureHandoffSource {
   imageBase64?: string;
 }
 
-const INITIAL_ACTIVITY_LIMIT = 4;
+const INITIAL_ACTIVITY_LIMIT = 8;
 
 export function NoshCaptureWorkspace({
   destinationCookbookId,
   captureId: initialCaptureId,
   initialSource,
+  activityVisible,
+  onActivitySummaryChange,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
   const { close: closeNoshConversation } = useNoshConversation();
@@ -82,6 +87,7 @@ export function NoshCaptureWorkspace({
   );
   const [firstRunReady, setFirstRunReady] = useState(false);
   const handoffStartedRef = useRef(false);
+  const previousActivityVisibleRef = useRef(activityVisible);
   const availableCookbooks = useMemo(
     () => cookbooks.filter((cookbook) => cookbook.userId === user?.id),
     [cookbooks, user?.id],
@@ -105,6 +111,15 @@ export function NoshCaptureWorkspace({
     activeDestinationCookbookId,
     capture?.id,
   );
+
+  useEffect(() => {
+    if (!onActivitySummaryChange) return;
+    const pending = captureState.captures.filter((candidate) => candidate.status !== 'ready');
+    onActivitySummaryChange({
+      pendingCount: pending.length,
+      attentionCount: pending.filter((candidate) => candidate.status === 'needs_attention').length,
+    });
+  }, [captureState.captures, onActivitySummaryChange]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -132,6 +147,15 @@ export function NoshCaptureWorkspace({
   useEffect(() => {
     if (initialCaptureId) setCaptureId(initialCaptureId);
   }, [initialCaptureId]);
+
+  useEffect(() => {
+    const previous = previousActivityVisibleRef.current;
+    previousActivityVisibleRef.current = activityVisible;
+    if (activityVisible === undefined || previous === activityVisible) return;
+    setCaptureId(undefined);
+    setError(null);
+    setActivityLimit(INITIAL_ACTIVITY_LIMIT);
+  }, [activityVisible]);
 
   const submit = useCallback(async (payload: UnifiedIntakePayload) => {
     if (!user) return;
@@ -251,6 +275,7 @@ export function NoshCaptureWorkspace({
         error={error}
         isPreparingDestination={captureState.isPreparingDestination}
         isRetrying={captureState.isRetrying}
+        backLabel={activityVisible ? 'Recipe activity' : 'Save another recipe'}
         onBack={showComposer}
         onChooseDestination={chooseDestination}
         onRetry={() => void captureState.retryCapture(capture.id)}
@@ -269,9 +294,26 @@ export function NoshCaptureWorkspace({
     );
   }
 
+  if (activityVisible) {
+    return (
+      <CaptureActivitySection
+        captures={activity.slice(0, activityLimit)}
+        totalCount={activity.length}
+        cookbookTitles={cookbookTitles}
+        isLoading={captureState.isLoading}
+        isStale={captureState.isStale}
+        hasError={Boolean(captureState.error)}
+        showEmptyState
+        onOpen={setCaptureId}
+        onRefresh={() => { void captureState.refresh(); }}
+        onShowMore={() => setActivityLimit((current) => current + INITIAL_ACTIVITY_LIMIT)}
+      />
+    );
+  }
+
   return (
     <View style={styles.workspace}>
-      {isFirstCaptureExperience ? <FirstCaptureIntro cookbookTitle={destination?.title} /> : null}
+      {isFirstCaptureExperience ? <FirstCaptureIntro /> : null}
       <UnifiedIntakeComposer
         isSubmitting={captureState.isStarting}
         input={input}
@@ -282,17 +324,19 @@ export function NoshCaptureWorkspace({
         onSubmit={submit}
       />
 
-      <CaptureActivitySection
-        captures={activity.slice(0, activityLimit)}
-        totalCount={activity.length}
-        cookbookTitles={cookbookTitles}
-        isLoading={captureState.isLoading}
-        isStale={captureState.isStale}
-        hasError={Boolean(captureState.error)}
-        onOpen={setCaptureId}
-        onRefresh={() => { void captureState.refresh(); }}
-        onShowMore={() => setActivityLimit((current) => current + INITIAL_ACTIVITY_LIMIT)}
-      />
+      {activityVisible === undefined ? (
+        <CaptureActivitySection
+          captures={activity.slice(0, activityLimit)}
+          totalCount={activity.length}
+          cookbookTitles={cookbookTitles}
+          isLoading={captureState.isLoading}
+          isStale={captureState.isStale}
+          hasError={Boolean(captureState.error)}
+          onOpen={setCaptureId}
+          onRefresh={() => { void captureState.refresh(); }}
+          onShowMore={() => setActivityLimit((current) => current + INITIAL_ACTIVITY_LIMIT)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -305,6 +349,7 @@ function CaptureDetail({
   error,
   isPreparingDestination,
   isRetrying,
+  backLabel,
   onBack,
   onChooseDestination,
   onRetry,
@@ -318,6 +363,7 @@ function CaptureDetail({
   error: string | null;
   isPreparingDestination: boolean;
   isRetrying: boolean;
+  backLabel: string;
   onBack: () => void;
   onChooseDestination: (cookbookId: string) => Promise<void>;
   onRetry: () => void;
@@ -329,23 +375,13 @@ function CaptureDetail({
   if (capture.status === 'processing') {
     return (
       <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} />
+        <DetailBackButton onPress={onBack} label={backLabel} />
         <View style={styles.processingCard} accessibilityLiveRegion="polite">
           <View style={styles.workingIcon}>
             <ActivityIndicator color={Colors.primary} />
           </View>
-          <Text style={styles.eyebrow}>{presentation.label}</Text>
           <Text style={styles.title}>{presentation.title}</Text>
-          <Text style={styles.copy}>{presentation.detail}</Text>
           <CaptureProgress capture={capture} />
-          <View style={styles.reassurance}>
-            <Clock3 size={15} color={Colors.textSecondary} />
-            <Text style={styles.reassuranceText}>
-              {firstRun
-                ? 'Your source is safely saved. You can close this sheet while Nosh makes your first page—nothing will be lost.'
-                : 'Nosh is still working. You can close this sheet and come back—nothing will be lost.'}
-            </Text>
-          </View>
         </View>
       </View>
     );
@@ -354,12 +390,10 @@ function CaptureDetail({
   if (capture.status === 'needs_destination') {
     return (
       <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} />
+        <DetailBackButton onPress={onBack} label={backLabel} />
         <View style={styles.destinationCard} accessibilityLiveRegion="polite">
           <View style={styles.icon}><BookOpen size={21} color={Colors.text} /></View>
-          <Text style={styles.eyebrow}>{presentation.label}</Text>
           <Text style={styles.title}>{presentation.title}</Text>
-          <Text style={styles.copy}>Pick its book. The finished page will inherit that cookbook’s visual identity.</Text>
           {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
           <View style={styles.bookList}>
             {availableCookbooks.map((cookbook) => (
@@ -382,11 +416,10 @@ function CaptureDetail({
   if (capture.status === 'needs_attention') {
     return (
       <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} />
+        <DetailBackButton onPress={onBack} label={backLabel} />
         <StateCard
           icon={<AlertTriangle size={21} color={Colors.error} />}
           iconTone="error"
-          eyebrow={presentation.label}
           title="This page needs another try"
           copy={presentation.detail}
           action={<Button title="Try again" onPress={onRetry} loading={isRetrying} fullWidth />}
@@ -398,15 +431,11 @@ function CaptureDetail({
   if (isCaptureReadyToOpen(capture)) {
     return (
       <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} label="Save another recipe" />
+        <DetailBackButton onPress={onBack} label={backLabel} />
         <StateCard
           icon={<Check size={21} color={Colors.onSuccess} />}
           iconTone="success"
-          eyebrow={presentation.detail}
           title={firstRun ? 'Your first page is ready' : 'Your page is ready'}
-          copy={firstRun
-            ? `${capture.recipeGraph?.title ?? 'The recipe'} now has a home in your cookbook.`
-            : `${capture.recipeGraph?.title ?? 'The recipe'} is in the book and ready to read.`}
           action={<Button title={firstRun ? 'Open my first page' : 'Open recipe'} onPress={onOpenRecipe} fullWidth />}
         />
       </View>
@@ -415,7 +444,7 @@ function CaptureDetail({
 
   return (
     <View style={styles.detailStack}>
-      <DetailBackButton onPress={onBack} />
+      <DetailBackButton onPress={onBack} label={backLabel} />
       <StateCard
         icon={<AlertTriangle size={21} color={Colors.error} />}
         iconTone="error"
@@ -427,18 +456,14 @@ function CaptureDetail({
   );
 }
 
-function FirstCaptureIntro({ cookbookTitle }: { cookbookTitle?: string }) {
+function FirstCaptureIntro() {
   return (
     <View style={styles.firstCaptureIntro} accessibilityLiveRegion="polite">
       <View style={styles.firstCaptureIcon}>
         <BookOpen size={18} color={Colors.text} />
       </View>
       <View style={styles.firstCaptureCopy}>
-        <Text style={styles.firstCaptureEyebrow}>YOUR FIRST PAGE</Text>
         <Text style={styles.firstCaptureTitle}>Start with a recipe you already love.</Text>
-        <Text style={styles.firstCaptureBody}>
-          Paste a link or recipe text, or attach a photo or video. Nosh will turn your source into a finished page{cookbookTitle ? ` for ${cookbookTitle}` : ''}.
-        </Text>
       </View>
     </View>
   );
@@ -494,6 +519,7 @@ function CaptureActivitySection({
   isLoading,
   isStale,
   hasError,
+  showEmptyState = false,
   onOpen,
   onRefresh,
   onShowMore,
@@ -504,6 +530,7 @@ function CaptureActivitySection({
   isLoading: boolean;
   isStale: boolean;
   hasError: boolean;
+  showEmptyState?: boolean;
   onOpen: (captureId: string) => void;
   onRefresh: () => void;
   onShowMore: () => void;
@@ -521,24 +548,80 @@ function CaptureActivitySection({
     return (
       <View style={styles.activityEmpty}>
         <Text style={styles.activityTitle}>Recipe activity is unavailable</Text>
-        <Text style={styles.activityHint}>Your recipes are still safe. Check your connection and try again.</Text>
         <Button title="Refresh" variant="ghost" onPress={onRefresh} />
       </View>
     );
   }
 
-  if (captures.length === 0) return null;
+  if (captures.length === 0) {
+    if (!showEmptyState) return null;
+    return (
+      <View style={styles.activityEmpty}>
+        <View style={styles.activityEmptyIcon}>
+          <History size={20} color={Colors.textMuted} />
+        </View>
+        <Text style={styles.activityTitle}>No recipe activity yet</Text>
+      </View>
+    );
+  }
+
+  const activeCaptures = captures.filter((capture) => capture.status !== 'ready');
+  const recentCaptures = captures.filter((capture) => capture.status === 'ready');
 
   return (
     <View style={styles.activitySection}>
       <View style={styles.activityHeader}>
-        <View style={styles.activityHeaderCopy}>
-          <Text style={styles.activityTitle}>Recipe activity</Text>
-          <Text style={styles.activityHint}>Follow pages that are working, need a retry, or are ready.</Text>
-        </View>
+        <Text style={styles.activityCount}>{totalCount} {totalCount === 1 ? 'recipe' : 'recipes'}</Text>
         {isStale ? <Text style={styles.syncing}>Reconnecting…</Text> : null}
       </View>
 
+      {activeCaptures.length > 0 ? (
+        <ActivityGroup
+          title="Active"
+          captures={activeCaptures}
+          cookbookTitles={cookbookTitles}
+          onOpen={onOpen}
+        />
+      ) : null}
+
+      {recentCaptures.length > 0 ? (
+        <ActivityGroup
+          title="Recent"
+          captures={recentCaptures}
+          cookbookTitles={cookbookTitles}
+          onOpen={onOpen}
+        />
+      ) : null}
+
+      {totalCount > captures.length ? (
+        <Pressable
+          style={({ pressed }) => [styles.showMore, pressed && styles.pressed]}
+          onPress={onShowMore}
+          accessibilityRole="button"
+          accessibilityLabel="Show older recipe activity"
+        >
+          <Text style={styles.showMoreText}>Show older recipes</Text>
+          <ChevronDown size={16} color={Colors.textSecondary} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function ActivityGroup({
+  title,
+  captures,
+  cookbookTitles,
+  onOpen,
+}: {
+  title: string;
+  captures: RecipeCapture[];
+  cookbookTitles: Map<string, string>;
+  onOpen: (captureId: string) => void;
+}) {
+  return (
+    <View style={styles.activityGroup}>
+      <Text style={styles.activityGroupTitle}>{title}</Text>
       <View style={styles.activityList}>
         {captures.map((capture) => (
           <CaptureActivityRow
@@ -551,12 +634,6 @@ function CaptureActivitySection({
           />
         ))}
       </View>
-
-      {totalCount > captures.length ? (
-        <Pressable style={styles.showMore} onPress={onShowMore} accessibilityRole="button">
-          <Text style={styles.showMoreText}>Show more activity</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -572,6 +649,16 @@ function CaptureActivityRow({
 }) {
   const presentation = getCapturePresentation(capture, cookbookTitle);
   const title = capture.recipeGraph?.title ?? presentation.title;
+  const sourceLabel = capture.sourceType === 'image'
+    ? 'Photo'
+    : capture.sourceType === 'video'
+      ? 'Video'
+      : capture.sourceType === 'url'
+        ? 'Link'
+        : 'Text';
+  const meta = [cookbookTitle ?? sourceLabel, formatCaptureDate(capture.updatedAt)]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <Pressable
       style={({ pressed }) => [styles.activityRow, pressed && styles.pressed]}
@@ -581,18 +668,37 @@ function CaptureActivityRow({
     >
       <CaptureStatusIcon phase={presentation.phase} />
       <View style={styles.activityRowCopy}>
-        <Text style={styles.activityRowTitle} numberOfLines={1}>{title}</Text>
-        <Text style={styles.activityRowDetail} numberOfLines={1}>{presentation.detail}</Text>
+        <View style={styles.activityRowHeading}>
+          <Text style={styles.activityRowTitle} numberOfLines={1}>{title}</Text>
+          <View style={[
+            styles.activityStatus,
+            presentation.phase === 'ready' && styles.activityStatusReady,
+            presentation.phase === 'attention' && styles.activityStatusAttention,
+          ]}>
+            <Text style={[
+              styles.activityRowLabel,
+              presentation.phase === 'ready' && styles.activityRowLabelReady,
+              presentation.phase === 'attention' && styles.activityRowLabelError,
+            ]}>{presentation.label}</Text>
+          </View>
+        </View>
+        <Text style={styles.activityRowDetail} numberOfLines={1}>{meta}</Text>
       </View>
-      <View style={styles.activityRowState}>
-        <Text style={[
-          styles.activityRowLabel,
-          presentation.phase === 'attention' && styles.activityRowLabelError,
-        ]}>{presentation.label}</Text>
-        <ChevronRight size={15} color={Colors.textMuted} />
-      </View>
+      <ChevronRight size={17} color={Colors.textMuted} />
     </Pressable>
   );
+}
+
+function formatCaptureDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const dayDifference = Math.round((startOfToday - startOfDate) / 86_400_000);
+  if (dayDifference === 0) return 'Today';
+  if (dayDifference === 1) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function CaptureStatusIcon({ phase }: { phase: CapturePresentationPhase }) {
@@ -625,16 +731,14 @@ function DetailBackButton({ onPress, label = 'All recipe activity' }: { onPress:
 function StateCard({
   icon,
   iconTone = 'neutral',
-  eyebrow,
   title,
   copy,
   action,
 }: {
   icon: React.ReactNode;
   iconTone?: 'neutral' | 'success' | 'error';
-  eyebrow?: string;
   title: string;
-  copy: string;
+  copy?: string;
   action?: React.ReactNode;
 }) {
   return (
@@ -644,9 +748,8 @@ function StateCard({
         iconTone === 'success' && styles.successIcon,
         iconTone === 'error' && styles.errorIcon,
       ]}>{icon}</View>
-      {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.copy}>{copy}</Text>
+      {copy ? <Text style={styles.copy}>{copy}</Text> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
     </View>
   );
@@ -701,28 +804,28 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
   },
-  firstCaptureCopy: { flex: 1, gap: 3 },
+  firstCaptureCopy: { flex: 1, gap: Spacing.values[3] },
   firstCaptureEyebrow: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 9,
-    lineHeight: 13,
-    letterSpacing: 1.1,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight13,
+    letterSpacing: Typography.metrics.letterSpacing11,
   },
   firstCaptureTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: Typography.sizes.lgMd,
+    lineHeight: Typography.metrics.lineHeight22,
   },
   firstCaptureBody: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   center: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  loadingCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: 13 },
+  loadingCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   detailStack: { gap: Spacing.sm },
   detailBack: {
     minHeight: 40,
@@ -733,7 +836,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.sm,
   },
-  detailBackText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  detailBackText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   stateCard: {
     minHeight: 248,
@@ -768,7 +871,7 @@ const styles = StyleSheet.create({
   icon: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: Radii.numeric[23],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
@@ -776,7 +879,7 @@ const styles = StyleSheet.create({
   workingIcon: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: Radii.numeric[26],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
@@ -786,23 +889,23 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.medium,
-    fontSize: 11,
-    letterSpacing: 0.4,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing04,
     textAlign: 'center',
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 23,
-    lineHeight: 29,
+    fontSize: Typography.sizes.xxlMd,
+    lineHeight: Typography.metrics.lineHeight29,
     textAlign: 'center',
   },
   copy: {
     maxWidth: 440,
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
     textAlign: 'center',
   },
   action: { width: '100%', marginTop: Spacing.sm },
@@ -820,8 +923,8 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   progress: { width: '100%', maxWidth: 360, marginTop: Spacing.sm },
   progressRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start' },
@@ -829,7 +932,7 @@ const styles = StyleSheet.create({
   progressDot: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: Radii.numeric[9],
     borderWidth: 1,
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
@@ -844,16 +947,16 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     paddingLeft: Spacing.sm,
   },
   progressLabelUpcoming: { color: Colors.textMuted, fontFamily: Fonts.ui.regular },
   errorText: {
     width: '100%',
     color: Colors.error,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     borderRadius: Radii.md,
     backgroundColor: Colors.errorLight,
     padding: Spacing.sm,
@@ -872,66 +975,106 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }],
   },
   bookChoicePressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  bookSwatch: { width: 28, height: 42, borderRadius: 4 },
+  bookSwatch: { width: 28, height: 42, borderRadius: Radii.numeric[4] },
   bookCopy: { flex: 1 },
-  bookTitle: { color: Colors.text, fontFamily: Fonts.display.semibold, fontSize: 15 },
-  bookStyle: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11, marginTop: 2 },
-  choose: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  bookTitle: { color: Colors.text, fontFamily: Fonts.display.semibold, fontSize: Typography.sizes.md, },
+  bookStyle: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, marginTop: Spacing.values[2] },
+  choose: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   activitySection: {
-    gap: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.ash,
-    paddingTop: Spacing.lg,
+    gap: Spacing.lg,
   },
-  activityHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  activityHeaderCopy: { flex: 1, gap: 2 },
-  activityTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 17, lineHeight: 22 },
-  activityHint: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11, lineHeight: 16 },
-  syncing: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 10 },
+  activityHeader: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  activityTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.lgMd, lineHeight: Typography.metrics.lineHeight22 },
+  activityCount: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md },
+  activityHint: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight16 },
+  syncing: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   activityLoading: {
-    minHeight: 72,
+    minHeight: 220,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.ash,
   },
   activityEmpty: {
+    minHeight: 220,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.ash,
-    paddingTop: Spacing.lg,
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.white,
+    padding: Spacing.xl,
+  },
+  activityEmptyIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.parchment,
+  },
+  activityGroup: { gap: Spacing.sm },
+  activityGroupTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: Typography.sizes.lg,
   },
   activityList: { gap: Spacing.sm },
   activityRow: {
-    minHeight: 66,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.md,
+    gap: Spacing.md,
+    borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: Colors.ash,
+    borderColor: Colors.borderLight,
     backgroundColor: Colors.white,
-    padding: Spacing.sm,
+    padding: Spacing.md,
+    boxShadow: Colors.book.cardShadow,
   },
   activityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
   },
   activityIconReady: { backgroundColor: Colors.success },
   activityIconError: { backgroundColor: Colors.errorLight },
-  activityRowCopy: { flex: 1, minWidth: 0 },
-  activityRowTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  activityRowDetail: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 10, marginTop: 2 },
-  activityRowState: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  activityRowLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 10 },
+  activityRowCopy: { flex: 1, minWidth: 0, gap: Spacing.values[4] },
+  activityRowHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  activityRowTitle: { flex: 1, color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md },
+  activityRowDetail: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.sm },
+  activityStatus: {
+    minHeight: 24,
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.parchment,
+    paddingHorizontal: Spacing.sm,
+  },
+  activityStatusReady: { backgroundColor: Colors.successLight },
+  activityStatusAttention: { backgroundColor: Colors.errorLight },
+  activityRowLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.sm },
+  activityRowLabelReady: { color: Colors.success },
   activityRowLabelError: { color: Colors.error },
-  showMore: { minHeight: 38, alignItems: 'center', justifyContent: 'center' },
-  showMoreText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 11 },
+  showMore: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.white,
+  },
+  showMoreText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
 });

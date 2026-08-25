@@ -10,7 +10,7 @@ import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { CookbookStyleId } from '@/types/cookbook';
 
@@ -68,7 +68,6 @@ export function AddCookbookSheet({
       closeAccessibilityLabel="Close"
       header={
         <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>Name your book</Text>
           <Text style={styles.title}>Add to collection</Text>
         </View>
       }
@@ -95,10 +94,6 @@ export function AddCookbookSheet({
         />
       </View>
 
-      {!canCreate ? (
-        <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text>
-      ) : null}
-
       {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
       <Pressable
@@ -124,16 +119,16 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   title: {
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
     color: Colors.text,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   previewWrap: {
     alignItems: 'center',
@@ -153,7 +148,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
     paddingHorizontal: Spacing.md,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     color: Colors.text,
   },
   cta: {
@@ -170,8 +165,8 @@ const styles = StyleSheet.create({
   ctaText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 16,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   error: {
     color: Colors.error,
@@ -180,8 +175,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.error,
     padding: Spacing.sm,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   note: {
     color: Colors.textSecondary,
@@ -190,8 +185,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.ash,
     padding: Spacing.sm,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
 });
 

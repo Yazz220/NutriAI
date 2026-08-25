@@ -4,7 +4,7 @@
  * Replaces the legacy AddPageComposer (which required a sourceHint prop
  * and had different UI per source type). This component has:
  *   - One TextInput (always same size, same placeholder)
- *   - One prominent image attach button
+ *   - One composer-native image attachment control
  *   - Auto-detection of source type on submit
  *
  * The user can paste a URL, paste text, paste a video link, attach an
@@ -16,11 +16,11 @@
 import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Link, Send, Sparkles, Video, X } from 'lucide-react-native';
+import { Camera, Link, Paperclip, Send, Sparkles, Video, X } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 export type UnifiedIntakePayload =
@@ -114,17 +114,6 @@ export function UnifiedIntakeComposer({
 
   const canSubmit = Boolean(imageBase64 || input.trim()) && !isSubmitting;
 
-  // Show a hint about what was detected
-  const detectedType = imageBase64
-    ? 'Image'
-    : looksLikeVideoUrl(input)
-      ? 'Video link'
-      : looksLikeUrl(input)
-        ? 'Recipe link'
-        : input.trim()
-          ? 'Recipe text'
-          : null;
-
   const submitIcon = imageBase64 ? (
     <Camera size={18} color={Colors.onPrimary} />
   ) : looksLikeVideoUrl(input) ? (
@@ -142,45 +131,52 @@ export function UnifiedIntakeComposer({
           <Sparkles size={18} color={Colors.text} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>Add a recipe</Text>
           <Text style={styles.title}>Paste a link, text, or attach a photo</Text>
         </View>
       </View>
 
-      <Text style={styles.description}>
-        Nosh reads the source, creates the complete recipe page, and places it in its cookbook automatically.
-      </Text>
+      <View style={styles.inputShell}>
+        <TextInput
+          value={input}
+          onChangeText={onInputChange}
+          multiline
+          style={styles.input}
+          placeholder="Paste a recipe link, text, or add notes for your photo"
+          placeholderTextColor={Colors.textMuted}
+          editable={!isSubmitting}
+          textAlignVertical="top"
+          maxFontSizeMultiplier={2}
+          scrollEnabled
+        />
 
-      {/* Image attachment preview (if attached) */}
-      {imageBase64 ? (
-        <View style={styles.attachmentRow}>
-          <Camera size={16} color={Colors.primary} />
-          <Text style={styles.attachmentText}>Image attached{input.trim() ? ' with notes' : ''}</Text>
+        <View style={styles.inputToolbar}>
           <Pressable
-            onPress={() => onImageBase64Change(null)}
-            accessibilityLabel="Remove attached image"
+            style={[styles.attachButton, isSubmitting && styles.disabled]}
+            onPress={pickImage}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel={imageBase64 ? 'Change attached image' : 'Attach image or screenshot'}
+            accessibilityState={{ disabled: isSubmitting, selected: Boolean(imageBase64) }}
+            hitSlop={Spacing.sm}
           >
-            <X size={18} color={Colors.textMuted} />
+            <Paperclip size={19} color={imageBase64 ? Colors.primary : Colors.textMuted} />
           </Pressable>
+
+          {imageBase64 ? (
+            <View style={styles.attachmentChip}>
+              <Text style={styles.attachmentText}>Photo attached{input.trim() ? ' with notes' : ''}</Text>
+              <Pressable
+                onPress={() => onImageBase64Change(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Remove attached image"
+                hitSlop={Spacing.sm}
+              >
+                <X size={16} color={Colors.textMuted} />
+              </Pressable>
+            </View>
+          ) : null}
         </View>
-      ) : null}
-
-      <TextInput
-        value={input}
-        onChangeText={onInputChange}
-        multiline
-        style={styles.input}
-        placeholder="Paste a recipe link, text, or add notes for your photo"
-        placeholderTextColor={Colors.textMuted}
-        editable={!isSubmitting}
-        textAlignVertical="top"
-        maxFontSizeMultiplier={2}
-        scrollEnabled
-      />
-
-      {detectedType && !isSubmitting ? (
-        <Text style={styles.detectedHint}>Detected: {detectedType}</Text>
-      ) : null}
+      </View>
 
       {error ? (
         <View style={styles.errorNotice} accessibilityRole="alert">
@@ -199,19 +195,6 @@ export function UnifiedIntakeComposer({
       ) : null}
 
       <View style={styles.actions}>
-        <Pressable
-          style={[styles.secondaryButton, isSubmitting && styles.disabled]}
-          onPress={pickImage}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Attach image or screenshot"
-        >
-          <Camera size={19} color={Colors.text} />
-          <Text style={styles.secondaryText}>
-            {imageBase64 ? 'Change image' : 'Attach photo'}
-          </Text>
-        </Pressable>
-
         <Pressable
           style={[styles.primaryButton, !canSubmit && styles.disabled]}
           onPress={submit}
@@ -247,7 +230,7 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
@@ -255,30 +238,51 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
-  eyebrow: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
-  },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight28,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
-  description: {
-    color: Colors.slate,
-    fontSize: 14,
-    lineHeight: 20,
+  inputShell: {
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.ash,
+    backgroundColor: Colors.alabaster,
+    overflow: 'hidden',
   },
-  attachmentRow: {
-    minHeight: 42,
+  input: {
+    color: Colors.text,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
+    height: 88,
+  },
+  inputToolbar: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  attachButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachmentChip: {
+    flex: 1,
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.full,
     backgroundColor: Colors.parchment,
     paddingHorizontal: Spacing.md,
   },
@@ -286,41 +290,10 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-  },
-  input: {
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.alabaster,
-    color: Colors.text,
-    padding: Spacing.md,
-    fontSize: 14,
-    lineHeight: 24,
-    height: 120,
-  },
-  detectedHint: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontFamily: Fonts.ui.medium,
-    letterSpacing: 0.3,
+    fontSize: Typography.sizes.sm,
   },
   actions: {
     gap: Spacing.md,
-  },
-  secondaryButton: {
-    height: 48,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  secondaryText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
   },
   primaryButton: {
     height: 44,
@@ -347,12 +320,12 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   errorBody: {
     color: Colors.slate,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   disabled: {
     opacity: 0.45,

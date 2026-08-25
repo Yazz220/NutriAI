@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   leftRowWithIconFloat: {
-    paddingLeft: 84, // reserve space so floating icon does not overlap text
+    paddingLeft: Spacing.values[84], // reserve space so floating icon does not overlap text
   },
   icon: {
     marginRight: Spacing.md,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     fontFamily: Fonts.ui.regular,
     color: Colors.lightText,
-    marginTop: 2,
+    marginTop: Spacing.values[2],
   },
   action: {
     marginLeft: Spacing.lg,

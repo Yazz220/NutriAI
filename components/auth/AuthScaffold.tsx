@@ -3,14 +3,14 @@ import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 const noshReading = require('../../assets/illustrations/nosh-reading-cookbook.png');
 
 interface AuthScaffoldProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
   showIllustration?: boolean;
@@ -44,7 +44,7 @@ export function AuthScaffold({
             <Image source={noshReading} style={styles.illustration} resizeMode="contain" />
           ) : null}
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
 
         <View style={styles.card}>{children}</View>
@@ -70,10 +70,10 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: Fonts.display.bold,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight40,
     color: Colors.text,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   illustration: {
     width: '100%',
@@ -83,15 +83,15 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.display.bold,
     color: Colors.text,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight34,
     textAlign: 'center',
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.slate,
-    fontSize: 14,
-    lineHeight: 24,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
     textAlign: 'center',
     maxWidth: 360,
   },

@@ -13,7 +13,7 @@ import {
 import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
@@ -213,9 +213,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: Fonts.display.bold,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight38,
+    letterSpacing: Typography.metrics.letterSpacing0,
     color: Colors.text,
   },
   scroll: {
@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
     color: Colors.textMuted,
     paddingHorizontal: Spacing.sm,
   },
@@ -270,11 +270,11 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   rowValue: {
     color: Colors.slate,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     maxWidth: '50%',
   },
   destructiveText: {
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     color: Colors.textTertiary,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
     textAlign: 'center',
     paddingTop: Spacing.lg,
   },

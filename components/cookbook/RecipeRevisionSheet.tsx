@@ -12,7 +12,7 @@ import { Minus, Plus } from 'lucide-react-native';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
@@ -161,7 +161,6 @@ export function RecipeRevisionSheet({
       closeAccessibilityLabel="Close recipe update"
       header={
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>{mode === 'edit' ? 'RECIPE' : 'PAGE DESIGN'}</Text>
           <Text style={styles.title}>{candidate ? 'Preview' : mode === 'edit' ? 'Edit recipe' : 'Try another design'}</Text>
         </View>
       }
@@ -386,7 +385,6 @@ function Preview({
           accessibilityLabel="New recipe page preview"
         />
       ) : null}
-      <Text style={styles.previewNote}>Your current page stays until you confirm.</Text>
       {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
       <Pressable
         style={({ pressed }) => [styles.primaryButton, pressed && !busy && styles.pressed]}
@@ -487,12 +485,12 @@ function cloneGraph(graph: RecipeGraph): RecipeGraph {
 }
 
 const styles = StyleSheet.create({
-  headerCopy: { flex: 1, gap: 2 },
-  eyebrow: { color: Colors.textTertiary, fontFamily: Fonts.ui.semibold, fontSize: 9, lineHeight: 13 },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 23, lineHeight: 29 },
+  headerCopy: { flex: 1, gap: Spacing.values[2] },
+  eyebrow: { color: Colors.textTertiary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight13 },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xxlMd, lineHeight: Typography.metrics.lineHeight29 },
   scrollContent: { gap: Spacing.lg, paddingBottom: Spacing.sm },
-  field: { gap: 6 },
-  label: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12, lineHeight: 17 },
+  field: { gap: Spacing.values[6] },
+  label: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight17 },
   optional: { color: Colors.textTertiary, fontFamily: Fonts.ui.regular },
   input: {
     minHeight: 46,
@@ -501,36 +499,36 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.surfaceElevated,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 10,
+    paddingVertical: Spacing.values[10],
     color: Colors.text,
     fontFamily: Fonts.ui.regular,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   multilineInput: { minHeight: 76, textAlignVertical: 'top' },
   directionInput: { minHeight: 88, textAlignVertical: 'top' },
   timeRow: { flexDirection: 'row', gap: Spacing.sm },
   numberField: { flex: 1 },
   section: { gap: Spacing.sm, paddingTop: Spacing.xs },
-  sectionTitle: { color: Colors.text, fontFamily: Fonts.display.semibold, fontSize: 17, lineHeight: 22 },
+  sectionTitle: { color: Colors.text, fontFamily: Fonts.display.semibold, fontSize: Typography.sizes.lgMd, lineHeight: Typography.metrics.lineHeight22 },
   group: { gap: Spacing.xs },
-  groupLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.semibold, fontSize: 11, lineHeight: 16 },
-  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  groupLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight16 },
+  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.values[6] },
   quantityInput: { width: 54 },
   unitInput: { width: 62 },
   nameInput: { flex: 1 },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs },
-  stepNumber: { width: 20, paddingTop: 13, color: Colors.textTertiary, fontFamily: Fonts.ui.semibold, fontSize: 12, textAlign: 'center' },
+  stepNumber: { width: 20, paddingTop: Spacing.values[13], color: Colors.textTertiary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, textAlign: 'center' },
   stepInput: { flex: 1, minHeight: 64, textAlignVertical: 'top' },
   iconButton: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.full },
-  smallAction: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: Spacing.xs },
-  smallActionText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 12 },
+  smallAction: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: Spacing.values[6], alignSelf: 'flex-start', paddingHorizontal: Spacing.xs },
+  smallActionText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   previewWrap: { gap: Spacing.md },
   previewImage: { width: '100%', height: 440, borderRadius: Radii.md, backgroundColor: Colors.surfaceMuted },
-  previewNote: { color: Colors.textTertiary, fontFamily: Fonts.ui.regular, fontSize: 12, textAlign: 'center' },
+  previewNote: { color: Colors.textTertiary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, textAlign: 'center' },
   primaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.full, backgroundColor: Colors.primary },
-  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: 14 },
+  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: 12, lineHeight: 18 },
+  secondaryText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
   pressed: { opacity: 0.72 },
 });

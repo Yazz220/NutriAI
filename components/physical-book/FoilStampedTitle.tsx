@@ -1,3 +1,4 @@
+import { Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -88,8 +89,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingTop: 26, // clears the emblem zone drawn by the Skia cover
+    gap: Spacing.values[10],
+    paddingTop: Spacing.values[26], // clears the emblem zone drawn by the Skia cover
   },
   titleStack: {
     alignItems: 'center',
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.display.bold,
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: Typography.metrics.letterSpacing05,
     alignSelf: 'stretch',
   },
   titleLayer: {
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 3,
+    letterSpacing: Typography.metrics.letterSpacing30,
     textAlign: 'center',
   },
 });

@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 interface LoadErrorStateProps {
@@ -63,14 +63,14 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
     textAlign: 'center',
   },
   message: {
     color: Colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight22,
     textAlign: 'center',
   },
   actions: {

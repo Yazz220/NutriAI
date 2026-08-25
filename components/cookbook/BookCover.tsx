@@ -1,3 +1,4 @@
+import { Radii, Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, ViewStyle } from 'react-native';
@@ -214,14 +215,14 @@ function shift(hex: string, percent: number): string {
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     overflow: 'visible',
     boxShadow: Colors.book.paperShadow,
   },
   generatedCover: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     backgroundColor: Colors.book.page,
   },
   pageBlock: {
@@ -236,8 +237,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.book.edge,
     justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: 3,
+    gap: Spacing.values[5],
+    paddingHorizontal: Spacing.values[3],
   },
   pageLine: {
     height: 1,
@@ -249,13 +250,13 @@ const styles = StyleSheet.create({
   },
   face: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
     overflow: 'hidden',
-    paddingRight: 16,
-    paddingVertical: 22,
+    paddingRight: Spacing.values[16],
+    paddingVertical: Spacing.values[22],
   },
   spine: {
     position: 'absolute',
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
     top: 9,
     bottom: 9,
     width: 2,
-    borderRadius: 1,
+    borderRadius: Radii.numeric[1],
     backgroundColor: Colors.alpha.white[50],
   },
   spineGroove: {
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
     top: 11,
     bottom: 11,
     width: 2,
-    borderRadius: 1,
+    borderRadius: Radii.numeric[1],
     backgroundColor: Colors.alpha.primary[10],
   },
   coverShine: {
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 14,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     opacity: 0.55,
   },
   cornerMark: {
@@ -353,8 +354,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 6,
+    gap: Spacing.values[8],
+    marginTop: Spacing.values[6],
   },
   botanicalCluster: {
     position: 'absolute',
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
     top: 10,
     width: 2,
     height: 82,
-    borderRadius: 1,
+    borderRadius: Radii.numeric[1],
     opacity: 0.48,
   },
   leaf: {
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
     top: 30,
     width: 20,
     height: 42,
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     opacity: 0.45,
   },
   leafSmall: {
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
     bottom: 10,
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: Radii.numeric[21],
     opacity: 0.32,
   },
   foodPlate: {
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
   plateRing: {
     width: 82,
     height: 56,
-    borderRadius: 41,
+    borderRadius: Radii.numeric[41],
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
   foodOval: {
     width: 38,
     height: 24,
-    borderRadius: 19,
+    borderRadius: Radii.numeric[19],
     opacity: 0.6,
   },
   foodDot: {
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
     top: 15,
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: Radii.numeric[6],
     backgroundColor: Colors.book.accentSoft,
   },
   watercolorGroup: {
@@ -439,7 +440,7 @@ const styles = StyleSheet.create({
   blob: {
     width: 82,
     height: 42,
-    borderRadius: 41,
+    borderRadius: Radii.numeric[41],
   },
   blobSmall: {
     position: 'absolute',
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
     top: 26,
     width: 42,
     height: 28,
-    borderRadius: 21,
+    borderRadius: Radii.numeric[21],
   },
   dashed: {
     width: 64,
@@ -462,21 +463,21 @@ const styles = StyleSheet.create({
   scribble: {
     width: 36,
     height: 6,
-    borderRadius: 3,
+    borderRadius: Radii.numeric[3],
     opacity: 0.7,
   },
   scribbleDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: Radii.numeric[3],
   },
   titleBlock: {
     alignSelf: 'stretch',
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    gap: 8,
+    paddingHorizontal: Spacing.values[8],
+    gap: Spacing.values[8],
   },
   coverIconWrap: {
     position: 'absolute',
@@ -484,26 +485,26 @@ const styles = StyleSheet.create({
     bottom: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: Spacing.values[4],
     opacity: 0.9,
   },
   smallSprig: {
     width: 38,
     height: 18,
     borderTopWidth: 1,
-    borderRadius: 19,
+    borderRadius: Radii.numeric[19],
     transform: [{ rotate: '-12deg' }],
     opacity: 0.8,
   },
   title: {
     fontFamily: Fonts.display.bold,
     textAlign: 'center',
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   cookbookText: {
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontWeight: '800',
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   titleRule: {
     width: 46,
@@ -511,9 +512,9 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   pageCount: {
-    fontSize: 11,
+    fontSize: Typography.sizes.md,
     fontWeight: '700',
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
     textTransform: 'uppercase',
     opacity: 0.7,
   },

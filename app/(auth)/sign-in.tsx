@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
@@ -91,7 +91,6 @@ export default function SignInScreen() {
   return (
     <AuthScaffold
       title="Return to your cookbook shelf"
-      subtitle="Sign in to keep reading, adding pages, and asking Nosh inside your recipes."
       footer={
         <View style={styles.footer}>
           <Text style={styles.footerText}>New to Nosh?</Text>
@@ -197,5 +196,5 @@ const styles = StyleSheet.create({
   },
   shareNotice: { gap: Spacing.xs, borderRadius: Radii.sm, backgroundColor: Colors.parchment, padding: Spacing.md },
   shareNoticeTitle: { color: Colors.text, fontWeight: '600' },
-  shareNoticeCopy: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  shareNoticeCopy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
 });

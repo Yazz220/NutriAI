@@ -32,7 +32,7 @@ import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
   buildRecipeLeaves,
@@ -674,7 +674,6 @@ export function BookReader({
             style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}
             accessibilityLiveRegion="polite"
           >
-            <Text style={styles.emptyBookEyebrow} maxFontSizeMultiplier={1.35}>YOUR BOOK IS READY</Text>
             <Text style={styles.emptyBookTitle} maxFontSizeMultiplier={1.35}>
               Turn a recipe you love into its first page.
             </Text>
@@ -694,12 +693,8 @@ export function BookReader({
             style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]}
             accessibilityLiveRegion="polite"
           >
-            <Text style={styles.firstPageEyebrow} maxFontSizeMultiplier={1.35}>YOUR FIRST PAGE IS HOME</Text>
             <Text style={styles.firstPageTitle} numberOfLines={2} maxFontSizeMultiplier={1.35}>
               {firstPageCue.title}
-            </Text>
-            <Text style={styles.firstPageCopy} maxFontSizeMultiplier={1.35}>
-              This is your designed recipe page. Open it to read, cook, and ask Nosh about the recipe.
             </Text>
             <Pressable
               style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
@@ -821,7 +816,6 @@ export function BookReader({
               <ChefHat size={17} color={Colors.onPrimary} />
             </View>
             <View style={styles.firstNoshTipHeadingCopy}>
-              <Text style={styles.firstNoshTipEyebrow}>NOSH IS HERE, TOO</Text>
               <Text style={styles.firstNoshTipTitle}>Your chef knows this recipe.</Text>
             </View>
             <Pressable
@@ -833,9 +827,6 @@ export function BookReader({
               <X size={16} color={Colors.textSecondary} />
             </Pressable>
           </View>
-          <Text style={styles.firstNoshTipCopy}>
-            Ask about substitutions, technique, timing, or anything on this page.
-          </Text>
           <Pressable
             style={({ pressed }) => [styles.firstNoshTipButton, pressed && styles.actionPressed]}
             onPress={openNoshFromFirstTip}
@@ -979,12 +970,12 @@ const styles = StyleSheet.create({
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.values[4],
   },
   backText: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
   titleBlock: {
     flex: 1,
@@ -993,15 +984,15 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   sampleLabel: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 8,
-    lineHeight: 11,
-    letterSpacing: 1.1,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight11,
+    letterSpacing: Typography.metrics.letterSpacing11,
     textAlign: 'center',
   },
   iconButton: {
@@ -1010,7 +1001,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: Colors.legacySurface.v82,
     borderWidth: 1,
     borderColor: Colors.ash,
   },
@@ -1033,23 +1024,23 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    backgroundColor: 'rgba(250,248,243,0.96)',
+    backgroundColor: Colors.legacySurface.v66,
     boxShadow: Colors.book.cardShadow,
     zIndex: 8,
   },
   emptyBookEyebrow: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 9,
-    lineHeight: 13,
-    letterSpacing: 1.2,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight13,
+    letterSpacing: Typography.metrics.letterSpacing12,
     textAlign: 'center',
   },
   emptyBookTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight23,
     textAlign: 'center',
   },
   emptyBookButton: {
@@ -1066,8 +1057,8 @@ const styles = StyleSheet.create({
   emptyBookButtonText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   firstPageMoment: {
     position: 'absolute',
@@ -1081,31 +1072,31 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    backgroundColor: 'rgba(250,248,243,0.97)',
+    backgroundColor: Colors.legacySurface.v67,
     boxShadow: Colors.book.liftedShadow,
     zIndex: 9,
   },
   firstPageEyebrow: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 9,
-    lineHeight: 13,
-    letterSpacing: 1.2,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight13,
+    letterSpacing: Typography.metrics.letterSpacing12,
     textAlign: 'center',
   },
   firstPageTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 22,
-    lineHeight: 27,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight27,
     textAlign: 'center',
   },
   firstPageCopy: {
     maxWidth: 310,
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
   },
   firstPageDismiss: {
@@ -1118,8 +1109,8 @@ const styles = StyleSheet.create({
   firstPageDismissText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   readerControls: {
     position: 'absolute',
@@ -1130,7 +1121,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 18,
+    gap: Spacing.values[18],
     zIndex: 10,
   },
   pageButton: {
@@ -1139,7 +1130,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: Colors.legacySurface.v82,
     borderWidth: 1,
     borderColor: Colors.ash,
   },
@@ -1147,9 +1138,9 @@ const styles = StyleSheet.create({
     opacity: 0.28,
   },
   nativeControl: {
-    backgroundColor: 'rgba(250,248,243,0.96)',
-    borderColor: 'rgba(91,82,68,0.28)',
-    boxShadow: '0 5px 14px rgba(35,33,28,0.16)',
+    backgroundColor: Colors.legacySurface.v66,
+    borderColor: Colors.legacySurface.v97,
+    boxShadow: Shadows.custom.reader,
   },
   counter: {
     minWidth: 72,
@@ -1158,22 +1149,22 @@ const styles = StyleSheet.create({
   nativeCounter: {
     height: 36,
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: Spacing.values[10],
     borderRadius: Radii.full,
-    backgroundColor: 'rgba(250,248,243,0.96)',
+    backgroundColor: Colors.legacySurface.v66,
     borderWidth: 1,
-    borderColor: 'rgba(91,82,68,0.22)',
+    borderColor: Colors.legacySurface.v96,
   },
   counterNumber: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
     fontVariant: ['tabular-nums'],
   },
   floatingAddButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
@@ -1196,7 +1187,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    backgroundColor: 'rgba(250,248,243,0.98)',
+    backgroundColor: Colors.legacySurface.v68,
     boxShadow: Colors.book.liftedShadow,
   },
   firstNoshTipHeader: {
@@ -1217,15 +1208,15 @@ const styles = StyleSheet.create({
   firstNoshTipEyebrow: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 8,
-    lineHeight: 12,
-    letterSpacing: 1,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight12,
+    letterSpacing: Typography.metrics.letterSpacing10,
   },
   firstNoshTipTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   firstNoshTipClose: {
     width: 44,
@@ -1238,8 +1229,8 @@ const styles = StyleSheet.create({
   firstNoshTipCopy: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   firstNoshTipButton: {
     minHeight: 44,
@@ -1254,8 +1245,8 @@ const styles = StyleSheet.create({
   firstNoshTipButtonText: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
   },
   actionPressed: {
@@ -1277,9 +1268,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     zIndex: 3,
-    backgroundColor: 'rgba(248,246,240,0.94)',
+    backgroundColor: Colors.legacySurface.v65,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(129,118,99,0.18)',
+    borderBottomColor: Colors.legacySurface.v46,
   },
   focusedAction: {
     minWidth: 108,
@@ -1287,8 +1278,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: Spacing.values[6],
+    paddingHorizontal: Spacing.values[10],
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
     borderWidth: 1,
@@ -1297,13 +1288,13 @@ const styles = StyleSheet.create({
   focusedActionText: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
   focusedTitle: {
     flex: 1,
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 18,
+    fontSize: Typography.sizes.md,
     textAlign: 'center',
   },
   focusedIcon: {
@@ -1325,25 +1316,25 @@ const styles = StyleSheet.create({
   sessionPreviewBadge: {
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: Spacing.values[5],
     borderRadius: Radii.full,
     backgroundColor: Colors.warning,
   },
   sessionPreviewText: {
     color: Colors.onWarning,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 11,
+    fontSize: Typography.sizes.md,
   },
   focusedReturnButton: {
     position: 'absolute',
     alignSelf: 'center',
     height: 46,
-    paddingHorizontal: 18,
+    paddingHorizontal: Spacing.values[18],
     borderRadius: Radii.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
+    gap: Spacing.values[7],
     backgroundColor: Colors.primary,
     boxShadow: Colors.book.liftedShadow,
     zIndex: 4,
@@ -1351,6 +1342,6 @@ const styles = StyleSheet.create({
   focusedReturnText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
 });

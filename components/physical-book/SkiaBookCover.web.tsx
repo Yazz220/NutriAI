@@ -1,3 +1,4 @@
+import { Radii } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -1,
     height: 6,
-    borderRadius: 3,
+    borderRadius: Radii.numeric[3],
   },
   hinge: {
     position: 'absolute',
@@ -132,6 +133,6 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 12,
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: Radii.numeric[6],
   },
 });

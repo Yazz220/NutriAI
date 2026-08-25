@@ -1,3 +1,4 @@
+import { Radii, Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -104,7 +105,7 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderRadius: 3,
+    borderRadius: Radii.numeric[3],
     overflow: 'hidden',
   },
   headband: {
@@ -112,18 +113,18 @@ const styles = StyleSheet.create({
     left: 1,
     right: 1,
     height: 5,
-    borderRadius: 2,
+    borderRadius: Radii.numeric[2],
   },
   ribRow: {
     position: 'absolute',
   },
   rib: {
     height: 5,
-    borderRadius: 2.5,
+    borderRadius: Radii.numeric[2.5],
   },
   ribShadow: {
     height: 1,
-    marginTop: 0.5,
+    marginTop: Spacing.values[0.5],
   },
   titleZone: {
     ...StyleSheet.absoluteFillObject,
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: Fonts.display.semibold,
-    letterSpacing: 1.6,
+    letterSpacing: Typography.metrics.letterSpacing16,
     textTransform: 'uppercase',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 0,
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
   ornament: {
     position: 'absolute',
     borderWidth: 1.1,
-    borderRadius: 2,
+    borderRadius: Radii.numeric[2],
     transform: [{ rotate: '45deg' }],
   },
 });

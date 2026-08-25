@@ -1,3 +1,4 @@
+import { Typography , Spacing} from '@/constants/spacing';
 /**
  * TextLayer — renders the recipe text as native React Native Views.
  *
@@ -54,7 +55,7 @@ export const TextLayer = memo(function TextLayer({
       fontSize: styleConfig.titleSize,
       lineHeight: styleConfig.titleSize * 1.2,
       color: styleConfig.inkColor,
-      letterSpacing: 0,
+      letterSpacing: Typography.metrics.letterSpacing0,
     }),
     [styleConfig],
   );
@@ -65,7 +66,7 @@ export const TextLayer = memo(function TextLayer({
       fontSize: styleConfig.metaSize,
       lineHeight: styleConfig.metaSize * 1.5,
       color: styleConfig.mutedColor,
-      letterSpacing: 0.4,
+      letterSpacing: Typography.metrics.letterSpacing04,
     }),
     [styleConfig],
   );
@@ -76,9 +77,9 @@ export const TextLayer = memo(function TextLayer({
       fontSize: styleConfig.labelSize,
       lineHeight: styleConfig.labelSize * 1.4,
       color: styleConfig.accentColor,
-      letterSpacing: 1.2,
+      letterSpacing: Typography.metrics.letterSpacing12,
       textTransform: 'uppercase' as const,
-      marginBottom: 6,
+      marginBottom: Spacing.values[6],
     }),
     [styleConfig],
   );
@@ -89,7 +90,7 @@ export const TextLayer = memo(function TextLayer({
       fontSize: styleConfig.bodySize,
       lineHeight: styleConfig.bodySize * 1.65,
       color: styleConfig.inkColor,
-      letterSpacing: 0,
+      letterSpacing: Typography.metrics.letterSpacing0,
     }),
     [styleConfig],
   );
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   },
   twoColumnContent: {
     flexDirection: 'row',
-    gap: 16,
+    gap: Spacing.values[16],
   },
   column: {
     flex: 1,

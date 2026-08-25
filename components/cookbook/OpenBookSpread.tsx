@@ -1,3 +1,4 @@
+import { Radii , Shadows} from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
@@ -19,11 +20,11 @@ export function BookGutter({ height, style }: { height: number; style?: StylePro
     <View pointerEvents="none" style={[styles.gutter, { width: BOOK_GUTTER_WIDTH, height }, style]}>
       <LinearGradient
         colors={[
-          'rgba(23,22,20,0)',
-          'rgba(23,22,20,0.055)',
-          'rgba(23,22,20,0.12)',
-          'rgba(23,22,20,0.055)',
-          'rgba(23,22,20,0)',
+          Colors.legacySurface.v61,
+          Colors.legacySurface.v54,
+          Colors.legacySurface.v56,
+          Colors.legacySurface.v54,
+          Colors.legacySurface.v61,
         ]}
         locations={[0, 0.32, 0.5, 0.68, 1]}
         start={{ x: 0, y: 0 }}
@@ -63,20 +64,20 @@ const styles = StyleSheet.create({
   castShadow: {
     position: 'absolute',
     bottom: -3,
-    borderRadius: 999,
-    backgroundColor: 'rgba(23, 22, 20, 0.22)',
+    borderRadius: Radii.numeric[999],
+    backgroundColor: Colors.legacySurface.v52,
     transform: [{ scaleY: 0.42 }],
-    boxShadow: '0 22px 30px rgba(23, 22, 20, 0.22)',
+    boxShadow: Shadows.custom.spread,
   },
   coverEdge: {
     position: 'absolute',
-    borderRadius: 11,
+    borderRadius: Radii.numeric[11],
     transform: [{ translateY: 4 }],
-    boxShadow: '0 18px 32px rgba(23, 22, 20, 0.18)',
+    boxShadow: Shadows.custom.spreadSoft,
   },
   pageBlock: {
     position: 'absolute',
-    borderRadius: 9,
+    borderRadius: Radii.numeric[9],
     backgroundColor: Colors.book.pageWarm,
     borderWidth: 1,
     borderColor: Colors.book.edgeStrong,
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   },
   spread: {
     flexDirection: 'row',
-    borderRadius: 8,
+    borderRadius: Radii.numeric[8],
     overflow: 'hidden',
     backgroundColor: Colors.book.page,
   },
@@ -124,6 +125,6 @@ const styles = StyleSheet.create({
     top: 6,
     bottom: 6,
     width: 1,
-    backgroundColor: 'rgba(23,22,20,0.13)',
+    backgroundColor: Colors.legacySurface.v57,
   },
 });

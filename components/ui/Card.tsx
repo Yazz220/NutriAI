@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/colors';
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Text, StyleProp } from 'react-native';
 import { Spacing, Shadows } from '@/constants/spacing';
@@ -6,7 +7,7 @@ import { Tokens } from '@/constants/tokens';
 interface CardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  padding?: keyof typeof Spacing;
+  padding?: Exclude<keyof typeof Spacing, 'values'>;
   shadow?: 'none' | 'sm' | 'md' | 'lg';
 }
 
@@ -48,7 +49,7 @@ export const Card: React.FC<CardProps> = ({
           left: 0,
         borderRadius: Tokens.component.card.base.radius,
           borderWidth: 1,
-          borderColor: `rgba(0,0,0,${Tokens.component.card.base.innerEdgeOpacity})`,
+          borderColor: Colors.alpha.black[0],
         }}
       />
       {normalizedChildren}

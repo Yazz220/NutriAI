@@ -87,6 +87,22 @@ export interface ChatCompletionResponse {
   };
 }
 
+export interface ChatCompletionStreamChunk {
+  choices?: Array<{
+    delta?: {
+      content?: string | null;
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        type?: 'function';
+        function?: { name?: string; arguments?: string };
+      }>;
+    };
+    finish_reason?: string | null;
+  }>;
+  usage?: ChatCompletionResponse['usage'];
+}
+
 /**
  * Call the OpenRouter Chat Completions API with retry.
  * Throws AppError on non-retryable failures.
@@ -132,6 +148,85 @@ export async function callChatCompletion(
     return data as ChatCompletionResponse;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+/** Stream OpenRouter's SSE chat-completion chunks while retaining timeout and cancellation. */
+export async function* streamChatCompletion(
+  request: ChatCompletionRequest,
+  options?: { timeoutMs?: number; signal?: AbortSignal },
+): AsyncGenerator<ChatCompletionStreamChunk> {
+  if (!AI_API_KEY) {
+    throw new Error('OpenRouter is not configured (missing AI_API_KEY)');
+  }
+
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort();
+  if (options?.signal?.aborted) controller.abort();
+  options?.signal?.addEventListener('abort', abortFromExternal, { once: true });
+  const timeout = setTimeout(() => controller.abort(), options?.timeoutMs ?? 60_000);
+
+  try {
+    const res = await fetchWithRetry(`${AI_API_BASE}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${AI_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://nosh.app',
+        'X-Title': 'Nosh Cookbook',
+      },
+      body: JSON.stringify({
+        ...request,
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const message =
+        typeof data?.error?.message === 'string'
+          ? data.error.message
+          : typeof data?.error === 'string'
+            ? data.error
+            : `OpenRouter request failed (${res.status})`;
+      logError('OpenRouter chat stream failed', { status: res.status, message });
+      throw new Error(message);
+    }
+
+    if (!res.body) throw new Error('OpenRouter returned an empty stream');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        yield JSON.parse(data) as ChatCompletionStreamChunk;
+      }
+
+      if (done) break;
+    }
+
+    const finalLine = buffer.trim();
+    if (finalLine.startsWith('data:')) {
+      const data = finalLine.slice(5).trim();
+      if (data && data !== '[DONE]') {
+        yield JSON.parse(data) as ChatCompletionStreamChunk;
+      }
+    }
+  } finally {
+    clearTimeout(timeout);
+    options?.signal?.removeEventListener('abort', abortFromExternal);
   }
 }
 

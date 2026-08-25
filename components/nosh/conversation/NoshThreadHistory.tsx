@@ -4,7 +4,7 @@ import { Check, History, MessageSquarePlus, Pencil, Trash2, X } from 'lucide-rea
 import { ThreadListPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 function HistoryItem({ onOpen, onDeleteActive }: { onOpen: () => void; onDeleteActive: () => void }) {
@@ -89,13 +89,13 @@ export function NoshThreadHistory({ onNewConversation, onOpenConversation, onDel
   return (
     <View style={styles.panel}>
       <View style={styles.intro}>
-        <View><Text style={styles.heading}>Your conversations</Text><Text style={styles.copy}>Saved privately on this device.</Text></View>
+        <View><Text style={styles.heading}>Your conversations</Text></View>
         <Pressable onPress={onNewConversation} style={styles.newButton} accessibilityRole="button" accessibilityLabel="Start a new conversation"><MessageSquarePlus size={17} color={Colors.onPrimary} /><Text style={styles.newText}>New</Text></Pressable>
       </View>
       {isLoading ? (
         <View style={styles.empty}><Text style={styles.emptyTitle}>Opening your recipe journal…</Text></View>
       ) : threadCount === 0 ? (
-        <View style={styles.empty}><History size={28} color={Colors.textMuted} /><Text style={styles.emptyTitle}>No saved conversations yet</Text><Text style={styles.emptyCopy}>Your first conversation will appear here after you send a message.</Text></View>
+        <View style={styles.empty}><History size={28} color={Colors.textMuted} /><Text style={styles.emptyTitle}>No saved conversations yet</Text></View>
       ) : (
         <ThreadListPrimitive.Root style={styles.listRoot}><ThreadListPrimitive.Items contentContainerStyle={styles.listContent} renderItem={() => <HistoryItem onOpen={onOpenConversation} onDeleteActive={onDeleteActive} />} /></ThreadListPrimitive.Root>
       )}
@@ -106,24 +106,24 @@ export function NoshThreadHistory({ onNewConversation, onOpenConversation, onDel
 const styles = StyleSheet.create({
   panel: { flex: 1, minHeight: 260, gap: Spacing.md },
   intro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.ash, paddingBottom: Spacing.md },
-  heading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 19 },
-  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 12, marginTop: 2 },
-  newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
-  newText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  heading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
+  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, marginTop: Spacing.values[2] },
+  newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.values[7], borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
+  newText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   listRoot: { flex: 1 }, listContent: { gap: Spacing.sm, paddingBottom: Spacing.md },
   item: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.white, padding: Spacing.xs },
   itemActive: { borderColor: Colors.charcoal, backgroundColor: Colors.parchment },
   itemMain: { flex: 1, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.sm },
-  mark: { width: 8, height: 28, borderRadius: 4, backgroundColor: Colors.ash }, markActive: { backgroundColor: Colors.butterscotch },
-  itemText: { flex: 1, gap: 3 }, itemTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 14 }, itemMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11 },
+  mark: { width: 8, height: 28, borderRadius: Radii.numeric[4], backgroundColor: Colors.ash }, markActive: { backgroundColor: Colors.butterscotch },
+  itemText: { flex: 1, gap: Spacing.values[3] }, itemTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, }, itemMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   smallAction: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
-  renameEditor: { flex: 1, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: Spacing.sm },
-  renameInput: { flex: 1, minHeight: 44, borderRadius: Radii.md, borderWidth: 1, borderColor: Colors.charcoal, backgroundColor: Colors.white, color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13, paddingHorizontal: Spacing.sm, paddingVertical: 7 },
-  deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
-  deleteCancel: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 7 }, deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 11 },
-  deleteButton: { minHeight: 44, justifyContent: 'center', borderRadius: Radii.full, backgroundColor: Colors.error, paddingHorizontal: Spacing.sm }, deleteText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: 11 },
+  renameEditor: { flex: 1, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: Spacing.values[2], paddingLeft: Spacing.sm },
+  renameInput: { flex: 1, minHeight: 44, borderRadius: Radii.md, borderWidth: 1, borderColor: Colors.charcoal, backgroundColor: Colors.white, color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.values[7] },
+  deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.values[4], paddingRight: Spacing.values[4] },
+  deleteCancel: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Spacing.values[7] }, deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  deleteButton: { minHeight: 44, justifyContent: 'center', borderRadius: Radii.full, backgroundColor: Colors.error, paddingHorizontal: Spacing.sm }, deleteText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   deleteAction: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.ash, backgroundColor: Colors.parchment, padding: Spacing.xl },
-  emptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16, textAlign: 'center' },
-  emptyCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: 12, lineHeight: 18, textAlign: 'center', maxWidth: 280 },
+  emptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, textAlign: 'center' },
+  emptyCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18, textAlign: 'center', maxWidth: 280 },
 });

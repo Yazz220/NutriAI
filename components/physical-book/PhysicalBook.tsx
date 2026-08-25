@@ -1,3 +1,5 @@
+import { Colors } from '@/constants/colors';
+import { Radii } from '@/constants/spacing';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, ViewStyle } from 'react-native';
@@ -132,11 +134,11 @@ const styles = StyleSheet.create({
   generatedCover: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
   },
   backWash: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 12,
-    backgroundColor: 'rgba(19, 18, 14, 0.12)',
+    borderRadius: Radii.numeric[12],
+    backgroundColor: Colors.legacySurface.v47,
   },
 });

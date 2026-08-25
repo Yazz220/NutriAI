@@ -4,7 +4,7 @@ import { Check, Eye } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { listCookbookCreationStyles } from '@/constants/cookbookStyles';
 import type { CookbookStyleId } from '@/types/cookbook';
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     right: -4,
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: Radii.numeric[14],
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: Fonts.display.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
     color: Colors.text,
   },
   cardActions: {
@@ -120,12 +120,12 @@ const styles = StyleSheet.create({
   preview: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: Spacing.values[3],
   },
   previewText: {
     color: Colors.slate,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
   },
   useButton: {
     minHeight: 28,
@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
   },
   useButtonText: {
     color: Colors.text,
-    fontSize: 10,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
     fontFamily: Fonts.ui.medium,
   },
 });

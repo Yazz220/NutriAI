@@ -1,3 +1,4 @@
+import { Spacing } from '@/constants/spacing';
 import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -211,7 +212,7 @@ function RootLayoutNav() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
         <StatusBar style="dark" />
         <ActivityIndicator color={Colors.primary} />
-        <Text style={{ marginTop: 8, color: Colors.lightText }}>Opening your cookbook...</Text>
+        <Text style={{ marginTop: Spacing.values[8], color: Colors.lightText }}>Opening your cookbook...</Text>
       </View>
     );
   }

@@ -1,3 +1,5 @@
+import { Colors } from '@/constants/colors';
+import { Radii } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -55,20 +57,20 @@ export const ShelfBoard = React.memo(function ShelfBoard({ bottom, height }: She
     <View style={[styles.wrapper, { bottom, height: height + SHELF_LIP_HEIGHT }]} pointerEvents="none">
       {/* Cast shadow below the board onto the wall below */}
       <LinearGradient
-        colors={['rgba(23,22,20,0.18)', 'rgba(23,22,20,0.06)', 'rgba(23,22,20,0)']}
+        colors={[Colors.legacySurface.v60, Colors.legacySurface.v55, Colors.legacySurface.v61]}
         style={styles.castShadow}
       />
 
       {/* Main board surface */}
       <LinearGradient
-        colors={['#e4d1b3', '#d6bd97', '#c4a882', '#b89b73']}
+        colors={[Colors.legacySurface.v35, Colors.legacySurface.v31, Colors.legacySurface.v26, Colors.legacySurface.v25]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={[styles.board, { height }]}
       >
         {/* Beveled top edge — light catches the front-top of the board */}
         <LinearGradient
-          colors={['rgba(255,250,240,0.7)', 'rgba(255,250,240,0)']}
+          colors={[Colors.legacySurface.v73, Colors.legacySurface.v74]}
           style={styles.topBevel}
         />
 
@@ -115,14 +117,14 @@ export const ShelfBoard = React.memo(function ShelfBoard({ bottom, height }: She
 
         {/* Ambient occlusion — subtle darkening where books sit on the board */}
         <LinearGradient
-          colors={['rgba(60,42,28,0)', 'rgba(60,42,28,0.08)', 'rgba(60,42,28,0)']}
+          colors={[Colors.legacySurface.v94, Colors.legacySurface.v92, Colors.legacySurface.v94]}
           style={styles.ambientOcclusion}
         />
       </LinearGradient>
 
       {/* Front lip / edge — gives the board visible 3D thickness */}
       <LinearGradient
-        colors={['#a88c66', '#947a52', '#826a45']}
+        colors={[Colors.legacySurface.v22, Colors.legacySurface.v19, Colors.legacySurface.v17]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={[styles.frontLip, { height: SHELF_LIP_HEIGHT }]}
@@ -161,14 +163,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#6a4a2e',
+    backgroundColor: Colors.legacySurface.v11,
   },
   fineGrain: {
     position: 'absolute',
     left: '8%',
     right: '12%',
     height: 0.5,
-    backgroundColor: '#7a5a3a',
+    backgroundColor: Colors.legacySurface.v16,
   },
   seam: {
     position: 'absolute',
@@ -182,7 +184,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: 1,
-    backgroundColor: 'rgba(60,42,28,0.22)',
+    backgroundColor: Colors.legacySurface.v93,
   },
   seamHighlight: {
     position: 'absolute',
@@ -190,11 +192,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 1,
     width: 1,
-    backgroundColor: 'rgba(255,250,240,0.25)',
+    backgroundColor: Colors.legacySurface.v72,
   },
   knot: {
     position: 'absolute',
-    backgroundColor: 'rgba(80,56,36,0.18)',
+    backgroundColor: Colors.legacySurface.v95,
   },
   ambientOcclusion: {
     position: 'absolute',
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(255,248,235,0.3)',
+    backgroundColor: Colors.legacySurface.v71,
   },
   castShadow: {
     position: 'absolute',
@@ -227,18 +229,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: 5,
-    borderRadius: 2,
+    borderRadius: Radii.numeric[2],
   },
   endCapLeft: {
     left: 0,
     height: 26,
-    backgroundColor: '#826a45',
+    backgroundColor: Colors.legacySurface.v17,
     borderTopLeftRadius: 3,
   },
   endCapRight: {
     right: 0,
     height: 26,
-    backgroundColor: '#826a45',
+    backgroundColor: Colors.legacySurface.v17,
     borderTopRightRadius: 3,
   },
 });

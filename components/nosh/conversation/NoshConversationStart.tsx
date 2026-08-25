@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { AuiIf, ThreadPrimitive } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { NoshInteractionSession } from '@/types/noshInteraction';
 import { Fonts } from '@/utils/fonts';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
@@ -23,7 +23,6 @@ export function NoshConversationStart({
     <AuiIf condition={(state) => state.thread.isEmpty}>
       <View style={styles.container}>
         <Text style={styles.title}>{config.title}</Text>
-        <Text style={styles.copy}>{config.copy}</Text>
         <View style={styles.actions}>
           {config.prompts.map((prompt) => prompt === 'Save or check a recipe' ? (
             <Pressable
@@ -51,8 +50,8 @@ export function NoshConversationStart({
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.xs, paddingVertical: Spacing.sm },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 20 },
-  copy: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, maxWidth: 390 },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
+  copy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight19, maxWidth: 390 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingTop: Spacing.xs },
   action: {
     minHeight: 44,
@@ -64,5 +63,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  actionText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  actionText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
 });

@@ -53,8 +53,8 @@ export function NoshHeaderActions({ showingHistory, onToggleHistory, onNewConver
 
 const styles = StyleSheet.create({
   identity: { flex: 1 },
-  eyebrow: { color: Colors.textMuted, fontSize: 11, fontFamily: Fonts.ui.medium },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xl },
+  eyebrow: { color: Colors.textMuted, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xl, },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   action: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.white },
   disabled: { opacity: 0.4 },

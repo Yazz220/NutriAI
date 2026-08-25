@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-nat
 import { ImageIcon, RotateCcw } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { GeneratedRecipePage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
@@ -57,7 +57,6 @@ export function ArtworkActionCard({
   if (candidate) {
     return (
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>New page ready</Text>
         {candidate.imageUrl ? (
           <Image
             source={{ uri: candidate.imageUrl }}
@@ -66,7 +65,6 @@ export function ArtworkActionCard({
             accessibilityLabel="New recipe page candidate"
           />
         ) : null}
-        <Text style={styles.copy}>Your current page is still in place.</Text>
         {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
         <Pressable
           style={styles.primaryButton}
@@ -102,28 +100,29 @@ export function ArtworkActionCard({
             : <ImageIcon size={17} color={Colors.onPrimary} />}
         </View>
         <View style={styles.headingCopy}>
-          <Text style={styles.eyebrow}>{hasCurrentArtwork ? 'Page edit' : 'New page'}</Text>
           <Text style={styles.title}>{hasCurrentArtwork ? 'Create a replacement?' : 'Create this page?'}</Text>
         </View>
       </View>
       {instruction ? <Text style={styles.copy}>{instruction}</Text> : null}
-      <Text style={styles.cost}>Cost: 1 generation credit</Text>
-      <Text style={styles.copy}>
-        {hasCurrentArtwork
-          ? 'The current page stays selected while Nosh makes a candidate.'
-          : 'Nosh will show the complete page before using it.'}
-      </Text>
       {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+      {busy === 'generate' ? (
+        <View
+          style={styles.generatingPreview}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Creating recipe page"
+        >
+          <ActivityIndicator size="small" color={Colors.primary} />
+        </View>
+      ) : null}
       <Pressable
         style={styles.primaryButton}
         disabled={busy !== null}
         accessibilityRole="button"
-        accessibilityLabel="Generate recipe page for one credit"
+        accessibilityLabel="Generate recipe page"
         accessibilityState={{ disabled: busy !== null, busy: busy === 'generate' }}
         onPress={() => void generate()}
       >
-        {busy === 'generate' ? <ActivityIndicator size="small" color={Colors.onPrimary} /> : null}
-        <Text style={styles.primaryText}>{busy === 'generate' ? 'Creating page' : 'Generate for 1 credit'}</Text>
+        <Text style={styles.primaryText}>{busy === 'generate' ? 'Creating page' : 'Generate page'}</Text>
       </Pressable>
       <Pressable
         style={styles.secondaryButton}
@@ -143,7 +142,7 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.md,
     padding: Spacing.md,
-    marginVertical: 4,
+    marginVertical: Spacing.values[4],
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radii.lg,
@@ -153,24 +152,25 @@ const styles = StyleSheet.create({
   icon: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: Radii.numeric[17],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
   },
-  headingCopy: { flex: 1, gap: 2 },
+  headingCopy: { flex: 1, gap: Spacing.values[2] },
   eyebrow: {
     color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 11,
-    letterSpacing: 0.7,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing07,
     textTransform: 'uppercase',
   },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 18 },
-  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 13, lineHeight: 18 },
-  cost: { color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: 13 },
-  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: 12 },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
+  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
+  cost: { color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
+  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   preview: { width: '100%', aspectRatio: 3 / 4, borderRadius: Radii.md, backgroundColor: Colors.background },
+  generatingPreview: { width: '100%', aspectRatio: 3 / 4, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.md, backgroundColor: Colors.background },
   primaryButton: {
     minHeight: 46,
     flexDirection: 'row',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     backgroundColor: Colors.primary,
   },
-  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: 14 },
+  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: Colors.textMuted, fontFamily: Fonts.ui.semibold, fontSize: 13 },
+  secondaryText: { color: Colors.textMuted, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
 });

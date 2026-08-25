@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getRecipeTemplate } from '@/constants/recipeTemplates';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeTemplateId } from '@/types/cookbook';
 
@@ -69,21 +69,21 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   bookDefault: {
     color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
     fontFamily: Fonts.ui.medium,
   },
   overrideBadge: {
     color: Colors.primary,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
     fontFamily: Fonts.ui.medium,
   },
   card: {
@@ -107,30 +107,30 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
-    gap: 3,
+    gap: Spacing.values[3],
   },
   title: {
     flexShrink: 1,
     color: Colors.text,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight22,
     fontFamily: Fonts.display.semibold,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
   },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: Spacing.values[2],
   },
   actionText: {
     color: Colors.text,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
     fontFamily: Fonts.ui.medium,
   },
 });

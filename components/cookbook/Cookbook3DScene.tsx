@@ -23,7 +23,7 @@ import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
 import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
@@ -1414,7 +1414,7 @@ const styles = StyleSheet.create({
     // Clips the curling page so it tucks cleanly into the left binding edge
     // rather than projecting across the empty screen background.
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: Radii.numeric[18],
   },
   physicalPageFallback: {
     ...StyleSheet.absoluteFillObject,
@@ -1424,19 +1424,19 @@ const styles = StyleSheet.create({
   },
   physicalFallbackCover: {
     position: 'absolute',
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     transform: [{ translateY: 3 }],
-    boxShadow: '0 18px 38px rgba(35,33,28,0.2)',
+    boxShadow: Shadows.custom.scene,
   },
   physicalFallbackEdges: {
     position: 'absolute',
-    borderRadius: 10,
-    backgroundColor: '#ded8c8',
+    borderRadius: Radii.numeric[10],
+    backgroundColor: Colors.legacySurface.v34,
     transform: [{ translateY: 1 }],
   },
   physicalFallbackLeaf: {
     overflow: 'hidden',
-    borderRadius: 9,
+    borderRadius: Radii.numeric[9],
     borderTopLeftRadius: 2,
     borderBottomLeftRadius: 2,
     backgroundColor: Colors.book.page,
@@ -1448,7 +1448,7 @@ const styles = StyleSheet.create({
   },
   currentNativePage: {
     zIndex: 2,
-    boxShadow: '3px 9px 18px rgba(35,33,28,0.1)',
+    boxShadow: Shadows.custom.sceneSoft,
   },
   resetZoomButton: {
     position: 'absolute',
@@ -1463,14 +1463,14 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: 'rgba(251,250,246,0.94)',
+    backgroundColor: Colors.legacySurface.v69,
     boxShadow: Colors.book.cardShadow,
   },
   resetZoomText: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   spreadStage: {
     position: 'relative',

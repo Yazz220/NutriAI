@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordScreen() {
@@ -99,9 +99,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   sentText: {
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     color: Colors.slate,
-    lineHeight: 24,
+    lineHeight: Typography.metrics.lineHeight24,
   },
   sentEmail: {
     color: Colors.text,

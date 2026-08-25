@@ -1,3 +1,4 @@
+import { Radii, Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
@@ -34,7 +35,7 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
               <Text style={styles.errorText}>{String(this.state.error?.message || this.state.error)}</Text>
               {this.state.errorInfo?.componentStack ? (
                 <>
-                  <Text style={[styles.errorLabel, { marginTop: 12 }]}>Stack</Text>
+                  <Text style={[styles.errorLabel, { marginTop: Spacing.values[12] }]}>Stack</Text>
                   <Text style={styles.stackText}>{this.state.errorInfo.componentStack}</Text>
                 </>
               ) : null}
@@ -51,37 +52,37 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    paddingTop: 60,
+    padding: Spacing.values[16],
+    paddingTop: Spacing.values[60],
     backgroundColor: Colors.background,
   },
   title: {
-    fontSize: 22,
+    fontSize: Typography.sizes.md,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: Spacing.values[8],
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     color: Colors.lightText,
-    marginBottom: 16,
+    marginBottom: Spacing.values[16],
   },
   details: {
     backgroundColor: Colors.card,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: Radii.numeric[8],
+    padding: Spacing.values[12],
   },
   errorLabel: {
     color: Colors.warning,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: Spacing.values[6],
   },
   errorText: {
     color: Colors.text,
   },
   stackText: {
-    marginTop: 8,
+    marginTop: Spacing.values[8],
     color: Colors.lightText,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
   },
 });

@@ -78,7 +78,6 @@ export default function SignUpScreen() {
   return (
     <AuthScaffold
       title="Start your personal cookbook"
-      subtitle="Create a calm place for recipes, notes, and Nosh's help inside each page."
       footer={
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account?</Text>

@@ -112,3 +112,84 @@ export async function callAuthenticatedFunction<T>(
 
   return res.json() as Promise<T>;
 }
+
+export async function* streamAuthenticatedFunction<T>(
+  functionName: string,
+  body: Record<string, unknown>,
+  options: FunctionCallOptions = {},
+): AsyncGenerator<T> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const token = await getAccessToken();
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${functionName}`;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_FUNCTION_TIMEOUT_MS;
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  options.signal?.addEventListener('abort', abortFromExternal, { once: true });
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (options.signal?.aborted) throw new FunctionCanceledError();
+        throw new FunctionTimeoutError(timeoutMs);
+      }
+      if (error instanceof TypeError) throw new FunctionNetworkError();
+      throw error;
+    }
+
+    if (!res.ok) {
+      const responseText = await res.text().catch(() => '');
+      throw new FunctionResponseError(res.status, functionName, responseText);
+    }
+
+    const contentType = res.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      yield await res.json() as T;
+      return;
+    }
+
+    if (!res.body) throw new FunctionNetworkError();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed) yield JSON.parse(trimmed) as T;
+      }
+      if (done) break;
+    }
+
+    if (buffer.trim()) yield JSON.parse(buffer.trim()) as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      if (options.signal?.aborted) throw new FunctionCanceledError();
+      throw new FunctionTimeoutError(timeoutMs);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', abortFromExternal);
+  }
+}

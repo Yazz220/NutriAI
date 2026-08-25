@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/colors';
 /* eslint-disable react/no-unknown-property, react-hooks/immutability -- R3F animates Three.js objects and uses renderer-specific JSX props. */
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -50,8 +51,8 @@ const BOOK_WIDTH = 4.25;
 const BOOK_HEIGHT = 6.15;
 const COVER_THICKNESS = 0.09;
 const PAGE_Y = 0.25;
-const PAPER = '#eee7d8';
-const COVER_GREEN = '#252a20';
+const PAPER = Colors.legacySurface.v37;
+const COVER_GREEN = Colors.legacySurface.v04;
 
 // Camera framing is derived from these view directions plus a fit-to-viewport
 // distance, so the whole book stays visible on any aspect ratio.
@@ -113,7 +114,7 @@ export function Cookbook3DScene({
           gl.shadowMap.type = PCFShadowMap;
           gl.toneMapping = ACESFilmicToneMapping;
           gl.toneMappingExposure = 0.92;
-          gl.setClearColor(new Color('#d8d3c8'), 0);
+          gl.setClearColor(new Color(Colors.legacySurface.v32), 0);
         }}
       >
         <SceneLights />
@@ -142,7 +143,7 @@ function SceneLights() {
   return (
     <>
       <ambientLight intensity={0.24} />
-      <hemisphereLight args={['#fff8ee', '#4a4538', 0.34]} />
+      <hemisphereLight args={[Colors.legacySurface.v43, Colors.legacySurface.v07, 0.34]} />
       <directionalLight
         castShadow
         position={[-7, 11, 7]}
@@ -158,7 +159,7 @@ function SceneLights() {
         shadow-bias={-0.0002}
         shadow-radius={5}
       />
-      <directionalLight position={[5, 7, -4]} intensity={0.22} color="#efe4d3" />
+      <directionalLight position={[5, 7, -4]} intensity={0.22} color={Colors.legacySurface.v38} />
     </>
   );
 }
@@ -178,7 +179,7 @@ function FallbackBook() {
       </mesh>
       <mesh position={[-0.055, 0.12, 0]}>
         <roundedBoxGeometry args={[0.12, 0.25, BOOK_HEIGHT + 0.02, 5, 0.05]} />
-        <meshStandardMaterial color="#20241c" roughness={0.78} />
+        <meshStandardMaterial color={Colors.legacySurface.v02} roughness={0.78} />
       </mesh>
     </group>
   );
@@ -595,7 +596,7 @@ function BookScene({
         {/* Base board — the rigid cover material underneath the pages */}
         <mesh castShadow receiveShadow position={[BOOK_WIDTH / 2, 0, 0]}>
           <roundedBoxGeometry args={[BOOK_WIDTH + 0.1, 0.1, BOOK_HEIGHT + 0.1, 7, 0.1]} />
-          <meshPhysicalMaterial color={COVER_GREEN} roughness={0.82} sheen={0.18} sheenColor="#72775c" specularIntensity={0.22} />
+          <meshPhysicalMaterial color={COVER_GREEN} roughness={0.82} sheen={0.18} sheenColor={Colors.legacySurface.v13} specularIntensity={0.22} />
         </mesh>
 
         {/* Right page stack — thins as you read forward */}
@@ -608,14 +609,14 @@ function BookScene({
         {[-0.045, 0, 0.045].map((offset) => (
           <mesh key={offset} position={[BOOK_WIDTH - 0.02, 0.13 + offset, 0]}>
             <boxGeometry args={[0.012, 0.004, BOOK_HEIGHT - 0.32]} />
-            <meshStandardMaterial color="#c7bdac" roughness={1} />
+            <meshStandardMaterial color={Colors.legacySurface.v28} roughness={1} />
           </mesh>
         ))}
 
         {/* Sculpted spine — slightly taller than the page block, dark */}
         <mesh castShadow position={[-0.055, 0.12, 0]}>
           <roundedBoxGeometry args={[0.12, 0.25, BOOK_HEIGHT + 0.02, 5, 0.05]} />
-          <meshPhysicalMaterial color="#20241c" roughness={0.78} sheen={0.16} sheenColor="#6d7157" specularIntensity={0.2} />
+          <meshPhysicalMaterial color={Colors.legacySurface.v02} roughness={0.78} sheen={0.16} sheenColor={Colors.legacySurface.v12} specularIntensity={0.2} />
         </mesh>
 
         <group ref={leftContentRef}>
@@ -671,11 +672,11 @@ function BookScene({
             }}
           >
             <roundedBoxGeometry args={[BOOK_WIDTH, COVER_THICKNESS, BOOK_HEIGHT, 7, 0.085]} />
-            <meshPhysicalMaterial color={COVER_GREEN} roughness={0.8} sheen={0.2} sheenColor="#74795e" specularIntensity={0.24} />
+            <meshPhysicalMaterial color={COVER_GREEN} roughness={0.8} sheen={0.2} sheenColor={Colors.legacySurface.v14} specularIntensity={0.24} />
           </mesh>
           <mesh position={[BOOK_WIDTH / 2, COVER_THICKNESS / 2 + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[BOOK_WIDTH - 0.075, BOOK_HEIGHT - 0.075]} />
-            <meshPhysicalMaterial map={coverTexture} roughness={0.8} sheen={0.2} sheenColor="#74795e" specularIntensity={0.22} side={FrontSide} />
+            <meshPhysicalMaterial map={coverTexture} roughness={0.8} sheen={0.2} sheenColor={Colors.legacySurface.v14} specularIntensity={0.22} side={FrontSide} />
           </mesh>
           <mesh position={[BOOK_WIDTH / 2, COVER_THICKNESS / 2 + 0.009, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[BOOK_WIDTH - 0.075, BOOK_HEIGHT - 0.075]} />
@@ -683,11 +684,11 @@ function BookScene({
           </mesh>
           <mesh position={[BOOK_WIDTH / 2, -COVER_THICKNESS / 2 - 0.005, 0]} rotation={[Math.PI / 2, 0, Math.PI]}>
             <planeGeometry args={[BOOK_WIDTH - 0.12, BOOK_HEIGHT - 0.12]} />
-            <meshPhysicalMaterial color="#20241c" roughness={0.84} sheen={0.12} sheenColor="#676b52" specularIntensity={0.18} side={FrontSide} />
+            <meshPhysicalMaterial color={Colors.legacySurface.v02} roughness={0.84} sheen={0.12} sheenColor={Colors.legacySurface.v10} specularIntensity={0.18} side={FrontSide} />
           </mesh>
           <mesh castShadow>
             <tubeGeometry args={[elasticCurve, 48, 0.018, 8, false]} />
-            <meshPhysicalMaterial color="#151712" roughness={0.72} sheen={0.18} sheenColor="#5f6252" specularIntensity={0.24} />
+            <meshPhysicalMaterial color={Colors.legacySurface.v01} roughness={0.72} sheen={0.18} sheenColor={Colors.legacySurface.v09} specularIntensity={0.24} />
           </mesh>
         </group>
 
@@ -695,7 +696,7 @@ function BookScene({
             Keep the droop slight so the inner end never lifts through the page leaf. */}
         <mesh castShadow position={[0.52, 0.205, BOOK_HEIGHT / 2 + 0.08]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.075, 1.08]} />
-          <meshPhysicalMaterial color="#a44335" roughness={0.76} sheen={0.18} sheenColor="#d39b84" specularIntensity={0.18} side={DoubleSide} />
+          <meshPhysicalMaterial color={Colors.legacySurface.v21} roughness={0.76} sheen={0.18} sheenColor={Colors.legacySurface.v30} specularIntensity={0.18} side={DoubleSide} />
         </mesh>
 
         {/* Soft shadow pooling in the gutter where the spread meets the spine */}
@@ -707,7 +708,7 @@ function BookScene({
 
       <mesh receiveShadow position={[0, -0.055, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[100, 100]} />
-        <shadowMaterial color="#25261f" transparent opacity={0.18} />
+        <shadowMaterial color={Colors.legacySurface.v03} transparent opacity={0.18} />
       </mesh>
     </>
   );
@@ -862,22 +863,22 @@ function createCoverTitleTexture(title: string): CanvasTexture {
   if (!context) throw new Error('Could not create cover title texture');
 
   context.textAlign = 'center';
-  context.fillStyle = '#d9cfb9';
+  context.fillStyle = Colors.legacySurface.v33;
   context.font = '600 24px Georgia';
   context.fillText('A PERSONAL COOKBOOK', canvas.width / 2, 390);
 
-  context.fillStyle = '#f0e7d4';
+  context.fillStyle = Colors.legacySurface.v39;
   context.font = 'bold 92px Georgia';
   drawWrappedText(context, title, canvas.width / 2, 505, 720, 102);
 
-  context.strokeStyle = 'rgba(217, 207, 185, 0.72)';
+  context.strokeStyle = Colors.legacySurface.v49;
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(370, 735);
   context.lineTo(654, 735);
   context.stroke();
 
-  context.fillStyle = '#4c4637';
+  context.fillStyle = Colors.legacySurface.v08;
   context.font = 'bold 22px Georgia';
   context.letterSpacing = '6px';
   context.fillText('RECIPES', canvas.width / 2, 1312);
@@ -891,7 +892,7 @@ function createCoverTitleTexture(title: string): CanvasTexture {
 function makeFallbackImageUri(title: string): string {
   const safeTitle = escapeXml(title);
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1240"><rect width="100%" height="100%" fill="#e8e0cf"/><rect x="38" y="38" width="824" height="1164" rx="24" fill="none" stroke="#97866a" stroke-width="4"/><text x="450" y="590" text-anchor="middle" font-family="Georgia" font-size="54" fill="#2d2923">${safeTitle}</text><text x="450" y="654" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill="#786e61">COOKBOOK</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1240"><rect width="100%" height="100%" fill=Colors.legacySurface.v36/><rect x="38" y="38" width="824" height="1164" rx="24" fill="none" stroke=Colors.legacySurface.v20 stroke-width="4"/><text x="450" y="590" text-anchor="middle" font-family="Georgia" font-size="54" fill=Colors.legacySurface.v06>${safeTitle}</text><text x="450" y="654" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill=Colors.legacySurface.v15>COOKBOOK</text></svg>`,
   )}`;
 }
 
@@ -911,31 +912,31 @@ function escapeXml(value: string): string {
 function createBookplateTexture(title: string, count: number): CanvasTexture {
   return createPaperTexture((context, width, height) => {
     // Decorative border with double line
-    context.strokeStyle = '#b39762';
+    context.strokeStyle = Colors.legacySurface.v23;
     context.lineWidth = 2.5;
     context.strokeRect(80, 80, width - 160, height - 160);
-    context.strokeStyle = '#c4ac7a';
+    context.strokeStyle = Colors.legacySurface.v27;
     context.lineWidth = 1;
     context.strokeRect(92, 92, width - 184, height - 184);
 
     // Small ornament at top
-    context.fillStyle = '#b39762';
+    context.fillStyle = Colors.legacySurface.v23;
     context.font = '28px Georgia';
     context.textAlign = 'center';
     context.fillText('✦', width / 2, height * 0.28);
 
     // Subtitle
-    context.fillStyle = '#8a7d6b';
+    context.fillStyle = Colors.legacySurface.v18;
     context.font = 'italic 20px Georgia';
     context.fillText('A Personal Cookbook', width / 2, height * 0.36);
 
     // Title
-    context.fillStyle = '#29251f';
+    context.fillStyle = Colors.legacySurface.v05;
     context.font = 'bold 52px Georgia';
     drawWrappedText(context, title, width / 2, height * 0.47, width * 0.68, 62);
 
     // Divider line
-    context.strokeStyle = '#b39762';
+    context.strokeStyle = Colors.legacySurface.v23;
     context.lineWidth = 1.5;
     context.beginPath();
     context.moveTo(width * 0.35, height * 0.62);
@@ -943,12 +944,12 @@ function createBookplateTexture(title: string, count: number): CanvasTexture {
     context.stroke();
 
     // Recipe count
-    context.fillStyle = '#8a7d6b';
+    context.fillStyle = Colors.legacySurface.v18;
     context.font = '16px Georgia';
     context.fillText(`${count} ${count === 1 ? 'Recipe' : 'Recipes'}`, width / 2, height * 0.67);
 
     // Bottom ornament
-    context.fillStyle = '#b39762';
+    context.fillStyle = Colors.legacySurface.v23;
     context.font = '20px Georgia';
     context.fillText('✦', width / 2, height * 0.82);
   });
@@ -961,9 +962,9 @@ function createGutterShadowTexture(): CanvasTexture {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Could not create gutter shadow texture');
   const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
-  gradient.addColorStop(0, 'rgba(56, 48, 36, 0)');
-  gradient.addColorStop(0.5, 'rgba(56, 48, 36, 0.32)');
-  gradient.addColorStop(1, 'rgba(56, 48, 36, 0)');
+  gradient.addColorStop(0, Colors.legacySurface.v91);
+  gradient.addColorStop(0.5, Colors.legacySurface.v90);
+  gradient.addColorStop(1, Colors.legacySurface.v91);
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
   const texture = new CanvasTexture(canvas);
@@ -974,10 +975,10 @@ function createGutterShadowTexture(): CanvasTexture {
 function createBlankTexture(): CanvasTexture {
   return createPaperTexture((context, width, height) => {
     context.textAlign = 'center';
-    context.fillStyle = '#c9bda8';
+    context.fillStyle = Colors.legacySurface.v29;
     context.font = '32px Georgia';
     context.fillText('✦', width / 2, height / 2 - 30);
-    context.fillStyle = '#b5a98f';
+    context.fillStyle = Colors.legacySurface.v24;
     context.font = 'italic 24px Georgia';
     context.fillText('This page is waiting for a recipe', width / 2, height / 2 + 24);
   });
@@ -991,7 +992,7 @@ function createPaperTexture(
   canvas.height = 1240;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Could not create cookbook page texture');
-  context.fillStyle = '#f4efe4';
+  context.fillStyle = Colors.legacySurface.v41;
   context.fillRect(0, 0, canvas.width, canvas.height);
   draw(context, canvas.width, canvas.height);
   const texture = new CanvasTexture(canvas);

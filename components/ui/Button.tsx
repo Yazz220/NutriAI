@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Animated, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Radii } from '@/constants/spacing';
+import { Spacing, Radii , Typography} from '@/constants/spacing';
 import { Tokens } from '@/constants/tokens';
 import { Fonts } from '@/utils/fonts';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -144,8 +144,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: Colors.charcoal,
-    borderRadius: 0,
-    paddingHorizontal: 0,
+    borderRadius: Radii.numeric[0],
+    paddingHorizontal: Spacing.values[0],
   },
   danger: {
     backgroundColor: Tokens.component.button.danger.container.bg,
@@ -159,19 +159,19 @@ const styles = StyleSheet.create({
   sm: {
     minHeight: 36,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 6,
+    paddingVertical: Spacing.values[6],
     gap: Spacing.xs,
   },
   md: {
     minHeight: 44,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: 8,
+    paddingVertical: Spacing.values[8],
     gap: Spacing.sm,
   },
   lg: {
     minHeight: 52,
     paddingHorizontal: Spacing.xxl,
-    paddingVertical: 10,
+    paddingVertical: Spacing.values[10],
     gap: Spacing.md,
   },
   disabled: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.medium,
     fontWeight: '500',
     textAlign: 'center',
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   primaryText: {
     color: Colors.onPrimary,
@@ -211,19 +211,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   xsText: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   smText: {
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   mdText: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   lgText: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
   },
 });

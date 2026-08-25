@@ -29,7 +29,7 @@ import {
 } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { CookbookStyleId } from '@/types/cookbook';
 
@@ -117,13 +117,7 @@ export function CreationStudio({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heading}>
-          <Text style={styles.eyebrow}>{isFirstRun ? 'YOUR FIRST COOKBOOK' : 'CREATE COOKBOOK'}</Text>
           <Text style={styles.headingTitle}>{isFirstRun ? 'Give your recipes a home' : 'Make it yours'}</Text>
-          <Text style={styles.headingSubtitle}>
-            {isFirstRun
-              ? 'Name your book and choose a look. You can change the details any time.'
-              : 'One book, personalized for the way you want to cook and collect.'}
-          </Text>
         </View>
 
         <View style={styles.previewPanel}>
@@ -176,7 +170,6 @@ export function CreationStudio({
           ) : null}
 
           {error ? <Text style={styles.error} selectable>{error}</Text> : null}
-          {!canCreate ? <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text> : null}
 
           <Pressable
             style={[styles.finishButton, ctaDisabled && styles.disabledButton]}
@@ -261,7 +254,7 @@ function BookPreview({
       accessibilityLabel={face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
     >
       <LinearGradient
-        colors={['#fbfaf6', '#f0ede7']}
+        colors={[Colors.legacySurface.v42, Colors.legacySurface.v40]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -308,7 +301,7 @@ function GeneratedRecipeSpread({
         accessibilityLabel={`${style.name} cookie recipe sample`}
       />
       <LinearGradient
-        colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.18)', 'rgba(255,255,255,0.18)', 'rgba(23,22,20,0)']}
+        colors={[Colors.legacySurface.v61, Colors.legacySurface.v60, Colors.legacySurface.v78, Colors.legacySurface.v61]}
         locations={[0, 0.42, 0.58, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -368,10 +361,7 @@ function FirstBookLookSelector({
 }) {
   return (
     <View style={styles.section}>
-      <View>
-        <Text style={styles.sectionTitle}>Choose a look</Text>
-        <Text style={styles.sectionHint}>A matched cover and page style—easy to refine later.</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Choose a look</Text>
       <View style={[styles.firstLookGrid, stacked && styles.firstLookGridStacked]}>
         {FIRST_BOOK_LOOKS.map((option) => {
           const selected = coverStyle === option.coverStyle && pageStyleId === option.pageStyleId;
@@ -415,10 +405,7 @@ function CoverSelector({
 }) {
   return (
     <View style={styles.section}>
-      <View>
-        <Text style={styles.sectionTitle}>Cover finish</Text>
-        <Text style={styles.sectionHint}>Choose the color and material together.</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Cover finish</Text>
       <View style={styles.coverGrid}>
         {options.map((option) => (
           <CoverChip
@@ -475,10 +462,7 @@ function PageStyleSelector({
 }) {
   return (
     <View style={styles.section}>
-      <View>
-        <Text style={styles.sectionTitle}>Recipe pages</Text>
-        <Text style={styles.sectionHint}>The look stays consistent. Layout adapts to each recipe.</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Recipe pages</Text>
       <View style={styles.pageStyleGrid}>
         {options.map((option) => (
           <Pressable
@@ -536,21 +520,21 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: 1.4,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
+    letterSpacing: Typography.metrics.letterSpacing14,
   },
   headingTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight40,
   },
   headingSubtitle: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight22,
     maxWidth: 520,
   },
   previewPanel: {
@@ -559,7 +543,7 @@ const styles = StyleSheet.create({
   previewToggle: {
     alignSelf: 'center',
     flexDirection: 'row',
-    padding: 3,
+    padding: Spacing.values[3],
     backgroundColor: Colors.surfaceMuted,
     borderRadius: Radii.full,
     borderWidth: 1,
@@ -568,7 +552,7 @@ const styles = StyleSheet.create({
   previewToggleItem: {
     minWidth: 78,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
+    paddingVertical: Spacing.values[8],
     borderRadius: Radii.full,
     alignItems: 'center',
   },
@@ -578,7 +562,7 @@ const styles = StyleSheet.create({
   previewToggleText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
   },
   previewToggleTextSelected: {
     color: Colors.onPrimary,
@@ -593,10 +577,10 @@ const styles = StyleSheet.create({
     boxShadow: Colors.book.cardShadow,
   },
   spreadWrap: {
-    padding: 4,
-    borderRadius: 12,
+    padding: Spacing.values[4],
+    borderRadius: Radii.numeric[12],
     position: 'relative',
-    boxShadow: '0 18px 34px rgba(23,22,20,0.18)',
+    boxShadow: Shadows.custom.studio,
   },
   generatedPage: {
     position: 'absolute',
@@ -620,8 +604,8 @@ const styles = StyleSheet.create({
   selectionSummary: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
     textAlign: 'center',
   },
   controlStack: {
@@ -638,20 +622,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   sectionHint: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 11,
-    lineHeight: 17,
-    marginTop: 2,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
+    marginTop: Spacing.values[2],
   },
   characterCount: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
   },
   input: {
     minHeight: 52,
@@ -663,7 +647,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceElevated,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 15,
+    fontSize: Typography.sizes.md,
   },
   firstLookGrid: {
     flexDirection: 'row',
@@ -692,9 +676,9 @@ const styles = StyleSheet.create({
     width: 46,
     height: 61,
     marginBottom: Spacing.xs,
-    borderRadius: 5,
+    borderRadius: Radii.numeric[5],
     overflow: 'hidden',
-    boxShadow: '0 5px 10px rgba(23,22,20,0.14)',
+    boxShadow: Shadows.custom.studioSmall,
   },
   firstLookSpine: {
     width: 8,
@@ -710,15 +694,15 @@ const styles = StyleSheet.create({
   firstLookName: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
   },
   firstLookDescription: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight14,
     textAlign: 'center',
   },
   customizeButton: {
@@ -736,8 +720,8 @@ const styles = StyleSheet.create({
   customizeButtonText: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   coverGrid: {
     flexDirection: 'row',
@@ -751,7 +735,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.sm,
-    paddingRight: 30,
+    paddingRight: Spacing.values[30],
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -761,10 +745,10 @@ const styles = StyleSheet.create({
   coverSwatch: {
     width: 38,
     height: 50,
-    borderRadius: 5,
+    borderRadius: Radii.numeric[5],
     position: 'relative',
     overflow: 'hidden',
-    boxShadow: '0 5px 10px rgba(23,22,20,0.14)',
+    boxShadow: Shadows.custom.studioSmall,
   },
   swatchSpine: {
     width: 7,
@@ -779,19 +763,19 @@ const styles = StyleSheet.create({
   },
   optionCopy: {
     flex: 1,
-    gap: 2,
+    gap: Spacing.values[2],
   },
   optionName: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
   },
   optionMeta: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
   },
   optionSelected: {
     borderColor: Colors.text,
@@ -851,20 +835,20 @@ const styles = StyleSheet.create({
   finishText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   error: {
     color: Colors.error,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
   },
   note: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: 11,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
   },
 });

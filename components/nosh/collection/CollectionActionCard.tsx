@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ArrowRight, BookCopy, BookOpen } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type {
   CollectionActionKind,
   CollectionActionPreview,
@@ -73,7 +73,7 @@ export function CollectionActionCard({
     return (
       <View style={styles.card} accessibilityLiveRegion="polite">
         <ActivityIndicator color={Colors.primary} />
-        <Text style={styles.muted}>Checking the recipe and destination...</Text>
+        <Text style={styles.muted}>Checking…</Text>
       </View>
     );
   }
@@ -94,7 +94,6 @@ export function CollectionActionCard({
           ? <BookCopy size={18} color={Colors.primary} />
           : <BookOpen size={18} color={Colors.primary} />}
         <View style={styles.headingText}>
-          <Text style={styles.eyebrow}>Confirm collection change</Text>
           <Text style={styles.title}>{action === 'copy' ? 'Copy' : 'Move'} {preview.recipeTitle}</Text>
         </View>
       </View>
@@ -103,11 +102,6 @@ export function CollectionActionCard({
         <ArrowRight size={15} color={Colors.textMuted} />
         <Text style={styles.book}>{preview.destinationCookbook.title}</Text>
       </View>
-      <Text style={styles.muted}>
-        {action === 'copy'
-          ? 'The original stays in its current cookbook.'
-          : 'The recipe leaves its current cookbook after you confirm.'}
-      </Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.actions}>
         <Pressable
@@ -139,17 +133,17 @@ export function CollectionActionCard({
 const styles = StyleSheet.create({
   card: { gap: Spacing.sm, borderWidth: 1, borderColor: Colors.ash, borderRadius: Radii.lg, backgroundColor: Colors.white, padding: Spacing.md },
   heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  headingText: { flex: 1, gap: 2 },
-  eyebrow: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 11, textTransform: 'uppercase' },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 17 },
+  headingText: { flex: 1, gap: Spacing.values[2] },
+  eyebrow: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, textTransform: 'uppercase' },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.lgMd },
   route: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, borderRadius: Radii.md, backgroundColor: Colors.parchment, padding: Spacing.sm },
-  book: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  muted: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
-  error: { color: Colors.error, fontSize: 12, lineHeight: 18 },
+  book: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  muted: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
+  error: { color: Colors.error, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
   actions: { flexDirection: 'row', gap: Spacing.sm },
   primary: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
-  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13, textTransform: 'capitalize' },
+  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, textTransform: 'capitalize' },
   secondary: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.charcoal, borderRadius: Radii.full, backgroundColor: Colors.white, paddingHorizontal: Spacing.md },
-  secondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  secondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   disabled: { opacity: 0.6 },
 });

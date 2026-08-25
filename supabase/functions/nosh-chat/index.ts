@@ -38,7 +38,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
-import { corsResponse, jsonError, jsonResponse } from '../_shared/cors.ts';
+import { corsResponse, getCorsHeaders, jsonError, jsonResponse } from '../_shared/cors.ts';
 import { errorResponse } from '../_shared/error.ts';
 import { logError, logInfo } from '../_shared/log.ts';
 import {
@@ -47,6 +47,7 @@ import {
 } from '../_shared/noshContextLimits.ts';
 import {
   callChatCompletion,
+  streamChatCompletion,
   type ChatMessage,
   type ToolDefinition,
   type ToolCall,
@@ -89,6 +90,7 @@ interface RequestBody {
   tools?: string[];
   temperature?: number;
   max_tokens?: number;
+  stream?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -669,6 +671,117 @@ serve(async (req: Request) => {
       entryPoint: body.interactionContext?.entryPoint,
       task: body.interactionContext?.task,
     });
+
+    if (body.stream) {
+      const encoder = new TextEncoder();
+      const responseStream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const send = (event: unknown) => {
+            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          };
+          let content = '';
+          let finishReason = 'stop';
+          let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+          const toolCalls = new Map<number, ToolCall>();
+
+          try {
+            for await (const chunk of streamChatCompletion(
+              {
+                model: AI_MODEL,
+                messages,
+                temperature: body.temperature ?? 0.4,
+                max_tokens: body.max_tokens ?? 2000,
+                tools: tools.length > 0 ? tools : undefined,
+                tool_choice: tools.length > 0 ? 'auto' : undefined,
+              },
+              { timeoutMs: CHAT_TIMEOUT_MS, signal: req.signal },
+            )) {
+              const choice = chunk.choices?.[0];
+              const textDelta = choice?.delta?.content;
+              if (textDelta) {
+                content += textDelta;
+                send({ type: 'text-delta', delta: textDelta });
+              }
+
+              for (const delta of choice?.delta?.tool_calls ?? []) {
+                const current = toolCalls.get(delta.index) ?? {
+                  id: '',
+                  type: 'function' as const,
+                  function: { name: '', arguments: '' },
+                };
+                if (delta.id) current.id += delta.id;
+                if (delta.function?.name) current.function.name += delta.function.name;
+                if (delta.function?.arguments) current.function.arguments += delta.function.arguments;
+                toolCalls.set(delta.index, current);
+              }
+
+              if (choice?.finish_reason) finishReason = choice.finish_reason;
+              if (chunk.usage) usage = chunk.usage;
+            }
+
+            const rawToolCalls = [...toolCalls.entries()]
+              .sort(([left], [right]) => left - right)
+              .map(([, call]) => call)
+              .filter((call) => call.id && call.function.name);
+            const parsedToolCalls = parseToolCalls(rawToolCalls);
+            const validToolCalls = parsedToolCalls.filter(validateToolCall);
+            const validToolCallIds = new Set(validToolCalls.map((call) => call.id));
+            const safeToolCalls = rawToolCalls.filter((call) => validToolCallIds.has(call.id));
+            const invalidCount = parsedToolCalls.length - validToolCalls.length;
+            if (invalidCount > 0) {
+              logError('nosh-chat: rejected invalid streamed tool calls', { count: invalidCount });
+            }
+
+            send({
+              type: 'result',
+              result: {
+                message: {
+                  role: 'assistant',
+                  content,
+                  tool_calls: safeToolCalls.length ? safeToolCalls : undefined,
+                },
+                toolCalls: validToolCalls.map((call) => ({
+                  tool: call.name,
+                  ...call.arguments,
+                })),
+                finishReason,
+                usage,
+              },
+            });
+
+            logInfo('nosh-chat completed', {
+              finishReason,
+              toolCallCount: validToolCalls.length,
+              cost: 'cost' in usage ? usage.cost : undefined,
+              promptTokens: usage.prompt_tokens,
+              completionTokens: usage.completion_tokens,
+              totalTokens: usage.total_tokens,
+              durationMs: Date.now() - requestStartedAt,
+              loadedRecipeCount,
+              entryPoint: body.interactionContext?.entryPoint,
+              task: body.interactionContext?.task,
+              streamed: true,
+            });
+          } catch (modelErr) {
+            const message = modelErr instanceof Error ? modelErr.message : 'Chat request failed';
+            logError('nosh-chat stream failed', { error: message });
+            send({ type: 'error', error: message });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(responseStream, {
+        status: 200,
+        headers: {
+          ...getCorsHeaders(req),
+          'Content-Type': 'application/x-ndjson; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Content-Type-Options': 'nosniff',
+        },
+      });
+    }
 
     // Single-turn call — we return the model's response (with any tool calls)
     // to the client. The client executes the tools and sends results back in

@@ -1,12 +1,12 @@
 import type { ChatModelRunOptions, ChatModelRunResult } from '@assistant-ui/react-native';
 import { createNoshChatAdapter } from '@/utils/cookbook/noshChatAdapter';
-import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+import { streamAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 jest.mock('@/utils/supabaseEdge', () => ({
-  callAuthenticatedFunction: jest.fn(),
+  streamAuthenticatedFunction: jest.fn(),
 }));
 
-const mockedCall = jest.mocked(callAuthenticatedFunction);
+const mockedStream = jest.mocked(streamAuthenticatedFunction);
 const collectionInteraction = {
   entryPoint: 'shelf-nosh' as const,
   task: 'collection' as const,
@@ -45,13 +45,65 @@ function runOptions(execute: jest.Mock): ChatModelRunOptions {
   } as unknown as ChatModelRunOptions;
 }
 
+function mockResponse(response: Record<string, unknown>) {
+  mockedStream.mockImplementation(async function* () {
+    yield { type: 'result', result: response };
+  });
+}
+
+async function runAdapter(
+  adapter: ReturnType<typeof createNoshChatAdapter>,
+  options: ChatModelRunOptions,
+): Promise<ChatModelRunResult> {
+  const output = adapter.run(options);
+  if (output instanceof Promise) return output;
+  let latest: ChatModelRunResult | undefined;
+  for await (const result of output) latest = result;
+  if (!latest) throw new Error('Adapter did not yield a result');
+  return latest;
+}
+
+async function collectAdapterResults(
+  adapter: ReturnType<typeof createNoshChatAdapter>,
+  options: ChatModelRunOptions,
+): Promise<ChatModelRunResult[]> {
+  const output = adapter.run(options);
+  if (output instanceof Promise) return [await output];
+  const results: ChatModelRunResult[] = [];
+  for await (const result of output) results.push(result);
+  return results;
+}
+
 describe('createNoshChatAdapter', () => {
   beforeEach(() => {
-    mockedCall.mockReset();
+    mockedStream.mockReset();
+  });
+
+  it('yields cumulative assistant text as tokens arrive', async () => {
+    mockedStream.mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Hello' };
+      yield { type: 'text-delta', delta: ' from Nosh' };
+      yield {
+        type: 'result',
+        result: {
+          message: { role: 'assistant', content: 'Hello from Nosh' },
+          toolCalls: [],
+        },
+      };
+    });
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
+
+    const results = await collectAdapterResults(adapter, runOptions(jest.fn()));
+
+    expect(results.map((result) => result.content)).toEqual([
+      [{ type: 'text', text: 'Hello' }],
+      [{ type: 'text', text: 'Hello from Nosh' }],
+      [{ type: 'text', text: 'Hello from Nosh' }],
+    ]);
   });
 
   it('offers an explicit capture handoff from collection conversation', async () => {
-    mockedCall.mockResolvedValue({
+    mockResponse({
       message: {
         role: 'assistant',
         content: 'I can turn that into a cookbook page.',
@@ -68,7 +120,7 @@ describe('createNoshChatAdapter', () => {
     });
     const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
     const options = runOptions(jest.fn());
-    const result = await adapter.run(options) as ChatModelRunResult;
+    const result = await runAdapter(adapter, options);
 
     expect(result.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
     expect(result.content).toEqual(expect.arrayContaining([
@@ -78,7 +130,7 @@ describe('createNoshChatAdapter', () => {
 
   it('stops the automatic loop when a frontend tool fails', async () => {
     const execute = jest.fn().mockRejectedValue(new Error('Provider unavailable'));
-    mockedCall.mockResolvedValue({
+    mockResponse({
       message: {
         role: 'assistant',
         content: '',
@@ -95,7 +147,7 @@ describe('createNoshChatAdapter', () => {
     });
 
     const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
-    const result = await adapter.run(runOptions(execute)) as ChatModelRunResult;
+    const result = await runAdapter(adapter, runOptions(execute));
 
     expect(result.status).toEqual({ type: 'complete', reason: 'stop' });
     expect(result.content).toEqual(expect.arrayContaining([
@@ -114,7 +166,7 @@ describe('createNoshChatAdapter', () => {
       candidate: { pageId: 'page-cheesecake', title: 'Baked Cheesecake', score: 6 },
       candidates: [{ pageId: 'page-cheesecake', title: 'Baked Cheesecake', score: 6 }],
     });
-    mockedCall.mockResolvedValue({
+    mockResponse({
       message: {
         role: 'assistant',
         content: 'I found it.',
@@ -144,13 +196,13 @@ describe('createNoshChatAdapter', () => {
       },
     };
 
-    const result = await adapter.run(options) as ChatModelRunResult;
+    const result = await runAdapter(adapter, options);
 
     expect(execute).toHaveBeenCalledWith(
       { query: 'cheesecake' },
       expect.objectContaining({ toolCallId: 'search-1' }),
     );
-    expect(mockedCall).toHaveBeenCalledWith(
+    expect(mockedStream).toHaveBeenCalledWith(
       'nosh-chat',
       expect.objectContaining({
         interactionContext: expect.objectContaining(collectionInteraction),
@@ -173,7 +225,7 @@ describe('createNoshChatAdapter', () => {
 
   it('sends stable conversation focus separately from the visible reader page', async () => {
     const focusedGraph = { title: 'Soup', ingredientGroups: [], stepGroups: [] };
-    mockedCall.mockResolvedValue({
+    mockResponse({
       message: { role: 'assistant', content: 'Soup stays in focus.' },
       toolCalls: [],
     });
@@ -187,9 +239,9 @@ describe('createNoshChatAdapter', () => {
       },
     }));
 
-    await adapter.run(runOptions(jest.fn()));
+    await runAdapter(adapter, runOptions(jest.fn()));
 
-    expect(mockedCall).toHaveBeenCalledWith(
+    expect(mockedStream).toHaveBeenCalledWith(
       'nosh-chat',
       expect.objectContaining({
         recipeGraph: focusedGraph,
@@ -204,15 +256,15 @@ describe('createNoshChatAdapter', () => {
   });
 
   it('does not expose chat tools inside the dedicated capture workspace', async () => {
-    mockedCall.mockResolvedValue({
+    mockResponse({
       message: { role: 'assistant', content: 'The capture workspace is handling this recipe.' },
       toolCalls: [],
     });
     const adapter = createNoshChatAdapter(() => ({ interaction: captureInteraction }));
 
-    await adapter.run(runOptions(jest.fn()));
+    await runAdapter(adapter, runOptions(jest.fn()));
 
-    expect(mockedCall).toHaveBeenCalledWith(
+    expect(mockedStream).toHaveBeenCalledWith(
       'nosh-chat',
       expect.objectContaining({ tools: [] }),
       expect.anything(),

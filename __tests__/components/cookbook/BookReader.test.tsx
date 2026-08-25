@@ -200,10 +200,10 @@ describe('BookReader cover entry', () => {
       onShare: jest.fn(),
     });
 
-    expect(await screen.findByText('NOSH IS HERE, TOO')).toBeTruthy();
+    expect(await screen.findByText('Your chef knows this recipe.')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Dismiss Ask Nosh introduction' }));
 
-    expect(screen.queryByText('NOSH IS HERE, TOO')).toBeNull();
+    expect(screen.queryByText('Your chef knows this recipe.')).toBeNull();
     await waitFor(async () => {
       expect((await loadFirstRunOnboardingState('user-1')).noshTipSeen).toBe(true);
     });

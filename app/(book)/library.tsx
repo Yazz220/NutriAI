@@ -7,7 +7,7 @@ import { CreationStudio } from '@/components/create/CreationStudio';
 import { Text } from '@/components/ui/Text';
 import type { CreationPageStyleId } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
@@ -114,9 +114,9 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
     color: Colors.text,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
 });

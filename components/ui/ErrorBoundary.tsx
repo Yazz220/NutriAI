@@ -2,7 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { AlertTriangle, RefreshCw } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 
 interface Props {
   children: ReactNode;
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
-    borderRadius: 8,
+    borderRadius: Radii.numeric[8],
     gap: Spacing.sm,
   },
   retryText: {

@@ -1,3 +1,4 @@
+import { Radii, Spacing } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
@@ -55,18 +56,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.duskGrey,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: Radii.numeric[10],
+    backgroundColor: Colors.legacySurface.v70,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: Spacing.values[10],
   },
   spineBoards: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.duskGrey,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: Radii.numeric[4],
+    backgroundColor: Colors.legacySurface.v70,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -74,6 +75,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.semibold,
     color: Colors.slate,
     textAlign: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.values[12],
   },
 });

@@ -7,7 +7,7 @@ import { NoshCaptureWorkspace } from '@/components/nosh/capture/NoshCaptureWorks
 import { Text } from '@/components/ui/Text';
 import { useCookbook } from '@/hooks/useCookbook';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 export default function AddPageScreen() {
@@ -32,14 +32,13 @@ export default function AddPageScreen() {
             <ChevronLeft size={20} color={Colors.text} />
           </Pressable>
           <View style={styles.heading}>
-            <Text style={styles.eyebrow}>Add page</Text>
             <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
               Add a page to {cookbookTitle}
             </Text>
           </View>
         </View>
 
-        <NoshCaptureWorkspace destinationCookbookId={cookbookId} />
+        <NoshCaptureWorkspace destinationCookbookId={cookbookId} activityVisible={false} />
       </ScrollView>
     </LinearGradient>
   );
@@ -79,15 +78,15 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
 });

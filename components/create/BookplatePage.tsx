@@ -1,3 +1,4 @@
+import { Radii, Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -68,27 +69,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.book.page,
     borderTopLeftRadius: 6,
     borderBottomLeftRadius: 6,
-    padding: 10,
+    padding: Spacing.values[10],
   },
   frameOuter: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 4,
-    padding: 4,
+    borderRadius: Radii.numeric[4],
+    padding: Spacing.values[4],
   },
   frameInner: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 3,
+    borderRadius: Radii.numeric[3],
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 8,
+    gap: Spacing.values[10],
+    paddingHorizontal: Spacing.values[8],
   },
   ornamentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.values[8],
   },
   ornamentRule: {
     width: 26,
@@ -102,13 +103,13 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 2,
+    letterSpacing: Typography.metrics.letterSpacing20,
     textAlign: 'center',
   },
   title: {
     fontFamily: Fonts.display.semibold,
     textAlign: 'center',
-    letterSpacing: 0.3,
+    letterSpacing: Typography.metrics.letterSpacing03,
   },
   titleRule: {
     width: 40,
@@ -116,8 +117,8 @@ const styles = StyleSheet.create({
   },
   foot: {
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 2.4,
+    letterSpacing: Typography.metrics.letterSpacing24,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: Spacing.values[4],
   },
 });

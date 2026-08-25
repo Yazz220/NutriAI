@@ -104,16 +104,30 @@ describe('NoshCaptureWorkspace', () => {
     await AsyncStorage.clear();
   });
 
-  it('keeps recipe activity with the source composer', async () => {
+  it('keeps the source composer focused when activity is closed', async () => {
     mockCaptures = [
       capture({ id: 'working' }),
       capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
       capture({ id: 'ready', status: 'ready', pageStatus: 'ready', pageId: 'page-1' }),
     ];
-    const screen = await renderWorkspace();
+    const screen = await renderWorkspace({ activityVisible: false });
 
     expect(screen.getByText('Recipe composer')).toBeTruthy();
-    expect(screen.getByText('Recipe activity')).toBeTruthy();
+    expect(screen.queryByText('Active')).toBeNull();
+    expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  it('separates active and recent recipe history', async () => {
+    mockCaptures = [
+      capture({ id: 'working' }),
+      capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
+      capture({ id: 'ready', status: 'ready', pageStatus: 'ready', pageId: 'page-1' }),
+    ];
+    const screen = await renderWorkspace({ activityVisible: true });
+
+    expect(screen.queryByText('Recipe composer')).toBeNull();
+    expect(screen.getByText('Active')).toBeTruthy();
+    expect(screen.getByText('Recent')).toBeTruthy();
     expect(screen.getByText('Reading recipe')).toBeTruthy();
     expect(screen.getByText('Try again')).toBeTruthy();
     expect(screen.getByText('Ready')).toBeTruthy();
@@ -125,7 +139,6 @@ describe('NoshCaptureWorkspace', () => {
     const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
 
     expect(await screen.findByText('Start with a recipe you already love.')).toBeTruthy();
-    expect(screen.getByText(/finished page for Family Table/)).toBeTruthy();
     expect(screen.getByText('Recipe composer')).toBeTruthy();
   });
 
@@ -140,7 +153,6 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Source saved')).toBeTruthy();
     expect(screen.getByText('Recipe understood')).toBeTruthy();
     expect(screen.getByText('Page added to cookbook')).toBeTruthy();
-    expect(screen.getByText(/nothing will be lost/i)).toBeTruthy();
     expect(screen.getByRole('progressbar', { name: 'Recipe page progress' }).props.accessibilityValue).toEqual({
       min: 0,
       max: 3,
@@ -184,7 +196,7 @@ describe('NoshCaptureWorkspace', () => {
     })];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    expect(screen.getByText('Choose cookbook')).toBeTruthy();
+    expect(screen.getByText('Tomato Pasta')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add recipe to Family Table' })).toBeTruthy();
   });
 

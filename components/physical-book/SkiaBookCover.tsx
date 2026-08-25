@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import {
   Canvas,
@@ -187,7 +188,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           <LinearGradient
             start={vec(0, 0)}
             end={vec(0, height * 0.42)}
-            colors={['rgba(255,255,255,0.13)', 'rgba(255,255,255,0)']}
+            colors={[Colors.legacySurface.v77, Colors.legacySurface.v83]}
           />
         </Rect>
 
@@ -222,7 +223,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           <LinearGradient
             start={vec(0, height - 5)}
             end={vec(0, height)}
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.18)']}
+            colors={[Colors.legacySurface.v45, Colors.legacySurface.v44]}
           />
         </Rect>
       </Group>

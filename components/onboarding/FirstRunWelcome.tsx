@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 interface FirstRunWelcomeProps {
@@ -30,7 +30,7 @@ export function FirstRunWelcome({
       testID="first-run-welcome"
     >
       <LinearGradient
-        colors={['rgba(244,240,232,0.90)', 'rgba(232,225,213,0.98)']}
+        colors={[Colors.legacySurface.v64, Colors.legacySurface.v62]}
         style={StyleSheet.absoluteFill}
       />
       <ScrollView
@@ -63,11 +63,7 @@ export function FirstRunWelcome({
         </View>
 
         <View style={styles.copy}>
-          <Text style={styles.eyebrow}>YOUR PERSONAL COOKBOOK</Text>
           <Text style={styles.title}>Recipes worth keeping deserve a book.</Text>
-          <Text style={styles.body}>
-            Bring Nosh a link, recipe text, photo, or video. It becomes a beautifully designed page in a cookbook that feels like yours.
-          </Text>
         </View>
 
         <View style={styles.actions}>
@@ -92,9 +88,6 @@ export function FirstRunWelcome({
           </Pressable>
         </View>
 
-        <Text style={styles.footnote}>
-          Start with your own book, or take a quiet look around first.
-        </Text>
       </ScrollView>
     </View>
   );
@@ -124,8 +117,8 @@ const styles = StyleSheet.create({
   wordmark: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight32,
   },
   notNowButton: {
     minWidth: 76,
@@ -137,7 +130,7 @@ const styles = StyleSheet.create({
   notNowText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   bookStage: {
     minHeight: 250,
@@ -148,8 +141,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 270,
     height: 190,
-    borderRadius: 135,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: Radii.numeric[135],
+    backgroundColor: Colors.legacySurface.v80,
     transform: [{ translateY: 18 }],
   },
   copy: {
@@ -159,25 +152,25 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.medium,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 1.6,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
+    letterSpacing: Typography.metrics.letterSpacing16,
     textAlign: 'center',
   },
   title: {
     maxWidth: 430,
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 36,
-    lineHeight: 42,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight42,
     textAlign: 'center',
   },
   body: {
     maxWidth: 440,
     color: Colors.slate,
     fontFamily: Fonts.ui.regular,
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
     textAlign: 'center',
   },
   actions: {
@@ -198,8 +191,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight22,
     textAlign: 'center',
   },
   secondaryButton: {
@@ -207,7 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     borderWidth: 1,
     borderColor: Colors.charcoal,
-    backgroundColor: 'rgba(255,255,255,0.52)',
+    backgroundColor: Colors.legacySurface.v79,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
@@ -215,14 +208,14 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight21,
   },
   footnote: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
   },
   pressed: {

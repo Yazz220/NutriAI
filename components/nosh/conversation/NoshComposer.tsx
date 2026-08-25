@@ -5,7 +5,7 @@ import { Camera, Send, X } from 'lucide-react-native';
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { NoshInteractionSession } from '@/types/noshInteraction';
 import { Fonts } from '@/utils/fonts';
@@ -98,18 +98,18 @@ const styles = StyleSheet.create({
   attachment: {
     alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
     borderRadius: Radii.full, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.ash,
-    paddingHorizontal: Spacing.sm, paddingVertical: 6,
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.values[6],
   },
-  attachmentText: { color: Colors.text, fontSize: 12, fontFamily: Fonts.ui.medium },
+  attachmentText: { color: Colors.text, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.xs, borderRadius: Radii.xl,
     borderWidth: 1, borderColor: Colors.charcoal, backgroundColor: Colors.white,
     paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xs,
   },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.full },
-  input: { flex: 1, minHeight: 40, maxHeight: 112, paddingHorizontal: Spacing.xs, paddingVertical: 10, color: Colors.text, fontFamily: Fonts.ui.regular, fontSize: 14 },
+  input: { flex: 1, minHeight: 40, maxHeight: 112, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.values[10], color: Colors.text, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   send: { width: 40, height: 40, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary },
   sendDisabled: { opacity: 0.45 },
   cancel: { height: 40, justifyContent: 'center', paddingHorizontal: Spacing.sm },
-  cancelText: { color: Colors.primary, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  cancelText: { color: Colors.primary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
 });
