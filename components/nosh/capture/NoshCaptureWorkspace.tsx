@@ -21,6 +21,7 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { Cookbook } from '@/types/cookbook';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
@@ -67,6 +68,7 @@ export function NoshCaptureWorkspace({
   initialSource,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
+  const { close: closeNoshConversation } = useNoshConversation();
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const captureState = useRecipeCaptures();
@@ -235,6 +237,7 @@ export function NoshCaptureWorkspace({
         }
       }
     }
+    closeNoshConversation();
     router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`);
   }
 

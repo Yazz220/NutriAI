@@ -141,6 +141,7 @@ describe('BookReader cover entry', () => {
     expect(
       screen.getByRole('button', { name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}` }),
     ).toBeTruthy();
+    expect(screen.getByText('Turn a recipe you love into its first page.').props.maxFontSizeMultiplier).toBe(1.35);
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
     jest.useRealTimers();
   });
@@ -149,7 +150,7 @@ describe('BookReader cover entry', () => {
     await recordFirstCookbookCreated('user-1', SAMPLE_COOKBOOK.id);
     const screen = await renderReader({
       cookbook: SAMPLE_COOKBOOK,
-      pages: SAMPLE_COOKBOOK_PAGES,
+      pages: [SAMPLE_COOKBOOK_PAGES[0]],
       initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
       onSelectPage: jest.fn(),
       onShare: jest.fn(),

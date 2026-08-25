@@ -25,6 +25,14 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   into its real reader with a focused "Add my first recipe" prompt routed
   through the existing Nosh capture workspace; the duplicate floating add
   action stays hidden until the book has pages.
+- [x] **New cookbook page styles break first capture** — Fixed the live
+  `cookbook_pages_style_id_check` drift so `illustrated`, `studio-editorial`,
+  and `heritage` books can publish pages. Added the new style to the rollback
+  capture-lifecycle proof and verified the original failed capture through
+  page creation, generated art, and publication.
+- [x] **Downstream capture retries repeat extraction** — Fixed: when extraction
+  has already saved a RecipeGraph, a page-generation retry resumes from that
+  durable graph instead of paying for and depending on another model call.
 
 ## Missing
 
@@ -38,8 +46,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   Native share receipts take precedence so onboarding never interrupts inbound work.
   Reader transitions now honor Reduce Motion, capture progress exposes spoken
   step state instead of relying on color, and image-backed generated pages expose
-  canonical recipe content to VoiceOver. Authenticated assistive-technology,
-  RTL, and localization walkthroughs remain before release.
+  canonical recipe content to VoiceOver. The authenticated first-book and
+  first-page path is device-verified at an iOS accessibility text size with
+  Reduce Motion enabled. RTL and localization walkthroughs remain before release.
 - [ ] **Camera capture in intake** — `UnifiedIntakeComposer` /
   `NoshCaptureWorkspace` only offer the photo library, though camera permission
   is declared in `app.json`.
@@ -73,6 +82,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   but no reconnect/retry path.
 - [ ] **Focus-change prompt may confuse** — opening chat on a different recipe
   mid-conversation triggers a focus prompt (`NoshConversationContext`).
+- [x] **Open-ready-page action leaves Nosh sheet covering the reader** — Fixed:
+  opening a completed capture now closes the persistent sheet before replacing
+  the reader route.
 
 ## Polish
 
@@ -85,13 +97,19 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [ ] `app.json` declares `userInterfaceStyle: "automatic"` but there is no dark
   palette — iOS will ask for dark and get light. Either build dark mode or pin
   `light`.
-- [~] **Dynamic Type visual QA incomplete** — native text scaling is enabled and
-  the first-run welcome scrolls while the creation presets reflow at larger font
-  scales, but the complete onboarding path and broader app still need device checks
-  at accessibility sizes.
+- [x] **Dynamic Type first-run path** — Device-verified welcome, shelf, creation
+  studio, empty reader, capture composer, ready-page cue, and focused reader at
+  iOS Accessibility XXL. Interface text scales with bounded multipliers and
+  fixed-format physical-book typography stays inside its cover/page geometry.
+  The capture composer now scrolls internally at a fixed height, and fixed
+  reader prompts/toolbars remain operable without clipping.
 - [ ] Long cookbook titles truncate without ellipsis affordance (shelf meta,
   spine).
-- [ ] Create-book volume on shelf lacks a distinct accessibility label.
+- [x] Create-book volume on shelf has a distinct accessibility label.
+- [x] Welcome and Nosh sheets isolate the background accessibility tree; iOS no
+  longer exposes hidden shelf/reader controls through VoiceOver.
+- [x] Retryable capture failures sanitize database implementation details before
+  presenting user-facing copy.
 - [ ] Offline banner has no retry action; network poll interval is 15s.
 - [ ] Capture polling is fixed 2.5s with no backoff.
 - [ ] Landscape/tablet layouts unverified.

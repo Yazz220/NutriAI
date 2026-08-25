@@ -34,6 +34,15 @@ export interface CookbookSpread {
   right: CookbookLeaf;
 }
 
+export function getLeafIndexForPage(
+  leaves: CookbookLeaf[],
+  pageId: string | null | undefined,
+): number {
+  if (!pageId) return 0;
+  const index = leaves.findIndex((leaf) => leaf.type === 'recipe' && leaf.id === pageId);
+  return index >= 0 ? index : 0;
+}
+
 export function getReaderPageIndex(pageIds: string[], targetPageId: string | null | undefined): number | null {
   if (!targetPageId) return null;
   const recipeIndex = pageIds.indexOf(targetPageId);

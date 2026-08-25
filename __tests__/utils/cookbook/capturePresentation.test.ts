@@ -66,6 +66,16 @@ describe('capture presentation', () => {
     });
   });
 
+  it('does not expose database implementation details in retryable failures', () => {
+    expect(getCapturePresentation(capture({
+      status: 'needs_attention',
+      failureMessage: 'new row for relation "cookbook_pages" violates check constraint "cookbook_pages_style_id_check"',
+    }))).toMatchObject({
+      phase: 'attention',
+      detail: 'Nosh saved your recipe, but could not finish the page. Please try again.',
+    });
+  });
+
   it('shows concrete progress without implying an approval step', () => {
     expect(captureProgressSteps(capture())).toEqual([
       { label: 'Source saved', state: 'complete' },

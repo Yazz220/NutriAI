@@ -110,12 +110,18 @@ function Bookplate({ cookbook, pageCount }: { cookbook: Cookbook | null; pageCou
     <View style={styles.bookplate}>
       <View style={[styles.bookplateFrame, { borderColor: preset.palette.accent }]}>
         <Leaf size={20} color={preset.palette.accent} strokeWidth={1.2} />
-        <Text style={styles.kicker}>A PERSONAL COOKBOOK</Text>
-        <Text style={[styles.bookplateTitle, { color: preset.palette.ink }]} numberOfLines={3}>
+        <Text style={styles.kicker} allowFontScaling={false}>A PERSONAL COOKBOOK</Text>
+        <Text
+          style={[styles.bookplateTitle, { color: preset.palette.ink }]}
+          numberOfLines={3}
+          allowFontScaling={false}
+        >
           {cookbook?.title ?? 'My Cookbook'}
         </Text>
         <View style={[styles.rule, { backgroundColor: preset.palette.accent }]} />
-        <Text style={styles.bookplateMeta}>{pageCount === 1 ? 'ONE RECIPE' : `${pageCount} RECIPES`}</Text>
+        <Text style={styles.bookplateMeta} allowFontScaling={false}>
+          {pageCount === 1 ? 'ONE RECIPE' : `${pageCount} RECIPES`}
+        </Text>
         <BookOpen size={18} color={Colors.book.caption} strokeWidth={1.2} />
       </View>
     </View>

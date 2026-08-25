@@ -29,6 +29,7 @@ import { Fonts } from '@/utils/fonts';
 import {
   buildCookbookLeaves,
   buildCookbookSpreads,
+  getLeafIndexForPage,
   getSpreadIndexForPage,
   shouldAutoHideReaderChrome,
   shouldUseTouchPaging,
@@ -109,11 +110,10 @@ export function BookReader({
   const [isOpen, setIsOpen] = useState(Boolean(initialPageId));
   const [readingView, setReadingView] = useState<'spread' | 'page'>('spread');
   const [readingPageId, setReadingPageId] = useState(initialPageId);
-  const initialLeafIndex = useMemo(() => {
-    if (!initialPageId) return 2; // First recipe (after bookplate + ToC)
-    const index = leaves.findIndex((leaf) => leaf.id === initialPageId);
-    return index >= 0 ? index : 2;
-  }, [initialPageId, leaves]);
+  const initialLeafIndex = useMemo(
+    () => getLeafIndexForPage(leaves, initialPageId ?? pages[0]?.id),
+    [initialPageId, leaves, pages],
+  );
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
@@ -181,7 +181,7 @@ export function BookReader({
   const selectedPage = usesTouchPaging && readingView === 'page' ? readingPage : preferredSpreadPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
   // In one-page mode the counter tracks position in the full leaf list
-  // (bookplate, ToC, recipes, blank). In spread mode it tracks recipe pages.
+  // (bookplate, recipes, optional trailing blank). In spread mode it tracks recipe pages.
   const counterCurrent =
     usesTouchPaging && readingView === 'page'
       ? leafIndex + 1
@@ -339,8 +339,7 @@ export function BookReader({
       const targetPage = readingPage ?? pages[0];
       setReadingPageId(targetPage.id);
       onSelectPage(targetPage.id);
-      const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === targetPage.id);
-      if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
+      setLeafIndex(getLeafIndexForPage(leaves, targetPage.id));
     }
     opening.set(
       reduceMotion
@@ -470,6 +469,8 @@ export function BookReader({
     if (targetPage) {
       setReadingPageId(targetPage.id);
       onSelectPage(targetPage.id);
+      const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === targetPage.id);
+      if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
       // The web book uses a lightweight art texture for its 3D spread. Open
       // the live typeset PageCanvas when the user asks to read the page.
       if (Platform.OS === 'web') {
@@ -552,8 +553,10 @@ export function BookReader({
             style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}
             accessibilityLiveRegion="polite"
           >
-            <Text style={styles.emptyBookEyebrow}>YOUR BOOK IS READY</Text>
-            <Text style={styles.emptyBookTitle}>Turn a recipe you love into its first page.</Text>
+            <Text style={styles.emptyBookEyebrow} maxFontSizeMultiplier={1.35}>YOUR BOOK IS READY</Text>
+            <Text style={styles.emptyBookTitle} maxFontSizeMultiplier={1.35}>
+              Turn a recipe you love into its first page.
+            </Text>
             <Pressable
               style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
               onPress={openAddPage}
@@ -561,7 +564,7 @@ export function BookReader({
               accessibilityLabel={`Add the first recipe to ${cookbookTitle}`}
             >
               <Plus size={18} color={Colors.onPrimary} />
-              <Text style={styles.emptyBookButtonText}>Add my first recipe</Text>
+              <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Add my first recipe</Text>
             </Pressable>
           </View>
         ) : null}
@@ -570,9 +573,11 @@ export function BookReader({
             style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]}
             accessibilityLiveRegion="polite"
           >
-            <Text style={styles.firstPageEyebrow}>YOUR FIRST PAGE IS HOME</Text>
-            <Text style={styles.firstPageTitle} numberOfLines={2}>{firstPageCue.title}</Text>
-            <Text style={styles.firstPageCopy}>
+            <Text style={styles.firstPageEyebrow} maxFontSizeMultiplier={1.35}>YOUR FIRST PAGE IS HOME</Text>
+            <Text style={styles.firstPageTitle} numberOfLines={2} maxFontSizeMultiplier={1.35}>
+              {firstPageCue.title}
+            </Text>
+            <Text style={styles.firstPageCopy} maxFontSizeMultiplier={1.35}>
               This is your designed recipe page. Open it to read, cook, and ask Nosh about the recipe.
             </Text>
             <Pressable
@@ -585,7 +590,7 @@ export function BookReader({
               accessibilityLabel={`Read my first recipe, ${firstPageCue.title}`}
             >
               <BookOpen size={18} color={Colors.onPrimary} />
-              <Text style={styles.emptyBookButtonText}>Read my recipe</Text>
+              <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Read my recipe</Text>
             </Pressable>
             <Pressable
               style={styles.firstPageDismiss}
@@ -593,7 +598,7 @@ export function BookReader({
               accessibilityRole="button"
               accessibilityLabel="Dismiss first page introduction"
             >
-              <Text style={styles.firstPageDismissText}>Keep browsing</Text>
+              <Text style={styles.firstPageDismissText} maxFontSizeMultiplier={1.35}>Keep browsing</Text>
             </Pressable>
           </View>
         ) : null}
@@ -743,9 +748,9 @@ export function BookReader({
                 accessibilityLabel="Return to open cookbook"
               >
                 <ChevronLeft size={18} color={Colors.text} />
-                <Text style={styles.focusedActionText}>Cookbook</Text>
+                <Text style={styles.focusedActionText} maxFontSizeMultiplier={1.35}>Cookbook</Text>
               </Pressable>
-              <Text style={styles.focusedTitle} numberOfLines={1}>
+              <Text style={styles.focusedTitle} numberOfLines={1} maxFontSizeMultiplier={1.35}>
                 {focusedPage.title}
               </Text>
               <Pressable
@@ -776,7 +781,7 @@ export function BookReader({
               accessibilityLabel="Back to open cookbook"
             >
               <ChevronLeft size={17} color={Colors.onPrimary} />
-              <Text style={styles.focusedReturnText}>Back to cookbook</Text>
+              <Text style={styles.focusedReturnText} maxFontSizeMultiplier={1.35}>Back to cookbook</Text>
             </Pressable>
           </LinearGradient>
         </Animated.View>

@@ -13,11 +13,15 @@ const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockCaptures: RecipeCapture[] = [];
 const mockRetryCapture = jest.fn();
 const mockTrackEvent = jest.fn();
+const mockCloseNoshConversation = jest.fn();
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('@/utils/cookbook/api', () => ({ uploadRecipeCaptureImage: jest.fn() }));
 jest.mock('@/utils/analytics', () => ({ trackEvent: (...args: unknown[]) => mockTrackEvent(...args) }));
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
+jest.mock('@/contexts/NoshConversationContext', () => ({
+  useNoshConversation: () => ({ close: mockCloseNoshConversation }),
+}));
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => ({
     cookbooks: [{
@@ -203,6 +207,7 @@ describe('NoshCaptureWorkspace', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Open my first page' }));
 
     await waitFor(() => {
+      expect(mockCloseNoshConversation).toHaveBeenCalledTimes(1);
       expect(mockRouter.replace).toHaveBeenCalledWith('/(book)/book-1?pageId=page-1');
     });
     expect((await loadFirstRunOnboardingState('user-1')).status).toBe('completed');
