@@ -1,5 +1,4 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
 import { render, waitFor } from '@testing-library/react-native';
 import MyCookbooksScreen from '@/app/(book)/index';
 
@@ -19,18 +18,27 @@ jest.mock('@/hooks/useCookbooks', () => ({
 jest.mock('@/contexts/NoshNativeShareContext', () => ({
   useNoshNativeShare: () => ({ receipt: { status: 'idle' } }),
 }));
-jest.mock('@/components/shelf/ShelfScene', () => ({
-  ShelfScene: () => (
-    <Pressable accessibilityRole="button" accessibilityLabel="Create a new cookbook">
-      <Text>Empty shelf</Text>
-    </Pressable>
-  ),
-}));
-jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
-  NoshShelfChatButton: () => (
-    <Pressable accessibilityRole="button" accessibilityLabel="Ask Nosh about your cookbooks" />
-  ),
-}));
+jest.mock('@/components/shelf/ShelfScene', () => {
+  const mockReact = require('react');
+  const { Pressable: MockPressable, Text: MockText } = require('react-native');
+  return {
+    ShelfScene: () => mockReact.createElement(
+      MockPressable,
+      { accessibilityRole: 'button', accessibilityLabel: 'Create a new cookbook' },
+      mockReact.createElement(MockText, null, 'Empty shelf'),
+    ),
+  };
+});
+jest.mock('@/components/cookbook/NoshAssistantChat', () => {
+  const mockReact = require('react');
+  const { Pressable: MockPressable } = require('react-native');
+  return {
+    NoshShelfChatButton: () => mockReact.createElement(MockPressable, {
+      accessibilityRole: 'button',
+      accessibilityLabel: 'Ask Nosh about your cookbooks',
+    }),
+  };
+});
 jest.mock('@/components/physical-book/PhysicalBook', () => ({
   PhysicalBook: () => null,
 }));
@@ -43,12 +51,15 @@ describe('MyCookbooksScreen first-run accessibility', () => {
     const screen = render(<MyCookbooksScreen />);
 
     await screen.findByTestId('first-run-welcome');
-    const shelf = screen.getByTestId('cookbook-shelf-content');
+    const shelf = screen.getByTestId('cookbook-shelf-content', { includeHiddenElements: true });
 
     await waitFor(() => {
       expect(shelf.props.pointerEvents).toBe('none');
       expect(shelf.props.accessibilityElementsHidden).toBe(true);
       expect(shelf.props.importantForAccessibility).toBe('no-hide-descendants');
+      expect(screen.queryByRole('button', { name: 'Create a new cookbook' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Ask Nosh about your cookbooks' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Save a recipe with Nosh' })).toBeNull();
     });
   });
 });

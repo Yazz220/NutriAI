@@ -15,7 +15,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { CookbooksProvider } from "@/hooks/useCookbooks";
-import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
+import { NoshConversationProvider, useNoshConversation } from '@/contexts/NoshConversationContext';
 import { NoshConversationHost } from '@/components/cookbook/NoshAssistantChat';
 import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResume';
 import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
@@ -120,6 +120,7 @@ async function handleSupabaseAuthCallbackUrl(
 
 function RootLayoutNav() {
   const { initializing, session } = useAuth();
+  const { visible: noshConversationVisible } = useNoshConversation();
   const devBypass = process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true';
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [checkingAuthCallback, setCheckingAuthCallback] = useState(true);
@@ -219,10 +220,17 @@ function RootLayoutNav() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(book)" options={{ headerShown: false }} />
-        </Stack>
+        <View
+          style={{ flex: 1 }}
+          pointerEvents={noshConversationVisible ? 'none' : 'auto'}
+          accessibilityElementsHidden={noshConversationVisible}
+          importantForAccessibility={noshConversationVisible ? 'no-hide-descendants' : 'auto'}
+        >
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(book)" options={{ headerShown: false }} />
+          </Stack>
+        </View>
         <NoshConversationHost />
         <RecipeCaptureResume />
         <NativeShareIngestion />

@@ -78,6 +78,7 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
               },
             ]}
             numberOfLines={1}
+            allowFontScaling={false}
           >
             {title}
           </Text>

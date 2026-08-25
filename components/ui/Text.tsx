@@ -17,6 +17,7 @@ export const Text = ({
   color = Colors.text,
   children,
   style,
+  maxFontSizeMultiplier = 2,
   ...props
 }: TextProps) => {
   const textStyle = StyleSheet.flatten([
@@ -26,7 +27,7 @@ export const Text = ({
   ]);
 
   return (
-    <RNText style={textStyle} {...props}>
+    <RNText style={textStyle} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props}>
       {children}
     </RNText>
   );
