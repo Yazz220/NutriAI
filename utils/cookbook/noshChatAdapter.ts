@@ -225,9 +225,13 @@ const TOOLS_BY_TASK: Record<NoshTask, string[]> = {
  */
 export function createNoshChatAdapter(
   getContext: () => NoshChatAdapterContext,
+  requestConsent?: () => Promise<boolean>,
 ): ChatModelAdapter {
   return {
     async *run({ messages, context, abortSignal }) {
+      if (requestConsent && !await requestConsent()) {
+        throw new Error('Allow AI processing to send messages to Nosh.');
+      }
       const ctx = getContext();
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),

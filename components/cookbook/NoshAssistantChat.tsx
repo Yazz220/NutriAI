@@ -32,6 +32,7 @@ import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomizatio
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import { SHELF_QUERY_KEY, useCookbooks } from '@/hooks/useCookbooks';
@@ -95,6 +96,7 @@ export function NoshConversationHost() {
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const conversation = useNoshConversation();
+  const { requestConsent } = useAiDataConsent();
   const {
     visible,
     interaction,
@@ -481,7 +483,7 @@ export function NoshConversationHost() {
       },
       hasAttachedImage: Boolean(imageRef.current),
     };
-  }), []);
+  }, requestConsent), [requestConsent]);
 
   const threadListAdapter = useMemo(
     () => createNoshThreadListAdapter(user?.id),

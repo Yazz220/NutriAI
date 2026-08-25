@@ -14,6 +14,7 @@ let mockCaptures: RecipeCapture[] = [];
 const mockRetryCapture = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockCloseNoshConversation = jest.fn();
+const mockRequestConsent = jest.fn().mockResolvedValue(true);
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('@/utils/cookbook/api', () => ({ uploadRecipeCaptureImage: jest.fn() }));
@@ -21,6 +22,9 @@ jest.mock('@/utils/analytics', () => ({ trackEvent: (...args: unknown[]) => mock
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
 jest.mock('@/contexts/NoshConversationContext', () => ({
   useNoshConversation: () => ({ close: mockCloseNoshConversation }),
+}));
+jest.mock('@/contexts/AiDataConsentContext', () => ({
+  useAiDataConsent: () => ({ requestConsent: mockRequestConsent }),
 }));
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => ({
@@ -171,7 +175,10 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('This page needs another try')).toBeTruthy();
     expect(screen.getByText('The video could not be opened.')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-    expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
+    await waitFor(() => {
+      expect(mockRequestConsent).toHaveBeenCalledTimes(1);
+      expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
+    });
   });
 
   it('shows completion before the user chooses to open the recipe', async () => {

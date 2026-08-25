@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight,
+  Bot,
+  LifeBuoy,
   LogOut,
   Mail,
+  ShieldCheck,
   Sparkles,
   Trash2,
 } from 'lucide-react-native';
@@ -19,12 +22,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { deleteAccount } from '@/utils/account';
 import { clearCachedPages, clearCachedShelf } from '@/utils/cookbook/cache';
+import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/constants/legal';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 
 export default function CookbookSettingsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const { cookbooks } = useCookbooks();
+  const { reviewConsent } = useAiDataConsent();
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -92,6 +98,14 @@ export default function CookbookSettingsScreen() {
     );
   }
 
+  async function openLink(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Could not open link', 'Please try again when you are online.');
+    }
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
@@ -118,6 +132,24 @@ export default function CookbookSettingsScreen() {
             icon={<Sparkles size={18} color={Colors.textSecondary} />}
             label="Cookbooks"
             value={String(cookbooks.length)}
+          />
+        </Section>
+
+        <Section title="Privacy and support">
+          <ActionRow
+            icon={<ShieldCheck size={18} color={Colors.textSecondary} />}
+            label="Privacy policy"
+            onPress={() => { void openLink(PRIVACY_POLICY_URL); }}
+          />
+          <ActionRow
+            icon={<Bot size={18} color={Colors.textSecondary} />}
+            label="AI data use"
+            onPress={reviewConsent}
+          />
+          <ActionRow
+            icon={<LifeBuoy size={18} color={Colors.textSecondary} />}
+            label="Help and support"
+            onPress={() => { void openLink(SUPPORT_URL); }}
           />
         </Section>
 

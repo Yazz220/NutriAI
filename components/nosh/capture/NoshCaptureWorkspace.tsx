@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import type { Cookbook } from '@/types/cookbook';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
@@ -74,6 +75,7 @@ export function NoshCaptureWorkspace({
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
   const { close: closeNoshConversation } = useNoshConversation();
+  const { requestConsent } = useAiDataConsent();
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const captureState = useRecipeCaptures();
@@ -161,6 +163,7 @@ export function NoshCaptureWorkspace({
     if (!user) return;
     setError(null);
     try {
+      if (!await requestConsent()) return;
       const requestKey = createCaptureRequestKey();
       let source: RecipeCaptureSource;
       if (payload.type === 'image') {
@@ -202,7 +205,7 @@ export function NoshCaptureWorkspace({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
     }
-  }, [captureState, destinationCookbookId, user]);
+  }, [captureState, destinationCookbookId, requestConsent, user]);
 
   useEffect(() => {
     if (!initialSource || !user || capture || handoffStartedRef.current) return;
@@ -227,10 +230,16 @@ export function NoshCaptureWorkspace({
     if (!capture) return;
     setError(null);
     try {
+      if (!await requestConsent()) return;
       await captureState.prepareDestination({ captureId: capture.id, destinationCookbookId: cookbookId });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not start this recipe page.');
     }
+  }
+
+  async function retryCapture() {
+    if (!capture || !await requestConsent()) return;
+    await captureState.retryCapture(capture.id);
   }
 
   function showComposer() {
@@ -278,7 +287,7 @@ export function NoshCaptureWorkspace({
         backLabel={activityVisible ? 'Recipe activity' : 'Save another recipe'}
         onBack={showComposer}
         onChooseDestination={chooseDestination}
-        onRetry={() => void captureState.retryCapture(capture.id)}
+        onRetry={() => { void retryCapture(); }}
         onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
         onOpenRecipe={() => { void openRecipe(); }}
       />

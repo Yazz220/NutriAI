@@ -102,6 +102,20 @@ describe('createNoshChatAdapter', () => {
     ]);
   });
 
+  it('does not send a message when AI processing permission is declined', async () => {
+    const requestConsent = jest.fn().mockResolvedValue(false);
+    const adapter = createNoshChatAdapter(
+      () => ({ interaction: collectionInteraction }),
+      requestConsent,
+    );
+
+    await expect(runAdapter(adapter, runOptions(jest.fn()))).rejects.toThrow(
+      'Allow AI processing to send messages to Nosh.',
+    );
+    expect(requestConsent).toHaveBeenCalledTimes(1);
+    expect(mockedStream).not.toHaveBeenCalled();
+  });
+
   it('offers an explicit capture handoff from collection conversation', async () => {
     mockResponse({
       message: {

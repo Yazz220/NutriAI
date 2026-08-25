@@ -4,6 +4,7 @@ import { useNetworkState } from 'expo-network';
 import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
@@ -22,6 +23,7 @@ export function NativeShareIngestion() {
   const { hasShareIntent, shareIntent, resetShareIntent, error: nativeError } = useShareIntentContext();
   const { startCapture } = useRecipeCaptures();
   const { setReceipt, retryToken } = useNoshNativeShare();
+  const { requestConsent } = useAiDataConsent();
   const processing = useRef(false);
   const failedAttempt = useRef<number | null>(null);
 
@@ -58,6 +60,14 @@ export function NativeShareIngestion() {
     async function saveShare() {
       let sourceType: RecipeSourceType | undefined;
       try {
+        if (!await requestConsent()) {
+          setReceipt({
+            status: 'failed',
+            message: 'Allow AI processing before Nosh reads this shared recipe.',
+          });
+          router.replace('/(book)/share');
+          return;
+        }
         const normalized = normalizeNativeShareIntent(shareIntent);
         sourceType = normalized.type;
         setReceipt({ status: 'saving', sourceType });
@@ -103,6 +113,7 @@ export function NativeShareIngestion() {
     network.isConnected,
     network.isInternetReachable,
     resetShareIntent,
+    requestConsent,
     retryToken,
     router,
     session,

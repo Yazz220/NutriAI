@@ -21,6 +21,7 @@ import { NoshConversationHost } from '@/components/cookbook/NoshAssistantChat';
 import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResume';
 import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
 import { NoshNativeShareProvider } from '@/contexts/NoshNativeShareContext';
+import { AiDataConsentProvider } from '@/contexts/AiDataConsentContext';
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -218,26 +219,28 @@ function RootLayoutNav() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <View
-          style={{ flex: 1 }}
-          pointerEvents={noshConversationVisible ? 'none' : 'auto'}
-          accessibilityElementsHidden={noshConversationVisible}
-          importantForAccessibility={noshConversationVisible ? 'no-hide-descendants' : 'auto'}
-        >
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(book)" options={{ headerShown: false }} />
-          </Stack>
-        </View>
-        <NoshConversationHost />
-        <RecipeCaptureResume />
-        <NativeShareIngestion />
-        <OfflineBanner />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AiDataConsentProvider>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
+        <SafeAreaProvider>
+          <StatusBar style="dark" />
+          <View
+            style={{ flex: 1 }}
+            pointerEvents={noshConversationVisible ? 'none' : 'auto'}
+            accessibilityElementsHidden={noshConversationVisible}
+            importantForAccessibility={noshConversationVisible ? 'no-hide-descendants' : 'auto'}
+          >
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(book)" options={{ headerShown: false }} />
+            </Stack>
+          </View>
+          <NoshConversationHost />
+          <RecipeCaptureResume />
+          <NativeShareIngestion />
+          <OfflineBanner />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AiDataConsentProvider>
   );
 }
 
