@@ -1,14 +1,24 @@
-import { createCookbook, createRecipePageWithGraph } from '@/utils/cookbook/api';
+import {
+  applyRecipePageRevision,
+  createCookbook,
+  createRecipePageWithGraph,
+  deleteCookbook,
+  retryReaderStorageCleanup,
+  updateCookbookTitle,
+} from '@/utils/cookbook/api';
 import { supabase } from '@/lib/supabase';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     schema: jest.fn(),
   },
 }));
+jest.mock('@/utils/supabaseEdge', () => ({ callAuthenticatedFunction: jest.fn() }));
 
 const mockSchema = supabase.schema as jest.Mock;
+const mockedCallAuthenticatedFunction = jest.mocked(callAuthenticatedFunction);
 
 const recipeGraph: RecipeGraphDraft = {
   title: 'Tomato Toast',
@@ -154,6 +164,68 @@ describe('createCookbook', () => {
       title: 'Desserts',
       coverStyle: 'navy-leather',
       pageStyleId: 'heritage',
+    });
+  });
+});
+
+describe('updateCookbookTitle', () => {
+  it('trims and persists a cookbook name', async () => {
+    const eq = jest.fn().mockResolvedValue({ error: null });
+    const update = jest.fn(() => ({ eq }));
+    mockSchema.mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === 'cookbooks') return { update };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await updateCookbookTitle('cookbook-1', '  Weeknight favorites  ');
+
+    expect(update).toHaveBeenCalledWith({ title: 'Weeknight favorites' });
+    expect(eq).toHaveBeenCalledWith('id', 'cookbook-1');
+  });
+});
+
+describe('reader deletion', () => {
+  it('deletes a cookbook through the authenticated cleanup function', async () => {
+    mockedCallAuthenticatedFunction.mockResolvedValue({ result: { cookbookId: 'cookbook-1' } });
+
+    await deleteCookbook('cookbook-1');
+
+    expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
+      action: 'deleteCookbook',
+      cookbookId: 'cookbook-1',
+    });
+  });
+
+  it('can retry queued Storage cleanup without deleting another record', async () => {
+    mockedCallAuthenticatedFunction.mockResolvedValue({ result: null, cleanup: { removed: 1, pending: 0 } });
+
+    await retryReaderStorageCleanup();
+
+    expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
+      action: 'drain',
+    });
+  });
+});
+
+describe('applyRecipePageRevision', () => {
+  it('applies corrected recipe data and its preview version through one RPC', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: true, error: null });
+    mockSchema.mockReturnValue({ rpc });
+    const persistedGraph = {
+      ...recipeGraph,
+      id: 'graph-1',
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T01:00:00.000Z',
+    };
+
+    await applyRecipePageRevision('page-1', persistedGraph, 'version-2');
+
+    expect(rpc).toHaveBeenCalledWith('apply_recipe_page_revision', {
+      p_page_id: 'page-1',
+      p_recipe_graph: persistedGraph,
+      p_version_id: 'version-2',
     });
   });
 });

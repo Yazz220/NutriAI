@@ -1,5 +1,6 @@
 import {
   buildCookbookLeaves,
+  buildRecipeLeaves,
   buildCookbookSpreads,
   getAdjacentRecipePageIndex,
   getLeafIndexForPage,
@@ -31,6 +32,13 @@ describe('touch paging', () => {
     expect(getAdjacentRecipePageIndex(pageIds, 'page-b', 1)).toBe(2);
     expect(getAdjacentRecipePageIndex(pageIds, 'page-c', 1)).toBeNull();
     expect(getAdjacentRecipePageIndex(pageIds, 'page-a', -1)).toBeNull();
+  });
+
+  it('pages through recipes without exposing the bookplate or padding leaves', () => {
+    expect(buildRecipeLeaves(['page-a', 'page-b'])).toEqual([
+      { type: 'recipe', id: 'page-a', pageIndex: 0 },
+      { type: 'recipe', id: 'page-b', pageIndex: 1 },
+    ]);
   });
 });
 

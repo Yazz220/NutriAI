@@ -110,8 +110,8 @@ begin
     return existing_request.response_payload;
   end if;
 
-  select page, cookbook.title
-    into source_page, source_cookbook_title
+  select page.*
+    into source_page
   from nutriai.cookbook_pages as page
   join nutriai.cookbooks as cookbook on cookbook.id = page.cookbook_id
   where page.id = p_page_id
@@ -123,6 +123,10 @@ begin
     raise exception 'Approved recipe page not found' using errcode = 'P0002';
   end if;
 
+  select title into source_cookbook_title
+  from nutriai.cookbooks
+  where id = source_page.cookbook_id and user_id = caller_id;
+
   perform cookbook.id
   from nutriai.cookbooks as cookbook
   where cookbook.id in (source_page.cookbook_id, p_destination_cookbook_id)
@@ -131,10 +135,12 @@ begin
   for update;
   get diagnostics owned_cookbook_count = row_count;
 
-  if owned_cookbook_count <> case
-    when source_page.cookbook_id = p_destination_cookbook_id then 1
-    else 2
-  end then
+  if owned_cookbook_count <> (
+    case
+      when source_page.cookbook_id = p_destination_cookbook_id then 1
+      else 2
+    end
+  ) then
     raise exception 'Destination cookbook not found' using errcode = 'P0002';
   end if;
 

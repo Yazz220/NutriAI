@@ -124,6 +124,7 @@ Live functions:
 - `generate-page-art`
 - `credits` (legacy endpoint; not used by the active client or generation path)
 - `delete-account`
+- `delete-reader-content`
 
 Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. For the simplified pipeline, apply `20260822153000_simplify_recipe_page_pipeline.sql` before the matching `capture-recipe` and `generate-page-art` versions.
 

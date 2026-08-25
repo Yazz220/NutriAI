@@ -96,7 +96,10 @@ From a recipe page, the user can:
 - scale servings or request a substitution;
 - start a timer or walkthrough;
 - save a revised page or save a copy;
+- visit the original source, share or export the page, move it, or remove it;
 - request a visual regeneration and choose whether to use the candidate.
+- open the recipe menu to edit extracted details or try another page design. Both actions create a preview while the current page stays selected.
+- export the complete cookbook from book settings as a cover plus every finished recipe page in reading order.
 
 Nosh keeps stable conversation focus even if the visible reader page changes. Opening Ask Nosh from another recipe asks whether to move the current conversation or start a new one.
 

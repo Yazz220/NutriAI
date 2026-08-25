@@ -21,7 +21,20 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
-  NoshAssistantChatButton: () => null,
+  NoshAssistantChatButton: ({ page }: { page: { title: string } }) => {
+    const ReactModule = require('react');
+    const { Pressable, Text } = require('react-native');
+    return ReactModule.createElement(
+      Pressable,
+      { accessibilityRole: 'button', accessibilityLabel: `Ask Nosh about ${page.title}` },
+      ReactModule.createElement(Text, null, 'Ask Nosh'),
+    );
+  },
+}));
+
+jest.mock('@/utils/cookbook/reader', () => ({
+  ...jest.requireActual('@/utils/cookbook/reader'),
+  shouldUseTouchPaging: jest.fn(() => true),
 }));
 
 jest.mock('@/hooks/useAuth', () => ({
@@ -38,11 +51,15 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
       isOpen,
       onOpen,
       pages,
+      readingView,
+      onEnterReadingView,
       onOpenRecipe,
     }: {
       isOpen: boolean;
       onOpen: () => void;
       pages: unknown[];
+      readingView: 'spread' | 'page';
+      onEnterReadingView: (page: unknown) => void;
       onOpenRecipe: (page: unknown) => void;
     }) =>
       ReactModule.createElement(
@@ -61,10 +78,11 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
           Pressable,
           {
             accessibilityRole: 'button',
-            accessibilityLabel: 'Open focused recipe',
-            onPress: () => onOpenRecipe(pages[0]),
+            accessibilityLabel: readingView === 'spread' ? 'Open recipe page' : 'Tap reading page',
+            onPress: () =>
+              readingView === 'spread' ? onEnterReadingView(pages[0]) : onOpenRecipe(pages[0]),
           },
-          ReactModule.createElement(Text, null, 'Recipe spread'),
+          ReactModule.createElement(Text, null, readingView === 'spread' ? 'Recipe spread' : 'Recipe reading page'),
         ),
       ),
   };
@@ -192,8 +210,8 @@ describe('BookReader cover entry', () => {
   });
 });
 
-describe('BookReader focused recipe', () => {
-  it('keeps clear return controls available and returns to the open cookbook', async () => {
+describe('BookReader compact reading flow', () => {
+  it('opens a linked recipe directly in reading mode', async () => {
     const screen = await renderReader({
       cookbook: SAMPLE_COOKBOOK,
       pages: SAMPLE_COOKBOOK_PAGES,
@@ -202,14 +220,179 @@ describe('BookReader focused recipe', () => {
       onShare: jest.fn(),
     });
 
-    fireEvent.press(screen.getByRole('button', { name: 'Open focused recipe' }));
+    expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to open cookbook' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Read this page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
 
-    expect(screen.getByRole('button', { name: 'Return to open cookbook' })).toBeTruthy();
-    const bottomReturn = screen.getByRole('button', { name: 'Back to open cookbook' });
-    expect(bottomReturn).toBeTruthy();
+  it('uses page tap to enter reading mode and back to return to the same spread', async () => {
+    jest.useFakeTimers();
+    const { router } = require('expo-router');
+    router.dismissTo.mockClear();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
 
-    fireEvent.press(bottomReturn);
-    expect(screen.queryByRole('button', { name: 'Back to open cookbook' })).toBeNull();
+    act(() => jest.runOnlyPendingTimers());
+    fireEvent.press(screen.getByRole('button', { name: 'Open recipe page' }));
+
+    expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Back to open cookbook' }));
+
     expect(screen.getByText('Recipe spread')).toBeTruthy();
+    expect(router.dismissTo).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('shows only book actions in a spread and recipe actions while reading', async () => {
+    jest.useFakeTimers();
+    const onShare = jest.fn();
+    const onExportPage = jest.fn();
+    const onVisitSource = jest.fn();
+    const onRenameCookbook = jest.fn();
+    const onDeleteCookbook = jest.fn();
+    const onExportCookbook = jest.fn();
+    const onMoveRecipe = jest.fn();
+    const onRemoveRecipe = jest.fn();
+    const onGeneratePageCandidate = jest.fn();
+    const onUsePageCandidate = jest.fn();
+    const destinationCookbook = {
+      ...SAMPLE_COOKBOOK,
+      id: 'cookbook-desserts',
+      title: 'Desserts',
+      pageCount: 3,
+    };
+    const sourcedPage = {
+      ...SAMPLE_COOKBOOK_PAGES[0],
+      imageUrl: 'https://images.example.com/miso-salmon.png',
+      recipeGraph: {
+        id: 'graph-miso-salmon',
+        title: SAMPLE_COOKBOOK_PAGES[0].title,
+        servings: 2,
+        category: 'dinner' as const,
+        ingredientGroups: [{ id: 'main', ingredients: [{ name: 'salmon', quantity: '2', unit: 'fillets' }] }],
+        stepGroups: [{ id: 'main', steps: [{ id: 'step-1', text: 'Roast the salmon.' }] }],
+        tags: [],
+        provenance: { sourceType: 'url' as const, sourceUrl: 'https://example.com/miso-salmon', confidence: 1 },
+        createdAt: '2026-08-25T00:00:00.000Z',
+        updatedAt: '2026-08-25T00:00:00.000Z',
+      },
+      recipe: {
+        id: 'recipe-miso-salmon',
+        title: SAMPLE_COOKBOOK_PAGES[0].title,
+        ingredients: [],
+        steps: [],
+        sourceType: 'url' as const,
+        sourceUrl: 'https://example.com/miso-salmon',
+        tags: [],
+        category: 'dinner' as const,
+      },
+    };
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [sourcedPage, ...SAMPLE_COOKBOOK_PAGES.slice(1)],
+      onSelectPage: jest.fn(),
+      onShare,
+      onExportPage,
+      onVisitSource,
+      availableCookbooks: [SAMPLE_COOKBOOK, destinationCookbook],
+      onMoveRecipe,
+      onRemoveRecipe,
+      onGeneratePageCandidate,
+      onUsePageCandidate,
+      onRenameCookbook,
+      onDeleteCookbook,
+      onExportCookbook,
+    });
+
+    act(() => jest.runOnlyPendingTimers());
+    expect(screen.getByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
+    expect(screen.getByRole('button', { name: `Cookbook settings for ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ask Nosh about/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Recipe actions for/ })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: `Cookbook settings for ${SAMPLE_COOKBOOK.title}` }));
+    expect(screen.getByText('Cookbook settings')).toBeTruthy();
+    expect(screen.getByLabelText('Book name')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Export cookbook' }));
+    });
+    expect(onExportCookbook).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByRole('button', { name: `Cookbook settings for ${SAMPLE_COOKBOOK.title}` }));
+    fireEvent.press(screen.getByRole('button', { name: `Delete ${SAMPLE_COOKBOOK.title}` }));
+    expect(onDeleteCookbook).toHaveBeenCalledTimes(1);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Open recipe page' }));
+
+    expect(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` })).toBeTruthy();
+    expect(screen.getByRole('button', { name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[0].title}` })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
+    expect(screen.getByRole('button', { name: 'Edit recipe' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try another design' })).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Visit original source' }));
+    });
+    expect(onVisitSource).toHaveBeenCalledWith(sourcedPage);
+
+    fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Export page image' }));
+    });
+    expect(onExportPage).toHaveBeenCalledWith(sourcedPage);
+
+    fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Share recipe' }));
+    });
+    expect(onShare).toHaveBeenCalledWith(sourcedPage);
+
+    fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
+    fireEvent.press(screen.getByRole('button', { name: 'Move to another cookbook' }));
+    expect(screen.getByText('Choose a cookbook')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: destinationCookbook.title }));
+    });
+    expect(onMoveRecipe).toHaveBeenCalledWith(sourcedPage, destinationCookbook);
+
+    fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
+    fireEvent.press(screen.getByRole('button', { name: `Remove ${sourcedPage.title} from this cookbook` }));
+    expect(onRemoveRecipe).toHaveBeenCalledWith(sourcedPage);
+    jest.useRealTimers();
+  });
+
+  it('keeps the same reading position when the active page is removed', async () => {
+    const onSelectPage = jest.fn();
+    const firstPage = SAMPLE_COOKBOOK_PAGES[0];
+    const secondPage = SAMPLE_COOKBOOK_PAGES[1];
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [firstPage, secondPage],
+      initialPageId: firstPage.id,
+      onSelectPage,
+      onShare: jest.fn(),
+    });
+
+    screen.rerender(
+      <NoshConversationProvider>
+        <BookReader
+          cookbook={SAMPLE_COOKBOOK}
+          pages={[secondPage]}
+          initialPageId={firstPage.id}
+          onSelectPage={onSelectPage}
+          onShare={jest.fn()}
+        />
+      </NoshConversationProvider>,
+    );
+
+    await waitFor(() => expect(onSelectPage).toHaveBeenCalledWith(secondPage.id));
+    expect(screen.getByText(secondPage.title)).toBeTruthy();
   });
 });

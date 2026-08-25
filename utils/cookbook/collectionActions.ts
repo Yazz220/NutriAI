@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { Cookbook } from '@/types/cookbook';
 import { getCookbook } from '@/utils/cookbook/api';
 import { loadRecipeFromCollection } from '@/utils/cookbook/recipeCollection';
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 export type CollectionActionKind = 'move' | 'copy';
 
@@ -22,6 +23,14 @@ export interface CollectionActionResult {
   destinationCookbookTitle: string;
   resultPageId: string;
   changed: boolean;
+}
+
+export interface RemoveRecipePageResult {
+  pageId: string;
+  cookbookId: string;
+  cookbookTitle: string;
+  captureId?: string | null;
+  recipeId: string;
 }
 
 interface CollectionActionRpcRow {
@@ -83,4 +92,15 @@ export async function organizeRecipePage(input: {
   if (error) throw error;
   if (!data || typeof data !== 'object') throw new Error('Nosh could not confirm the collection change.');
   return data as CollectionActionRpcRow;
+}
+
+export async function removeRecipePage(pageId: string): Promise<RemoveRecipePageResult> {
+  const response = await callAuthenticatedFunction<{ result?: RemoveRecipePageResult }>(
+    'delete-reader-content',
+    { action: 'removeRecipe', pageId },
+  );
+  if (!response.result || typeof response.result !== 'object') {
+    throw new Error('Nosh could not confirm the recipe removal.');
+  }
+  return response.result;
 }

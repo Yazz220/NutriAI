@@ -6,6 +6,8 @@ import {
   createCookbook as createCookbookRow,
   deleteCookbook as deleteCookbookRow,
   listCookbooks,
+  retryReaderStorageCleanup,
+  updateCookbookTitle as updateCookbookTitleRow,
   type CreateCookbookInput,
 } from '@/utils/cookbook/api';
 import { loadCachedShelf, saveCachedShelf } from '@/utils/cookbook/cache';
@@ -46,6 +48,11 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     saveCachedShelf(user.id, shelfQuery.data).catch(() => {});
   }, [user?.id, shelfQuery.data]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    retryReaderStorageCleanup().catch(() => {});
+  }, [user?.id]);
+
   const createMutation = useMutation({
     mutationFn: async (input: Omit<CreateCookbookInput, 'userId'>) => {
       if (!user) throw new Error('Not signed in');
@@ -71,6 +78,22 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     },
   });
 
+  const renameMutation = useMutation({
+    mutationFn: async ({ cookbookId, title }: { cookbookId: string; title: string }) => {
+      const trimmedTitle = title.trim();
+      await updateCookbookTitleRow(cookbookId, trimmedTitle);
+      return { cookbookId, title: trimmedTitle };
+    },
+    onSuccess: ({ cookbookId, title }) => {
+      queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user?.id), (existing = []) =>
+        existing.map((cookbook) => (cookbook.id === cookbookId ? { ...cookbook, title } : cookbook)),
+      );
+      queryClient.setQueryData<Cookbook | null>(['cookbook', cookbookId], (existing) =>
+        existing ? { ...existing, title } : existing,
+      );
+    },
+  });
+
   const persistedCookbooks = shelfQuery.data ?? [];
   const cookbooks = shouldShowSampleCookbook()
     ? [SAMPLE_COOKBOOK, ...persistedCookbooks]
@@ -88,5 +111,7 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     isCreating: createMutation.isPending,
     deleteCookbook: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+    updateCookbookTitle: renameMutation.mutateAsync,
+    isRenaming: renameMutation.isPending,
   };
 });

@@ -1,4 +1,9 @@
-import { removeStoragePrefix, type StorageEntry } from '@/supabase/functions/_shared/storageCleanup';
+import {
+  removeStoragePaths,
+  removeStoragePrefix,
+  type StorageEntry,
+} from '@/supabase/functions/_shared/storageCleanup';
+import { removeQueuedReaderStorageObjects } from '@/supabase/functions/_shared/readerStorageCleanup';
 
 function createStorageFixture(entriesByPath: Record<string, StorageEntry[]>) {
   const removed: string[][] = [];
@@ -53,5 +58,58 @@ describe('removeStoragePrefix', () => {
     await expect(removeStoragePrefix(fixture.storage, 'cookbook-pages', '/'))
       .rejects.toThrow('scoped storage prefix');
     expect(fixture.bucket.list).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeStoragePaths', () => {
+  it('deduplicates exact object paths before removing them', async () => {
+    const fixture = createStorageFixture({});
+
+    await expect(removeStoragePaths(fixture.storage, 'cookbook-pages', [
+      'user1/book1/page.png',
+      'user1/book1/page.png',
+      '/user1/book1/second.png/',
+    ])).resolves.toBe(2);
+    expect(fixture.removed).toEqual([[
+      'user1/book1/page.png',
+      'user1/book1/second.png',
+    ]]);
+  });
+
+  it('rejects paths that can escape their queued prefix', async () => {
+    const fixture = createStorageFixture({});
+
+    await expect(removeStoragePaths(fixture.storage, 'cookbook-pages', [
+      'user1/../other/page.png',
+    ])).rejects.toThrow('scoped storage prefix');
+    expect(fixture.bucket.remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeQueuedReaderStorageObjects', () => {
+  it('keeps failed bucket jobs queued while completing other buckets', async () => {
+    const pageBucket = {
+      list: jest.fn(),
+      remove: jest.fn().mockResolvedValue({ error: null }),
+    };
+    const captureBucket = {
+      list: jest.fn(),
+      remove: jest.fn().mockResolvedValue({ error: { message: 'Storage unavailable' } }),
+    };
+    const storage = {
+      from: jest.fn((bucket: string) => bucket === 'cookbook-pages' ? pageBucket : captureBucket),
+    };
+
+    await expect(removeQueuedReaderStorageObjects(storage, [
+      { id: 'job-page', bucket: 'cookbook-pages', object_path: 'user1/book/page.png' },
+      { id: 'job-capture', bucket: 'recipe-captures', object_path: 'user1/source.jpg' },
+    ])).resolves.toEqual({
+      removedJobIds: ['job-page'],
+      failures: [{
+        bucket: 'recipe-captures',
+        jobIds: ['job-capture'],
+        message: 'Storage unavailable',
+      }],
+    });
   });
 });

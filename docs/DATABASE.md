@@ -111,6 +111,12 @@ The Phase 9 hardening migration adds covering indexes for cookbook and generatio
 
 Private idempotency records for confirmed recipe moves and copies. Authenticated clients have no direct table grant. They call `nutriai.organize_recipe_page`, a narrowly scoped `SECURITY DEFINER` RPC with an empty search path, explicit caller and cookbook ownership checks, deterministic cookbook lock ordering, and one response per user-scoped request key. Move preserves the existing page. Copy creates an independent legacy recipe row and cookbook page, including the selected page version when present. `supabase/tests/collection_organization_actions.sql` proves retries do not duplicate work and another user's cookbook cannot be used as a destination.
 
+### `nutriai.storage_cleanup_jobs`
+
+Private outbox rows for Storage objects that became unreferenced during recipe or cookbook deletion. Each row contains an owner-scoped path in `cookbook-pages` or `recipe-captures`. Authenticated clients cannot read or write this table. `delete-reader-content` removes queued objects through the Storage API with the service role, deletes successful jobs, and leaves failed jobs for the next shelf session. The deletion RPCs queue a generated page only when no surviving `page_versions` row references its path, which preserves copied pages that share one image.
+
+`supabase/tests/reader_storage_cleanup.sql` proves the outbox, shared-page reference check, capture cleanup, orphan-recipe cleanup, ownership checks, and direct-delete privilege revocations in a rollback-only transaction.
+
 ## Removed tables (legacy cleanup, 2026-05-05)
 
 These belonged to older product directions and have no live code references in the current book-first branch:
@@ -138,7 +144,11 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260820231208_recipe_capture_lifecycle.sql` | Historical migration that introduced durable captures and the former provisional-page lifecycle |
 | `supabase/migrations/20260820233845_recipe_capture_approval.sql` | Historical capture approval-state migration; superseded by the simplified lifecycle |
 | `supabase/migrations/20260821003837_art_candidate_selection.sql` | Adds safe page-version candidate selection for explicit regeneration |
-| `supabase/migrations/20260821013221_collection_organization_actions.sql` | Adds private idempotency records and the ownership-checked move/copy RPC |
+| `supabase/migrations/20260825183653_apply_recipe_page_revision.sql` | Atomically applies corrected recipe data and its approved page candidate |
+| `supabase/migrations/20260825172026_collection_organization_actions.sql` | Adds private idempotency records and the ownership-checked move/copy RPC |
+| `supabase/migrations/20260825172052_reader_recipe_management.sql` | Keeps moved captures aligned with their cookbook and permanently removes owned recipe pages without leaving broken capture or recipe rows |
+| `supabase/migrations/20260825180017_reader_storage_cleanup.sql` | Routes recipe and cookbook deletion through ownership-checked RPCs and queues unreferenced Storage objects for retryable removal |
+| `supabase/migrations/20260825180656_queue_existing_reader_storage_orphans.sql` | Queues owner-prefixed page and capture objects older than 24 hours that have no live database or generation-request reference |
 | `supabase/migrations/20260821171438_phase9_security_performance_hardening.sql` | Hardens RLS helpers and adds query-supporting indexes |
 | `supabase/migrations/20260822002000_cookbook_page_selected_version_index.sql` | Adds selected-version lookup support |
 | `supabase/migrations/20260822153000_simplify_recipe_page_pipeline.sql` | Collapses capture/review into processing, optional destination choice, retry, and ready; adds default books and versioned page-style anchors |
@@ -147,7 +157,7 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 
 ## RLS posture
 
-User-editable product tables follow the same ownership pattern:
+Most user-editable product tables follow the same ownership pattern:
 
 ```sql
 CREATE POLICY <table>_select ON nutriai.<table> FOR SELECT USING (auth.uid() = user_id);
@@ -157,6 +167,8 @@ CREATE POLICY <table>_delete ON nutriai.<table> FOR DELETE USING (auth.uid() = u
 ```
 
 `cookbook_pages` has an additional `BEFORE INSERT/UPDATE` trigger that errors if the cookbook owner and recipe owner don't match, so you can't smuggle another user's recipe onto your page.
+
+Authenticated clients cannot directly delete `cookbooks` or `cookbook_pages`, and they cannot insert, update, or delete `page_versions`. Reader deletion uses the guarded RPCs so database deletion and Storage cleanup jobs commit together. `storage_cleanup_jobs` has RLS enabled with no authenticated policy or grant; only the service role used by `delete-reader-content` can drain it.
 
 `generation_requests` is RLS-enabled without client policies. The authenticated `generate-page-art` Edge Function accesses it through the service role. Its SECURITY DEFINER functions set an empty search path, use fully qualified relations, revoke execution from `PUBLIC`, `anon`, and `authenticated`, and grant execution only to `service_role`.
 

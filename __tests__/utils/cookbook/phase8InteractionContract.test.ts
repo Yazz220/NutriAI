@@ -6,7 +6,7 @@ const root = process.cwd();
 describe('Phase 8 collection organization contract', () => {
   const migration = fs.readFileSync(path.join(
     root,
-    'supabase/migrations/20260821013221_collection_organization_actions.sql',
+    'supabase/migrations/20260825172026_collection_organization_actions.sql',
   ), 'utf8');
   const toolkit = fs.readFileSync(path.join(root, 'utils/cookbook/noshToolkit.tsx'), 'utf8');
   const card = fs.readFileSync(path.join(

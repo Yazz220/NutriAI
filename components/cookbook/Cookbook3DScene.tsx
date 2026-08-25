@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Minimize2 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -16,15 +17,18 @@ import Animated, {
 import { useImage } from '@shopify/react-native-skia';
 import { releaseCapture } from 'react-native-view-shot';
 import { CookbookLeafPage } from '@/components/cookbook/CookbookLeafPage';
+import { Text } from '@/components/ui/Text';
 import { BOOK_GUTTER_WIDTH, BookGutter, OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
 import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
+import { Radii, Spacing } from '@/constants/spacing';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
 import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
 import { createLeafTexture } from '@/utils/cookbook/leafTexture';
+import { Fonts } from '@/utils/fonts';
 import {
   resolveBookStageTranslation,
   resolveNativeBookGeometry,
@@ -34,6 +38,13 @@ import {
   type PageTurnDirection,
 } from '@/utils/cookbook/physicalBook';
 import { TOUCH_PAGING_BREAKPOINT, type CookbookLeaf } from '@/utils/cookbook/reader';
+import {
+  clampReaderZoomScale,
+  clampReaderZoomTranslation,
+  nextDoubleTapZoomScale,
+  READER_MIN_ZOOM,
+  READER_ZOOMED_THRESHOLD,
+} from '@/utils/cookbook/readerZoom';
 
 // Skia Canvas renders the curling page leaf. Requires a dev client build
 // with the matching native Skia binary (2.3.0+ on Expo SDK 54).
@@ -244,6 +255,45 @@ export function Cookbook3DScene({
   const isSettling = useSharedValue(0);
   const turnGrabX = useSharedValue(0);
   const grabYRatio = useSharedValue(0.5);
+  const pageZoomScale = useSharedValue(READER_MIN_ZOOM);
+  const pageZoomStartScale = useSharedValue(READER_MIN_ZOOM);
+  const pageZoomTranslateX = useSharedValue(0);
+  const pageZoomTranslateY = useSharedValue(0);
+  const pageZoomStartTranslateX = useSharedValue(0);
+  const pageZoomStartTranslateY = useSharedValue(0);
+  const pageZoomStartFocalX = useSharedValue(0);
+  const pageZoomStartFocalY = useSharedValue(0);
+  const [isPageZoomed, setIsPageZoomed] = useState(false);
+  const updatePageZoomedState = useCallback((zoomed: boolean) => {
+    setIsPageZoomed(zoomed);
+  }, []);
+
+  const setPageZoom = useCallback(
+    (targetScale: number) => {
+      const nextScale = clampReaderZoomScale(targetScale);
+      const zoomed = nextScale > READER_ZOOMED_THRESHOLD;
+      setIsPageZoomed(zoomed);
+      pageZoomScale.value = reduceMotion
+        ? nextScale
+        : withTiming(nextScale, { duration: 180, easing: Easing.out(Easing.cubic) });
+      if (!zoomed) {
+        pageZoomTranslateX.value = reduceMotion ? 0 : withTiming(0, { duration: 180 });
+        pageZoomTranslateY.value = reduceMotion ? 0 : withTiming(0, { duration: 180 });
+      }
+    },
+    [pageZoomScale, pageZoomTranslateX, pageZoomTranslateY, reduceMotion],
+  );
+
+  const resetPageZoom = useCallback(() => {
+    setPageZoom(READER_MIN_ZOOM);
+  }, [setPageZoom]);
+
+  useEffect(() => {
+    pageZoomScale.value = READER_MIN_ZOOM;
+    pageZoomTranslateX.value = 0;
+    pageZoomTranslateY.value = 0;
+    setIsPageZoomed(false);
+  }, [leafIndex, pageZoomScale, pageZoomTranslateX, pageZoomTranslateY, readingView]);
 
   // Book open/close: the cover is always mounted. It swings open around
   // the spine (gutter) and stays at -175° (face-down on the left) while
@@ -491,6 +541,14 @@ export function Cookbook3DScene({
     transform: [{ scale: 0.992 + turnProgress.value * 0.008 }],
   }));
 
+  const pageZoomStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: pageZoomTranslateX.value },
+      { translateY: pageZoomTranslateY.value },
+      { scale: pageZoomScale.value },
+    ],
+  }));
+
   // In spread mode, the underneath pages show the destination spread's pages
   // so there's no pop when the turn commits. Forward: next spread's right page
   // under the right leaf. Backward: prev spread's left page under the left leaf.
@@ -565,7 +623,8 @@ export function Cookbook3DScene({
   const turnGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(isOpen)
+        .enabled(isOpen && !isPageZoomed)
+        .maxPointers(1)
         .activeOffsetX([-8, 8])
         .failOffsetY([-80, 80])
         .cancelsTouchesInView(true)
@@ -749,6 +808,11 @@ export function Cookbook3DScene({
               runOnJS(commitTurn)(direction);
             },
           );
+        })
+        .onFinalize((_event, success) => {
+          if (success || isSettling.value !== 0) return;
+          turnProgress.value = reduceMotion ? 0 : withTiming(0, { duration: 120 });
+          turnDirection.value = 0;
         }),
     [
       canTurnNext,
@@ -760,6 +824,7 @@ export function Cookbook3DScene({
       bookHeight,
       height,
       isBackClosed,
+      isPageZoomed,
       isPhysicalPageReading,
       isOpen,
       isSettling,
@@ -780,15 +845,153 @@ export function Cookbook3DScene({
     ],
   );
 
-  // Compose the cover swipe and page-turn gestures with Gesture.Exclusive.
-  // Only one can activate at a time. When !isOpen, coverSwipeGesture is
-  // enabled and turnGesture is disabled — so forward swipe opens the book.
-  // When isOpen, the reverse — turnGesture handles page turns and the
-  // close-by-swipe on spread 0. This avoids nested GestureDetectors, which
-  // are unreliable per react-native-gesture-handler docs.
+  const pinchZoomGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .enabled(isPhysicalPageReading)
+        .onBegin((event) => {
+          if (onStageTap) runOnJS(onStageTap)();
+          pageZoomStartScale.value = pageZoomScale.value;
+          pageZoomStartTranslateX.value = pageZoomTranslateX.value;
+          pageZoomStartTranslateY.value = pageZoomTranslateY.value;
+          pageZoomStartFocalX.value = event.focalX;
+          pageZoomStartFocalY.value = event.focalY;
+        })
+        .onUpdate((event) => {
+          const nextScale = clampReaderZoomScale(pageZoomStartScale.value * event.scale);
+          const scaleRatio = nextScale / Math.max(pageZoomStartScale.value, READER_MIN_ZOOM);
+          const focalX = pageZoomStartFocalX.value - width / 2;
+          const focalY = pageZoomStartFocalY.value - height / 2;
+          const nextTranslateX =
+            pageZoomStartTranslateX.value + (1 - scaleRatio) * (focalX - pageZoomStartTranslateX.value);
+          const nextTranslateY =
+            pageZoomStartTranslateY.value + (1 - scaleRatio) * (focalY - pageZoomStartTranslateY.value);
+          pageZoomScale.value = nextScale;
+          pageZoomTranslateX.value = clampReaderZoomTranslation(
+            nextTranslateX,
+            readingPageWidth,
+            nextScale,
+          );
+          pageZoomTranslateY.value = clampReaderZoomTranslation(
+            nextTranslateY,
+            readingPageHeight,
+            nextScale,
+          );
+        })
+        .onEnd(() => {
+          const zoomed = pageZoomScale.value > READER_ZOOMED_THRESHOLD;
+          if (!zoomed) {
+            pageZoomScale.value = withTiming(READER_MIN_ZOOM, { duration: 160 });
+            pageZoomTranslateX.value = withTiming(0, { duration: 160 });
+            pageZoomTranslateY.value = withTiming(0, { duration: 160 });
+          }
+          runOnJS(updatePageZoomedState)(zoomed);
+        }),
+    [
+      height,
+      isPhysicalPageReading,
+      onStageTap,
+      pageZoomScale,
+      pageZoomStartFocalX,
+      pageZoomStartFocalY,
+      pageZoomStartScale,
+      pageZoomStartTranslateX,
+      pageZoomStartTranslateY,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+      updatePageZoomedState,
+      width,
+    ],
+  );
+
+  const zoomPanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(isPhysicalPageReading && isPageZoomed)
+        .minDistance(1)
+        .onBegin(() => {
+          pageZoomStartTranslateX.value = pageZoomTranslateX.value;
+          pageZoomStartTranslateY.value = pageZoomTranslateY.value;
+        })
+        .onUpdate((event) => {
+          pageZoomTranslateX.value = clampReaderZoomTranslation(
+            pageZoomStartTranslateX.value + event.translationX,
+            readingPageWidth,
+            pageZoomScale.value,
+          );
+          pageZoomTranslateY.value = clampReaderZoomTranslation(
+            pageZoomStartTranslateY.value + event.translationY,
+            readingPageHeight,
+            pageZoomScale.value,
+          );
+        }),
+    [
+      isPageZoomed,
+      isPhysicalPageReading,
+      pageZoomScale,
+      pageZoomStartTranslateX,
+      pageZoomStartTranslateY,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+    ],
+  );
+
+  const doubleTapZoomGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .enabled(isPhysicalPageReading)
+        .numberOfTaps(2)
+        .maxDuration(260)
+        .onEnd((event, success) => {
+          if (!success) return;
+          const nextScale = nextDoubleTapZoomScale(pageZoomScale.value);
+          const zoomed = nextScale > READER_ZOOMED_THRESHOLD;
+          const nextTranslateX = zoomed
+            ? clampReaderZoomTranslation(
+                (width / 2 - event.x) * (nextScale - 1),
+                readingPageWidth,
+                nextScale,
+              )
+            : 0;
+          const nextTranslateY = zoomed
+            ? clampReaderZoomTranslation(
+                (height / 2 - event.y) * (nextScale - 1),
+                readingPageHeight,
+                nextScale,
+              )
+            : 0;
+          pageZoomScale.value = withTiming(nextScale, { duration: 180 });
+          pageZoomTranslateX.value = withTiming(nextTranslateX, { duration: 180 });
+          pageZoomTranslateY.value = withTiming(nextTranslateY, { duration: 180 });
+          runOnJS(updatePageZoomedState)(zoomed);
+        }),
+    [
+      height,
+      isPhysicalPageReading,
+      pageZoomScale,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+      updatePageZoomedState,
+      width,
+    ],
+  );
+
+  // Normal drags turn pages. Once zoomed, the same one-finger drag pans the
+  // page instead. Pinch and double-tap run alongside that exclusive choice.
   const composedGesture = useMemo(
-    () => Gesture.Exclusive(coverSwipeGesture, turnGesture),
-    [coverSwipeGesture, turnGesture],
+    () =>
+      Gesture.Simultaneous(
+        Gesture.Exclusive(coverSwipeGesture, zoomPanGesture, turnGesture),
+        pinchZoomGesture,
+        doubleTapZoomGesture,
+      ),
+    [coverSwipeGesture, doubleTapZoomGesture, pinchZoomGesture, turnGesture, zoomPanGesture],
   );
 
   return (
@@ -837,7 +1040,10 @@ export function Cookbook3DScene({
                     </>
                   );
                 })()}
-                <View pointerEvents="none" style={styles.physicalPageFallback}>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.physicalPageFallback, pageZoomStyle]}
+                >
                   <View
                     style={[
                       styles.physicalFallbackCover,
@@ -929,7 +1135,7 @@ export function Cookbook3DScene({
                       zIndex: 4,
                     }}
                   />
-                </View>
+                </Animated.View>
                 {currentLeaf?.type === 'recipe' ? (
                   <Pressable
                     style={StyleSheet.absoluteFill}
@@ -938,8 +1144,53 @@ export function Cookbook3DScene({
                       if (page) onOpenRecipe(page);
                     }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Open ${getLeafPage(currentLeaf, pages)?.title ?? 'recipe'} in reading view`}
+                    accessibilityLabel={`${getLeafPage(currentLeaf, pages)?.title ?? 'Recipe'} reading page`}
+                    accessibilityHint={
+                      isPageZoomed
+                        ? 'Drag to move around the page. Double tap to reset zoom.'
+                        : 'Double tap or pinch to zoom. Swipe horizontally to change recipes.'
+                    }
+                    accessibilityActions={[
+                      ...(!isPageZoomed && displayCanGoPrevious
+                        ? [{ name: 'decrement' as const, label: 'Previous recipe' }]
+                        : []),
+                      ...(!isPageZoomed && displayCanGoNext
+                        ? [{ name: 'increment' as const, label: 'Next recipe' }]
+                        : []),
+                      {
+                        name: isPageZoomed ? 'zoom-out' : 'zoom-in',
+                        label: isPageZoomed ? 'Reset zoom' : 'Zoom in',
+                      },
+                    ]}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'decrement' && displayCanGoPrevious) {
+                        onPrevious();
+                      }
+                      if (event.nativeEvent.actionName === 'increment' && displayCanGoNext) {
+                        onNext();
+                      }
+                      if (event.nativeEvent.actionName === 'zoom-in') {
+                        setPageZoom(nextDoubleTapZoomScale(READER_MIN_ZOOM));
+                      }
+                      if (event.nativeEvent.actionName === 'zoom-out') {
+                        resetPageZoom();
+                      }
+                    }}
                   />
+                ) : null}
+                {isPageZoomed ? (
+                  <Pressable
+                    style={[
+                      styles.resetZoomButton,
+                      { right: readingPageGeometry.pageOffsetX + Spacing.sm },
+                    ]}
+                    onPress={resetPageZoom}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset page zoom"
+                  >
+                    <Minimize2 size={16} color={Colors.text} />
+                    <Text style={styles.resetZoomText}>Reset</Text>
+                  </Pressable>
                 ) : null}
               </Animated.View>
             ) : (
@@ -1198,6 +1449,28 @@ const styles = StyleSheet.create({
   currentNativePage: {
     zIndex: 2,
     boxShadow: '3px 9px 18px rgba(35,33,28,0.1)',
+  },
+  resetZoomButton: {
+    position: 'absolute',
+    top: 23,
+    zIndex: 12,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'rgba(251,250,246,0.94)',
+    boxShadow: Colors.book.cardShadow,
+  },
+  resetZoomText: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 11,
+    lineHeight: 16,
   },
   spreadStage: {
     position: 'relative',

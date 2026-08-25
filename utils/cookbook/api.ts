@@ -466,10 +466,24 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
 }
 
 export async function deleteCookbook(cookbookId: string): Promise<void> {
+  await callAuthenticatedFunction('delete-reader-content', {
+    action: 'deleteCookbook',
+    cookbookId,
+  });
+}
+
+export async function retryReaderStorageCleanup(): Promise<void> {
+  await callAuthenticatedFunction('delete-reader-content', { action: 'drain' });
+}
+
+export async function updateCookbookTitle(cookbookId: string, title: string): Promise<void> {
+  const trimmedTitle = title.trim();
+  if (!trimmedTitle) throw new Error('Cookbook name cannot be empty.');
+
   const { error } = await supabase
     .schema('nutriai')
     .from('cookbooks')
-    .delete()
+    .update({ title: trimmedTitle })
     .eq('id', cookbookId);
   if (error) throw error;
 }
@@ -787,4 +801,25 @@ export async function updatePageRecipeGraph(
     .eq('id', pageId);
 
   if (error) throw error;
+}
+
+/**
+ * Apply corrected recipe data and its generated page version together.
+ * The database function validates page ownership and candidate membership.
+ */
+export async function applyRecipePageRevision(
+  pageId: string,
+  recipeGraph: RecipeGraph,
+  versionId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .rpc('apply_recipe_page_revision', {
+      p_page_id: pageId,
+      p_recipe_graph: recipeGraph as unknown as Record<string, unknown>,
+      p_version_id: versionId,
+    });
+
+  if (error) throw error;
+  if (data !== true) throw new Error('Recipe page revision could not be applied');
 }

@@ -93,3 +93,20 @@ export async function removeStoragePrefix(
 
   return files.length;
 }
+
+export async function removeStoragePaths(
+  storage: StorageClientLike,
+  bucketName: string,
+  rawPaths: string[],
+): Promise<number> {
+  const paths = [...new Set(rawPaths.map(normalizePrefix))];
+  if (paths.length === 0) return 0;
+
+  const bucket = storage.from(bucketName);
+  for (let index = 0; index < paths.length; index += REMOVE_BATCH_SIZE) {
+    const { error } = await bucket.remove(paths.slice(index, index + REMOVE_BATCH_SIZE));
+    if (error && !isMissingBucket(error)) throw error;
+  }
+
+  return paths.length;
+}
