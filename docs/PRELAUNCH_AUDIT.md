@@ -33,6 +33,11 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [x] **Downstream capture retries repeat extraction** — Fixed: when extraction
   has already saved a RecipeGraph, a page-generation retry resumes from that
   durable graph instead of paying for and depending on another model call.
+- [x] **Account deletion fails in the custom schema** — Fixed the cookbook
+  cascade trigger to run as a narrowly scoped security-definer function with an
+  empty search path. Supabase Auth can now delete a user whose default cookbook
+  cascades through `nutriai`; verified with the disposable simulator account and
+  a rollback-only SQL proof.
 
 ## Missing
 
@@ -110,6 +115,8 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   longer exposes hidden shelf/reader controls through VoiceOver.
 - [x] Retryable capture failures sanitize database implementation details before
   presenting user-facing copy.
+- [x] Retired table-of-contents indexing no longer produces an impossible reader
+  counter (`03 / 02`) when the first recipe enters single-page mode.
 - [ ] Offline banner has no retry action; network poll interval is 15s.
 - [ ] Capture polling is fixed 2.5s with no backoff.
 - [ ] Landscape/tablet layouts unverified.

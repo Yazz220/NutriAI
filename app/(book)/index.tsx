@@ -16,6 +16,7 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
   defaultFirstRunOnboardingState,
+  consumeFirstRunOnboardingReset,
   loadFirstRunOnboardingState,
   saveFirstRunOnboardingStatus,
   shouldPresentFirstRunWelcome,
@@ -46,7 +47,8 @@ export default function MyCookbooksScreen() {
     }
     let cancelled = false;
     setFirstRunReady(false);
-    loadFirstRunOnboardingState(user.id)
+    consumeFirstRunOnboardingReset(user.id)
+      .then((resetState) => resetState ?? loadFirstRunOnboardingState(user.id))
       .then((state) => {
         if (cancelled) return;
         setFirstRunState(state);
@@ -67,6 +69,7 @@ export default function MyCookbooksScreen() {
     cookbookCount: realCookbooks.length,
     status: firstRunState.status,
     hasNativeShareWork: receipt.status !== 'idle',
+    forceWelcomeForTesting: firstRunState.forceWelcomeForTesting,
   });
 
   function openLibrary() {

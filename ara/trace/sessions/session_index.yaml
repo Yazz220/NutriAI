@@ -8,8 +8,8 @@ sessions:
     open_threads: 3
   - id: "2026-08-25_001"
     date: "2026-08-25"
-    summary: "Implemented Nosh onboarding through activation, deferred chef discovery, and accessibility hardening."
-    turn_count: 5
-    events_count: 19
+    summary: "Implemented and device-verified Nosh onboarding through a real generated first page, accessibility hardening, durable recovery, account cleanup, and safe test replay."
+    turn_count: 7
+    events_count: 32
     claims_touched: [C02]
-    open_threads: 3
+    open_threads: 4

@@ -438,3 +438,137 @@ tree:
           - "npm test -- --runInBand: 53 suites, 208 tests passed"
           - "Metro packager-status: running; iPhone 17 Pro: Booted"
         status: resolved
+  - id: N25
+    type: decision
+    title: "Run the authenticated first-run production-readiness sequence"
+    provenance: user
+    timestamp: "2026-08-25T03:53+03:00"
+    choice: >-
+      Proceed through the real signed-in first-book and first-recipe path on the
+      live iPhone simulator, fix launch-impacting defects encountered, keep Expo
+      running, and return the environment ready for review.
+    alternatives:
+      - "Stop after signed-out bundle and unit-test verification"
+      - "Use only fixture/sample data instead of the production capture pipeline"
+      - "Defer Dynamic Type and Reduce Motion device checks"
+    evidence:
+      - N24
+      - "User direction: proceed with that"
+    status: resolved
+    children:
+      - id: N26
+        type: experiment
+        title: "Audit authenticated onboarding with iOS accessibility settings"
+        provenance: ai-executed
+        timestamp: "2026-08-25T03:53+03:00"
+        result: >-
+          Completed welcome, cookbook creation, empty reader, capture composer,
+          ready-page cue, generated-page reader, deferred Nosh tip, and shelf checks
+          at iOS Accessibility XXL with Reduce Motion enabled. Fixed background
+          accessibility leakage for welcome and Nosh sheets, bounded fixed-layout
+          typography and composer growth, preserved a full spoken RecipeGraph for the
+          generated page, and corrected a retired-ToC leaf index that displayed 03 / 02.
+        evidence:
+          - "iPhone 17 Pro authenticated AXe walkthrough"
+          - "components/ui/Sheet.tsx"
+          - "app/_layout.tsx"
+          - "components/ui/Text.tsx"
+          - "components/cookbook/BookReader.tsx"
+          - "components/cookbook/CookbookLeafPage.tsx"
+          - "components/cookbook/UnifiedIntakeComposer.tsx"
+          - "AXe device confirmation: one-recipe page counter 02 / 02"
+        status: resolved
+        children:
+          - id: N27
+            type: dead_end
+            title: "Rely on accessibilityViewIsModal alone"
+            provenance: ai-executed
+            timestamp: "2026-08-25T03:53+03:00"
+            hypothesis: >-
+              Marking the welcome or Nosh sheet itself as an accessibility modal will
+              prevent VoiceOver from traversing controls behind it on iOS.
+            failure_mode: >-
+              AXe continued to expose the underlying shelf and reader after the modal
+              flag was added; the hidden sibling navigation subtree remained accessible.
+            lesson: >-
+              On this React Native/iOS stack, modal surfaces must also hide the sibling
+              application subtree with accessibilityElementsHidden and
+              importantForAccessibility=no-hide-descendants.
+            status: resolved
+      - id: N28
+        type: experiment
+        title: "Recover a real first capture through generated-page publication"
+        provenance: ai-executed
+        timestamp: "2026-08-25T03:53+03:00"
+        result: >-
+          The first live text capture exposed a cookbook_pages style constraint that
+          omitted studio-editorial. Applied a tracked constraint migration, then found
+          that retry repeated extraction despite a saved RecipeGraph. Deployed
+          capture-recipe version 5 to reuse durable extraction state. The exact failed
+          capture resumed on attempt 3, created its Editorial page, generated version
+          250d2f15-8db7-4cfa-9318-3c02be5edef8, and reached ready with accessible recipe copy.
+        evidence:
+          - "supabase/migrations/20260825002826_expand_cookbook_page_style_constraint.sql"
+          - "supabase/functions/capture-recipe/index.ts"
+          - "supabase/functions/_shared/capturePolicy.ts"
+          - "Supabase capture-recipe version 5: ACTIVE"
+          - "Live capture 6644c119-f8a3-478b-9243-3fde50861b00: ready"
+        status: resolved
+      - id: N29
+        type: experiment
+        title: "Verify account cleanup and final production gate"
+        provenance: ai-executed
+        timestamp: "2026-08-25T03:53+03:00"
+        result: >-
+          Disposable-user deletion reproduced the existing 500 caused by the custom
+          cookbook AFTER DELETE trigger running as supabase_auth_admin without nutriai
+          access. Made the postgres-owned, empty-search-path trigger function security
+          definer, then deleted the signed-out QA account and verified zero cookbooks,
+          captures, and recipes plus removal of generated storage. Final 57 Jest suites
+          and 217 tests, lint, strict TypeScript, diff checks, migration/advisor checks,
+          Metro health, simulator settings restoration, and dev-client relaunch passed.
+        evidence:
+          - "supabase/migrations/20260825005156_fix_account_deletion_trigger_permissions.sql"
+          - "supabase/tests/account_deletion.sql"
+          - "Disposable user cleanup: remainingBooks=0, remainingCaptures=0, remainingRecipes=0"
+          - "npm test -- --runInBand: 57 suites, 217 tests passed"
+          - "Metro packager-status: running; iPhone 17 Pro: Booted"
+        status: resolved
+  - id: N30
+    type: decision
+    title: "Retire unlaunched sign-in methods and add a safe onboarding replay control"
+    provenance: user
+    timestamp: "2026-08-25T04:04+03:00"
+    choice: >-
+      Remove magic-link and unfinished Google authentication from sign-in, retain the
+      working email/password and Apple paths, and expose a temporary onboarding reset
+      control for testing. Defer Google authentication until after launch.
+    alternatives:
+      - "Keep all early authentication options visible"
+      - "Add Google authentication before launch"
+      - "Reset onboarding by deleting the tester's cookbook data"
+    evidence:
+      - "User direction: remove magic link and nonworking Google, keep working auth, and add a temporary onboarding reset button"
+    status: resolved
+    children:
+      - id: N31
+        type: experiment
+        title: "Implement and device-verify sign-in cleanup and onboarding replay"
+        provenance: ai-executed
+        timestamp: "2026-08-25T04:04+03:00"
+        result: >-
+          Sign-in now exposes email/password, Apple when available, account creation,
+          password recovery, and a development-only reset control. The one-shot reset
+          is consumed by the next authenticated shelf, replays welcome even for an
+          existing nonempty account, and never deletes server or cookbook data. AXe
+          confirmed the retired buttons were absent and the reset confirmation was
+          accessible. All 57 Jest suites and 218 tests, TypeScript, lint, diff checks,
+          iOS bundle refresh, and simulator relaunch passed.
+        evidence:
+          - "app/(auth)/sign-in.tsx"
+          - "app/(book)/index.tsx"
+          - "utils/cookbook/firstRunOnboarding.ts"
+          - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+          - "AXe: Reset onboarding after sign-in confirmation resolved and activated"
+          - "npm test -- --runInBand: 57 suites, 218 tests passed"
+        status: resolved

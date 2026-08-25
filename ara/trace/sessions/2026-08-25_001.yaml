@@ -2,9 +2,9 @@ session:
   id: "2026-08-25_001"
   date: "2026-08-25"
   started: "2026-08-25T01:21+03:00"
-  last_turn: "2026-08-25T02:58+03:00"
-  turn_count: 5
-  summary: "Implemented Nosh onboarding through activation, deferred chef discovery, and accessibility hardening."
+  last_turn: "2026-08-25T04:04+03:00"
+  turn_count: 7
+  summary: "Implemented and device-verified Nosh onboarding through a real generated first page, accessibility hardening, durable recovery, account cleanup, and a safe test replay path."
 
 events_logged:
   - turn: 1
@@ -121,6 +121,84 @@ events_logged:
     routing: direct
     provenance: ai-executed
     summary: "Implemented accessibility hardening; 208 tests and all static/iOS bundle checks passed."
+  - turn: 6
+    type: decision
+    id: N25
+    routing: direct
+    provenance: user
+    summary: "Proceed through the authenticated first-book and first-recipe production-readiness sequence in the live simulator."
+  - turn: 6
+    type: experiment
+    id: N26
+    routing: direct
+    provenance: ai-executed
+    summary: "Completed Accessibility XXL and Reduce Motion device QA; fixed modal isolation, fixed-layout type, composer growth, and the 03 / 02 reader counter."
+  - turn: 6
+    type: dead_end
+    id: N27
+    routing: direct
+    provenance: ai-executed
+    summary: "Modal flags alone did not hide sibling shelf/reader controls from iOS accessibility."
+  - turn: 6
+    type: experiment
+    id: N28
+    routing: direct
+    provenance: ai-executed
+    summary: "Recovered the exact live capture through style-constraint repair, saved-graph retry, generated art, and ready publication."
+  - turn: 6
+    type: experiment
+    id: N29
+    routing: direct
+    provenance: ai-executed
+    summary: "Repaired custom-schema account deletion, removed the disposable user and assets, and passed 217 tests plus all final gates."
+  - turn: 6
+    type: observation
+    id: O13
+    routing: staged
+    provenance: ai-suggested
+    summary: "Accessibility modals must hide the sibling app subtree as well as mark the overlay modal."
+  - turn: 6
+    type: observation
+    id: O14
+    routing: staged
+    provenance: ai-suggested
+    summary: "Separate authored decorative book type from bounded scalable interface type in fixed geometry."
+  - turn: 6
+    type: observation
+    id: O15
+    routing: staged
+    provenance: ai-suggested
+    summary: "Resume durable AI workflows from the latest valid persisted artifact."
+  - turn: 6
+    type: heuristic
+    id: H06
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Isolate both sides of an accessibility modal boundary."
+  - turn: 6
+    type: heuristic
+    id: H07
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Separate decorative book typography from scalable interface typography."
+  - turn: 6
+    type: heuristic
+    id: H08
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Resume retries from the latest durable artifact."
+  - turn: 7
+    type: decision
+    id: N30
+    routing: direct
+    provenance: user
+    summary: "Retire magic-link and unfinished Google sign-in, keep working auth, and add a temporary onboarding reset control."
+  - turn: 7
+    type: experiment
+    id: N31
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented a dev-only, data-safe replay path and verified the cleaned sign-in surface in iOS; 218 tests and all gates passed."
 
 ai_actions:
   - turn: 1
@@ -225,6 +303,69 @@ ai_actions:
     files_changed:
       - "__tests__/components/cookbook/PageCanvas.test.tsx"
       - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+  - turn: 6
+    action: >-
+      Created and exercised a disposable authenticated user through welcome, first-book
+      creation, empty reader, real text capture, generated-page publication, reading,
+      contextual Nosh discovery, sign-out, and deletion on iPhone 17 Pro.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 7
+    action: >-
+      Removed magic-link and unfinished Google authentication from sign-in, added a
+      development-only one-shot first-run reset that survives sign-in and supports
+      nonempty test accounts without deleting data, and added regression coverage.
+    provenance: ai-executed
+    files_changed:
+      - "app/(auth)/sign-in.tsx"
+      - "app/(book)/index.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+  - turn: 7
+    action: >-
+      Refreshed and relaunched the iOS development client, inspected the sign-in UI,
+      activated the reset control through AXe, and ran the full Jest, TypeScript, lint,
+      and diff-check regression gates.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 6
+    action: >-
+      Fixed iOS accessibility modal isolation, Dynamic Type behavior across fixed book
+      geometry and interface controls, bounded composer growth, ready-page sheet closure,
+      technical error sanitization, and the retired-ToC reader leaf index.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/index.tsx"
+      - "app/_layout.tsx"
+      - "components/ui/Sheet.tsx"
+      - "components/ui/Text.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "components/cookbook/CookbookLeafPage.tsx"
+      - "components/cookbook/UnifiedIntakeComposer.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "utils/cookbook/capturePresentation.ts"
+      - "utils/cookbook/reader.ts"
+  - turn: 6
+    action: >-
+      Applied tracked migrations for the new cookbook page-style ids and custom-schema
+      account deletion; deployed capture-recipe version 5 with durable RecipeGraph retry;
+      added SQL and Jest regressions and updated the pre-launch audit.
+    provenance: ai-executed
+    files_changed:
+      - "supabase/migrations/20260825002826_expand_cookbook_page_style_constraint.sql"
+      - "supabase/migrations/20260825005156_fix_account_deletion_trigger_permissions.sql"
+      - "supabase/functions/capture-recipe/index.ts"
+      - "supabase/functions/_shared/capturePolicy.ts"
+      - "supabase/tests/account_deletion.sql"
+      - "supabase/tests/recipe_capture_lifecycle.sql"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 6
+    action: >-
+      Ran final device, database, storage, migration, advisor, bundle, Metro, Jest,
+      TypeScript, lint, and diff checks; restored standard iOS text and motion settings
+      and left the development client open on sign-in.
+    provenance: ai-executed
+    files_changed: []
 
 claims_touched:
   - id: C02
@@ -244,11 +385,18 @@ key_context:
     excerpt: "Keep Simulation running, so you keep iterative waiting as you go, then proceed."
   - turn: 5
     excerpt: "Go ahead to the next sequence and then tell me how to review it; is the app running on the dev Expo?"
+  - turn: 6
+    excerpt: "Proceed with that."
+  - turn: 7
+    excerpt: >-
+      Remove the magic-link and nonworking Google options, keep the authentication that
+      works, and add a temporary login-page control to reset onboarding for testing.
 
 open_threads:
-  - "Run the authenticated first-run sequence visually on the simulator."
   - "Connect the analytics shim to production transport and validate first_ready_recipe_opened against D1/D7 return."
-  - "Run Dynamic Type, VoiceOver, Reduce Motion, RTL, and localization device verification; implementation now covers reduced motion, spoken progress, and generated-page semantics."
+  - "Run RTL and localization device verification for the onboarding contract."
+  - "Triage the pre-existing Supabase GraphQL exposure, RLS-performance, and leaked-password-protection advisor findings."
+  - "Add and fully verify Google authentication in a post-launch iteration."
 
 ai_suggestions_pending:
   - "Validate first_ready_recipe_opened against D1 and D7 return before promoting it from candidate to established activation metric."

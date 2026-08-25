@@ -14,7 +14,10 @@ export interface FirstRunOnboardingState {
   activatedAt?: string;
   readerCueSeen?: boolean;
   noshTipSeen?: boolean;
+  forceWelcomeForTesting?: boolean;
 }
+
+const FIRST_RUN_RESET_REQUEST_KEY = 'nosh:first-run:reset-on-next-shelf:v1';
 
 function storageKey(userId: string): string {
   return `nosh:first-run:${userId}:v${FIRST_RUN_ONBOARDING_VERSION}`;
@@ -52,6 +55,7 @@ export async function loadFirstRunOnboardingState(
       activatedAt: typeof parsed.activatedAt === 'string' ? parsed.activatedAt : undefined,
       readerCueSeen: parsed.readerCueSeen === true,
       noshTipSeen: parsed.noshTipSeen === true,
+      forceWelcomeForTesting: parsed.forceWelcomeForTesting === true,
     };
   } catch {
     await AsyncStorage.removeItem(storageKey(userId)).catch(() => undefined);
@@ -67,9 +71,40 @@ export async function saveFirstRunOnboardingStatus(
   const state: FirstRunOnboardingState = {
     ...current,
     status,
+    forceWelcomeForTesting: status === 'pending' ? current.forceWelcomeForTesting : false,
     updatedAt: new Date().toISOString(),
   };
   await AsyncStorage.setItem(storageKey(userId), JSON.stringify(state));
+  return state;
+}
+
+/**
+ * Arms a device-local, one-shot onboarding reset for the next authenticated shelf.
+ * This is intentionally separate from user data so testers can request it while signed out.
+ */
+export async function requestFirstRunOnboardingReset(): Promise<void> {
+  await AsyncStorage.setItem(FIRST_RUN_RESET_REQUEST_KEY, 'true');
+}
+
+/**
+ * Consumes the pending test reset for the authenticated user without deleting cookbooks.
+ */
+export async function consumeFirstRunOnboardingReset(
+  userId: string,
+): Promise<FirstRunOnboardingState | null> {
+  const requested = await AsyncStorage.getItem(FIRST_RUN_RESET_REQUEST_KEY);
+  if (requested !== 'true') return null;
+
+  const state: FirstRunOnboardingState = {
+    ...defaultFirstRunOnboardingState(),
+    forceWelcomeForTesting: true,
+    updatedAt: new Date().toISOString(),
+  };
+  await AsyncStorage.multiSet([
+    [storageKey(userId), JSON.stringify(state)],
+    [FIRST_RUN_RESET_REQUEST_KEY, 'consumed'],
+  ]);
+  await AsyncStorage.removeItem(FIRST_RUN_RESET_REQUEST_KEY);
   return state;
 }
 
@@ -180,15 +215,17 @@ export function shouldPresentFirstRunWelcome({
   cookbookCount,
   status,
   hasNativeShareWork,
+  forceWelcomeForTesting = false,
 }: {
   isReady: boolean;
   cookbookCount: number;
   status: FirstRunOnboardingStatus;
   hasNativeShareWork: boolean;
+  forceWelcomeForTesting?: boolean;
 }): boolean {
   return (
     isReady &&
-    cookbookCount === 0 &&
+    (cookbookCount === 0 || forceWelcomeForTesting) &&
     (status === 'pending' || status === 'started') &&
     !hasNativeShareWork
   );

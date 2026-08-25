@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   defaultFirstRunOnboardingState,
+  consumeFirstRunOnboardingReset,
   isFirstRunCapture,
   loadFirstRunOnboardingState,
   markFirstNoshTipSeen,
@@ -8,6 +9,7 @@ import {
   recordFirstCaptureStarted,
   recordFirstCookbookCreated,
   recordFirstReadyRecipeOpened,
+  requestFirstRunOnboardingReset,
   saveFirstRunOnboardingStatus,
   shouldPresentFirstRunWelcome,
 } from '@/utils/cookbook/firstRunOnboarding';
@@ -38,8 +40,28 @@ describe('first-run onboarding state', () => {
     expect(shouldPresentFirstRunWelcome({ ...eligible, status: 'started' })).toBe(true);
     expect(shouldPresentFirstRunWelcome({ ...eligible, status: 'skipped' })).toBe(false);
     expect(shouldPresentFirstRunWelcome({ ...eligible, cookbookCount: 1 })).toBe(false);
+    expect(shouldPresentFirstRunWelcome({
+      ...eligible,
+      cookbookCount: 1,
+      forceWelcomeForTesting: true,
+    })).toBe(true);
     expect(shouldPresentFirstRunWelcome({ ...eligible, hasNativeShareWork: true })).toBe(false);
     expect(shouldPresentFirstRunWelcome({ ...eligible, isReady: false })).toBe(false);
+  });
+
+  it('resets onboarding once for the next authenticated shelf without touching book data', async () => {
+    await saveFirstRunOnboardingStatus('user-a', 'completed');
+    await requestFirstRunOnboardingReset();
+
+    const resetState = await consumeFirstRunOnboardingReset('user-a');
+    expect(resetState).toMatchObject({
+      status: 'pending',
+      forceWelcomeForTesting: true,
+    });
+    expect(await consumeFirstRunOnboardingReset('user-b')).toBeNull();
+
+    const started = await saveFirstRunOnboardingStatus('user-a', 'started');
+    expect(started.forceWelcomeForTesting).toBe(false);
   });
 
   it('carries the activation journey from first book through first opened page', async () => {

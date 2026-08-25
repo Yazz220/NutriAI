@@ -188,3 +188,51 @@ observations:
     promoted_to: "logic/solution/heuristics.md:H05"
     crystallized_via: artifact-commitment
     stale: false
+  - id: O13
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat accessibility modals as two-sided boundaries: mark the overlay modal and
+      explicitly hide its sibling app subtree from assistive technology for the full
+      time the overlay is visible.
+    context: >-
+      AXe showed shelf and reader controls behind the welcome and Nosh sheet even after
+      accessibilityViewIsModal was applied; hiding the sibling subtree removed them.
+    potential_type: heuristic
+    bound_to: [N26, N27]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H06"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O14
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      In fixed physical-book geometry, keep decorative stamped typography at the authored
+      scale and provide accessible semantics separately; bound but do not disable scaling
+      for interactive copy, prompts, and toolbars that must reflow inside fixed surfaces.
+    context: >-
+      Accessibility XXL caused cover, bookplate, empty-reader, shelf, and composer
+      collisions until decorative and interactive typography were handled separately.
+    potential_type: heuristic
+    bound_to: [N26]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H07"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O15
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      Retry a durable multi-stage workflow from its latest valid persisted artifact rather
+      than repeating successful expensive stages; a saved RecipeGraph should resume page
+      creation and art generation without another extraction call.
+    context: >-
+      Retrying a page-constraint failure repeated extraction and hit an unrelated model
+      truncation even though the first attempt had already persisted Quick Tomato Toast.
+    potential_type: heuristic
+    bound_to: [N28]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H08"
+    crystallized_via: artifact-commitment
+    stale: false

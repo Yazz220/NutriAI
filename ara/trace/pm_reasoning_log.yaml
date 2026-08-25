@@ -64,3 +64,16 @@ entries:
       - "Routed the user's next-sequence authorization as N23 and the implemented/tested accessibility slice as N24."
       - "Kept O11 staged: Reduce Motion, non-color progress, and generated-image VoiceOver semantics are now committed, but Dynamic Type device QA, RTL, and localization verification remain open parts of the compound constraint."
       - "Recorded the signed-out simulator as bundle/process evidence only; it still does not validate protected onboarding or VoiceOver interaction."
+  - turn: "2026-08-25_001#6"
+    notes:
+      - "Routed the user's concise continuation as N25 because it authorized the previously open authenticated production-path experiment without changing the approved onboarding model."
+      - "Routed the accessibility/device result as N26, the falsified modal-only hypothesis as dead end N27, the live capture recovery as N28, and verified account cleanup/final gate as N29."
+      - "Staged O13-O15 and crystallized them to H06-H08 via artifact commitment because modal isolation, fixed-geometry typography, and durable retry behavior now have production code and regressions."
+      - "Kept compound accessibility observation O11 staged: Dynamic Type, Reduce Motion, progress, and generated-page semantics are now device-verified, but RTL and localization remain open."
+      - "Did not create new claims from a single QA account; the walkthrough establishes functional behavior, not activation or retention impact."
+  - turn: "2026-08-25_001#7"
+    notes:
+      - "Routed the authentication-surface choice as user-authored N30 and the implementation/device result as N31."
+      - "Did not stage a general authentication claim: this turn made a scoped pre-launch product decision and verified its implementation."
+      - "Recorded Google authentication as deferred follow-up and kept the reset production-safe by rendering it only in development builds."
+      - "Left O11 staged because this auth cleanup does not close the remaining RTL and localization verification work."
