@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
+import { requestFirstRunOnboardingReset } from '@/utils/cookbook/firstRunOnboarding';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const [resettingOnboarding, setResettingOnboarding] = useState(false);
   const { receipt } = useNoshNativeShare();
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function SignInScreen() {
       );
       if (authError) throw authError;
       if (!data?.session) {
-        setError('Sign-in did not return a session. Try again or use a magic link.');
+        setError('Sign-in did not return a session. Please try again.');
         return;
       }
       router.replace('/(book)');
@@ -50,49 +52,6 @@ export default function SignInScreen() {
       const msg = getUserFriendlyErrorMessage(err);
       setError(msg);
       Alert.alert('Sign in failed', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onMagicLink = async () => {
-    setError(null);
-    if (!email) {
-      setError('Enter your email to receive a magic link.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const redirectTo = process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL;
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo },
-      });
-      if (authError) throw authError;
-      Alert.alert('Check your email', 'We sent you a magic sign-in link.');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send magic link.';
-      setError(msg);
-      Alert.alert('Magic link error', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onOAuthGoogle = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const redirectTo = process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL;
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo, skipBrowserRedirect: false },
-      });
-      if (authError) throw authError;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Google sign-in failed.';
-      setError(msg);
-      Alert.alert('OAuth error', msg);
     } finally {
       setLoading(false);
     }
@@ -111,6 +70,21 @@ export default function SignInScreen() {
       Alert.alert('Apple Sign-In error', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onResetOnboarding = async () => {
+    setResettingOnboarding(true);
+    try {
+      await requestFirstRunOnboardingReset();
+      Alert.alert(
+        'Onboarding reset is ready',
+        'Sign in with any account to replay first-run onboarding. Your cookbooks will not be changed.',
+      );
+    } catch {
+      Alert.alert('Could not reset onboarding', 'Please try again.');
+    } finally {
+      setResettingOnboarding(false);
     }
   };
 
@@ -162,8 +136,6 @@ export default function SignInScreen() {
       {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
       <Button title="Sign in" onPress={onSignIn} loading={loading} disabled={loading} />
-      <Button title="Send magic link" variant="secondary" onPress={onMagicLink} disabled={loading} />
-      <Button title="Continue with Google" variant="secondary" onPress={onOAuthGoogle} disabled={loading} />
 
       {appleAvailable ? (
         loading ? (
@@ -177,6 +149,19 @@ export default function SignInScreen() {
             onPress={onAppleSignIn}
           />
         )
+      ) : null}
+
+      {__DEV__ ? (
+        <Button
+          title="Reset onboarding after sign-in"
+          variant="ghost"
+          size="sm"
+          onPress={onResetOnboarding}
+          loading={resettingOnboarding}
+          disabled={loading || resettingOnboarding}
+          accessibilityHint="Replays first-run onboarding for the next account that signs in without changing its cookbooks"
+          testID="reset-onboarding-button"
+        />
       ) : null}
     </AuthScaffold>
   );

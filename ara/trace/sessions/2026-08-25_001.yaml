@@ -1,0 +1,403 @@
+session:
+  id: "2026-08-25_001"
+  date: "2026-08-25"
+  started: "2026-08-25T01:21+03:00"
+  last_turn: "2026-08-25T04:04+03:00"
+  turn_count: 7
+  summary: "Implemented and device-verified Nosh onboarding through a real generated first page, accessibility hardening, durable recovery, account cleanup, and a safe test replay path."
+
+events_logged:
+  - turn: 1
+    type: question
+    id: N16
+    routing: direct
+    provenance: user
+    summary: "Choose among guided, interactive first-book, progressive, and hybrid onboarding models."
+  - turn: 1
+    type: observation
+    id: O07
+    routing: staged
+    provenance: ai-suggested
+    summary: "Use one optional welcome threshold, then teach inside the real first-book flow."
+  - turn: 1
+    type: observation
+    id: O08
+    routing: staged
+    provenance: ai-suggested
+    summary: "Validate first ready recipe opened as the activation event."
+  - turn: 1
+    type: observation
+    id: O09
+    routing: staged
+    provenance: ai-suggested
+    summary: "Preselect a coherent first-book look and defer independent fine-tuning."
+  - turn: 1
+    type: observation
+    id: O10
+    routing: staged
+    provenance: ai-suggested
+    summary: "Keep sample content as preview, not undeletable content in a personal book."
+  - turn: 1
+    type: observation
+    id: O11
+    routing: staged
+    provenance: ai-suggested
+    summary: "Make first-run and generated recipe reading accessible, reduced-motion, and localization-ready."
+  - turn: 2
+    type: decision
+    id: N17
+    routing: direct
+    provenance: user
+    summary: "Adopt the skippable welcome, compact first-book studio, read-only sample, and real first-recipe path."
+  - turn: 2
+    type: experiment
+    id: N18
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented the sequence; 200 tests, TypeScript, lint, iOS bundle, and simulator relaunch passed."
+  - turn: 2
+    type: architecture
+    id: A02
+    routing: crystallized
+    provenance: user-revised
+    summary: "Teach first run through production creation, reader, and capture surfaces."
+  - turn: 2
+    type: heuristic
+    id: H04
+    routing: crystallized
+    provenance: user-revised
+    summary: "Offer matched first-book looks before independent fine-tuning."
+  - turn: 2
+    type: constraint
+    id: K01
+    routing: crystallized
+    provenance: user-revised
+    summary: "Keep sample recipes in an explicit read-only preview, not the personal collection."
+  - turn: 3
+    type: decision
+    id: N19
+    routing: direct
+    provenance: user
+    summary: "Continue onboarding through real source capture, durable progress, ready open, and reader introduction."
+  - turn: 3
+    type: experiment
+    id: N20
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented activation guidance and milestone events; 205 tests and all static/iOS bundle checks passed."
+  - turn: 3
+    type: claim
+    id: C02
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Treat first_ready_recipe_opened as the instrumented but unvalidated activation hypothesis."
+  - turn: 4
+    type: decision
+    id: N21
+    routing: direct
+    provenance: user
+    summary: "Proceed with progressive Nosh discovery while keeping the simulator loop live."
+  - turn: 4
+    type: experiment
+    id: N22
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented a later-visit in-book Nosh callout; 206 tests and iterative iOS checks passed."
+  - turn: 4
+    type: heuristic
+    id: H05
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Avoid stacked prompts by deferring contextual feature discovery across visits."
+  - turn: 5
+    type: decision
+    id: N23
+    routing: direct
+    provenance: user
+    summary: "Proceed with reduced-motion, spoken progress, and generated-page VoiceOver hardening in the live simulator loop."
+  - turn: 5
+    type: experiment
+    id: N24
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented accessibility hardening; 208 tests and all static/iOS bundle checks passed."
+  - turn: 6
+    type: decision
+    id: N25
+    routing: direct
+    provenance: user
+    summary: "Proceed through the authenticated first-book and first-recipe production-readiness sequence in the live simulator."
+  - turn: 6
+    type: experiment
+    id: N26
+    routing: direct
+    provenance: ai-executed
+    summary: "Completed Accessibility XXL and Reduce Motion device QA; fixed modal isolation, fixed-layout type, composer growth, and the 03 / 02 reader counter."
+  - turn: 6
+    type: dead_end
+    id: N27
+    routing: direct
+    provenance: ai-executed
+    summary: "Modal flags alone did not hide sibling shelf/reader controls from iOS accessibility."
+  - turn: 6
+    type: experiment
+    id: N28
+    routing: direct
+    provenance: ai-executed
+    summary: "Recovered the exact live capture through style-constraint repair, saved-graph retry, generated art, and ready publication."
+  - turn: 6
+    type: experiment
+    id: N29
+    routing: direct
+    provenance: ai-executed
+    summary: "Repaired custom-schema account deletion, removed the disposable user and assets, and passed 217 tests plus all final gates."
+  - turn: 6
+    type: observation
+    id: O13
+    routing: staged
+    provenance: ai-suggested
+    summary: "Accessibility modals must hide the sibling app subtree as well as mark the overlay modal."
+  - turn: 6
+    type: observation
+    id: O14
+    routing: staged
+    provenance: ai-suggested
+    summary: "Separate authored decorative book type from bounded scalable interface type in fixed geometry."
+  - turn: 6
+    type: observation
+    id: O15
+    routing: staged
+    provenance: ai-suggested
+    summary: "Resume durable AI workflows from the latest valid persisted artifact."
+  - turn: 6
+    type: heuristic
+    id: H06
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Isolate both sides of an accessibility modal boundary."
+  - turn: 6
+    type: heuristic
+    id: H07
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Separate decorative book typography from scalable interface typography."
+  - turn: 6
+    type: heuristic
+    id: H08
+    routing: crystallized
+    provenance: ai-suggested
+    summary: "Resume retries from the latest durable artifact."
+  - turn: 7
+    type: decision
+    id: N30
+    routing: direct
+    provenance: user
+    summary: "Retire magic-link and unfinished Google sign-in, keep working auth, and add a temporary onboarding reset control."
+  - turn: 7
+    type: experiment
+    id: N31
+    routing: direct
+    provenance: ai-executed
+    summary: "Implemented a dev-only, data-safe replay path and verified the cleaned sign-in surface in iOS; 218 tests and all gates passed."
+
+ai_actions:
+  - turn: 1
+    action: >-
+      Audited Nosh's current auth, shelf, creation studio, sample cookbook, reader,
+      capture, and contextual conversation surfaces.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 2
+    action: >-
+      Implemented the approved first-run sequence with versioned user-scoped state,
+      progressive first-book personalization, a read-only sample path, and an empty-book
+      first-recipe prompt.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/index.tsx"
+      - "app/(book)/library.tsx"
+      - "app/(book)/[cookbookId]/index.tsx"
+      - "components/onboarding/FirstRunWelcome.tsx"
+      - "components/create/CreationStudio.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "constants/cookbookCustomization.ts"
+      - "hooks/useCookbook.ts"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "utils/cookbook/sampleCookbook.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 2
+    action: >-
+      Added first-run, welcome, creation preset, read-only sample, and empty-book regression
+      coverage; ran the complete Jest, TypeScript, lint, iOS bundle, and simulator checks.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/onboarding/FirstRunWelcome.test.tsx"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+      - "__tests__/components/create/CreationStudio.test.tsx"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
+      - "__tests__/constants/cookbookCustomization.test.ts"
+      - "__tests__/utils/cookbook/sampleCookbook.test.ts"
+  - turn: 1
+    action: >-
+      Reviewed 393 Exa search candidates across comparable-app, activation/iOS, and
+      product-pattern workstreams; deep-read high-signal official, research, and practitioner sources.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 3
+    action: >-
+      Extended first-run persistence and UI through first source capture, durable processing,
+      ready-page open, and a dismissible one-time reader introduction; added privacy-safe
+      activation milestone calls through the existing analytics shim.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/library.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 3
+    action: >-
+      Added state-machine, capture-guidance, ready activation, and first-page cue regressions;
+      ran 205 Jest tests, strict TypeScript, lint, diff checks, iOS bundle generation, and simulator relaunch.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
+  - turn: 4
+    action: >-
+      Added later-visit, permanently dismissible in-book Nosh discovery backed by user-scoped
+      first-run state and the existing recipe conversation; kept the sample read-only and
+      removed auto-hide behavior that could leave an invisible touch target.
+    provenance: ai-executed
+    files_changed:
+      - "components/cookbook/BookReader.tsx"
+      - "components/nosh/NoshLaunchers.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "docs/PRELAUNCH_AUDIT.md"
+      - "__tests__/components/cookbook/BookReader.test.tsx"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+  - turn: 4
+    action: >-
+      Kept Metro and iPhone 17 Pro running, loaded two successive iOS bundles, inspected
+      the live signed-out screen, and completed the 206-test, TypeScript, lint, and diff checks.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 5
+    action: >-
+      Added system Reduce Motion alternatives across reader transitions, non-color native
+      capture progress semantics, and canonical Recipe Graph narration for image-backed pages.
+    provenance: ai-executed
+    files_changed:
+      - "components/cookbook/BookReader.tsx"
+      - "components/cookbook/Cookbook3DScene.tsx"
+      - "components/cookbook/Cookbook3DScene.types.ts"
+      - "components/cookbook/PageCanvas.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 5
+    action: >-
+      Added accessibility regressions; ran 208 Jest tests, strict TypeScript, lint, diff
+      checks, a fresh iOS bundle, simulator health checks, relaunch, and signed-out screenshot inspection.
+    provenance: ai-executed
+    files_changed:
+      - "__tests__/components/cookbook/PageCanvas.test.tsx"
+      - "__tests__/components/NoshCaptureWorkspace.test.tsx"
+  - turn: 6
+    action: >-
+      Created and exercised a disposable authenticated user through welcome, first-book
+      creation, empty reader, real text capture, generated-page publication, reading,
+      contextual Nosh discovery, sign-out, and deletion on iPhone 17 Pro.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 7
+    action: >-
+      Removed magic-link and unfinished Google authentication from sign-in, added a
+      development-only one-shot first-run reset that survives sign-in and supports
+      nonempty test accounts without deleting data, and added regression coverage.
+    provenance: ai-executed
+    files_changed:
+      - "app/(auth)/sign-in.tsx"
+      - "app/(book)/index.tsx"
+      - "utils/cookbook/firstRunOnboarding.ts"
+      - "__tests__/utils/cookbook/firstRunOnboarding.test.ts"
+  - turn: 7
+    action: >-
+      Refreshed and relaunched the iOS development client, inspected the sign-in UI,
+      activated the reset control through AXe, and ran the full Jest, TypeScript, lint,
+      and diff-check regression gates.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 6
+    action: >-
+      Fixed iOS accessibility modal isolation, Dynamic Type behavior across fixed book
+      geometry and interface controls, bounded composer growth, ready-page sheet closure,
+      technical error sanitization, and the retired-ToC reader leaf index.
+    provenance: ai-executed
+    files_changed:
+      - "app/(book)/index.tsx"
+      - "app/_layout.tsx"
+      - "components/ui/Sheet.tsx"
+      - "components/ui/Text.tsx"
+      - "components/cookbook/BookReader.tsx"
+      - "components/cookbook/CookbookLeafPage.tsx"
+      - "components/cookbook/UnifiedIntakeComposer.tsx"
+      - "components/nosh/capture/NoshCaptureWorkspace.tsx"
+      - "utils/cookbook/capturePresentation.ts"
+      - "utils/cookbook/reader.ts"
+  - turn: 6
+    action: >-
+      Applied tracked migrations for the new cookbook page-style ids and custom-schema
+      account deletion; deployed capture-recipe version 5 with durable RecipeGraph retry;
+      added SQL and Jest regressions and updated the pre-launch audit.
+    provenance: ai-executed
+    files_changed:
+      - "supabase/migrations/20260825002826_expand_cookbook_page_style_constraint.sql"
+      - "supabase/migrations/20260825005156_fix_account_deletion_trigger_permissions.sql"
+      - "supabase/functions/capture-recipe/index.ts"
+      - "supabase/functions/_shared/capturePolicy.ts"
+      - "supabase/tests/account_deletion.sql"
+      - "supabase/tests/recipe_capture_lifecycle.sql"
+      - "docs/PRELAUNCH_AUDIT.md"
+  - turn: 6
+    action: >-
+      Ran final device, database, storage, migration, advisor, bundle, Metro, Jest,
+      TypeScript, lint, and diff checks; restored standard iOS text and motion settings
+      and left the development client open on sign-in.
+    provenance: ai-executed
+    files_changed: []
+
+claims_touched:
+  - id: C02
+    action: crystallized
+    turn: 3
+
+key_context:
+  - turn: 1
+    excerpt: >-
+      Design a warm, memorable first-run experience for a book-first personal cookbook,
+      research alternatives before implementation, and end with one recommended flow.
+  - turn: 2
+    excerpt: "Proceed with the first sequence."
+  - turn: 3
+    excerpt: "Go ahead to the next sequence."
+  - turn: 4
+    excerpt: "Keep Simulation running, so you keep iterative waiting as you go, then proceed."
+  - turn: 5
+    excerpt: "Go ahead to the next sequence and then tell me how to review it; is the app running on the dev Expo?"
+  - turn: 6
+    excerpt: "Proceed with that."
+  - turn: 7
+    excerpt: >-
+      Remove the magic-link and nonworking Google options, keep the authentication that
+      works, and add a temporary login-page control to reset onboarding for testing.
+
+open_threads:
+  - "Connect the analytics shim to production transport and validate first_ready_recipe_opened against D1/D7 return."
+  - "Run RTL and localization device verification for the onboarding contract."
+  - "Triage the pre-existing Supabase GraphQL exposure, RLS-performance, and leaked-password-protection advisor findings."
+  - "Add and fully verify Google authentication in a post-launch iteration."
+
+ai_suggestions_pending:
+  - "Validate first_ready_recipe_opened against D1 and D7 return before promoting it from candidate to established activation metric."
+  - "Finish Dynamic Type visual QA plus RTL and localization coverage for the onboarding contract."

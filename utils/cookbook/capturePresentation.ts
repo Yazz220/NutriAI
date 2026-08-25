@@ -21,6 +21,16 @@ export interface CaptureProgressStep {
   state: 'complete' | 'active' | 'upcoming';
 }
 
+const GENERIC_CAPTURE_FAILURE = 'Nosh saved your recipe, but could not finish the page. Please try again.';
+
+function presentableFailureMessage(message?: string): string {
+  if (!message) return GENERIC_CAPTURE_FAILURE;
+  if (/\b(constraint|relation|sqlstate|postgres|row-level security|duplicate key|invalid input syntax)\b/i.test(message)) {
+    return GENERIC_CAPTURE_FAILURE;
+  }
+  return message;
+}
+
 export function getCapturePresentation(
   capture: RecipeCapture,
   cookbookTitle?: string,
@@ -41,7 +51,7 @@ export function getCapturePresentation(
       phase: 'attention',
       label: 'Try again',
       title: recipeTitle,
-      detail: capture.failureMessage ?? capture.pageWarning ?? 'Nosh could not finish this recipe page.',
+      detail: presentableFailureMessage(capture.failureMessage ?? capture.pageWarning),
       cookbookTitle,
     };
   }

@@ -147,6 +147,7 @@ export function Cookbook3DScene({
   spreads,
   spreadIndex,
   isOpen,
+  reduceMotion = false,
   opening: propOpening,
   readingView = 'spread',
   readingPageId,
@@ -264,11 +265,13 @@ export function Cookbook3DScene({
 
   useEffect(() => {
     if (propOpening) return; // Parent owns the open/close animation.
-    opening.value = withTiming(isOpen ? 1 : 0, {
-      duration: isOpen ? 980 : 620,
-      easing: isOpen ? Easing.bezier(0.22, 0.72, 0.24, 1) : Easing.bezier(0.5, 0, 0.75, 0.2),
-    });
-  }, [isOpen, opening, propOpening]);
+    opening.value = reduceMotion
+      ? isOpen ? 1 : 0
+      : withTiming(isOpen ? 1 : 0, {
+          duration: isOpen ? 980 : 620,
+          easing: isOpen ? Easing.bezier(0.22, 0.72, 0.24, 1) : Easing.bezier(0.5, 0, 0.75, 0.2),
+        });
+  }, [isOpen, opening, propOpening, reduceMotion]);
 
   // Back cover: mirrors the front cover. When the book is open, the back
   // cover is at +175° (face-down on the right, under the pages). When the
@@ -278,11 +281,13 @@ export function Cookbook3DScene({
   const backOpening = useSharedValue(isBackClosed ? 0 : 1);
 
   useEffect(() => {
-    backOpening.value = withTiming(isBackClosed ? 0 : 1, {
-      duration: isBackClosed ? 620 : 760,
-      easing: isBackClosed ? Easing.bezier(0.5, 0, 0.75, 0.2) : Easing.bezier(0.22, 0.72, 0.24, 1),
-    });
-  }, [isBackClosed, backOpening]);
+    backOpening.value = reduceMotion
+      ? isBackClosed ? 0 : 1
+      : withTiming(isBackClosed ? 0 : 1, {
+          duration: isBackClosed ? 620 : 760,
+          easing: isBackClosed ? Easing.bezier(0.5, 0, 0.75, 0.2) : Easing.bezier(0.22, 0.72, 0.24, 1),
+        });
+  }, [isBackClosed, backOpening, reduceMotion]);
 
   // The cover swings from 0° (closed, over the right page) to -175° (open,
   // face-down on the left). The cover is always mounted — it stays in the
@@ -676,6 +681,12 @@ export function Cookbook3DScene({
           // If this was just a corner lift (touch without enough drag),
           // release quietly without haptic feedback.
           if (turnProgress.value <= CORNER_LIFT_PROGRESS + 0.02) {
+            if (reduceMotion) {
+              turnProgress.value = 0;
+              turnDirection.value = 0;
+              isSettling.value = 0;
+              return;
+            }
             isSettling.value = 1;
             turnProgress.value = withSpring(0, { damping: 22, stiffness: 220, mass: 0.6 }, () => {
               turnDirection.value = 0;
@@ -696,6 +707,12 @@ export function Cookbook3DScene({
 
           if (!canTurn || !release.commit) {
             runOnJS(notifyTurnCancelled)();
+            if (reduceMotion) {
+              turnProgress.value = 0;
+              turnDirection.value = 0;
+              isSettling.value = 0;
+              return;
+            }
             // When !canTurn, always direct velocity back to 0 to prevent
             // the spring from overshooting further into the turn.
             const cancelVelocity = canTurn ? release.settleVelocity : -Math.abs(release.settleVelocity);
@@ -707,6 +724,14 @@ export function Cookbook3DScene({
                 isSettling.value = 0;
               },
             );
+            return;
+          }
+
+          if (reduceMotion) {
+            turnProgress.value = 0;
+            turnDirection.value = 0;
+            isSettling.value = 0;
+            runOnJS(commitTurn)(direction);
             return;
           }
 
@@ -745,6 +770,7 @@ export function Cookbook3DScene({
       onOpenBack,
       onStageTap,
       readingPageHeight,
+      reduceMotion,
       turnDirection,
       turnGrabX,
       turnProgress,
@@ -772,8 +798,8 @@ export function Cookbook3DScene({
           <Animated.View style={styles.gestureSurface} pointerEvents="auto">
             {isPhysicalPageReading ? (
               <Animated.View
-                entering={zoomEntering}
-                exiting={zoomExiting}
+                entering={reduceMotion ? undefined : zoomEntering}
+                exiting={reduceMotion ? undefined : zoomExiting}
                 style={[
                   styles.physicalPageStage,
                   { width: readingPageGeometry.stageWidth, height: readingPageHeight + 30 },
@@ -923,7 +949,10 @@ export function Cookbook3DScene({
                 accessibilityElementsHidden={!isOpen}
                 importantForAccessibility={isOpen ? 'auto' : 'no-hide-descendants'}
               >
-                <Animated.View entering={zoomEntering} exiting={zoomExiting}>
+                <Animated.View
+                  entering={reduceMotion ? undefined : zoomEntering}
+                  exiting={reduceMotion ? undefined : zoomExiting}
+                >
                   <View
                     style={[styles.spreadStage, { width: bookGeometry.stageWidth, height: bookGeometry.stageHeight }]}
                   >

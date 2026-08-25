@@ -24,7 +24,12 @@ export const CreateBookVolume = React.memo(function CreateBookVolume({ width }: 
   return (
     <View style={[styles.boards, { width, height }]}>
       <Plus size={plusSize} color={Colors.duskGrey} strokeWidth={1.6} />
-      <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.25 }]}>New Cookbook</Text>
+      <Text
+        style={[styles.title, { fontSize: titleSize, lineHeight: titleSize * 1.25 }]}
+        allowFontScaling={false}
+      >
+        New Cookbook
+      </Text>
     </View>
   );
 });

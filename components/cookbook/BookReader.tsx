@@ -4,7 +4,7 @@ import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2 } from 'lucide-react-native';
+import { BookOpen, ChefHat, ChevronLeft, ChevronRight, Maximize2, Minimize2, Plus, Share2, X } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -12,12 +12,14 @@ import Animated, {
   interpolate,
   Keyframe,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAuth } from '@/hooks/useAuth';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
@@ -27,12 +29,22 @@ import { Fonts } from '@/utils/fonts';
 import {
   buildCookbookLeaves,
   buildCookbookSpreads,
+  getLeafIndexForPage,
   getSpreadIndexForPage,
   shouldAutoHideReaderChrome,
   shouldUseTouchPaging,
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import { trackEvent } from '@/utils/analytics';
+import {
+  defaultFirstRunOnboardingState,
+  loadFirstRunOnboardingState,
+  markFirstNoshTipSeen,
+  markFirstPageReaderCueSeen,
+  recordFirstReadyRecipeOpened,
+  type FirstRunOnboardingState,
+} from '@/utils/cookbook/firstRunOnboarding';
 
 interface BookReaderProps {
   cookbook: Cookbook | null;
@@ -42,6 +54,7 @@ interface BookReaderProps {
   onShare: (page: CookbookPage) => void;
   isStale?: boolean;
   onRefresh?: () => void;
+  readOnly?: boolean;
 }
 
 // Unified open/close durations and easings shared with Cookbook3DScene so
@@ -75,9 +88,12 @@ export function BookReader({
   onShare,
   isStale = false,
   onRefresh,
+  readOnly = false,
 }: BookReaderProps) {
   const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { open, recipePreview, setVisibleBookContext } = useNoshConversation();
   const renderedPages = useMemo(
     () =>
@@ -94,13 +110,17 @@ export function BookReader({
   const [isOpen, setIsOpen] = useState(Boolean(initialPageId));
   const [readingView, setReadingView] = useState<'spread' | 'page'>('spread');
   const [readingPageId, setReadingPageId] = useState(initialPageId);
-  const initialLeafIndex = useMemo(() => {
-    if (!initialPageId) return 2; // First recipe (after bookplate + ToC)
-    const index = leaves.findIndex((leaf) => leaf.id === initialPageId);
-    return index >= 0 ? index : 2;
-  }, [initialPageId, leaves]);
+  const initialLeafIndex = useMemo(
+    () => getLeafIndexForPage(leaves, initialPageId ?? pages[0]?.id),
+    [initialPageId, leaves, pages],
+  );
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
+    defaultFirstRunOnboardingState,
+  );
+  const [firstRunReady, setFirstRunReady] = useState(false);
+  const [firstPageCueDismissedThisSession, setFirstPageCueDismissedThisSession] = useState(false);
   const renderedFocusedPage =
     focusedPage && recipePreview?.pageId === focusedPage.id
       ? { ...focusedPage, recipeGraph: recipePreview.graph }
@@ -123,9 +143,9 @@ export function BookReader({
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (!autoHideChrome) return;
     idleTimerRef.current = setTimeout(() => {
-      chromeIdle.value = withTiming(0, { duration: 700 });
+      chromeIdle.value = reduceMotion ? 0 : withTiming(0, { duration: 700 });
     }, 3500);
-  }, [autoHideChrome, chromeIdle]);
+  }, [autoHideChrome, chromeIdle, reduceMotion]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -161,7 +181,7 @@ export function BookReader({
   const selectedPage = usesTouchPaging && readingView === 'page' ? readingPage : preferredSpreadPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
   // In one-page mode the counter tracks position in the full leaf list
-  // (bookplate, ToC, recipes, blank). In spread mode it tracks recipe pages.
+  // (bookplate, recipes, optional trailing blank). In spread mode it tracks recipe pages.
   const counterCurrent =
     usesTouchPaging && readingView === 'page'
       ? leafIndex + 1
@@ -170,6 +190,65 @@ export function BookReader({
         : spreadIndex + 1;
   const counterTotal =
     usesTouchPaging && readingView === 'page' ? leaves.length : pages.length > 0 ? pages.length : spreads.length;
+  const firstPageCue = firstRunReady
+    && firstRunState.status === 'completed'
+    && firstRunState.firstCookbookId === cookbookId
+    && !firstRunState.readerCueSeen
+    ? pages.find((page) => page.id === firstRunState.firstPageId) ?? null
+    : null;
+  const showFirstNoshTip = Boolean(
+    firstRunReady &&
+    firstRunState.status === 'completed' &&
+    firstRunState.firstCookbookId === cookbookId &&
+    firstRunState.readerCueSeen &&
+    !firstRunState.noshTipSeen &&
+    !firstPageCueDismissedThisSession &&
+    selectedPage &&
+    cookbook,
+  );
+  const firstAvailablePageId = pages[0]?.id;
+
+  useEffect(() => {
+    if (!user?.id || !cookbookId) {
+      setFirstRunState(defaultFirstRunOnboardingState());
+      setFirstRunReady(false);
+      return;
+    }
+    let cancelled = false;
+    setFirstRunReady(false);
+    void loadFirstRunOnboardingState(user.id)
+      .then(async (state) => {
+        let nextState = state;
+        if (
+          firstAvailablePageId &&
+          state.status === 'started' &&
+          state.firstCookbookId === cookbookId
+        ) {
+          const activation = await recordFirstReadyRecipeOpened(user.id, cookbookId, firstAvailablePageId);
+          nextState = activation.state;
+          if (activation.didActivate) {
+            trackEvent({
+              type: 'first_ready_recipe_opened',
+              data: { cookbookId, pageId: firstAvailablePageId, entryPoint: 'reader' },
+            });
+          }
+        }
+        if (cancelled) return;
+        setFirstRunState(nextState);
+        setFirstRunReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFirstRunReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cookbookId, firstAvailablePageId, user?.id]);
+
+  useEffect(() => {
+    setFirstPageCueDismissedThisSession(false);
+  }, [cookbookId]);
 
   useEffect(() => {
     setVisibleBookContext({
@@ -212,6 +291,12 @@ export function BookReader({
   useEffect(() => {
     if (initialPageId) return;
 
+    if (reduceMotion) {
+      setIsOpen(true);
+      opening.set(1);
+      return;
+    }
+
     entryOpenTimerRef.current = setTimeout(() => {
       entryOpenTimerRef.current = null;
       setIsOpen(true);
@@ -227,7 +312,7 @@ export function BookReader({
       if (entryOpenTimerRef.current) clearTimeout(entryOpenTimerRef.current);
       entryOpenTimerRef.current = null;
     };
-  }, [initialPageId, opening]);
+  }, [initialPageId, opening, reduceMotion]);
 
   const chromeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(opening.value, [0, 0.82, 1], [0, 0, 1]) * chromeIdle.value,
@@ -254,14 +339,15 @@ export function BookReader({
       const targetPage = readingPage ?? pages[0];
       setReadingPageId(targetPage.id);
       onSelectPage(targetPage.id);
-      const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === targetPage.id);
-      if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
+      setLeafIndex(getLeafIndexForPage(leaves, targetPage.id));
     }
     opening.set(
-      withTiming(1, {
-        duration: OPEN_DURATION,
-        easing: OPEN_EASING,
-      }),
+      reduceMotion
+        ? 1
+        : withTiming(1, {
+            duration: OPEN_DURATION,
+            easing: OPEN_EASING,
+          }),
     );
     pokeChrome();
   }
@@ -272,10 +358,12 @@ export function BookReader({
     setReadingView('spread');
     setSpreadIndex(0);
     opening.set(
-      withTiming(0, {
-        duration: CLOSE_DURATION,
-        easing: CLOSE_EASING,
-      }),
+      reduceMotion
+        ? 0
+        : withTiming(0, {
+            duration: CLOSE_DURATION,
+            easing: CLOSE_EASING,
+          }),
     );
   }
 
@@ -326,6 +414,37 @@ export function BookReader({
     pokeChrome();
   }
 
+  function dismissFirstPageCue() {
+    setFirstPageCueDismissedThisSession(true);
+    setFirstRunState((current) => ({ ...current, readerCueSeen: true }));
+    if (user?.id) {
+      void markFirstPageReaderCueSeen(user.id).catch(() => undefined);
+    }
+  }
+
+  function dismissFirstNoshTip() {
+    setFirstRunState((current) => ({ ...current, noshTipSeen: true }));
+    if (user?.id) {
+      void markFirstNoshTipSeen(user.id).catch(() => undefined);
+    }
+  }
+
+  function openNoshFromFirstTip() {
+    if (!cookbook || !selectedPage) return;
+    dismissFirstNoshTip();
+    setVisibleBookContext({ cookbook, pages, page: selectedPage });
+    open('recipe-ask', {
+      kind: 'recipe',
+      cookbookId: cookbook.id,
+      pageId: selectedPage.id,
+      title: selectedPage.title,
+    });
+    trackEvent({
+      type: 'first_contextual_nosh_opened',
+      data: { cookbookId: cookbook.id, pageId: selectedPage.id },
+    });
+  }
+
   function toggleReadingView() {
     setReadingView((prev) => {
       if (prev === 'spread') {
@@ -350,6 +469,8 @@ export function BookReader({
     if (targetPage) {
       setReadingPageId(targetPage.id);
       onSelectPage(targetPage.id);
+      const targetLeafIndex = leaves.findIndex((leaf) => leaf.id === targetPage.id);
+      if (targetLeafIndex >= 0) setLeafIndex(targetLeafIndex);
       // The web book uses a lightweight art texture for its 3D spread. Open
       // the live typeset PageCanvas when the user asks to read the page.
       if (Platform.OS === 'web') {
@@ -378,6 +499,7 @@ export function BookReader({
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
             {cookbookTitle}
           </Text>
+          {readOnly ? <Text style={styles.sampleLabel}>SAMPLE COOKBOOK</Text> : null}
         </View>
         {isOpen && selectedPage ? (
           <Pressable
@@ -409,6 +531,7 @@ export function BookReader({
           spreads={spreads}
           spreadIndex={spreadIndex}
           isOpen={isOpen}
+          reduceMotion={reduceMotion}
           opening={opening}
           readingView={readingView}
           readingPageId={readingPageId}
@@ -425,6 +548,60 @@ export function BookReader({
           onEnterReadingView={enterReadingView}
           onOpenRecipe={setFocusedPage}
         />
+        {!readOnly && isOpen && pages.length === 0 ? (
+          <View
+            style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={styles.emptyBookEyebrow} maxFontSizeMultiplier={1.35}>YOUR BOOK IS READY</Text>
+            <Text style={styles.emptyBookTitle} maxFontSizeMultiplier={1.35}>
+              Turn a recipe you love into its first page.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
+              onPress={openAddPage}
+              accessibilityRole="button"
+              accessibilityLabel={`Add the first recipe to ${cookbookTitle}`}
+            >
+              <Plus size={18} color={Colors.onPrimary} />
+              <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Add my first recipe</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!readOnly && isOpen && firstPageCue ? (
+          <View
+            style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={styles.firstPageEyebrow} maxFontSizeMultiplier={1.35}>YOUR FIRST PAGE IS HOME</Text>
+            <Text style={styles.firstPageTitle} numberOfLines={2} maxFontSizeMultiplier={1.35}>
+              {firstPageCue.title}
+            </Text>
+            <Text style={styles.firstPageCopy} maxFontSizeMultiplier={1.35}>
+              This is your designed recipe page. Open it to read, cook, and ask Nosh about the recipe.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
+              onPress={() => {
+                dismissFirstPageCue();
+                enterReadingView(firstPageCue);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Read my first recipe, ${firstPageCue.title}`}
+            >
+              <BookOpen size={18} color={Colors.onPrimary} />
+              <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Read my recipe</Text>
+            </Pressable>
+            <Pressable
+              style={styles.firstPageDismiss}
+              onPress={dismissFirstPageCue}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss first page introduction"
+            >
+              <Text style={styles.firstPageDismissText} maxFontSizeMultiplier={1.35}>Keep browsing</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
       <Animated.View
@@ -491,13 +668,18 @@ export function BookReader({
         </Pressable>
       </Animated.View>
 
-      {isOpen && (selectedPage || cookbookId) ? (
+      {!readOnly && pages.length > 0 && isOpen && (selectedPage || cookbookId) ? (
         <Animated.View
           style={[styles.readerActionDock, { top: insets.top + 58 }, floatingIdleStyle]}
           pointerEvents="auto"
         >
           {selectedPage && cookbook ? (
-            <NoshAssistantChatButton page={selectedPage} cookbook={cookbook} cookbookPages={pages} />
+            <NoshAssistantChatButton
+              page={selectedPage}
+              cookbook={cookbook}
+              cookbookPages={pages}
+              onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
+            />
           ) : null}
           {cookbookId ? (
             <Pressable
@@ -512,8 +694,51 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
+      {!readOnly && isOpen && showFirstNoshTip && selectedPage ? (
+        <Animated.View
+          style={[
+            styles.firstNoshTip,
+            { top: insets.top + 112, width: Math.min(width - Spacing.xl * 2, 310) },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          <View style={styles.firstNoshTipHeader}>
+            <View style={styles.firstNoshTipIcon}>
+              <ChefHat size={17} color={Colors.onPrimary} />
+            </View>
+            <View style={styles.firstNoshTipHeadingCopy}>
+              <Text style={styles.firstNoshTipEyebrow}>NOSH IS HERE, TOO</Text>
+              <Text style={styles.firstNoshTipTitle}>Your chef knows this recipe.</Text>
+            </View>
+            <Pressable
+              style={styles.firstNoshTipClose}
+              onPress={dismissFirstNoshTip}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss Ask Nosh introduction"
+            >
+              <X size={16} color={Colors.textSecondary} />
+            </Pressable>
+          </View>
+          <Text style={styles.firstNoshTipCopy}>
+            Ask about substitutions, technique, timing, or anything on this page.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.firstNoshTipButton, pressed && styles.actionPressed]}
+            onPress={openNoshFromFirstTip}
+            accessibilityRole="button"
+            accessibilityLabel={`Ask Nosh about ${selectedPage.title} now`}
+          >
+            <Text style={styles.firstNoshTipButtonText}>Ask Nosh about this recipe</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       {focusedPage ? (
-        <Animated.View entering={FadeIn.duration(170)} exiting={FadeOut.duration(140)} style={styles.focusedOverlay}>
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(170)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(140)}
+          style={styles.focusedOverlay}
+        >
           <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
               <Pressable
@@ -523,9 +748,9 @@ export function BookReader({
                 accessibilityLabel="Return to open cookbook"
               >
                 <ChevronLeft size={18} color={Colors.text} />
-                <Text style={styles.focusedActionText}>Cookbook</Text>
+                <Text style={styles.focusedActionText} maxFontSizeMultiplier={1.35}>Cookbook</Text>
               </Pressable>
-              <Text style={styles.focusedTitle} numberOfLines={1}>
+              <Text style={styles.focusedTitle} numberOfLines={1} maxFontSizeMultiplier={1.35}>
                 {focusedPage.title}
               </Text>
               <Pressable
@@ -542,7 +767,10 @@ export function BookReader({
                   <Text style={styles.sessionPreviewText}>Session preview</Text>
                 </View>
               ) : null}
-              <Animated.View entering={focusedPageEnter} exiting={focusedPageExit}>
+              <Animated.View
+                entering={reduceMotion ? undefined : focusedPageEnter}
+                exiting={reduceMotion ? undefined : focusedPageExit}
+              >
                 <PageCanvas page={renderedFocusedPage ?? focusedPage} />
               </Animated.View>
             </View>
@@ -553,7 +781,7 @@ export function BookReader({
               accessibilityLabel="Back to open cookbook"
             >
               <ChevronLeft size={17} color={Colors.onPrimary} />
-              <Text style={styles.focusedReturnText}>Back to cookbook</Text>
+              <Text style={styles.focusedReturnText} maxFontSizeMultiplier={1.35}>Back to cookbook</Text>
             </Pressable>
           </LinearGradient>
         </Animated.View>
@@ -606,6 +834,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
   },
+  sampleLabel: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 8,
+    lineHeight: 11,
+    letterSpacing: 1.1,
+    textAlign: 'center',
+  },
   iconButton: {
     width: 38,
     height: 38,
@@ -622,6 +858,106 @@ const styles = StyleSheet.create({
   stage: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
+  },
+  emptyBookPrompt: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+    maxWidth: 340,
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.96)',
+    boxShadow: Colors.book.cardShadow,
+    zIndex: 8,
+  },
+  emptyBookEyebrow: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  emptyBookTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 18,
+    lineHeight: 23,
+    textAlign: 'center',
+  },
+  emptyBookButton: {
+    minHeight: 48,
+    minWidth: 220,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+  },
+  emptyBookButtonText: {
+    color: Colors.onPrimary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  firstPageMoment: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+    maxWidth: 360,
+    alignSelf: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.97)',
+    boxShadow: Colors.book.liftedShadow,
+    zIndex: 9,
+  },
+  firstPageEyebrow: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  firstPageTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.bold,
+    fontSize: 22,
+    lineHeight: 27,
+    textAlign: 'center',
+  },
+  firstPageCopy: {
+    maxWidth: 310,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  firstPageDismiss: {
+    minHeight: 44,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+  },
+  firstPageDismissText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 13,
+    lineHeight: 18,
   },
   readerControls: {
     position: 'absolute',
@@ -707,6 +1043,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  firstNoshTip: {
+    position: 'absolute',
+    right: Spacing.lg,
+    zIndex: 14,
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: 'rgba(250,248,243,0.98)',
+    boxShadow: Colors.book.liftedShadow,
+  },
+  firstNoshTipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  firstNoshTipIcon: {
+    width: 34,
+    height: 34,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+  },
+  firstNoshTipHeadingCopy: { flex: 1 },
+  firstNoshTipEyebrow: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 8,
+    lineHeight: 12,
+    letterSpacing: 1,
+  },
+  firstNoshTipTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  firstNoshTipClose: {
+    width: 44,
+    height: 44,
+    margin: -Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+  },
+  firstNoshTipCopy: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  firstNoshTipButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.charcoal,
+    backgroundColor: Colors.white,
+  },
+  firstNoshTipButtonText: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
   actionPressed: {
     opacity: 0.82,

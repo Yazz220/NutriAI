@@ -174,6 +174,8 @@ export function UnifiedIntakeComposer({
         placeholderTextColor={Colors.textMuted}
         editable={!isSubmitting}
         textAlignVertical="top"
+        maxFontSizeMultiplier={2}
+        scrollEnabled
       />
 
       {detectedType && !isSubmitting ? (
@@ -294,7 +296,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     fontSize: 14,
     lineHeight: 24,
-    minHeight: 120,
+    height: 120,
   },
   detectedHint: {
     color: Colors.textMuted,

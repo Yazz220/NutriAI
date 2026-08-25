@@ -1,19 +1,76 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { ShelfScene } from '@/components/shelf/ShelfScene';
 import { NoshShelfChatButton } from '@/components/cookbook/NoshAssistantChat';
+import { FirstRunWelcome } from '@/components/onboarding/FirstRunWelcome';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { useCookbooks } from '@/hooks/useCookbooks';
+import { useAuth } from '@/hooks/useAuth';
+import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import type { Cookbook } from '@/types/cookbook';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import {
+  defaultFirstRunOnboardingState,
+  consumeFirstRunOnboardingReset,
+  loadFirstRunOnboardingState,
+  saveFirstRunOnboardingStatus,
+  shouldPresentFirstRunWelcome,
+  type FirstRunOnboardingState,
+} from '@/utils/cookbook/firstRunOnboarding';
+import { isSampleCookbookId, SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
 
 export default function MyCookbooksScreen() {
   const { cookbooks, isLoading, isShelfStale, shelfError, refresh } = useCookbooks();
+  const { fontScale } = useWindowDimensions();
+  const usesAccessibilityText = fontScale >= 2;
+  const { user } = useAuth();
+  const { receipt } = useNoshNativeShare();
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
+    defaultFirstRunOnboardingState,
+  );
+  const [firstRunReady, setFirstRunReady] = useState(false);
+  const realCookbooks = useMemo(
+    () => cookbooks.filter((cookbook) => !isSampleCookbookId(cookbook.id)),
+    [cookbooks],
+  );
+
+  useEffect(() => {
+    if (!user?.id) {
+      setFirstRunState(defaultFirstRunOnboardingState());
+      setFirstRunReady(false);
+      return;
+    }
+    let cancelled = false;
+    setFirstRunReady(false);
+    consumeFirstRunOnboardingReset(user.id)
+      .then((resetState) => resetState ?? loadFirstRunOnboardingState(user.id))
+      .then((state) => {
+        if (cancelled) return;
+        setFirstRunState(state);
+        setFirstRunReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFirstRunState(defaultFirstRunOnboardingState());
+        setFirstRunReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const showFirstRunWelcome = shouldPresentFirstRunWelcome({
+    isReady: firstRunReady && !isLoading,
+    cookbookCount: realCookbooks.length,
+    status: firstRunState.status,
+    hasNativeShareWork: receipt.status !== 'idle',
+    forceWelcomeForTesting: firstRunState.forceWelcomeForTesting,
+  });
 
   function openLibrary() {
     router.push('/(book)/library');
@@ -25,6 +82,37 @@ export default function MyCookbooksScreen() {
 
   function openCookbook(cookbook: Cookbook) {
     router.push(`/(book)/${cookbook.id}`);
+  }
+
+  async function beginFirstCookbook() {
+    if (user?.id) {
+      setFirstRunState(await saveFirstRunOnboardingStatus(user.id, 'started').catch(() => ({
+        ...defaultFirstRunOnboardingState(),
+        status: 'started' as const,
+        updatedAt: new Date().toISOString(),
+      })));
+    }
+    router.push('/(book)/library?firstRun=1');
+  }
+
+  function previewSampleCookbook() {
+    router.push(`/(book)/${SAMPLE_COOKBOOK_ID}`);
+  }
+
+  async function skipFirstRun() {
+    if (user?.id) {
+      setFirstRunState(await saveFirstRunOnboardingStatus(user.id, 'skipped').catch(() => ({
+        ...defaultFirstRunOnboardingState(),
+        status: 'skipped' as const,
+        updatedAt: new Date().toISOString(),
+      })));
+    } else {
+      setFirstRunState({
+        ...defaultFirstRunOnboardingState(),
+        status: 'skipped',
+        updatedAt: new Date().toISOString(),
+      });
+    }
   }
 
   if (isLoading && cookbooks.length === 0) {
@@ -49,32 +137,54 @@ export default function MyCookbooksScreen() {
 
   return (
     <View style={styles.container}>
-      <ShelfScene
-        cookbooks={cookbooks}
-        onSelectCookbook={openCookbook}
-        onAddCookbook={openLibrary}
-        onOpenSettings={openSettings}
-        isStale={isShelfStale}
-        onRefresh={() => {
-          void refresh();
-        }}
-      />
-      <NoshShelfChatButton />
-      <Pressable
-        style={styles.captureButton}
-        onPress={() => router.push('/(book)/save')}
-        accessibilityRole="button"
-        accessibilityLabel="Save a recipe with Nosh"
+      <View
+        testID="cookbook-shelf-content"
+        style={styles.shelfContent}
+        pointerEvents={showFirstRunWelcome ? 'none' : 'auto'}
+        accessibilityElementsHidden={showFirstRunWelcome}
+        importantForAccessibility={showFirstRunWelcome ? 'no-hide-descendants' : 'auto'}
       >
-        <Plus size={17} color={Colors.text} />
-        <Text style={styles.captureButtonText}>Save a recipe</Text>
-      </Pressable>
+        <ShelfScene
+          cookbooks={cookbooks}
+          onSelectCookbook={openCookbook}
+          onAddCookbook={openLibrary}
+          onOpenSettings={openSettings}
+          isStale={isShelfStale}
+          onRefresh={() => {
+            void refresh();
+          }}
+        />
+        <NoshShelfChatButton />
+        <Pressable
+          style={[styles.captureButton, usesAccessibilityText && styles.captureButtonAccessibilityText]}
+          onPress={() => router.push('/(book)/save')}
+          accessibilityRole="button"
+          accessibilityLabel="Save a recipe with Nosh"
+        >
+          <Plus size={17} color={Colors.text} />
+          {!usesAccessibilityText ? <Text style={styles.captureButtonText}>Save a recipe</Text> : null}
+        </Pressable>
+      </View>
+      {showFirstRunWelcome ? (
+        <FirstRunWelcome
+          onCreateCookbook={() => {
+            void beginFirstCookbook();
+          }}
+          onPreviewSample={previewSampleCookbook}
+          onSkip={() => {
+            void skipFirstRun();
+          }}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  shelfContent: {
     flex: 1,
   },
   loading: {
@@ -98,5 +208,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.parchment,
     paddingHorizontal: Spacing.md,
     boxShadow: Colors.book.cardShadow,
+  },
+  captureButtonAccessibilityText: {
+    width: 54,
+    height: 54,
+    minHeight: 54,
+    justifyContent: 'center',
+    paddingHorizontal: 0,
   },
 });

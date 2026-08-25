@@ -21,6 +21,7 @@ import { Radii, Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { Cookbook } from '@/types/cookbook';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
@@ -37,6 +38,15 @@ import {
   type CapturePresentationPhase,
 } from '@/utils/cookbook/capturePresentation';
 import { Fonts } from '@/utils/fonts';
+import { trackEvent } from '@/utils/analytics';
+import {
+  defaultFirstRunOnboardingState,
+  isFirstRunCapture,
+  loadFirstRunOnboardingState,
+  recordFirstCaptureStarted,
+  recordFirstReadyRecipeOpened,
+  type FirstRunOnboardingState,
+} from '@/utils/cookbook/firstRunOnboarding';
 
 interface NoshCaptureWorkspaceProps {
   destinationCookbookId?: string;
@@ -58,6 +68,7 @@ export function NoshCaptureWorkspace({
   initialSource,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
+  const { close: closeNoshConversation } = useNoshConversation();
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const captureState = useRecipeCaptures();
@@ -66,6 +77,10 @@ export function NoshCaptureWorkspace({
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activityLimit, setActivityLimit] = useState(INITIAL_ACTIVITY_LIMIT);
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
+    defaultFirstRunOnboardingState,
+  );
+  const [firstRunReady, setFirstRunReady] = useState(false);
   const handoffStartedRef = useRef(false);
   const availableCookbooks = useMemo(
     () => cookbooks.filter((cookbook) => cookbook.userId === user?.id),
@@ -80,9 +95,39 @@ export function NoshCaptureWorkspace({
     [captureState.captures],
   );
   const capture = captureState.captures.find((candidate) => candidate.id === captureId);
+  const activeDestinationCookbookId = capture?.destinationCookbookId
+    ?? destinationCookbookId;
   const destination = availableCookbooks.find(
-    (cookbook) => cookbook.id === capture?.destinationCookbookId,
+    (cookbook) => cookbook.id === activeDestinationCookbookId,
   );
+  const isFirstCaptureExperience = firstRunReady && isFirstRunCapture(
+    firstRunState,
+    activeDestinationCookbookId,
+    capture?.id,
+  );
+
+  useEffect(() => {
+    if (!user?.id) {
+      setFirstRunState(defaultFirstRunOnboardingState());
+      setFirstRunReady(false);
+      return;
+    }
+    let cancelled = false;
+    setFirstRunReady(false);
+    loadFirstRunOnboardingState(user.id)
+      .then((state) => {
+        if (cancelled) return;
+        setFirstRunState(state);
+        setFirstRunReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFirstRunReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (initialCaptureId) setCaptureId(initialCaptureId);
@@ -109,6 +154,24 @@ export function NoshCaptureWorkspace({
         destinationCookbookId: normalizeCaptureDestinationCookbookId(destinationCookbookId),
         idempotencyKey: requestKey,
       });
+      const firstCapture = await recordFirstCaptureStarted(
+        user.id,
+        result.capture.id,
+        result.capture.destinationCookbookId ?? normalizeCaptureDestinationCookbookId(destinationCookbookId),
+      ).catch(() => null);
+      if (firstCapture) {
+        setFirstRunState(firstCapture.state);
+        if (firstCapture.didRecord) {
+          trackEvent({
+            type: 'first_recipe_capture_started',
+            data: {
+              captureId: result.capture.id,
+              sourceType: source.type,
+              cookbookId: result.capture.destinationCookbookId ?? destinationCookbookId,
+            },
+          });
+        }
+      }
       setCaptureId(result.capture.id);
       setInput('');
       setImageBase64(null);
@@ -152,10 +215,37 @@ export function NoshCaptureWorkspace({
     setActivityLimit(INITIAL_ACTIVITY_LIMIT);
   }
 
+  async function openRecipe() {
+    if (!capture?.destinationCookbookId || !capture.pageId) return;
+    if (user?.id) {
+      const activation = await recordFirstReadyRecipeOpened(
+        user.id,
+        capture.destinationCookbookId,
+        capture.pageId,
+      ).catch(() => null);
+      if (activation) {
+        setFirstRunState(activation.state);
+        if (activation.didActivate) {
+          trackEvent({
+            type: 'first_ready_recipe_opened',
+            data: {
+              captureId: capture.id,
+              cookbookId: capture.destinationCookbookId,
+              pageId: capture.pageId,
+            },
+          });
+        }
+      }
+    }
+    closeNoshConversation();
+    router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`);
+  }
+
   if (capture) {
     return (
       <CaptureDetail
         capture={capture}
+        firstRun={isFirstCaptureExperience}
         destination={destination}
         availableCookbooks={availableCookbooks}
         error={error}
@@ -165,11 +255,7 @@ export function NoshCaptureWorkspace({
         onChooseDestination={chooseDestination}
         onRetry={() => void captureState.retryCapture(capture.id)}
         onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
-        onOpenRecipe={() => {
-          if (capture.destinationCookbookId && capture.pageId) {
-            router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`);
-          }
-        }}
+        onOpenRecipe={() => { void openRecipe(); }}
       />
     );
   }
@@ -185,6 +271,7 @@ export function NoshCaptureWorkspace({
 
   return (
     <View style={styles.workspace}>
+      {isFirstCaptureExperience ? <FirstCaptureIntro cookbookTitle={destination?.title} /> : null}
       <UnifiedIntakeComposer
         isSubmitting={captureState.isStarting}
         input={input}
@@ -212,6 +299,7 @@ export function NoshCaptureWorkspace({
 
 function CaptureDetail({
   capture,
+  firstRun,
   destination,
   availableCookbooks,
   error,
@@ -224,6 +312,7 @@ function CaptureDetail({
   onOpenRecipe,
 }: {
   capture: RecipeCapture;
+  firstRun: boolean;
   destination?: Cookbook;
   availableCookbooks: Cookbook[];
   error: string | null;
@@ -252,7 +341,9 @@ function CaptureDetail({
           <View style={styles.reassurance}>
             <Clock3 size={15} color={Colors.textSecondary} />
             <Text style={styles.reassuranceText}>
-              Nosh is still working. You can close this sheet and come back—nothing will be lost.
+              {firstRun
+                ? 'Your source is safely saved. You can close this sheet while Nosh makes your first page—nothing will be lost.'
+                : 'Nosh is still working. You can close this sheet and come back—nothing will be lost.'}
             </Text>
           </View>
         </View>
@@ -312,9 +403,11 @@ function CaptureDetail({
           icon={<Check size={21} color={Colors.onSuccess} />}
           iconTone="success"
           eyebrow={presentation.detail}
-          title="Your page is ready"
-          copy={`${capture.recipeGraph?.title ?? 'The recipe'} is in the book and ready to read.`}
-          action={<Button title="Open recipe" onPress={onOpenRecipe} fullWidth />}
+          title={firstRun ? 'Your first page is ready' : 'Your page is ready'}
+          copy={firstRun
+            ? `${capture.recipeGraph?.title ?? 'The recipe'} now has a home in your cookbook.`
+            : `${capture.recipeGraph?.title ?? 'The recipe'} is in the book and ready to read.`}
+          action={<Button title={firstRun ? 'Open my first page' : 'Open recipe'} onPress={onOpenRecipe} fullWidth />}
         />
       </View>
     );
@@ -334,10 +427,40 @@ function CaptureDetail({
   );
 }
 
-function CaptureProgress({ capture }: { capture: RecipeCapture }) {
+function FirstCaptureIntro({ cookbookTitle }: { cookbookTitle?: string }) {
   return (
-    <View style={styles.progress} accessibilityLabel="Recipe page progress">
-      {captureProgressSteps(capture).map((step, index, steps) => (
+    <View style={styles.firstCaptureIntro} accessibilityLiveRegion="polite">
+      <View style={styles.firstCaptureIcon}>
+        <BookOpen size={18} color={Colors.text} />
+      </View>
+      <View style={styles.firstCaptureCopy}>
+        <Text style={styles.firstCaptureEyebrow}>YOUR FIRST PAGE</Text>
+        <Text style={styles.firstCaptureTitle}>Start with a recipe you already love.</Text>
+        <Text style={styles.firstCaptureBody}>
+          Paste a link or recipe text, or attach a photo or video. Nosh will turn your source into a finished page{cookbookTitle ? ` for ${cookbookTitle}` : ''}.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function CaptureProgress({ capture }: { capture: RecipeCapture }) {
+  const steps = captureProgressSteps(capture);
+  const activeStep = steps.find((step) => step.state === 'active');
+  const completeCount = steps.filter((step) => step.state === 'complete').length;
+  const progressText = activeStep
+    ? `${activeStep.label} in progress. ${completeCount} of ${steps.length} steps complete.`
+    : `${completeCount} of ${steps.length} steps complete.`;
+
+  return (
+    <View
+      style={styles.progress}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Recipe page progress"
+      accessibilityValue={{ min: 0, max: steps.length, now: completeCount, text: progressText }}
+    >
+      {steps.map((step, index) => (
         <View key={step.label} style={styles.progressRow}>
           <View style={styles.progressRail}>
             <View style={[
@@ -559,6 +682,45 @@ function CookbookChoice({
 
 const styles = StyleSheet.create({
   workspace: { gap: Spacing.lg },
+  firstCaptureIntro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.parchment,
+  },
+  firstCaptureIcon: {
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+  },
+  firstCaptureCopy: { flex: 1, gap: 3 },
+  firstCaptureEyebrow: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 9,
+    lineHeight: 13,
+    letterSpacing: 1.1,
+  },
+  firstCaptureTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  firstCaptureBody: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   center: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   loadingCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: 13 },
   detailStack: { gap: Spacing.sm },

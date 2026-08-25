@@ -4,7 +4,7 @@ import { fetchCookbookPages, getCookbook, updateCookbookPageTemplate } from '@/u
 import { loadCachedCookbook, loadCachedPages, saveCachedPages } from '@/utils/cookbook/cache';
 import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 import { useAuth } from '@/hooks/useAuth';
-import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
+import { isSampleCookbookId, SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleCookbook';
 import type { Cookbook, CookbookPage, RecipeTemplateId } from '@/types/cookbook';
 
 export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
@@ -31,7 +31,7 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-  const isSampleCookbook = shouldShowSampleCookbook(cookbookId);
+  const isSampleCookbook = isSampleCookbookId(cookbookId);
 
   const cookbookQuery = useQuery({
     queryKey: COOKBOOK_QUERY_KEY(cookbookId),

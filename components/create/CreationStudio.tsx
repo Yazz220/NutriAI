@@ -13,17 +13,19 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Check, Feather, Leaf, Sparkles } from 'lucide-react-native';
+import { BookOpen, Check, Feather, Leaf, SlidersHorizontal, Sparkles } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import {
   COOKBOOK_PAGE_STYLES,
   DEFAULT_CREATION_PAGE_STYLE_ID,
+  FIRST_BOOK_LOOKS,
   listCreationPageStyles,
   listFeaturedCookbookCoverFinishes,
   type CookbookCoverFinishOption,
   type CookbookPageStyleOption,
   type CreationPageStyleId,
+  type FirstBookLookOption,
 } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
@@ -48,6 +50,7 @@ interface CreationStudioProps {
   ) => Promise<void>;
   onSignIn: () => void;
   bottomInset?: number;
+  mode?: 'standard' | 'first-run';
 }
 
 export function CreationStudio({
@@ -55,16 +58,20 @@ export function CreationStudio({
   onCreateBook,
   onSignIn,
   bottomInset = 0,
+  mode = 'standard',
 }: CreationStudioProps) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const coverFinishes = listFeaturedCookbookCoverFinishes();
   const pageStyles = listCreationPageStyles();
-  const [title, setTitle] = useState('');
+  const isFirstRun = mode === 'first-run';
+  const [title, setTitle] = useState(isFirstRun ? 'My Cookbook' : '');
   const [coverStyle, setCoverStyle] = useState<CookbookStyleId>(coverFinishes[0].id);
   const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
   const [previewFace, setPreviewFace] = useState<PreviewFace>('cover');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFineTune, setShowFineTune] = useState(false);
+  const stackFirstLooks = width < 390 || fontScale > 1.2;
 
   function selectWithHaptic<T>(setter: (value: T) => void, value: T) {
     setter(value);
@@ -75,6 +82,14 @@ export function CreationStudio({
   function selectPageStyle(value: CreationPageStyleId) {
     selectWithHaptic(setPageStyleId, value);
     setPreviewFace('inside');
+  }
+
+  function selectFirstBookLook(option: FirstBookLookOption) {
+    setCoverStyle(option.coverStyle);
+    setPageStyleId(option.pageStyleId);
+    setPreviewFace('cover');
+    setError(null);
+    void Haptics.selectionAsync().catch(() => undefined);
   }
 
   async function handleCreate() {
@@ -102,10 +117,12 @@ export function CreationStudio({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heading}>
-          <Text style={styles.eyebrow}>CREATE COOKBOOK</Text>
-          <Text style={styles.headingTitle}>Make it yours</Text>
+          <Text style={styles.eyebrow}>{isFirstRun ? 'YOUR FIRST COOKBOOK' : 'CREATE COOKBOOK'}</Text>
+          <Text style={styles.headingTitle}>{isFirstRun ? 'Give your recipes a home' : 'Make it yours'}</Text>
           <Text style={styles.headingSubtitle}>
-            One book, personalized for the way you want to cook and collect.
+            {isFirstRun
+              ? 'Name your book and choose a look. You can change the details any time.'
+              : 'One book, personalized for the way you want to cook and collect.'}
           </Text>
         </View>
 
@@ -127,11 +144,36 @@ export function CreationStudio({
             setTitle(value);
             setError(null);
           }} />
-          <CoverSelector value={coverStyle} options={coverFinishes} onChange={(value) => {
-            selectWithHaptic(setCoverStyle, value);
-            setPreviewFace('cover');
-          }} />
-          <PageStyleSelector value={pageStyleId} options={pageStyles} onChange={selectPageStyle} />
+          {isFirstRun ? (
+            <>
+              <FirstBookLookSelector
+                coverStyle={coverStyle}
+                pageStyleId={pageStyleId}
+                stacked={stackFirstLooks}
+                onChange={selectFirstBookLook}
+              />
+              <Pressable
+                style={styles.customizeButton}
+                onPress={() => setShowFineTune((value) => !value)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showFineTune }}
+              >
+                <SlidersHorizontal size={17} color={Colors.text} />
+                <Text style={styles.customizeButtonText}>
+                  {showFineTune ? 'Hide detailed options' : 'Customize details'}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+          {!isFirstRun || showFineTune ? (
+            <>
+              <CoverSelector value={coverStyle} options={coverFinishes} onChange={(value) => {
+                selectWithHaptic(setCoverStyle, value);
+                setPreviewFace('cover');
+              }} />
+              <PageStyleSelector value={pageStyleId} options={pageStyles} onChange={selectPageStyle} />
+            </>
+          ) : null}
 
           {error ? <Text style={styles.error} selectable>{error}</Text> : null}
           {!canCreate ? <Text style={styles.note}>Sign in to add cookbooks to your shelf.</Text> : null}
@@ -141,14 +183,22 @@ export function CreationStudio({
             onPress={canCreate ? () => void handleCreate() : onSignIn}
             disabled={ctaDisabled}
             accessibilityRole="button"
-            accessibilityLabel={canCreate ? 'Add this cookbook to my shelf' : 'Go to sign in'}
+            accessibilityLabel={
+              canCreate
+                ? isFirstRun
+                  ? 'Put this cookbook on my shelf'
+                  : 'Add this cookbook to my shelf'
+                : 'Go to sign in'
+            }
           >
             {submitting ? (
               <ActivityIndicator color={Colors.onPrimary} />
             ) : (
               <>
                 <BookOpen size={18} color={Colors.onPrimary} />
-                <Text style={styles.finishText}>{canCreate ? 'Add to my shelf' : 'Sign in to save'}</Text>
+                <Text style={styles.finishText}>
+                  {canCreate ? (isFirstRun ? 'Put it on my shelf' : 'Add to my shelf') : 'Sign in to save'}
+                </Text>
               </>
             )}
           </Pressable>
@@ -301,6 +351,55 @@ function TitleField({ value, onChange }: { value: string; onChange: (value: stri
         maxLength={48}
         returnKeyType="done"
       />
+    </View>
+  );
+}
+
+function FirstBookLookSelector({
+  coverStyle,
+  pageStyleId,
+  stacked,
+  onChange,
+}: {
+  coverStyle: CookbookStyleId;
+  pageStyleId: CreationPageStyleId;
+  stacked: boolean;
+  onChange: (option: FirstBookLookOption) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <View>
+        <Text style={styles.sectionTitle}>Choose a look</Text>
+        <Text style={styles.sectionHint}>A matched cover and page style—easy to refine later.</Text>
+      </View>
+      <View style={[styles.firstLookGrid, stacked && styles.firstLookGridStacked]}>
+        {FIRST_BOOK_LOOKS.map((option) => {
+          const selected = coverStyle === option.coverStyle && pageStyleId === option.pageStyleId;
+          const binding = getCookbookBindingForStyle(option.coverStyle);
+          return (
+            <Pressable
+              key={option.id}
+              style={[
+                styles.firstLookCard,
+                stacked && styles.firstLookCardStacked,
+                selected && styles.optionSelected,
+              ]}
+              onPress={() => onChange(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${option.name}: ${option.description}`}
+            >
+              <View style={[styles.firstLookBook, { backgroundColor: binding.cloth }]}>
+                <View style={[styles.firstLookSpine, { backgroundColor: binding.band }]} />
+                <View style={[styles.firstLookFoil, { backgroundColor: binding.foil[1] }]} />
+              </View>
+              <Text style={styles.firstLookName}>{option.name}</Text>
+              <Text numberOfLines={3} style={styles.firstLookDescription}>{option.description}</Text>
+              {selected ? <SelectedMark /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -565,6 +664,80 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: 15,
+  },
+  firstLookGrid: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  firstLookGridStacked: {
+    flexDirection: 'column',
+  },
+  firstLookCard: {
+    flex: 1,
+    minHeight: 170,
+    alignItems: 'center',
+    gap: Spacing.xs,
+    padding: Spacing.md,
+    paddingTop: Spacing.lg,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceElevated,
+    position: 'relative',
+  },
+  firstLookCardStacked: {
+    minHeight: 118,
+  },
+  firstLookBook: {
+    width: 46,
+    height: 61,
+    marginBottom: Spacing.xs,
+    borderRadius: 5,
+    overflow: 'hidden',
+    boxShadow: '0 5px 10px rgba(23,22,20,0.14)',
+  },
+  firstLookSpine: {
+    width: 8,
+    height: '100%',
+  },
+  firstLookFoil: {
+    position: 'absolute',
+    left: 17,
+    top: 17,
+    width: 17,
+    height: 1,
+  },
+  firstLookName: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  firstLookDescription: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: 10,
+    lineHeight: 14,
+    textAlign: 'center',
+  },
+  customizeButton: {
+    minHeight: 48,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceElevated,
+  },
+  customizeButtonText: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: 13,
+    lineHeight: 18,
   },
   coverGrid: {
     flexDirection: 'row',

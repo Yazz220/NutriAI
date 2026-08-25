@@ -1,6 +1,8 @@
 import {
+  buildCookbookLeaves,
   buildCookbookSpreads,
   getAdjacentRecipePageIndex,
+  getLeafIndexForPage,
   getReaderPageIndex,
   getSpreadIndexForPage,
   shouldAutoHideReaderChrome,
@@ -43,6 +45,12 @@ describe('reader page mapping without a table of contents', () => {
   it('does not redirect the reader for a missing target', () => {
     expect(getReaderPageIndex(pageIds, 'missing')).toBeNull();
     expect(getReaderPageIndex(pageIds, undefined)).toBeNull();
+  });
+
+  it('synchronizes the first recipe to the leaf immediately after the bookplate', () => {
+    const leaves = buildCookbookLeaves(['page-a']);
+    expect(getLeafIndexForPage(leaves, 'page-a')).toBe(1);
+    expect(getLeafIndexForPage(leaves, 'missing')).toBe(0);
   });
 });
 

@@ -9,11 +9,11 @@ values
   ('44444444-4444-4444-8444-444444444444', 'authenticated', 'authenticated', 'capture-destination@example.test');
 
 insert into nutriai.cookbooks (
-  id, user_id, title, theme_name, theme_prompt, cover_style, page_template_id
+  id, user_id, title, theme_name, theme_prompt, cover_style, page_style_id, page_template_id
 ) values (
   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   '33333333-3333-4333-8333-333333333333',
-  'Capture Book', 'Capture proof', 'Capture proof', 'handwritten', 'clean-cream'
+  'Capture Book', 'Capture proof', 'Capture proof', 'handwritten', 'studio-editorial', 'clean-cream'
 );
 
 select set_config(
@@ -94,11 +94,11 @@ begin
 
   select nutriai.create_capture_page(
     '33333333-3333-4333-8333-333333333333', capture_id, graph,
-    'handwritten', 1, 'clean-cream'
+    'studio-editorial', 1, 'clean-cream'
   ) into first_page;
   select nutriai.create_capture_page(
     '33333333-3333-4333-8333-333333333333', capture_id, graph,
-    'handwritten', 1, 'clean-cream'
+    'studio-editorial', 1, 'clean-cream'
   ) into duplicate_page;
   if first_page <> duplicate_page then
     raise exception 'Capture created duplicate pages';

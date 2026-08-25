@@ -2,6 +2,7 @@ import {
   captureFailure,
   capturePageIdempotencyKey,
   capturePagePolicy,
+  reusableCaptureExtraction,
 } from '@/supabase/functions/_shared/capturePolicy';
 
 describe('capture processing policy', () => {
@@ -31,5 +32,23 @@ describe('capture processing policy', () => {
       failureCode: 'processing_failed',
       failureMessage: 'Extraction unavailable',
     });
+  });
+
+  it('reuses a saved RecipeGraph when retrying a downstream page failure', () => {
+    expect(reusableCaptureExtraction({
+      recipe_graph: { title: 'Tomato Toast' },
+      confidence: 0.92,
+      extraction_notes: ['Normalized servings'],
+      inferred_fields: ['category'],
+    })).toEqual({
+      recipeGraph: { title: 'Tomato Toast' },
+      confidence: 0.92,
+      extractionNotes: ['Normalized servings'],
+      inferredFields: ['category'],
+    });
+  });
+
+  it('extracts again when a failed capture has no saved RecipeGraph', () => {
+    expect(reusableCaptureExtraction({ recipe_graph: null })).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
@@ -49,6 +49,8 @@ export function ShelfScene({
   onRefresh,
 }: ShelfSceneProps) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const shelfTextMultiplier = fontScale >= 2 ? 1.35 : undefined;
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -58,7 +60,7 @@ export function ShelfScene({
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
-        <Text style={styles.logo}>Nosh</Text>
+        <Text style={styles.logo} maxFontSizeMultiplier={shelfTextMultiplier}>Nosh</Text>
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
@@ -71,8 +73,10 @@ export function ShelfScene({
       </View>
 
       <View style={styles.heading}>
-        <Text style={styles.title}>My Cookbooks</Text>
-        <Text style={styles.subtitle}>Your collection of recipes and memories.</Text>
+        <Text style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>My Cookbooks</Text>
+        <Text style={styles.subtitle} maxFontSizeMultiplier={shelfTextMultiplier}>
+          Your collection of recipes and memories.
+        </Text>
         {isStale && onRefresh ? (
           <View style={styles.staleNotice}>
             <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} />
@@ -137,22 +141,28 @@ export function ShelfScene({
         {isEmptyShelf ? (
           <>
             <View style={styles.emptyRule} />
-            <Text style={styles.metaTitle}>A shelf waiting to be filled</Text>
-            <Text style={styles.metaSub}>
+            <Text style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>
+              A shelf waiting to be filled
+            </Text>
+            <Text style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
               Create your first cookbook, choose its cover, then bring recipes in one page at a time.
             </Text>
           </>
         ) : activeBook ? (
           <>
-            <Text style={styles.metaTitle} numberOfLines={1}>
+            <Text style={styles.metaTitle} numberOfLines={1} maxFontSizeMultiplier={shelfTextMultiplier}>
               {activeBook.title}
             </Text>
-            <Text style={styles.metaSub}>{formatRecipeCount(activeBook.pageCount)}</Text>
+            <Text style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
+              {formatRecipeCount(activeBook.pageCount)}
+            </Text>
           </>
         ) : (
           <>
-            <Text style={styles.metaTitle}>New cookbook</Text>
-            <Text style={styles.metaSub}>Choose a binding and name your book.</Text>
+            <Text style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>New cookbook</Text>
+            <Text style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
+              Choose a binding and name your book.
+            </Text>
           </>
         )}
       </View>
@@ -170,7 +180,7 @@ export function ShelfScene({
             accessibilityLabel="Close library menu"
           />
           <View style={[styles.menuPanel, { top: insets.top + 58 }]}>
-            <Text style={styles.menuEyebrow}>LIBRARY</Text>
+            <Text style={styles.menuEyebrow} maxFontSizeMultiplier={shelfTextMultiplier}>LIBRARY</Text>
             {onOpenSettings ? (
               <MenuItem
                 icon={<SettingsIcon size={19} color={Colors.text} strokeWidth={1.7} />}

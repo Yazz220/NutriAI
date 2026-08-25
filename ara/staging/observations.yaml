@@ -92,3 +92,147 @@ observations:
     promoted_to: "logic/solution/heuristics.md:H03"
     crystallized_via: verbal-affirmation
     stale: false
+  - id: O07
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Use a hybrid first-run model: one warm optional threshold screen followed by
+      interactive onboarding inside the real creation studio, empty book, capture
+      pipeline, and reader, with later features introduced contextually.
+    context: >-
+      Comparative-app, activation, and Apple-platform research favored learning by doing
+      and contextual guidance while Nosh's empty shelf alone appeared too cold.
+    potential_type: architecture
+    bound_to: [N16]
+    promoted: true
+    promoted_to: "logic/solution/architecture.md:A02"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O08
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat first_ready_recipe_opened as the candidate activation event, with book
+      creation, capture start, capture readiness, and reader open tracked as separate
+      leading milestones; validate that it predicts D1 and D7 return.
+    context: >-
+      Research distinguished onboarding completion from received product value, and the
+      Nosh audit showed that an empty cookbook does not yet demonstrate the designed-page promise.
+    potential_type: claim
+    bound_to: [N16]
+    promoted: true
+    promoted_to: "logic/claims.md:C02"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O09
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Keep first-book personalization consequential and compact: preselect a coherent
+      cover/page look, let the user name and preview the book, and expose independent
+      fine-tuning later rather than requiring all style decisions before value.
+    context: >-
+      Apple recommends defaults and postponed customization; creative-app patterns use
+      templates to remove blank-state friction; Nosh already persists cover and page style separately.
+    potential_type: heuristic
+    bound_to: [N16]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H04"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O10
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Keep sample content outside the user's personal cookbook as a reversible preview
+      path until users can reliably delete starter pages; the preferred activation path
+      uses the user's own link, text, image, or video source.
+    context: >-
+      Sample content reduces empty-state friction, but Nosh's pre-launch audit still lacks
+      complete deletion surfaces and the product promise is a personal cookbook.
+    potential_type: constraint
+    bound_to: [N16]
+    promoted: true
+    promoted_to: "logic/solution/constraints.md:K01"
+    crystallized_via: verbal-affirmation
+    stale: false
+  - id: O11
+    timestamp: "2026-08-25T01:21+03:00"
+    provenance: ai-suggested
+    content: >-
+      Onboarding accessibility requires Dynamic Type reflow, VoiceOver semantics backed
+      by recipe_graph rather than image-only pages, non-color progress, Reduce Motion
+      alternatives for book animation, and RTL/localization testing from the first prototype.
+    context: >-
+      Apple accessibility guidance was compared with Nosh's generated-image reading artifact
+      and current lack of Dynamic Type coverage.
+    potential_type: constraint
+    bound_to: [N16]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O12
+    timestamp: "2026-08-25T02:45+03:00"
+    provenance: ai-suggested
+    content: >-
+      Do not stack progressive onboarding prompts in one visit. Finish the first-page
+      introduction first, then reveal a small contextual Nosh callout on a later book
+      visit with permanent dismissal and a direct path into the real recipe conversation.
+    context: >-
+      The approved onboarding had reached first-page activation; Nosh remained the most
+      important deferred capability to introduce without turning the flow into a tour.
+    potential_type: heuristic
+    bound_to: [N21, N22]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H05"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O13
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat accessibility modals as two-sided boundaries: mark the overlay modal and
+      explicitly hide its sibling app subtree from assistive technology for the full
+      time the overlay is visible.
+    context: >-
+      AXe showed shelf and reader controls behind the welcome and Nosh sheet even after
+      accessibilityViewIsModal was applied; hiding the sibling subtree removed them.
+    potential_type: heuristic
+    bound_to: [N26, N27]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H06"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O14
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      In fixed physical-book geometry, keep decorative stamped typography at the authored
+      scale and provide accessible semantics separately; bound but do not disable scaling
+      for interactive copy, prompts, and toolbars that must reflow inside fixed surfaces.
+    context: >-
+      Accessibility XXL caused cover, bookplate, empty-reader, shelf, and composer
+      collisions until decorative and interactive typography were handled separately.
+    potential_type: heuristic
+    bound_to: [N26]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H07"
+    crystallized_via: artifact-commitment
+    stale: false
+  - id: O15
+    timestamp: "2026-08-25T03:53+03:00"
+    provenance: ai-suggested
+    content: >-
+      Retry a durable multi-stage workflow from its latest valid persisted artifact rather
+      than repeating successful expensive stages; a saved RecipeGraph should resume page
+      creation and art generation without another extraction call.
+    context: >-
+      Retrying a page-constraint failure repeated extraction and hit an unrelated model
+      truncation even though the first attempt had already persisted Quick Tomato Toast.
+    potential_type: heuristic
+    bound_to: [N28]
+    promoted: true
+    promoted_to: "logic/solution/heuristics.md:H08"
+    crystallized_via: artifact-commitment
+    stale: false

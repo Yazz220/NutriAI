@@ -1,4 +1,8 @@
-import { SAMPLE_COOKBOOK_ID, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
+import {
+  isSampleCookbookId,
+  SAMPLE_COOKBOOK_ID,
+  shouldShowSampleCookbook,
+} from '@/utils/cookbook/sampleCookbook';
 
 describe('shouldShowSampleCookbook', () => {
   const originalShowDemo = process.env.EXPO_PUBLIC_SHOW_DEMO_COOKBOOK;
@@ -28,5 +32,12 @@ describe('shouldShowSampleCookbook', () => {
     process.env.EXPO_PUBLIC_SHOW_DEMO_COOKBOOK = 'true';
 
     expect(shouldShowSampleCookbook('real-cookbook')).toBe(false);
+  });
+
+  it('recognizes an explicit sample route independently of the shelf flag', () => {
+    process.env.EXPO_PUBLIC_SHOW_DEMO_COOKBOOK = 'false';
+
+    expect(isSampleCookbookId(SAMPLE_COOKBOOK_ID)).toBe(true);
+    expect(isSampleCookbookId('real-cookbook')).toBe(false);
   });
 });

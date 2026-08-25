@@ -7,6 +7,7 @@ import { Colors } from '@/constants/colors';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { shareCookbookPage } from '@/utils/cookbook/share';
+import { isSampleCookbookId } from '@/utils/cookbook/sampleCookbook';
 import type { CookbookPage } from '@/types/cookbook';
 
 export default function BookReaderScreen() {
@@ -84,6 +85,7 @@ export default function BookReaderScreen() {
       initialPageId={normalizedPageId}
       onSelectPage={setSelectedPageId}
       onShare={handleShare}
+      readOnly={isSampleCookbookId(cookbookId)}
       isStale={isStale}
       onRefresh={() => {
         void refresh();

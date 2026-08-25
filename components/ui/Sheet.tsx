@@ -61,7 +61,12 @@ export function Sheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View
+        testID="sheet-accessibility-modal"
+        style={styles.backdrop}
+        accessibilityViewIsModal
+        importantForAccessibility="yes"
+      >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         {keyboardAvoiding ? (
           <KeyboardAvoidingView

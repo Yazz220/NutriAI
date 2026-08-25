@@ -41,6 +41,7 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
           numberOfLines={3}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
+          allowFontScaling={false}
         >
           {title}
         </Text>
@@ -53,6 +54,7 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
           numberOfLines={3}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
+          allowFontScaling={false}
         >
           {title}
         </Text>
@@ -61,13 +63,19 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
           numberOfLines={3}
           adjustsFontSizeToFit
           minimumFontScale={0.6}
+          allowFontScaling={false}
         >
           {title}
         </Text>
       </View>
 
       <View style={[styles.rule, { backgroundColor: withAlpha(foil[1], 0.75) }]} />
-      <Text style={[styles.caption, { color: withAlpha(foil[1], 0.85), fontSize: captionSize }]}>COOKBOOK</Text>
+      <Text
+        style={[styles.caption, { color: withAlpha(foil[1], 0.85), fontSize: captionSize }]}
+        allowFontScaling={false}
+      >
+        COOKBOOK
+      </Text>
     </View>
   );
 });
