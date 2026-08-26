@@ -583,13 +583,14 @@ export function Cookbook3DScene({
   // (making the curling leaf invisible). This prevents a 1-frame flash where
   // the new spreadIndex has propagated but turnDirection hasn't reset yet.
   useLayoutEffect(() => {
+    cancelAnimation(turnProgress);
     turnProgress.value = 0;
     turnDirection.value = 0;
     isSettling.value = 0;
     grabYRatio.value = 0.5;
     setDisplaySpreadIndex(spreadIndex);
     setDisplayLeafIndex(leafIndex);
-  }, [grabYRatio, isSettling, leafIndex, readingPageIndex, spreadIndex, turnDirection, turnProgress]);
+  }, [grabYRatio, isSettling, leafIndex, readingPageIndex, readingView, spreadIndex, turnDirection, turnProgress]);
 
   // Drag-to-turn: progress is driven by the pointer's position, not by
   // accumulated drag distance, so the leaf tracks the finger 1:1 and follows

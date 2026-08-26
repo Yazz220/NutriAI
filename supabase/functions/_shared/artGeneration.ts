@@ -299,6 +299,8 @@ export function buildRecipePagePrompt(
   const pageInstructions = [
     'Create one finished, flat, portrait cookbook page in a 3:4 aspect ratio.',
     'The result is the page itself, not a photograph, mockup, open book, loose sheet, or framed poster.',
+    'Fill the entire output canvas; the canvas edges are the physical page edges.',
+    'Do not place a smaller page inside the canvas, leave blank outer padding, add a drop shadow, or show a surrounding background.',
     'Typeset every supplied line exactly once. Preserve all quantities, units, times, and temperatures.',
     'Do not invent, omit, paraphrase, duplicate, or reorder recipe content.',
     'Use a clear hierarchy and text large enough to read on an iPhone.',

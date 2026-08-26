@@ -25,6 +25,8 @@ describe('complete recipe page generation contract', () => {
     const { prompt, payload } = buildRecipePagePrompt(recipe, 'sage-linen');
 
     expect(prompt).toContain('one finished, flat, portrait cookbook page');
+    expect(prompt).toContain('canvas edges are the physical page edges');
+    expect(prompt).toContain('Do not place a smaller page inside the canvas');
     expect(prompt).toContain('Typeset every supplied line exactly once');
     expect(prompt).toContain('Roasted Tomato Pasta');
     expect(prompt).toContain('2 cups tomatoes');

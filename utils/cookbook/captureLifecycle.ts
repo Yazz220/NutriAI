@@ -121,12 +121,15 @@ export function isCaptureProcessing(status: RecipeCaptureStatus): boolean {
 }
 
 export function isCaptureStale(
-  capture: Pick<RecipeCapture, 'status' | 'processingStartedAt'>,
+  capture: Pick<RecipeCapture, 'status' | 'processingStartedAt'> & Partial<Pick<RecipeCapture, 'updatedAt'>>,
   now = Date.now(),
   timeoutMs = 10 * 60_000,
 ): boolean {
-  if (capture.status !== 'processing' || !capture.processingStartedAt) return false;
-  return now - new Date(capture.processingStartedAt).getTime() > timeoutMs;
+  if (capture.status !== 'processing') return false;
+  const leaseTimestamp = capture.processingStartedAt ?? capture.updatedAt;
+  if (!leaseTimestamp) return false;
+  const leaseStartedAt = new Date(leaseTimestamp).getTime();
+  return Number.isFinite(leaseStartedAt) && now - leaseStartedAt > timeoutMs;
 }
 
 export function reconcileCapturePage(

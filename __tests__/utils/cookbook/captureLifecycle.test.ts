@@ -39,6 +39,16 @@ describe('recipe capture lifecycle', () => {
     const now = Date.parse('2026-08-21T12:15:00.000Z');
     expect(isCaptureStale({ status: 'processing', processingStartedAt: '2026-08-21T12:00:00.000Z' }, now)).toBe(true);
     expect(isCaptureStale({ status: 'processing', processingStartedAt: '2026-08-21T12:10:00.000Z' }, now)).toBe(false);
+    expect(isCaptureStale({
+      status: 'processing',
+      processingStartedAt: undefined,
+      updatedAt: '2026-08-21T12:00:00.000Z',
+    }, now)).toBe(true);
+    expect(isCaptureStale({
+      status: 'processing',
+      processingStartedAt: undefined,
+      updatedAt: '2026-08-21T12:10:00.000Z',
+    }, now)).toBe(false);
     expect(isCaptureStale({ status: 'needs_attention', processingStartedAt: '2026-08-21T12:00:00.000Z' }, now)).toBe(false);
   });
 

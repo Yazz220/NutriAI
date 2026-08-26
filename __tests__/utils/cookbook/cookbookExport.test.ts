@@ -52,6 +52,10 @@ describe('cookbook PDF export', () => {
     expect(html).toContain('1 recipe');
     expect(html).toContain('aria-label="Soup &lt;Special&gt;"');
     expect(html.match(/<section class="page/g)).toHaveLength(2);
+    expect(html).toContain('@page { size: A4 portrait; margin: 0; }');
+    expect(html).toContain('width: 210mm;');
+    expect(html).toContain('height: 297mm;');
+    expect(html).toContain('object-position: center;');
   });
 
   it('exports recipe pages in cookbook order and shares a named PDF', async () => {
@@ -73,6 +77,11 @@ describe('cookbook PDF export', () => {
     await exportCookbookPdf({ ...SAMPLE_COOKBOOK, title: 'Weeknight Table' }, [second, first]);
 
     const html = mockedPrintToFile.mock.calls[0][0].html ?? '';
+    expect(mockedPrintToFile).toHaveBeenCalledWith(expect.objectContaining({
+      width: 595,
+      height: 842,
+      margins: { top: 0, right: 0, bottom: 0, left: 0 },
+    }));
     expect(html.indexOf('FIRST_IMAGE')).toBeLessThan(html.indexOf('SECOND_IMAGE'));
     expect(mockedFileSystem.moveAsync).toHaveBeenCalledWith({
       from: 'file:///cache/generated.pdf',

@@ -16,27 +16,47 @@ jest.mock('@/components/nosh/capture/NoshCaptureWorkspace', () => {
   const ReactModule = require('react');
   const { Text } = require('react-native');
   return {
-    NoshCaptureWorkspace: ({ destinationCookbookId, activityVisible }: {
+    NoshCaptureWorkspace: ({
+      destinationCookbookId,
+      activityVisible,
+      onActivitySummaryChange,
+    }: {
       destinationCookbookId: string;
       activityVisible?: boolean;
-    }) => ReactModule.createElement(
-      Text,
-      {
-        accessibilityLabel: `Capture for ${destinationCookbookId}`,
-        accessibilityHint: activityVisible ? 'Activity visible' : 'Composer only',
-      },
-      ReactModule.createElement(Text, null, 'Capture workspace'),
-    ),
+      onActivitySummaryChange?: (summary: { pendingCount: number; attentionCount: number }) => void;
+    }) => {
+      ReactModule.useEffect(() => {
+        onActivitySummaryChange?.({ pendingCount: 2, attentionCount: 1 });
+      }, [onActivitySummaryChange]);
+      return ReactModule.createElement(
+        Text,
+        {
+          accessibilityLabel: `Capture for ${destinationCookbookId}`,
+          accessibilityHint: activityVisible ? 'Activity visible' : 'Composer only',
+        },
+        activityVisible ? 'Activity workspace' : 'Composer workspace',
+      );
+    },
   };
 });
 
 describe('AddPageScreen durable capture flow', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('uses the cookbook-scoped capture workspace without a blocking approval callback', () => {
+  it('keeps cookbook capture and activity on separate views', () => {
     const screen = render(<AddPageScreen />);
 
     expect(screen.getByLabelText('Capture for cookbook-1').props.accessibilityHint).toBe('Composer only');
+    expect(screen.getByText('Save a recipe')).toBeTruthy();
+    expect(screen.getByText('Composer workspace')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', {
+      name: '2 recipe items active, 1 needs attention',
+    }));
+
+    expect(screen.getByText('Recipe activity')).toBeTruthy();
+    expect(screen.getByText('Activity workspace')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save another recipe' })).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByLabelText('Back to cookbook'));

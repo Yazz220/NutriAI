@@ -13,8 +13,9 @@ export function RecipeCaptureResume() {
     if (!isReady || !isGranted) return;
     const staleReading = captures.filter((capture) => isCaptureStale(capture));
     for (const capture of staleReading) {
-      if (resumed.current.has(capture.id)) continue;
-      resumed.current.add(capture.id);
+      const attemptKey = `${capture.id}:${capture.processingAttempt}`;
+      if (resumed.current.has(attemptKey)) continue;
+      resumed.current.add(attemptKey);
       void retryCapture(capture.id).catch(() => {});
     }
   }, [captures, isGranted, isReady, retryCapture]);

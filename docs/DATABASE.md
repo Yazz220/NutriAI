@@ -75,9 +75,9 @@ Search indexes:
 
 ### `nutriai.recipe_captures`
 
-Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. Images live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths.
+Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. Images live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths. Different capture rows can be claimed and processed independently. The claim lease blocks only duplicate work for the same capture.
 
-The database transition trigger permits `processing -> needs_destination | ready | needs_attention`, plus `needs_destination -> processing` and `needs_attention -> processing`. Repeating the current state is idempotent. Client roles can read only their own rows. Authenticated creation and destination choice use guarded RPCs; extraction, page creation, failure, and finalization RPCs are restricted to `service_role`.
+The database transition trigger permits `processing -> needs_destination | ready | needs_attention`, plus `needs_destination -> processing` and `needs_attention -> processing`. Repeating the current state is idempotent. Client roles can read only their own rows. Authenticated creation and destination choice use guarded RPCs; extraction, page creation, failure, and finalization RPCs are restricted to `service_role`. The client treats a 10-minute-old `processing_started_at` as an abandoned lease. If the worker stopped before claiming the row, it falls back to `updated_at`. Each new `processing_attempt` gets one automatic reclaim, so a second worker failure can recover without another cold launch.
 
 ### `nutriai.page_versions`
 Each cookbook page image generation pass produces a version. Used to keep history and let the user compare regenerations.

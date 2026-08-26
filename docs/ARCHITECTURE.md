@@ -215,6 +215,8 @@ AI_MODEL
 
 Share to Nosh, Cookbook Add, assistant handoff, and Save a recipe activity all use `capture-recipe` through `utils/cookbook/api.ts`. Structured recipe pages bypass the extraction model through schema.org Recipe JSON-LD normalization; other text, images, and video links use strict-schema model extraction. Image MIME types are preserved. Video remains URL-only and provider-dependent. Audio intake is not implemented and must not be advertised as available. The retired imports and review routes redirect into the capture workspace and do not own state or generation.
 
+Different capture IDs run as independent Edge background jobs, so several recipes can extract and generate in parallel. The database claim only serializes duplicate delivery of the same capture or generation idempotency key. The function persists the source before starting background work, and closing or crashing the app does not remove the capture. If an Edge worker stops, the root-mounted capture resume process reclaims the row after its 10-minute lease expires. It uses `updated_at` when a worker stopped before setting `processing_started_at`, and it can retry a later crashed attempt again instead of suppressing the capture for the rest of the app session. Provider concurrency and rate limits can still move an individual capture to `needs_attention`; they do not cancel sibling captures.
+
 Secrets:
 
 ```text
@@ -225,11 +227,11 @@ AI_MODEL
 
 ### Complete Cookbook Page Generation
 
-`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a 3:4, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 3:4, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, or outer padding. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
 
 The reader exposes this flow through two compact recipe actions: `Edit recipe` and `Try another design`. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Nosh. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 
-Book settings exposes `Export cookbook` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a 3:4 PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
+Book settings exposes `Download cookbook PDF` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a standard A4 portrait PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Recipe images are centered and cover the complete page canvas; the generation safe margin absorbs the small 3:4-to-A4 crop. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
 
 Secrets:
 

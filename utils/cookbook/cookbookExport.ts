@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
-const PDF_WIDTH = 612;
-const PDF_HEIGHT = 816;
+const PDF_WIDTH = 595;
+const PDF_HEIGHT = 842;
 
 interface PdfRecipePage {
   title: string;
@@ -86,12 +86,13 @@ export function buildCookbookPdfHtml(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      @page { size: ${PDF_WIDTH}px ${PDF_HEIGHT}px; margin: 0; }
+      @page { size: A4 portrait; margin: 0; }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; background: #f5f1e8; }
+      html, body { width: 210mm; margin: 0; padding: 0; background: #f5f1e8; }
       .page {
-        width: ${PDF_WIDTH}px;
-        height: ${PDF_HEIGHT}px;
+        position: relative;
+        width: 210mm;
+        height: 297mm;
         overflow: hidden;
         break-after: page;
         page-break-after: always;
@@ -134,8 +135,18 @@ export function buildCookbookPdfHtml(
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 11px;
       }
-      .recipe-page { background: #ffffff; }
-      .recipe-page img { display: block; width: 100%; height: 100%; object-fit: cover; }
+      .recipe-page { position: relative; background: #ffffff; }
+      .recipe-page img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        object-fit: cover;
+        object-position: center;
+      }
     </style>
   </head>
   <body>
