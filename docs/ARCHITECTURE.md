@@ -192,6 +192,15 @@ Collection organization follows the same conversation-for-reasoning, guided-UI-f
 
 Reader deletion uses the authenticated `delete-reader-content` Edge Function. Ownership-checked RPCs delete a recipe page or cookbook and write unreferenced generated-page and capture-source paths to `storage_cleanup_jobs` in the same database transaction. The function removes those paths through the Storage API and deletes completed jobs. A shelf session retries pending jobs after a transient Storage failure. Copied pages may share one generated object, so the database queues a page path only after its last `page_versions` reference is gone. Deleting a cookbook keeps its capture history and source upload; removing one recipe deletes its capture and queues that source upload.
 
+Account deletion obtains a fresh native Apple authorization code for Apple-linked users. `delete-account` exchanges that code and revokes the returned refresh token through Apple's REST API before it removes Storage objects or the Supabase user. Apple private-key material remains in Edge Function secrets.
+
+```text
+APPLE_CLIENT_ID
+APPLE_TEAM_ID
+APPLE_KEY_ID
+APPLE_PRIVATE_KEY
+```
+
 Long-running assistant work is surfaced by one root-level native progress card. It appears before frontend tools finish, uses real runtime/extraction/page-creation state, supports reduced motion, shows delayed reassurance, and allows cancellation to propagate to the active request.
 
 Secrets:
@@ -216,7 +225,7 @@ AI_MODEL
 
 ### Complete Cookbook Page Generation
 
-`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a 3:4, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The version is stored in Supabase Storage and linked to the page. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a 3:4, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
 
 The reader exposes this flow through two compact recipe actions: `Edit recipe` and `Try another design`. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Nosh. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 

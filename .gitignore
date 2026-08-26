@@ -29,6 +29,7 @@ android/
 Thumbs.db
 
 # EAS
+credentials.json
 *.jks
 *.p8
 *.p12

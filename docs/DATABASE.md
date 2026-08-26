@@ -154,6 +154,7 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260822153000_simplify_recipe_page_pipeline.sql` | Collapses capture/review into processing, optional destination choice, retry, and ready; adds default books and versioned page-style anchors |
 | `supabase/migrations/20260823020628_suspend_internal_generation_credits.sql` | Suspends the legacy internal credit gate while preserving ledger history and compatibility RPCs |
 | `supabase/migrations/20260823041346_add_cookbook_page_styles.sql` | Separates physical `cover_style` from book-owned `page_style_id` and preserves existing books' page identities |
+| `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |
 
 ## RLS posture
 
@@ -171,6 +172,8 @@ CREATE POLICY <table>_delete ON nutriai.<table> FOR DELETE USING (auth.uid() = u
 Authenticated clients cannot directly delete `cookbooks` or `cookbook_pages`, and they cannot insert, update, or delete `page_versions`. Reader deletion uses the guarded RPCs so database deletion and Storage cleanup jobs commit together. `storage_cleanup_jobs` has RLS enabled with no authenticated policy or grant; only the service role used by `delete-reader-content` can drain it.
 
 `generation_requests` is RLS-enabled without client policies. The authenticated `generate-page-art` Edge Function accesses it through the service role. Its SECURITY DEFINER functions set an empty search path, use fully qualified relations, revoke execution from `PUBLIC`, `anon`, and `authenticated`, and grant execution only to `service_role`.
+
+The `cookbook-pages` Storage bucket is private. Its SELECT policy requires the first object-path segment to equal `auth.uid()`. The client can sign a path only after it reads the owning `page_versions` row through its existing page RLS policy.
 
 ## Cache keys
 

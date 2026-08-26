@@ -54,6 +54,10 @@ Supabase Edge Function secrets:
 | `AI_API_BASE` | `extract-recipe`, `nosh-chat` |
 | `AI_MODEL` | `extract-recipe`, `nosh-chat` |
 | `ART_MODEL` | `generate-page-art` |
+| `APPLE_CLIENT_ID` | `delete-account` |
+| `APPLE_TEAM_ID` | `delete-account` |
+| `APPLE_KEY_ID` | `delete-account` |
+| `APPLE_PRIVATE_KEY` | `delete-account` |
 
 Supabase also provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to functions that need them.
 
@@ -127,6 +131,8 @@ Live functions:
 - `delete-reader-content`
 
 Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. For the simplified pipeline, apply `20260822153000_simplify_recipe_page_pipeline.sql` before the matching `capture-recipe` and `generate-page-art` versions.
+
+`APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 
 ## EAS Builds
 

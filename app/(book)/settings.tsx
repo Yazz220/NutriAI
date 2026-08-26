@@ -24,6 +24,10 @@ import { deleteAccount } from '@/utils/account';
 import { clearCachedPages, clearCachedShelf } from '@/utils/cookbook/cache';
 import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/constants/legal';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import {
+  getAppleDeletionAuthorizationCode,
+  isAppleCancellation,
+} from '@/utils/appleAuth';
 
 export default function CookbookSettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -57,7 +61,8 @@ export default function CookbookSettingsScreen() {
     const cookbookIds = cookbooks.map((cookbook) => cookbook.id);
     setDeletingAccount(true);
     try {
-      await deleteAccount();
+      const appleAuthorizationCode = await getAppleDeletionAuthorizationCode(user);
+      await deleteAccount(appleAuthorizationCode);
 
       const cleanupResults = await Promise.allSettled([
         clearCachedPages(cookbookIds),
@@ -73,6 +78,7 @@ export default function CookbookSettingsScreen() {
       await signOut();
       router.replace('/(auth)/sign-in');
     } catch (err) {
+      if (isAppleCancellation(err)) return;
       const message = err instanceof Error ? err.message : 'Could not delete account.';
       Alert.alert('Delete account failed', message);
     } finally {

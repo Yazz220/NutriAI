@@ -498,16 +498,13 @@ serve(async (req: Request) => {
           storage_path: storagePath,
         });
 
-        const { data: publicUrlData } = admin.storage.from(BUCKET).getPublicUrl(storagePath);
-        const artUrl = publicUrlData.publicUrl;
-
         // Store as a page_version (reusing the existing table)
         const { data: versionRow, error: versionError } = await admin
           .schema('nutriai')
           .from('page_versions')
           .insert({
             page_id: pageId,
-            image_url: artUrl,
+            image_url: null,
             storage_path: storagePath,
             prompt_payload: pagePromptPayload,
             model: ART_MODEL,
@@ -528,7 +525,6 @@ serve(async (req: Request) => {
           pageImage: {
             id: versionId,
             pageId,
-            imageUrl: artUrl,
             storagePath,
             styleId,
             styleRevision: pagePromptPayload.styleRevision,

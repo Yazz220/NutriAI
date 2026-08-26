@@ -30,6 +30,7 @@ import {
   type RecipeCapture,
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
+import { signStoredPageImages } from '@/utils/cookbook/privatePageUrls';
 
 type CookbookInsertPayload = {
   user_id: string;
@@ -538,8 +539,9 @@ export async function fetchCookbookPages(cookbookId: string): Promise<CookbookPa
       .in('id', selectedVersionIds);
 
     if (versionsError) throw versionsError;
+    const signedVersions = await signStoredPageImages((versions ?? []) as PageVersionRow[]);
     selectedVersions = Object.fromEntries(
-      ((versions ?? []) as PageVersionRow[]).map((version) => [version.page_id, version]),
+      signedVersions.map((version) => [version.page_id, version]),
     );
   }
 
@@ -728,7 +730,21 @@ export async function generateRecipePageImage(payload: {
   referenceArtUrl?: string;
   selectOnComplete?: boolean;
 }): Promise<{ pageImage: GeneratedRecipePage } | { status: 'processing'; requestId: string }> {
-  return callAuthenticatedFunction('generate-page-art', payload, { timeoutMs: 20_000 });
+  const result = await callAuthenticatedFunction<
+    { pageImage: GeneratedRecipePage } | { status: 'processing'; requestId: string }
+  >('generate-page-art', payload, { timeoutMs: 20_000 });
+  if (!('pageImage' in result) || !result.pageImage.storagePath) return result;
+
+  const [signedPage] = await signStoredPageImages([{
+    image_url: result.pageImage.imageUrl,
+    storage_path: result.pageImage.storagePath,
+  }]);
+  return {
+    pageImage: {
+      ...result.pageImage,
+      imageUrl: signedPage.image_url ?? undefined,
+    },
+  };
 }
 
 /**
@@ -778,7 +794,8 @@ export async function fetchPageById(pageId: string): Promise<CookbookPage | null
       .maybeSingle();
 
     if (!versionError && version) {
-      selectedVersions[row.id] = version as PageVersionRow;
+      const [signedVersion] = await signStoredPageImages([version as PageVersionRow]);
+      selectedVersions[row.id] = signedVersion;
     }
   }
 

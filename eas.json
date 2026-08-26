@@ -38,6 +38,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "ios": {
+        "image": "sdk-54"
+      },
       "env": {
         "EXPO_PUBLIC_OFFLINE_ONLY": "false",
         "EXPO_PUBLIC_SUPABASE_URL": "https://fydixibsozngqiaekqii.supabase.co",

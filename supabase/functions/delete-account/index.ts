@@ -12,11 +12,29 @@ import { getCorsHeaders, corsResponse, jsonError, jsonResponse } from '../_share
 import { verifyAuth } from '../_shared/auth.ts';
 import { logError, logInfo } from '../_shared/log.ts';
 import { removeStoragePrefix } from '../_shared/storageCleanup.ts';
+import { revokeAppleAuthorization } from '../_shared/appleTokenRevocation.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const CAPTURE_BUCKET = 'recipe-captures';
 const COOKBOOK_PAGE_BUCKET = Deno.env.get('COOKBOOK_PAGE_BUCKET') || 'cookbook-pages';
+
+function appleIdentity(user: {
+  app_metadata?: Record<string, unknown>;
+  identities?: Array<{ provider?: string; id?: string; identity_data?: Record<string, unknown> }>;
+}): { isApple: boolean; subject: string | null } {
+  const providers = Array.isArray(user.app_metadata?.providers)
+    ? user.app_metadata.providers
+    : [user.app_metadata?.provider];
+  const identity = user.identities?.find((candidate) => candidate.provider === 'apple');
+  const isApple = providers.includes('apple') || Boolean(identity);
+  if (!isApple) return { isApple: false, subject: null };
+  const subject = identity?.identity_data?.sub ?? identity?.id;
+  return {
+    isApple: true,
+    subject: typeof subject === 'string' && subject.length > 0 ? subject : null,
+  };
+}
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -31,12 +49,50 @@ serve(async (req: Request) => {
 
   try {
     const userId = user!.id;
+    const body = await req.json().catch(() => ({})) as { appleAuthorizationCode?: unknown };
     logInfo('delete-account started', { userId });
 
     // Use service role client for admin operations
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
+    if (authUserError || !authUserData.user) {
+      return jsonError('Could not verify account identity', 500, req);
+    }
+
+    const appleAccount = appleIdentity(authUserData.user);
+    if (appleAccount.isApple) {
+      if (!appleAccount.subject) {
+        return jsonError('Could not verify the Sign in with Apple identity', 500, req);
+      }
+      if (typeof body.appleAuthorizationCode !== 'string' || body.appleAuthorizationCode.length === 0) {
+        return jsonError('Apple authorization is required before deleting this account', 409, req);
+      }
+      const appleConfig = {
+        clientId: Deno.env.get('APPLE_CLIENT_ID') || 'com.yaz12.nosh',
+        teamId: Deno.env.get('APPLE_TEAM_ID') || '',
+        keyId: Deno.env.get('APPLE_KEY_ID') || '',
+        privateKey: Deno.env.get('APPLE_PRIVATE_KEY') || '',
+      };
+      if (!appleConfig.teamId || !appleConfig.keyId || !appleConfig.privateKey) {
+        return jsonError('Apple account deletion is not configured', 500, req);
+      }
+      try {
+        await revokeAppleAuthorization({
+          authorizationCode: body.appleAuthorizationCode,
+          expectedSubject: appleAccount.subject,
+          config: appleConfig,
+        });
+      } catch (appleError) {
+        logError('delete-account Apple revocation failed', {
+          userId,
+          error: appleError instanceof Error ? appleError.message : String(appleError),
+        });
+        return jsonError('Could not revoke Sign in with Apple authorization', 502, req);
+      }
+    }
 
     // Storage objects do not participate in database foreign-key cascades.
     // Remove both source captures and generated page artwork before deleting
