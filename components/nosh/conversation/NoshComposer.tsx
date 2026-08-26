@@ -14,9 +14,11 @@ import { getNoshComposerMode } from './noshConversationPresentation';
 export function NoshComposer({
   interaction,
   contextModelEnabled,
+  sendDisabled = false,
 }: {
   interaction: NoshInteractionSession;
   contextModelEnabled: boolean;
+  sendDisabled?: boolean;
 }) {
   const isEmpty = useAuiState((state) => state.composer.isEmpty);
   const isRunning = useAuiState((state) => state.thread.isRunning);
@@ -38,9 +40,33 @@ export function NoshComposer({
     });
     const asset = result.canceled ? null : result.assets?.[0] ?? null;
     if (!asset?.base64) return;
-    setPendingImageBase64(asset.base64);
-    setPendingImageMimeType(asset.mimeType ?? 'image/jpeg');
-    if (isEmpty) aui.composer.setText('Add this recipe from the attached photo');
+    const mimeType = asset.mimeType ?? 'image/jpeg';
+    try {
+      await aui.composer.clearAttachments();
+      await aui.composer.addAttachment({
+        type: 'image',
+        name: asset.fileName ?? 'Recipe photo',
+        contentType: mimeType,
+        content: [{
+          type: 'image',
+          // The extraction payload stays in conversation context. Persist only
+          // a lightweight transcript marker, not a large base64 image copy.
+          image: 'nosh://recipe-photo',
+          filename: asset.fileName ?? 'Recipe photo',
+        }],
+      });
+      setPendingImageBase64(asset.base64);
+      setPendingImageMimeType(mimeType);
+      if (isEmpty) aui.composer.setText('Add this recipe from the attached photo');
+    } catch {
+      Alert.alert('Could not attach photo', 'Please choose the photo again.');
+    }
+  }
+
+  async function removeRecipePhoto() {
+    await aui.composer.clearAttachments();
+    setPendingImageBase64(null);
+    setPendingImageMimeType(null);
   }
 
   return (
@@ -50,10 +76,7 @@ export function NoshComposer({
           <Camera size={14} color={Colors.text} />
           <Text style={styles.attachmentText}>Recipe photo attached</Text>
           <Pressable
-            onPress={() => {
-              setPendingImageBase64(null);
-              setPendingImageMimeType(null);
-            }}
+            onPress={() => void removeRecipePhoto()}
             accessibilityRole="button"
             accessibilityLabel="Remove recipe photo"
             hitSlop={8}
@@ -77,6 +100,7 @@ export function NoshComposer({
           placeholder={mode.placeholder}
           placeholderTextColor={Colors.textMuted}
           multiline
+          submitMode={sendDisabled ? 'none' : 'enter'}
           style={styles.input}
         />
         {isRunning ? (
@@ -84,7 +108,11 @@ export function NoshComposer({
             <Text style={styles.cancelText}>Stop</Text>
           </ComposerPrimitive.Cancel>
         ) : (
-          <ComposerPrimitive.Send style={[styles.send, isEmpty && styles.sendDisabled]}>
+          <ComposerPrimitive.Send
+            disabled={sendDisabled || isEmpty}
+            accessibilityState={{ disabled: sendDisabled || isEmpty }}
+            style={[styles.send, (sendDisabled || isEmpty) && styles.sendDisabled]}
+          >
             <Send size={17} color={Colors.onPrimary} />
           </ComposerPrimitive.Send>
         )}

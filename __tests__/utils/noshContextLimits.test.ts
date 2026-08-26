@@ -1,5 +1,6 @@
 import {
   MAX_LOADED_RECIPES_PER_REQUEST,
+  compactChatHistory,
   countCompletedToolCallsSinceLatestUser,
 } from '@/supabase/functions/_shared/noshContextLimits';
 
@@ -40,5 +41,25 @@ describe('Nosh recipe context limits', () => {
     ];
 
     expect(countCompletedToolCallsSinceLatestUser(messages, 'load_recipe')).toBe(0);
+  });
+
+  it('keeps the current tool loop but removes old full-recipe tool payloads', () => {
+    const messages = [
+      { role: 'user', content: 'Tell me about soup' },
+      { role: 'assistant', content: '', tool_calls: [{ id: 'old', function: { name: 'load_recipe' } }] },
+      { role: 'tool', tool_call_id: 'old', content: JSON.stringify({ recipeGraph: { notes: 'x'.repeat(5000) } }) },
+      { role: 'assistant', content: 'It is a tomato soup.' },
+      { role: 'user', content: 'Can I use oat cream instead?' },
+      { role: 'assistant', content: '', tool_calls: [{ id: 'current', function: { name: 'substitute_ingredient' } }] },
+      { role: 'tool', tool_call_id: 'current', content: '{"accepted":true}' },
+    ];
+
+    expect(compactChatHistory(messages, 1000)).toEqual([
+      messages[0],
+      messages[3],
+      messages[4],
+      messages[5],
+      messages[6],
+    ]);
   });
 });

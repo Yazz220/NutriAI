@@ -1,8 +1,13 @@
 import { supabase } from '@/lib/supabase';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const DEFAULT_FUNCTION_TIMEOUT_MS = 60_000;
+
+function getSupabaseFunctionConfig() {
+  return {
+    url: process.env.EXPO_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
 
 interface FunctionCallOptions {
   timeoutMs?: number;
@@ -84,19 +89,20 @@ export async function callAuthenticatedFunction<T>(
   body: Record<string, unknown>,
   options: FunctionCallOptions = {},
 ): Promise<T> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const { url: supabaseUrl, anonKey } = getSupabaseFunctionConfig();
+  if (!supabaseUrl || !anonKey) {
     throw new Error('Supabase is not configured.');
   }
 
   const token = await getAccessToken();
-  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${functionName}`;
+  const url = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/${functionName}`;
   const res = await fetchWithTimeout(
     url,
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        apikey: SUPABASE_ANON_KEY,
+        apikey: anonKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -118,12 +124,13 @@ export async function* streamAuthenticatedFunction<T>(
   body: Record<string, unknown>,
   options: FunctionCallOptions = {},
 ): AsyncGenerator<T> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const { url: supabaseUrl, anonKey } = getSupabaseFunctionConfig();
+  if (!supabaseUrl || !anonKey) {
     throw new Error('Supabase is not configured.');
   }
 
   const token = await getAccessToken();
-  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${functionName}`;
+  const url = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/${functionName}`;
   const timeoutMs = options.timeoutMs ?? DEFAULT_FUNCTION_TIMEOUT_MS;
   const controller = new AbortController();
   const abortFromExternal = () => controller.abort();
@@ -138,7 +145,7 @@ export async function* streamAuthenticatedFunction<T>(
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
-          apikey: SUPABASE_ANON_KEY,
+          apikey: anonKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -164,7 +171,14 @@ export async function* streamAuthenticatedFunction<T>(
       return;
     }
 
-    if (!res.body) throw new FunctionNetworkError();
+    if (!res.body || typeof res.body.getReader !== 'function') {
+      const responseText = await res.text();
+      for (const line of responseText.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed) yield JSON.parse(trimmed) as T;
+      }
+      return;
+    }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';

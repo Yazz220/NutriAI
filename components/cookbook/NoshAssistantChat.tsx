@@ -18,7 +18,6 @@ import {
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react-native';
 import { Sheet } from '@/components/ui/Sheet';
-import { NoshFocusChangePrompt } from '@/components/nosh/conversation/NoshFocusChangePrompt';
 import { NoshHeaderActions, NoshHeaderIdentity } from '@/components/nosh/conversation/NoshConversationHeader';
 import { NoshThreadHistory } from '@/components/nosh/conversation/NoshThreadHistory';
 import { NoshInteractionStateSync } from '@/components/nosh/conversation/NoshInteractionStateSync';
@@ -30,7 +29,7 @@ import { NoshConversationDisplay } from '@/components/nosh/conversation/NoshConv
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
-import { Radii, Spacing, Typography } from '@/constants/spacing';
+import { Radii, Spacing } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,13 +66,14 @@ import type {
   RecipeActionProposal,
 } from '@/utils/cookbook/recipeActions';
 import {
+  browseRecipeCollection,
   loadRecipeFromCollection,
   searchRecipeCollection,
   type LoadedCollectionRecipe,
 } from '@/utils/cookbook/recipeCollection';
+import { saveCookingPreference } from '@/utils/cookbook/cookingPreferences';
 import { SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
 import { normalizeCaptureDestinationCookbookId } from '@/utils/cookbook/captureLifecycle';
-import { Fonts } from '@/utils/fonts';
 
 const COLLECTION_SESSION: NoshInteractionSession = {
   entryPoint: 'shelf-nosh',
@@ -100,15 +100,12 @@ export function NoshConversationHost() {
   const {
     visible,
     interaction,
-    requestedFocus,
     visibleBookContext,
     pendingImageBase64,
     recipePreview,
     open,
     close,
     requestFocus,
-    acceptRequestedFocus,
-    dismissRequestedFocus,
     restoreInteraction,
     updateVisiblePage,
     setPendingImageBase64,
@@ -118,7 +115,7 @@ export function NoshConversationHost() {
   } = conversation;
 
   const [loadedFocus, setLoadedFocus] = useState<LoadedCollectionRecipe | null>(null);
-  const [focusStatus, setFocusStatus] = useState<'ready' | 'loading' | 'missing'>('ready');
+  const [focusStatus, setFocusStatus] = useState<'ready' | 'loading' | 'missing' | 'stale'>('ready');
   const recipeFocus = interaction.focus.kind === 'recipe' ? interaction.focus : null;
   const visibleFocusedPage = recipeFocus
     ? visibleBookContext.pages.find((page) => page.id === recipeFocus.pageId) ?? null
@@ -203,6 +200,35 @@ export function NoshConversationHost() {
     setPendingImageMimeType(null);
     setRecipePreview(null);
   }, [setPendingImageBase64, setPendingImageMimeType, setRecipePreview]);
+
+  const resolveFocusedRecipeGraph = useCallback(async (): Promise<RecipeGraph | null> => {
+    const currentInteraction = interactionRef.current;
+    if (currentInteraction.focus.kind !== 'recipe') return null;
+
+    const preview = recipePreview?.pageId === currentInteraction.focus.pageId
+      ? recipePreview.graph
+      : null;
+    if (preview) return preview;
+
+    const currentGraph = focusedRecipeGraphRef.current;
+    if (currentGraph) return currentGraph;
+
+    setFocusStatus('loading');
+    try {
+      const loaded = await loadRecipeFromCollection(currentInteraction.focus.pageId);
+      if (interactionRef.current.focus.kind !== 'recipe'
+        || interactionRef.current.focus.pageId !== loaded.pageId) {
+        return null;
+      }
+      setLoadedFocus(loaded);
+      setFocusStatus('ready');
+      return loaded.recipeGraph;
+    } catch (error) {
+      setLoadedFocus(null);
+      setFocusStatus('missing');
+      throw error;
+    }
+  }, [recipePreview]);
 
   const persistFocusedGraph = useCallback(async (graph: RecipeGraph) => {
     const focus = interactionRef.current.focus;
@@ -330,17 +356,10 @@ export function NoshConversationHost() {
   }, [queryClient, updateVisiblePage]);
 
   const handleLoadRecipe = useCallback(async (pageId: string) => {
-    const loaded = await loadRecipeFromCollection(pageId);
-    requestFocus({
-      kind: 'recipe',
-      cookbookId: loaded.cookbookId,
-      pageId: loaded.pageId,
-      title: loaded.recipeGraph.title,
-    });
-    setLoadedFocus(loaded);
-    setFocusStatus('ready');
-    return loaded;
-  }, [requestFocus]);
+    // Loading a background recipe for reasoning must not navigate the reader or
+    // replace what "this recipe" means. open_recipe owns those visible changes.
+    return loadRecipeFromCollection(pageId);
+  }, []);
 
   const handleOpenRecipe = useCallback(async (pageId: string) => {
     const loaded = await loadRecipeFromCollection(pageId);
@@ -421,10 +440,15 @@ export function NoshConversationHost() {
     hasCurrentArtwork: Boolean(visibleFocusedPage?.pageImage ?? visibleFocusedPage?.artAsset),
     availableCookbooks: realCookbooks.map((book) => ({ id: book.id, title: book.title })),
     onSearchRecipeCollection: searchRecipeCollection,
+    onBrowseRecipeCollection: browseRecipeCollection,
     onLoadRecipe: handleLoadRecipe,
     onOpenRecipe: handleOpenRecipe,
     onLoadCollectionActionPreview: loadCollectionActionPreview,
     onCommitCollectionAction: handleCommitCollectionAction,
+    onSaveCookingPreference: async (input) => {
+      if (!user) throw new Error('Sign in to save cooking preferences.');
+      return saveCookingPreference({ userId: user.id, ...input });
+    },
     onStartRecipeCapture: (source) => {
       const destination = visibleBookContextRef.current.cookbook;
       const persistedDestination = normalizeCaptureDestinationCookbookId(destination?.id)
@@ -471,6 +495,11 @@ export function NoshConversationHost() {
       : focusedCookbookRef.current;
     return {
       recipeGraph: focusedRecipeGraphRef.current,
+      resolveRecipeGraph: resolveFocusedRecipeGraph,
+      recipeGraphSource: currentInteraction.focus.kind === 'recipe'
+        && recipePreview?.pageId === currentInteraction.focus.pageId
+          ? 'session-preview'
+          : 'canonical',
       cookbookTitle: currentBook?.title,
       activeCookbookId: currentBook?.id,
       styleId: currentBook?.pageStyleId,
@@ -483,7 +512,7 @@ export function NoshConversationHost() {
       },
       hasAttachedImage: Boolean(imageRef.current),
     };
-  }, requestConsent), [requestConsent]);
+  }, requestConsent), [recipePreview, requestConsent, resolveFocusedRecipeGraph]);
 
   const threadListAdapter = useMemo(
     () => createNoshThreadListAdapter(user?.id),
@@ -499,6 +528,7 @@ export function NoshConversationHost() {
         'update_page_data',
         'regenerate_recipe_page',
         'organize_recipe',
+        'save_cooking_preference',
       ],
     });
   }, [adapter]);
@@ -589,17 +619,6 @@ export function NoshConversationHost() {
           />
         ) : (
           <>
-            {requestedFocus ? (
-              <NoshFocusChangePrompt
-                requestedFocus={requestedFocus}
-                currentLabel={contextLabel}
-                onAccept={acceptRequestedFocus}
-                onStartNew={() => {
-                  dismissRequestedFocus();
-                  void startNewConversation(requestedFocus);
-                }}
-              />
-            ) : null}
             {interaction.task === 'capture' ? (
               <ScrollView
                 style={styles.captureScroll}
@@ -621,6 +640,7 @@ export function NoshConversationHost() {
               <NoshConversationDisplay
                 interaction={interaction}
                 contextModelEnabled={contextModelEnabled}
+                sendDisabled={interaction.focus.kind === 'recipe' && focusStatus === 'loading'}
               />
             )}
           </>
@@ -653,385 +673,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primary,
   },
-  headerText: { flex: 1 },
-  eyebrow: { color: Colors.textMuted, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xl, },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  headerAction: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  headerActionDisabled: { opacity: 0.4 },
-  threadContainer: { flex: 1, gap: Spacing.sm },
-  messagesList: { flex: 1, minHeight: 220 },
-  messagesContent: { gap: Spacing.sm, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.values[2] },
-  userRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-  userBubble: {
-    maxWidth: '86%',
-    borderRadius: Radii.lg,
-    borderBottomRightRadius: Radii.sm,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-  },
-  userText: { color: Colors.onPrimary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight20, fontFamily: Fonts.ui.regular },
-  assistantRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
-  assistantAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: Radii.numeric[14],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    marginTop: Spacing.values[2],
-  },
-  assistantBubble: {
-    flex: 1,
-    maxWidth: '88%',
-    borderRadius: Radii.lg,
-    borderBottomLeftRadius: Radii.sm,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-  },
-  assistantText: { color: Colors.text, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight20, fontFamily: Fonts.ui.regular },
-  suggestionsContainer: { gap: Spacing.xs, paddingVertical: Spacing.sm },
-  welcomeTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
-  welcomeCopy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight19, maxWidth: 390 },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    paddingTop: Spacing.xs,
-  },
-  chip: {
-    borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  chipText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  composerArea: { gap: Spacing.xs },
-  attachmentChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.values[6],
-  },
-  attachmentText: { color: Colors.text, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.xs,
-    padding: Spacing.values[4],
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  attachButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  composerInput: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 110,
-    color: Colors.text,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.values[9],
-    fontSize: Typography.sizes.md,
-    fontFamily: Fonts.ui.regular,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  sendDisabled: { opacity: 0.35 },
-  cancelButton: {
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.ash,
-    paddingHorizontal: Spacing.sm,
-  },
-  cancelText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  button: {
-    minWidth: 126,
-    height: 44,
-    borderRadius: Radii.full,
-    paddingHorizontal: Spacing.values[18],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.values[7],
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    boxShadow: Colors.book.cardShadow,
-  },
-  buttonLabel: { color: Colors.text, fontFamily: Fonts.ui.medium },
-  shelfButton: {
-    position: 'absolute',
-    right: Spacing.md,
-    top: 132,
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.numeric[27],
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.primary,
-    boxShadow: Colors.book.liftedShadow,
-  },
-  shelfEntry: {
-    position: 'absolute',
-    right: Spacing.md,
-    top: 132,
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    boxShadow: Colors.book.liftedShadow,
-  },
-  shelfEntryText: { gap: Spacing.values[1], paddingRight: Spacing.xs },
-  shelfEntryTitle: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  shelfEntryCopy: { color: Colors.onPrimary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, opacity: 0.82 },
-  progressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.md,
-    marginHorizontal: Spacing.values[2],
-  },
-  progressGlyph: {
-    width: 42,
-    height: 42,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.numeric[21],
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  progressScanLine: {
-    position: 'absolute',
-    left: 7,
-    right: 7,
-    top: 20,
-    height: 2,
-    borderRadius: Radii.numeric[1],
-    backgroundColor: Colors.primary,
-  },
-  progressText: { flex: 1, gap: Spacing.values[2] },
-  progressLabel: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-  },
-  progressDetail: {
-    color: Colors.slate,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight16,
-  },
-  progressTrail: {
-    flexDirection: 'row',
-    gap: Spacing.values[5],
-    marginTop: Spacing.values[5],
-  },
-  progressDot: {
-    width: 18,
-    height: 2,
-    borderRadius: Radii.numeric[1],
-    backgroundColor: Colors.ash,
-  },
-  progressDotActive: { backgroundColor: Colors.primary },
-  historyPanel: { flex: 1, minHeight: 260, gap: Spacing.md },
-  historyIntro: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.ash,
-    paddingBottom: Spacing.md,
-  },
-  historyHeading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
-  historyCopy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, marginTop: Spacing.values[2] },
-  newConversationButton: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.values[7],
-    borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-  },
-  newConversationText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  historyListRoot: { flex: 1 },
-  historyListContent: { gap: Spacing.sm, paddingBottom: Spacing.md },
-  historyItem: {
-    minHeight: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    padding: Spacing.xs,
-  },
-  historyItemActive: { borderColor: Colors.charcoal, backgroundColor: Colors.parchment },
-  historyItemMain: {
-    flex: 1,
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-  },
-  historyMark: {
-    width: 8,
-    height: 28,
-    borderRadius: Radii.numeric[4],
-    backgroundColor: Colors.ash,
-  },
-  historyMarkActive: { backgroundColor: Colors.butterscotch },
-  historyItemText: { flex: 1, gap: Spacing.values[3] },
-  historyTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  historyMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
-  historySmallAction: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  renameEditor: {
-    flex: 1,
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.values[2],
-    paddingLeft: Spacing.sm,
-  },
-  renameInput: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.white,
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.values[7],
-  },
-  historyDelete: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.values[4], paddingRight: Spacing.values[4] },
-  deleteCancel: { minHeight: 36, justifyContent: 'center', paddingHorizontal: Spacing.values[7] },
-  deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  deleteConfirmButton: {
-    minHeight: 36,
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.error,
-    paddingHorizontal: Spacing.sm,
-  },
-  deleteConfirmText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  historyEmpty: {
-    flex: 1,
-    minHeight: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.xl,
-  },
-  historyEmptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, textAlign: 'center' },
-  historyEmptyCopy: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight18,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  focusPrompt: {
-    gap: Spacing.sm,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.md,
-  },
-  focusPromptTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
-  focusPromptCopy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
-  focusPrimaryButton: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-  },
-  focusPrimaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  focusSecondaryButton: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.md,
-  },
-  focusSecondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
 });

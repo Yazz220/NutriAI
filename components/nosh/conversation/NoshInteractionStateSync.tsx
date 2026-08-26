@@ -35,11 +35,11 @@ export function NoshInteractionStateSync({
     if (isNoshInteractionSession(saved)) {
       restoringInteractionRef.current = JSON.stringify(saved);
       onRestoreInteraction(saved);
-    } else {
+    } else if (threadStatus !== 'new') {
       restoringInteractionRef.current = JSON.stringify(COLLECTION_SESSION);
       onRestoreInteraction(COLLECTION_SESSION);
     }
-  }, [custom, onRestoreInteraction, onThreadChanged, threadId]);
+  }, [custom, onRestoreInteraction, onThreadChanged, threadId, threadStatus]);
 
   useEffect(() => {
     const thread = aui.threadListItem.getState();

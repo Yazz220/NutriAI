@@ -64,6 +64,11 @@ export interface ChatCompletionRequest {
   tool_choice?: string | { type: string; function?: { name: string } };
   seed?: number;
   top_p?: number;
+  reasoning?: {
+    enabled?: boolean;
+    effort?: 'low' | 'medium' | 'high';
+    exclude?: boolean;
+  };
   provider?: {
     require_parameters?: boolean;
   };
@@ -74,7 +79,7 @@ export interface ChatCompletionResponse {
   choices: Array<{
     message: {
       role: 'assistant';
-      content: string | null;
+      content: string | ContentPart[] | null;
       tool_calls?: ToolCall[];
     };
     finish_reason: string;
