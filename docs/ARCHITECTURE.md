@@ -136,19 +136,22 @@ Capture from Share to Nosh, Add page, or assistant handoff
   -> destination resolves from the explicit, active, default, or sole cookbook
   -> only an unresolved destination pauses for a simple cookbook picker
   -> create_capture_page stores one processing page and the canonical RecipeGraph
-  -> generate-page-art creates one complete 3:4 recipe page including visible text
+  -> generate-page-art creates one complete 4:5 recipe page including visible text
   -> finalize_recipe_capture_page publishes the page and marks the capture ready
   -> React Query polling adds the published page to the reader cache
 
 Assistant
   -> root-mounted NoshConversationHost (assistant-ui LocalRuntime)
   -> nosh-chat Edge Function (Qwen3.6-35B-A3B with tool-calling)
+  -> server safety policy rejects clear harm and malicious non-cooking requests before model processing
   -> same thread persists from shelf to reader
   -> named saved recipe: search_recipe_collection returns at most five RLS-scoped candidates
   -> selected candidate: load_recipe returns its canonical RecipeGraph
   -> explicit "open/show" request: open_recipe navigates to the owning cookbook and page
   -> tools propose changes against the RecipeGraph
   -> saved changes generate a matching replacement page before graph/version selection
+  -> Report beneath a completed response sends its text through report-ai-response
+  -> service-role insert stores it in the private ai_response_reports table
 ```
 
 This is the only recipe-to-page flow. `nosh-chat` can request a capture handoff, but it cannot extract and publish a page itself. Compatibility routes redirect into the active flow. The legacy typesetter can display old pages but cannot produce new ones.
@@ -171,6 +174,8 @@ Internal generation credits are suspended during product development. `generate-
 ### Assistant Chat
 
 `components/cookbook/NoshAssistantChat.tsx` hosts a root-mounted `@assistant-ui/react-native` `LocalRuntime` wrapped by its remote-thread-list runtime. `utils/cookbook/noshThreadStorage.ts` supplies a user-scoped AsyncStorage adapter, so users can start a clean conversation, browse generated conversation titles, restore messages after an app reload, switch sessions, and delete a session through a two-step confirmation. This history is device-local rather than cross-device cloud history. Each thread stores compact Nosh interaction metadata in its custom record. Capture scratch data is not restored with a general thread. The sheet can be launched from the shelf or reader without remounting. Tools in `utils/cookbook/noshToolkit.tsx` handle capture handoff, collection retrieval, explicit navigation, organization, and focused RecipeGraph changes.
+
+`nosh-chat` owns the server safety policy. It ignores client-supplied system messages, refuses clear intentional harm, self-harm, sexual-content, and malicious non-cooking requests before calling the model, and places conservative allergy, contamination, doneness, and urgent-care rules in the server system prompt. Completed text responses expose a Report action. `report-ai-response` verifies the current user and writes the response to a service-role-only table; report text is never logged.
 
 `types/noshInteraction.ts` defines the interaction contract. Reader swipes update `visibleContext`; they do not update `focus`. When a recipe is focused, "this recipe" keeps that meaning until an explicit focus change. Opening Ask Nosh from a different recipe offers two choices: move the current conversation's focus or start a new conversation. The adapter sends one focused RecipeGraph plus compact focus and visible-route metadata. It also selects tools by active task: collection, recipe help, capture, or walkthrough. Collection search returns at most five compact candidates, and one user request may load at most three canonical RecipeGraphs; larger comparisons are narrowed conversationally instead of placing the collection in model context.
 
@@ -227,11 +232,11 @@ AI_MODEL
 
 ### Complete Cookbook Page Generation
 
-`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 3:4, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, or outer padding. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the canonical RecipeGraph, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` so legacy artifacts remain identifiable. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, or outer padding. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
 
 The reader exposes this flow through two compact recipe actions: `Edit recipe` and `Try another design`. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Nosh. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 
-Book settings exposes `Download cookbook PDF` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a standard A4 portrait PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Recipe images are centered and cover the complete page canvas; the generation safe margin absorbs the small 3:4-to-A4 crop. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
+Book settings exposes `Download cookbook PDF` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a canonical 8 × 10 inch PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Recipe images fill the matching 4:5 page canvas without aspect-ratio cropping. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
 
 Secrets:
 
@@ -260,13 +265,13 @@ alabaster-linen
 umber-leather
 ```
 
-`constants/cookbookCustomization.ts` is the creation-studio catalog. It marks the small set of inline featured cover finishes, defines the new Illustrated, Editorial, and Heritage page styles, and links each page style to its brownie and cookie preview assets. Adding catalog entries does not require restructuring the Studio UI. A future expanded picker or sticker editor can consume the same catalog; neither is exposed yet.
+`constants/cookbookCustomization.ts` keeps the six creation-studio cover colors and the selectable Illustrated, Editorial, and Heritage page-style profiles. Each page style links to its brownie and cookie sample assets for the Studio's Inside preview. The creation flow persists the selected `page_style_id`; legacy identifiers remain readable so existing books keep their established visual identity.
 
 `cover_style` on `nutriai.cookbooks` owns only the physical book skin. `page_style_id` owns the generated-page visual language. `style_revision` freezes that page-style contract for a generation era, and `page_style_references` stores optional visual anchors. Together the page fields own paper treatment, palette, typography, decorative language, food rendering, and composition. `_shared/artGeneration.ts` turns that database-owned contract and the exact RecipeGraph copy into the complete-page prompt.
 
 New imports do not ask the user to choose a per-recipe visual template. The image model composes each page from the RecipeGraph's actual structure and the cookbook's persisted `page_style_id`. The capture function still writes a density-derived `cookbook_pages.template_id`, and books still have `page_template_id`, but those are compatibility metadata for legacy vector rendering. The complete-page generator does not receive either field. Do not turn them into a second style or generation pipeline.
 
-Page requests include the exact visible recipe copy and structured visual ingredients, use the immutable cookbook style contract, and generate a 3:4, 2K portrait page. Explicit visual regeneration can use the currently selected page as an image-editing reference, but a generated candidate remains unselected until the user selects it.
+Page requests include the exact visible recipe copy and structured visual ingredients, use the immutable cookbook style contract, and generate a 4:5, 2K portrait page. Explicit visual regeneration can use the currently selected page as an image-editing reference, but a generated candidate remains unselected until the user selects it.
 
 ## Offline Sample Book
 

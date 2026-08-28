@@ -52,9 +52,10 @@ describe('cookbook PDF export', () => {
     expect(html).toContain('1 recipe');
     expect(html).toContain('aria-label="Soup &lt;Special&gt;"');
     expect(html.match(/<section class="page/g)).toHaveLength(2);
-    expect(html).toContain('@page { size: A4 portrait; margin: 0; }');
-    expect(html).toContain('width: 210mm;');
-    expect(html).toContain('height: 297mm;');
+    expect(html).toContain('@page { size: 8in 10in; margin: 0; }');
+    expect(html).toContain('width: 8in;');
+    expect(html).toContain('height: 10in;');
+    expect(html).toContain('object-fit: contain;');
     expect(html).toContain('object-position: center;');
   });
 
@@ -78,8 +79,8 @@ describe('cookbook PDF export', () => {
 
     const html = mockedPrintToFile.mock.calls[0][0].html ?? '';
     expect(mockedPrintToFile).toHaveBeenCalledWith(expect.objectContaining({
-      width: 595,
-      height: 842,
+      width: 576,
+      height: 720,
       margins: { top: 0, right: 0, bottom: 0, left: 0 },
     }));
     expect(html.indexOf('FIRST_IMAGE')).toBeLessThan(html.indexOf('SECOND_IMAGE'));

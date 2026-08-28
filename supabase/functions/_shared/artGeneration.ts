@@ -1,3 +1,5 @@
+import { COOKBOOK_GEOMETRY } from '../../../constants/cookbookGeometry.ts';
+
 export interface RecipePageIngredient {
   name?: string;
   quantity?: string;
@@ -47,13 +49,15 @@ export interface RecipePageCopy {
 
 export interface RecipePagePromptPayload {
   kind: 'complete-recipe-page';
+  geometryId: typeof COOKBOOK_GEOMETRY.id;
+  geometryRevision: typeof COOKBOOK_GEOMETRY.revision;
   styleId: string;
   styleRevision: number;
   styleDescriptor: string;
   recipe: RecipePageCopy;
   output: {
-    aspectRatio: '3:4';
-    resolution: '2K';
+    aspectRatio: typeof COOKBOOK_GEOMETRY.generation.aspectRatio;
+    resolution: typeof COOKBOOK_GEOMETRY.generation.resolution;
   };
   pageInstructions: string;
   styleReferences: string[];
@@ -297,7 +301,7 @@ export function buildRecipePagePrompt(
     profile.composition,
   ].join('; ');
   const pageInstructions = [
-    'Create one finished, flat, portrait cookbook page in a 3:4 aspect ratio.',
+    `Create one finished, flat, portrait cookbook page in the canonical ${COOKBOOK_GEOMETRY.generation.aspectRatio} aspect ratio.`,
     'The result is the page itself, not a photograph, mockup, open book, loose sheet, or framed poster.',
     'Fill the entire output canvas; the canvas edges are the physical page edges.',
     'Do not place a smaller page inside the canvas, leave blank outer padding, add a drop shadow, or show a surrounding background.',
@@ -327,11 +331,16 @@ export function buildRecipePagePrompt(
     prompt,
     payload: {
       kind: 'complete-recipe-page',
+      geometryId: COOKBOOK_GEOMETRY.id,
+      geometryRevision: COOKBOOK_GEOMETRY.revision,
       styleId,
       styleRevision,
       styleDescriptor,
       recipe: copy,
-      output: { aspectRatio: '3:4', resolution: '2K' },
+      output: {
+        aspectRatio: COOKBOOK_GEOMETRY.generation.aspectRatio,
+        resolution: COOKBOOK_GEOMETRY.generation.resolution,
+      },
       pageInstructions,
       styleReferences,
     },
@@ -356,8 +365,8 @@ export function buildOpenRouterImageRequest(
   const request: Record<string, unknown> = {
     model,
     prompt,
-    aspect_ratio: '3:4',
-    resolution: '2K',
+    aspect_ratio: COOKBOOK_GEOMETRY.generation.aspectRatio,
+    resolution: COOKBOOK_GEOMETRY.generation.resolution,
     n: 1,
   };
 

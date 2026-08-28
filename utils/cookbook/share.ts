@@ -1,9 +1,10 @@
 import { Platform, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { CookbookPage } from '@/types/cookbook';
+import { getCookbookPageImageUri } from '@/utils/cookbook/pageImage';
 
 export async function shareCookbookPage(page: CookbookPage): Promise<void> {
-  const imageUrl = getPageImageUrl(page);
+  const imageUrl = getCookbookPageImageUri(page);
   if (!imageUrl) {
     throw new Error('This page does not have an image to share yet.');
   }
@@ -16,7 +17,7 @@ export async function shareCookbookPage(page: CookbookPage): Promise<void> {
 }
 
 export async function exportCookbookPageImage(page: CookbookPage): Promise<void> {
-  const imageUrl = getPageImageUrl(page);
+  const imageUrl = getCookbookPageImageUri(page);
   if (!imageUrl) throw new Error('This page does not have an image to export yet.');
 
   if (Platform.OS === 'web') {
@@ -33,10 +34,6 @@ export async function exportCookbookPageImage(page: CookbookPage): Promise<void>
     message: page.title,
     url: exportUrl,
   });
-}
-
-function getPageImageUrl(page: CookbookPage): string | undefined {
-  return page.imageUrl ?? page.pageImage?.imageUrl;
 }
 
 async function downloadPageImage(page: CookbookPage, imageUrl: string): Promise<string> {

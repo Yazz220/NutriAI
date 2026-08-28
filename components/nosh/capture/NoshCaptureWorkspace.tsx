@@ -82,6 +82,9 @@ export function NoshCaptureWorkspace({
   const [captureId, setCaptureId] = useState(initialCaptureId);
   const [input, setInput] = useState('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageMimeType, setImageMimeType] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activityLimit, setActivityLimit] = useState(INITIAL_ACTIVITY_LIMIT);
   const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
@@ -89,6 +92,7 @@ export function NoshCaptureWorkspace({
   );
   const [firstRunReady, setFirstRunReady] = useState(false);
   const handoffStartedRef = useRef(false);
+  const submitInFlightRef = useRef(false);
   const previousActivityVisibleRef = useRef(activityVisible);
   const availableCookbooks = useMemo(
     () => cookbooks.filter((cookbook) => cookbook.userId === user?.id),
@@ -160,7 +164,9 @@ export function NoshCaptureWorkspace({
   }, [activityVisible]);
 
   const submit = useCallback(async (payload: UnifiedIntakePayload) => {
-    if (!user) return;
+    if (!user || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
+    setIsSubmitting(true);
     setError(null);
     try {
       if (!await requestConsent()) return;
@@ -169,7 +175,9 @@ export function NoshCaptureWorkspace({
       if (payload.type === 'image') {
         const upload = await uploadRecipeCaptureImage({
           userId: user.id,
+          imageUri: payload.imageUri,
           imageBase64: payload.imageBase64,
+          mimeType: payload.mimeType,
           requestKey,
         });
         source = { type: 'image', ...upload, notes: payload.input };
@@ -202,8 +210,13 @@ export function NoshCaptureWorkspace({
       setCaptureId(result.capture.id);
       setInput('');
       setImageBase64(null);
+      setImageUri(null);
+      setImageMimeType(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
+    } finally {
+      submitInFlightRef.current = false;
+      setIsSubmitting(false);
     }
   }, [captureState, destinationCookbookId, requestConsent, user]);
 
@@ -324,12 +337,18 @@ export function NoshCaptureWorkspace({
     <View style={styles.workspace}>
       {isFirstCaptureExperience ? <FirstCaptureIntro /> : null}
       <UnifiedIntakeComposer
-        isSubmitting={captureState.isStarting}
+        isSubmitting={isSubmitting || captureState.isStarting}
         input={input}
         imageBase64={imageBase64}
+        imageUri={imageUri}
+        imageMimeType={imageMimeType}
         error={error}
         onInputChange={(value) => { setInput(value); setError(null); }}
         onImageBase64Change={setImageBase64}
+        onImageUriChange={(uri, mimeType) => {
+          setImageUri(uri);
+          setImageMimeType(mimeType);
+        }}
         onSubmit={submit}
       />
 

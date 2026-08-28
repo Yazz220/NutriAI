@@ -18,6 +18,7 @@ describe('physical cookbook page turns', () => {
 
       expect(geometry.stageWidth).toBeLessThanOrEqual(430 - 16);
       expect(geometry.hingeX).toBeCloseTo(215);
+      expect(geometry.pageHeight / geometry.pageWidth).toBeCloseTo(5 / 4);
     });
 
     it('attaches both closed covers to the same center hinge', () => {
@@ -41,6 +42,7 @@ describe('physical cookbook page turns', () => {
       expect(geometry.bindingLeft).toBeLessThan(geometry.pageOffsetX);
       expect(geometry.bindingLeft + geometry.bindingWidth).toBeGreaterThan(geometry.pageOffsetX);
       expect(geometry.stageWidth).toBeLessThan(430);
+      expect(geometry.pageHeight / geometry.pageWidth).toBeCloseTo(5 / 4);
     });
   });
 

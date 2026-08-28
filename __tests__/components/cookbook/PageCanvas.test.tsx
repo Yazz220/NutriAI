@@ -3,6 +3,7 @@ import { render } from '@testing-library/react-native';
 import {
   buildRecipePageAccessibilityLabel,
   PageCanvas,
+  resolveFocusedPageWidth,
 } from '@/components/cookbook/PageCanvas';
 import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -59,6 +60,12 @@ const page: CookbookPage = {
 };
 
 describe('PageCanvas accessibility', () => {
+  it('uses available height on larger screens while preserving phone margins', () => {
+    expect(resolveFocusedPageWidth(390, 844)).toBeLessThanOrEqual(358);
+    expect(resolveFocusedPageWidth(768, 1024)).toBeGreaterThan(430);
+    expect(resolveFocusedPageWidth(1920, 1080)).toBeLessThanOrEqual(560);
+  });
+
   it('exposes canonical recipe content behind a generated image page', () => {
     const label = buildRecipePageAccessibilityLabel(page);
 

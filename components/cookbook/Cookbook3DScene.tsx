@@ -495,12 +495,6 @@ export function Cookbook3DScene({
   const backwardImage = backwardLeafTexture ?? backwardLeafImage;
   const forwardBackImage = forwardBackLeafTexture ?? forwardBackFaceImage;
   const backwardBackImage = backwardBackLeafTexture ?? backwardBackFaceImage;
-  const forwardSkiaEnabled =
-    (!forwardLeafPage?.recipeGraph || Boolean(forwardLeafTextureUri && forwardLeafImage)) &&
-    (!forwardBackFacePage?.recipeGraph || Boolean(forwardBackTextureUri && forwardBackFaceImage));
-  const backwardSkiaEnabled =
-    (!backwardLeafPage?.recipeGraph || Boolean(backwardLeafTextureUri && backwardLeafImage)) &&
-    (!backwardBackFacePage?.recipeGraph || Boolean(backwardBackTextureUri && backwardBackFaceImage));
 
   // While a turn runs, the Skia leaf draws the turning page (curl, back face,
   // fold shadow); the flat RN leaves underneath only gate their visibility so
@@ -510,8 +504,7 @@ export function Cookbook3DScene({
     const dir = turnDirection.value;
     const progress = turnProgress.value;
     if (dir === 0 || progress === 0) return { opacity: 1, transform: [{ rotateY: '0deg' }] };
-    const skiaTurnEnabled = dir === 1 ? forwardSkiaEnabled : backwardSkiaEnabled;
-    if (SKIA_ENABLED && skiaTurnEnabled) {
+    if (SKIA_ENABLED) {
       // In single-page backward turns, the previous page uncurls IN over the current page,
       // so the current page remains visible underneath.
       if (isPhysicalPageReading && dir === -1) {
@@ -529,7 +522,7 @@ export function Cookbook3DScene({
         { translateX: halfPageWidth },
       ],
     };
-  }, [backwardSkiaEnabled, forwardSkiaEnabled, isPhysicalPageReading, readingPageWidth]);
+  }, [isPhysicalPageReading, readingPageWidth]);
 
   const nextPageRevealStyle = useAnimatedStyle(() => ({
     opacity: turnDirection.value === 1 ? 1 : 0,
@@ -882,9 +875,9 @@ export function Cookbook3DScene({
         .onEnd(() => {
           const zoomed = pageZoomScale.value > READER_ZOOMED_THRESHOLD;
           if (!zoomed) {
-            pageZoomScale.value = withTiming(READER_MIN_ZOOM, { duration: 160 });
-            pageZoomTranslateX.value = withTiming(0, { duration: 160 });
-            pageZoomTranslateY.value = withTiming(0, { duration: 160 });
+            pageZoomScale.value = reduceMotion ? READER_MIN_ZOOM : withTiming(READER_MIN_ZOOM, { duration: 160 });
+            pageZoomTranslateX.value = reduceMotion ? 0 : withTiming(0, { duration: 160 });
+            pageZoomTranslateY.value = reduceMotion ? 0 : withTiming(0, { duration: 160 });
           }
           runOnJS(updatePageZoomedState)(zoomed);
         }),
@@ -902,6 +895,7 @@ export function Cookbook3DScene({
       pageZoomTranslateY,
       readingPageHeight,
       readingPageWidth,
+      reduceMotion,
       updatePageZoomedState,
       width,
     ],
@@ -965,9 +959,9 @@ export function Cookbook3DScene({
                 nextScale,
               )
             : 0;
-          pageZoomScale.value = withTiming(nextScale, { duration: 180 });
-          pageZoomTranslateX.value = withTiming(nextTranslateX, { duration: 180 });
-          pageZoomTranslateY.value = withTiming(nextTranslateY, { duration: 180 });
+          pageZoomScale.value = reduceMotion ? nextScale : withTiming(nextScale, { duration: 180 });
+          pageZoomTranslateX.value = reduceMotion ? nextTranslateX : withTiming(nextTranslateX, { duration: 180 });
+          pageZoomTranslateY.value = reduceMotion ? nextTranslateY : withTiming(nextTranslateY, { duration: 180 });
           runOnJS(updatePageZoomedState)(zoomed);
         }),
     [
@@ -978,6 +972,7 @@ export function Cookbook3DScene({
       pageZoomTranslateY,
       readingPageHeight,
       readingPageWidth,
+      reduceMotion,
       updatePageZoomedState,
       width,
     ],
@@ -1124,8 +1119,6 @@ export function Cookbook3DScene({
                       direction={turnDirection}
                       grabYRatio={grabYRatio}
                       onePageMode
-                      forwardEnabled={forwardSkiaEnabled}
-                      backwardEnabled={backwardSkiaEnabled}
                     />
                   ) : null}
                   <BookGutter
@@ -1317,8 +1310,6 @@ export function Cookbook3DScene({
                         progress={turnProgress}
                         direction={turnDirection}
                         grabYRatio={grabYRatio}
-                        forwardEnabled={forwardSkiaEnabled}
-                        backwardEnabled={backwardSkiaEnabled}
                       />
                     ) : null}
                     <BookGutter

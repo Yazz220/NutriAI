@@ -9,16 +9,20 @@ The user's collection of personal cookbooks and the home of the signed-in produc
 _Avoid_: Dashboard, recipe manager
 
 **Cookbook**:
-A named physical-looking book that owns a cover finish, a recipe-page style, and the user's recipe pages.
+A named physical-looking Nosh book personalized by its title and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
 _Avoid_: Folder, collection
 
-**Cover finish**:
-The book's physical skin: its color, cloth or leather material, binding, and foil treatment.
-_Avoid_: Recipe style, page template
+**Cover color**:
+The user-selected surface color applied to the canonical Nosh book. It personalizes the book without changing its structure or behavior.
+_Avoid_: Book type, recipe style, page template
 
 **Recipe-page style**:
-The book-owned visual language shared by every generated recipe page inside it. It includes paper, palette, typography, image treatment, ornament, and composition. It is independent from the cover finish.
-_Avoid_: Per-recipe theme, cover style, page template
+The book-owned visual language shared by every generated recipe page inside it. The user chooses Illustrated, Editorial, or Heritage when creating the cookbook. It is independent from the cover color.
+_Avoid_: Per-recipe theme, cover color, page template
+
+**Canonical page geometry**:
+The 4:5 portrait leaf shared by every Nosh cookbook. Two leaves form an 8:5 spread, and 8 × 10 inches is its physical-print mapping. Geometry never varies by cover color, recipe-page style, or user choice.
+_Avoid_: Page-size option, image crop, recipe-page style
 
 **Default cookbook**:
 The cookbook Nosh chooses when a recipe capture has no explicit destination.

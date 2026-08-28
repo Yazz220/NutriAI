@@ -78,11 +78,11 @@ When a saved recipe changes, Nosh first generates a replacement page from the pr
 
 ## Cookbook visual identity
 
-Each cookbook persists two independent choices: `cover_style` for its physical binding and `page_style_id` for the visual language of its generated recipe pages. The page style also owns a revision and optional visual reference images. Page generation reads that identity from the database. It does not trust a caller to choose a different style for one recipe.
+Each cookbook persists `cover_style` for its surface color and `page_style_id` for the internal visual identity of its generated recipe pages. The page identity also owns a revision and optional visual reference images. Page generation reads that identity from the database. It does not trust a caller to choose a different style for one recipe.
 
-The page style controls paper, palette, typography, decorative language, food treatment, and composition. Layout may vary with recipe density, but the book's page identity stays fixed. Changing the cover finish never changes the pages.
+The page identity controls paper, palette, typography, decorative language, food treatment, and composition. Layout may vary with recipe density, but the identity stays fixed. New cookbooks choose Illustrated, Editorial, or Heritage. Legacy identities remain readable so existing books do not change.
 
-The creation studio presents one live book, not a grid of separate products. The user names it, chooses a featured cover finish, and chooses Illustrated, Editorial, or Heritage pages. The brownie and cookie sample spread previews the selected page style; those samples are bundled previews and are not copied into the user's new cookbook.
+The creation studio presents the same Nosh book every user will own. The user names it, chooses a cover color, and chooses the recipe-page style shared by the book. A Cover and Inside switcher previews the canonical physical cover or a two-page sample of the selected recipe style. Dimensions, binding, page system, opening behavior, page flipping, shadows, and interactions are owned by Nosh and are not presented as configuration choices.
 
 ## Reading and cooking
 

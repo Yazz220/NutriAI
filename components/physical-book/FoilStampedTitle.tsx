@@ -1,4 +1,4 @@
-import { Typography , Spacing} from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -70,7 +70,6 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
         </Text>
       </View>
 
-      <View style={[styles.rule, { backgroundColor: withAlpha(foil[1], 0.75) }]} />
       <Text
         style={[styles.caption, { color: withAlpha(foil[1], 0.85), fontSize: captionSize }]}
         allowFontScaling={false}
@@ -107,10 +106,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-  },
-  rule: {
-    width: 44,
-    height: 1,
   },
   caption: {
     fontFamily: Fonts.ui.medium,

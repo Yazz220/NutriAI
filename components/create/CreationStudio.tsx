@@ -13,41 +13,41 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Check, Feather, Leaf, SlidersHorizontal, Sparkles } from 'lucide-react-native';
+import { BookOpen, Check, Feather, Leaf, Sparkles } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import {
   COOKBOOK_PAGE_STYLES,
   DEFAULT_CREATION_PAGE_STYLE_ID,
-  FIRST_BOOK_LOOKS,
+  listCookbookCoverColors,
   listCreationPageStyles,
-  listFeaturedCookbookCoverFinishes,
-  type CookbookCoverFinishOption,
+  type CookbookCoverColorOption,
   type CookbookPageStyleOption,
   type CreationPageStyleId,
-  type FirstBookLookOption,
 } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
-import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
+import { resolveCookbookSpreadHeight } from '@/constants/cookbookGeometry';
+import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { CookbookStyleId } from '@/types/cookbook';
 
 /**
- * Production cookbook creation studio. The book remains the focal object while
- * catalog-backed controls independently choose its physical cover and its
- * book-owned recipe-page visual language. Page layout remains automatic.
+ * Cookbook creation keeps the physical book canonical while letting the user
+ * choose its title, cover color, and book-owned recipe-page identity.
  */
 
 type PreviewFace = 'cover' | 'inside';
 
+export interface CreateCookbookDetails {
+  title: string;
+  coverStyle: CookbookStyleId;
+  pageStyleId: CreationPageStyleId;
+}
+
 interface CreationStudioProps {
   canCreate: boolean;
-  onCreateBook: (
-    title: string,
-    coverStyle: CookbookStyleId,
-    pageStyleId: CreationPageStyleId,
-  ) => Promise<void>;
+  onCreateBook: (details: CreateCookbookDetails) => Promise<void>;
   onSignIn: () => void;
   bottomInset?: number;
   mode?: 'standard' | 'first-run';
@@ -60,35 +60,32 @@ export function CreationStudio({
   bottomInset = 0,
   mode = 'standard',
 }: CreationStudioProps) {
-  const { width, fontScale } = useWindowDimensions();
-  const coverFinishes = listFeaturedCookbookCoverFinishes();
+  const { width } = useWindowDimensions();
+  const coverColors = listCookbookCoverColors();
   const pageStyles = listCreationPageStyles();
   const isFirstRun = mode === 'first-run';
   const [title, setTitle] = useState(isFirstRun ? 'My Cookbook' : '');
-  const [coverStyle, setCoverStyle] = useState<CookbookStyleId>(coverFinishes[0].id);
+  const [coverStyle, setCoverStyle] = useState<CookbookStyleId>(coverColors[0].id);
   const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
   const [previewFace, setPreviewFace] = useState<PreviewFace>('cover');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showFineTune, setShowFineTune] = useState(false);
-  const stackFirstLooks = width < 390 || fontScale > 1.2;
 
-  function selectWithHaptic<T>(setter: (value: T) => void, value: T) {
-    setter(value);
+  function selectCoverColor(value: CookbookStyleId) {
+    setCoverStyle(value);
     setError(null);
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
   function selectPageStyle(value: CreationPageStyleId) {
-    selectWithHaptic(setPageStyleId, value);
+    setPageStyleId(value);
     setPreviewFace('inside');
+    setError(null);
+    void Haptics.selectionAsync().catch(() => undefined);
   }
 
-  function selectFirstBookLook(option: FirstBookLookOption) {
-    setCoverStyle(option.coverStyle);
-    setPageStyleId(option.pageStyleId);
-    setPreviewFace('cover');
-    setError(null);
+  function selectPreviewFace(value: PreviewFace) {
+    setPreviewFace(value);
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
@@ -98,7 +95,7 @@ export function CreationStudio({
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook(trimmed, coverStyle, pageStyleId);
+      await onCreateBook({ title: trimmed, coverStyle, pageStyleId });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (creationError) {
       setError(getErrorMessage(creationError));
@@ -106,6 +103,7 @@ export function CreationStudio({
     }
   }
 
+  const selectedColor = coverColors.find((option) => option.id === coverStyle) ?? coverColors[0];
   const ctaDisabled = canCreate ? !title.trim() || submitting : false;
 
   return (
@@ -117,57 +115,50 @@ export function CreationStudio({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heading}>
-          <Text style={styles.headingTitle}>{isFirstRun ? 'Give your recipes a home' : 'Make it yours'}</Text>
+          <Text style={styles.headingTitle}>
+            {isFirstRun ? 'Give your recipes a home' : 'Make it yours'}
+          </Text>
+          <Text style={styles.headingSubtitle}>
+            Choose its cover, then decide how every recipe page should look.
+          </Text>
         </View>
 
         <View style={styles.previewPanel}>
-          <PreviewToggle value={previewFace} onChange={(value) => selectWithHaptic(setPreviewFace, value)} />
+          <PreviewToggle value={previewFace} onChange={selectPreviewFace} />
           <BookPreview
             title={title}
             coverStyle={coverStyle}
             pageStyleId={pageStyleId}
             face={previewFace}
-            availableWidth={Math.min(width - Spacing.xl * 2, 712)}
-            onPress={() => selectWithHaptic(setPreviewFace, previewFace === 'cover' ? 'inside' : 'cover')}
+            availableWidth={Math.min(width - Spacing.xl * 2, 640)}
+            onPress={() => selectPreviewFace(previewFace === 'cover' ? 'inside' : 'cover')}
           />
-          <SelectionSummary coverStyle={coverStyle} pageStyleId={pageStyleId} />
+          <Text style={styles.selectionSummary}>
+            {selectedColor.name} cover · {COOKBOOK_PAGE_STYLES[pageStyleId].name} recipe pages
+          </Text>
         </View>
 
-        <View style={styles.controlStack}>
-          <TitleField value={title} onChange={(value) => {
-            setTitle(value);
-            setError(null);
-          }} />
-          {isFirstRun ? (
-            <>
-              <FirstBookLookSelector
-                coverStyle={coverStyle}
-                pageStyleId={pageStyleId}
-                stacked={stackFirstLooks}
-                onChange={selectFirstBookLook}
-              />
-              <Pressable
-                style={styles.customizeButton}
-                onPress={() => setShowFineTune((value) => !value)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showFineTune }}
-              >
-                <SlidersHorizontal size={17} color={Colors.text} />
-                <Text style={styles.customizeButtonText}>
-                  {showFineTune ? 'Hide detailed options' : 'Customize details'}
-                </Text>
-              </Pressable>
-            </>
-          ) : null}
-          {!isFirstRun || showFineTune ? (
-            <>
-              <CoverSelector value={coverStyle} options={coverFinishes} onChange={(value) => {
-                selectWithHaptic(setCoverStyle, value);
-                setPreviewFace('cover');
-              }} />
-              <PageStyleSelector value={pageStyleId} options={pageStyles} onChange={selectPageStyle} />
-            </>
-          ) : null}
+        <View style={styles.controlPanel}>
+          <TitleField
+            value={title}
+            disabled={submitting}
+            onChange={(value) => {
+              setTitle(value);
+              setError(null);
+            }}
+          />
+          <CoverColorSelector
+            value={coverStyle}
+            options={coverColors}
+            disabled={submitting}
+            onChange={selectCoverColor}
+          />
+          <PageStyleSelector
+            value={pageStyleId}
+            options={pageStyles}
+            disabled={submitting}
+            onChange={selectPageStyle}
+          />
 
           {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
@@ -242,9 +233,9 @@ function BookPreview({
   onPress: () => void;
 }) {
   const previewTitle = title.trim() || 'My Cookbook';
-  const coverWidth = Math.min(availableWidth * 0.54, 214);
+  const coverWidth = Math.min(availableWidth * 0.58, 224);
   const spreadWidth = Math.min(availableWidth - Spacing.md, 460);
-  const stageHeight = availableWidth > 500 ? 410 : 330;
+  const stageHeight = availableWidth > 500 ? 390 : 318;
 
   return (
     <Pressable
@@ -255,12 +246,15 @@ function BookPreview({
     >
       <LinearGradient
         colors={[Colors.legacySurface.v42, Colors.legacySurface.v40]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.08, y: 0 }}
+        end={{ x: 0.92, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       {face === 'cover' ? (
-        <PhysicalBook title={previewTitle} coverStyle={coverStyle} width={coverWidth} />
+        <>
+          <View pointerEvents="none" style={styles.stageHalo} />
+          <PhysicalBook title={previewTitle} coverStyle={coverStyle} width={coverWidth} />
+        </>
       ) : (
         <GeneratedRecipeSpread coverStyle={coverStyle} pageStyleId={pageStyleId} width={spreadWidth} />
       )}
@@ -278,27 +272,27 @@ function GeneratedRecipeSpread({
   width: number;
 }) {
   const binding = getCookbookBindingForStyle(coverStyle);
-  const style = COOKBOOK_PAGE_STYLES[pageStyleId];
-  const height = width * 0.75;
+  const pageStyle = COOKBOOK_PAGE_STYLES[pageStyleId];
+  const height = resolveCookbookSpreadHeight(width);
   const pageWidth = width / 2;
 
   return (
     <View style={[styles.spreadWrap, { width, height, backgroundColor: binding.cloth }]}>
       <Image
-        source={style.samples.brownies}
+        source={pageStyle.samples.brownies}
         resizeMode="cover"
         style={[styles.generatedPage, styles.generatedPageLeft, { width: pageWidth - 4, height: height - 8 }]}
-        accessibilityLabel={`${style.name} brownie recipe sample`}
+        accessibilityLabel={`${pageStyle.name} brownie recipe sample`}
       />
       <Image
-        source={style.samples.cookies}
+        source={pageStyle.samples.cookies}
         resizeMode="cover"
         style={[
           styles.generatedPage,
           styles.generatedPageRight,
           { left: pageWidth + 1, width: pageWidth - 5, height: height - 8 },
         ]}
-        accessibilityLabel={`${style.name} cookie recipe sample`}
+        accessibilityLabel={`${pageStyle.name} cookie recipe sample`}
       />
       <LinearGradient
         colors={[Colors.legacySurface.v61, Colors.legacySurface.v60, Colors.legacySurface.v78, Colors.legacySurface.v61]}
@@ -312,23 +306,15 @@ function GeneratedRecipeSpread({
   );
 }
 
-function SelectionSummary({
-  coverStyle,
-  pageStyleId,
+function TitleField({
+  value,
+  disabled,
+  onChange,
 }: {
-  coverStyle: CookbookStyleId;
-  pageStyleId: CreationPageStyleId;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
 }) {
-  const cover = listFeaturedCookbookCoverFinishes().find((option) => option.id === coverStyle);
-  const pageStyle = COOKBOOK_PAGE_STYLES[pageStyleId];
-  return (
-    <Text style={styles.selectionSummary}>
-      {cover?.name ?? 'Custom'} {cover?.material.toLowerCase() ?? 'cover'} · {pageStyle.name} pages
-    </Text>
-  );
-}
-
-function TitleField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <View style={styles.section}>
       <View style={styles.fieldHeading}>
@@ -337,7 +323,9 @@ function TitleField({ value, onChange }: { value: string; onChange: (value: stri
       </View>
       <TextInput
         value={value}
+        editable={!disabled}
         onChangeText={onChange}
+        accessibilityLabel="Cookbook title"
         placeholder="e.g. Healthy Meals"
         placeholderTextColor={Colors.textMuted}
         style={styles.input}
@@ -348,44 +336,54 @@ function TitleField({ value, onChange }: { value: string; onChange: (value: stri
   );
 }
 
-function FirstBookLookSelector({
-  coverStyle,
-  pageStyleId,
-  stacked,
+function CoverColorSelector({
+  value,
+  options,
+  disabled,
   onChange,
 }: {
-  coverStyle: CookbookStyleId;
-  pageStyleId: CreationPageStyleId;
-  stacked: boolean;
-  onChange: (option: FirstBookLookOption) => void;
+  value: CookbookStyleId;
+  options: CookbookCoverColorOption[];
+  disabled: boolean;
+  onChange: (value: CookbookStyleId) => void;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Choose a look</Text>
-      <View style={[styles.firstLookGrid, stacked && styles.firstLookGridStacked]}>
-        {FIRST_BOOK_LOOKS.map((option) => {
-          const selected = coverStyle === option.coverStyle && pageStyleId === option.pageStyleId;
-          const binding = getCookbookBindingForStyle(option.coverStyle);
+      <Text style={styles.sectionTitle}>Cover color</Text>
+      <View style={styles.colorRow}>
+        {options.map((option) => {
+          const selected = value === option.id;
+          const binding = getCookbookBindingForStyle(option.id);
           return (
             <Pressable
               key={option.id}
-              style={[
-                styles.firstLookCard,
-                stacked && styles.firstLookCardStacked,
-                selected && styles.optionSelected,
-              ]}
-              onPress={() => onChange(option)}
+              style={styles.colorOption}
+              onPress={() => onChange(option.id)}
+              disabled={disabled}
               accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={`${option.name}: ${option.description}`}
+              accessibilityState={{ selected, disabled }}
+              accessibilityLabel={`${option.name} cover color`}
             >
-              <View style={[styles.firstLookBook, { backgroundColor: binding.cloth }]}>
-                <View style={[styles.firstLookSpine, { backgroundColor: binding.band }]} />
-                <View style={[styles.firstLookFoil, { backgroundColor: binding.foil[1] }]} />
+              <View style={[styles.colorSwatchFrame, selected && styles.colorSwatchFrameSelected]}>
+                <View
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: binding.cloth, borderColor: binding.weave },
+                  ]}
+                />
+                {selected ? (
+                  <View style={styles.selectedMark}>
+                    <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
+                  </View>
+                ) : null}
               </View>
-              <Text style={styles.firstLookName}>{option.name}</Text>
-              <Text numberOfLines={3} style={styles.firstLookDescription}>{option.description}</Text>
-              {selected ? <SelectedMark /> : null}
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.colorName, selected && styles.colorNameSelected]}
+              >
+                {option.name}
+              </Text>
             </Pressable>
           );
         })}
@@ -394,94 +392,53 @@ function FirstBookLookSelector({
   );
 }
 
-function CoverSelector({
-  value,
-  options,
-  onChange,
-}: {
-  value: CookbookStyleId;
-  options: CookbookCoverFinishOption[];
-  onChange: (value: CookbookStyleId) => void;
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Cover finish</Text>
-      <View style={styles.coverGrid}>
-        {options.map((option) => (
-          <CoverChip
-            key={option.id}
-            option={option}
-            selected={value === option.id}
-            onPress={() => onChange(option.id)}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function CoverChip({
-  option,
-  selected,
-  onPress,
-}: {
-  option: CookbookCoverFinishOption;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const binding = getCookbookBindingForStyle(option.id);
-  return (
-    <Pressable
-      style={[styles.coverChip, selected && styles.optionSelected]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={`${option.name} ${option.material} cover`}
-    >
-      <View style={[styles.coverSwatch, { backgroundColor: binding.cloth }]}>
-        <View style={[styles.swatchSpine, { backgroundColor: binding.band }]} />
-        <View style={[styles.swatchFoil, { backgroundColor: binding.foil[1] }]} />
-      </View>
-      <View style={styles.optionCopy}>
-        <Text style={styles.optionName}>{option.name}</Text>
-        <Text style={styles.optionMeta}>{option.material}</Text>
-      </View>
-      {selected ? <SelectedMark /> : null}
-    </Pressable>
-  );
-}
-
 function PageStyleSelector({
   value,
   options,
+  disabled,
   onChange,
 }: {
   value: CreationPageStyleId;
   options: CookbookPageStyleOption[];
+  disabled: boolean;
   onChange: (value: CreationPageStyleId) => void;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Recipe pages</Text>
+      <View style={styles.pageStyleHeading}>
+        <Text style={styles.sectionTitle}>Recipe page style</Text>
+        <Text style={styles.sectionHint}>Used for every recipe in this cookbook</Text>
+      </View>
       <View style={styles.pageStyleGrid}>
-        {options.map((option) => (
-          <Pressable
-            key={option.id}
-            style={[styles.pageStyleCard, value === option.id && styles.optionSelected]}
-            onPress={() => onChange(option.id)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: value === option.id }}
-          >
-            <View style={[styles.pageStyleIcon, value === option.id && styles.pageStyleIconSelected]}>
-              <PageStyleIcon id={option.id} selected={value === option.id} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionName}>{option.name}</Text>
-              <Text numberOfLines={3} style={styles.optionMeta}>{option.description}</Text>
-            </View>
-            {value === option.id ? <SelectedMark /> : null}
-          </Pressable>
-        ))}
+        {options.map((option) => {
+          const selected = value === option.id;
+          return (
+            <Pressable
+              key={option.id}
+              style={[styles.pageStyleCard, selected && styles.pageStyleCardSelected]}
+              onPress={() => onChange(option.id)}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityState={{ selected, disabled }}
+              accessibilityLabel={`${option.name} recipe page style: ${option.description}`}
+            >
+              <View style={[styles.pageStyleIcon, selected && styles.pageStyleIconSelected]}>
+                <PageStyleIcon id={option.id} selected={selected} />
+              </View>
+              <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
+                {option.name}
+              </Text>
+              <Text numberOfLines={3} style={styles.pageStyleDescription}>
+                {option.description}
+              </Text>
+              {selected ? (
+                <View style={styles.pageStyleSelectedMark}>
+                  <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -494,51 +451,40 @@ function PageStyleIcon({ id, selected }: { id: CreationPageStyleId; selected: bo
   return <Feather size={18} color={color} strokeWidth={1.6} />;
 }
 
-function SelectedMark() {
-  return (
-    <View style={styles.selectedMark}>
-      <Check size={11} color={Colors.onPrimary} strokeWidth={2.5} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
   content: {
     width: '100%',
-    maxWidth: 760,
+    maxWidth: 688,
     alignSelf: 'center',
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.sm,
-    gap: Spacing.xl,
+    gap: Spacing.lg,
   },
   heading: {
+    alignItems: 'center',
     gap: Spacing.xs,
-  },
-  eyebrow: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight15,
-    letterSpacing: Typography.metrics.letterSpacing14,
+    paddingHorizontal: Spacing.md,
   },
   headingTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight40,
+    fontSize: Typography.sizes.xxxlPlus,
+    lineHeight: Typography.metrics.lineHeight34,
+    textAlign: 'center',
   },
   headingSubtitle: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.regular,
     fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight22,
-    maxWidth: 520,
+    lineHeight: Typography.metrics.lineHeight20,
+    textAlign: 'center',
+    maxWidth: 430,
   },
   previewPanel: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   previewToggle: {
     alignSelf: 'center',
@@ -601,15 +547,29 @@ const styles = StyleSheet.create({
     top: 4,
     width: 16,
   },
+  stageHalo: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.legacySurface.v64,
+  },
   selectionSummary: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight16,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
+    letterSpacing: Typography.metrics.letterSpacing03,
   },
-  controlStack: {
+  controlPanel: {
     gap: Spacing.xl,
+    padding: Spacing.lg,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surfaceElevated,
+    boxShadow: Shadows.sm.boxShadow,
   },
   section: {
     gap: Spacing.md,
@@ -628,14 +588,13 @@ const styles = StyleSheet.create({
   sectionHint: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.sm,
     lineHeight: Typography.metrics.lineHeight17,
-    marginTop: Spacing.values[2],
   },
   characterCount: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.sm,
   },
   input: {
     minHeight: 52,
@@ -644,145 +603,119 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
+    backgroundColor: Colors.surface,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.lg,
   },
-  firstLookGrid: {
+  colorRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.values[2],
   },
-  firstLookGridStacked: {
-    flexDirection: 'column',
-  },
-  firstLookCard: {
+  colorOption: {
     flex: 1,
-    minHeight: 170,
+    minWidth: 0,
     alignItems: 'center',
-    gap: Spacing.xs,
-    padding: Spacing.md,
-    paddingTop: Spacing.lg,
-    borderRadius: Radii.md,
+    gap: Spacing.values[6],
+  },
+  colorSwatchFrame: {
+    width: 46,
+    height: 46,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
     position: 'relative',
   },
-  firstLookCardStacked: {
-    minHeight: 118,
+  colorSwatchFrameSelected: {
+    borderColor: Colors.text,
+    borderWidth: 2,
   },
-  firstLookBook: {
-    width: 46,
-    height: 61,
-    marginBottom: Spacing.xs,
-    borderRadius: Radii.numeric[5],
-    overflow: 'hidden',
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.full,
+    borderWidth: 1,
     boxShadow: Shadows.custom.studioSmall,
   },
-  firstLookSpine: {
-    width: 8,
-    height: '100%',
-  },
-  firstLookFoil: {
+  selectedMark: {
     position: 'absolute',
-    left: 17,
-    top: 17,
-    width: 17,
-    height: 1,
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.text,
+    borderWidth: 2,
+    borderColor: Colors.surfaceElevated,
   },
-  firstLookName: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight17,
-    textAlign: 'center',
-  },
-  firstLookDescription: {
+  colorName: {
     color: Colors.textTertiary,
     fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.xs,
     lineHeight: Typography.metrics.lineHeight14,
     textAlign: 'center',
   },
-  customizeButton: {
-    minHeight: 48,
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
-  },
-  customizeButtonText: {
+  colorNameSelected: {
     color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight18,
+    fontFamily: Fonts.ui.semibold,
   },
-  coverGrid: {
+  pageStyleHeading: {
+    gap: Spacing.values[2],
+  },
+  pageStyleGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  coverChip: {
-    width: '48.5%',
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.sm,
-    paddingRight: Spacing.values[30],
+  pageStyleCard: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 132,
+    padding: Spacing.md,
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
-    position: 'relative',
-  },
-  coverSwatch: {
-    width: 38,
-    height: 50,
-    borderRadius: Radii.numeric[5],
-    position: 'relative',
-    overflow: 'hidden',
-    boxShadow: Shadows.custom.studioSmall,
-  },
-  swatchSpine: {
-    width: 7,
-    height: '100%',
-  },
-  swatchFoil: {
-    position: 'absolute',
-    left: 14,
-    top: 13,
-    width: 13,
-    height: 1,
-  },
-  optionCopy: {
-    flex: 1,
-    gap: Spacing.values[2],
-  },
-  optionName: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight17,
-  },
-  optionMeta: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight15,
-  },
-  optionSelected: {
-    borderColor: Colors.text,
     backgroundColor: Colors.surface,
+    position: 'relative',
+    gap: Spacing.values[6],
+  },
+  pageStyleCardSelected: {
+    borderColor: Colors.text,
     borderWidth: 1.5,
   },
-  selectedMark: {
+  pageStyleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceMuted,
+  },
+  pageStyleIconSelected: {
+    backgroundColor: Colors.text,
+  },
+  pageStyleName: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight17,
+  },
+  pageStyleNameSelected: {
+    fontFamily: Fonts.ui.bold,
+  },
+  pageStyleDescription: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.xs,
+    lineHeight: Typography.metrics.lineHeight14,
+  },
+  pageStyleSelectedMark: {
     position: 'absolute',
     top: 8,
     right: 8,
@@ -791,32 +724,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.text,
-  },
-  pageStyleGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  pageStyleCard: {
-    flex: 1,
-    minHeight: 134,
-    padding: Spacing.md,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
-    position: 'relative',
-    gap: Spacing.sm,
-  },
-  pageStyleIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surfaceMuted,
-  },
-  pageStyleIconSelected: {
     backgroundColor: Colors.text,
   },
   finishButton: {
@@ -842,13 +749,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.regular,
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight18,
-    textAlign: 'center',
-  },
-  note: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
   },
 });

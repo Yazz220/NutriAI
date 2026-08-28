@@ -44,6 +44,7 @@ import {
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
+import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import { trackEvent } from '@/utils/analytics';
@@ -96,13 +97,11 @@ const ENTRY_OPEN_DELAY = 140;
 const OPEN_EASING = Easing.bezier(0.22, 0.72, 0.24, 1);
 const CLOSE_EASING = Easing.bezier(0.5, 0, 0.75, 0.2);
 
-// The focused page lifts toward the reader rather than appearing via a
-// system modal cut — a light scale/rise with a soft overshoot.
+// Keep this frequent transition quick and spatially restrained.
 const focusedPageEnter = new Keyframe({
-  0: { opacity: 0, transform: [{ scale: 0.88 }, { translateY: 28 }] },
-  70: { opacity: 1, transform: [{ scale: 1.015 }, { translateY: -2 }] },
+  0: { opacity: 0, transform: [{ scale: 0.96 }, { translateY: 12 }] },
   100: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
-}).duration(340);
+}).duration(220);
 
 const focusedPageExit = new Keyframe({
   0: { opacity: 1, transform: [{ scale: 1 }, { translateY: 0 }] },
@@ -171,6 +170,7 @@ export function BookReader({
     focusedPage && recipePreview?.pageId === focusedPage.id
       ? { ...focusedPage, recipeGraph: recipePreview.graph }
       : focusedPage;
+  const focusedPageIndex = focusedPage ? pages.findIndex((page) => page.id === focusedPage.id) : -1;
   const [isBackClosed, setIsBackClosed] = useState(false);
   const handledInitialPageId = useRef<string | null>(null);
   const entryOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,12 +186,12 @@ export function BookReader({
     setChromeVisible(true);
     chromeIdle.value = 1;
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    if (!autoHideChrome) return;
+    if (!autoHideChrome || !usesTouchPaging || readingView !== 'page') return;
     idleTimerRef.current = setTimeout(() => {
       setChromeVisible(false);
       chromeIdle.value = reduceMotion ? 0 : withTiming(0, { duration: 700 });
     }, 3500);
-  }, [autoHideChrome, chromeIdle, reduceMotion]);
+  }, [autoHideChrome, chromeIdle, readingView, reduceMotion, usesTouchPaging]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -235,12 +235,12 @@ export function BookReader({
   const canOpenRecipeActions = Boolean(
     isCompactReading &&
     selectedPage &&
-    (onRemoveRecipe ||
+    ((!readOnly && (onRemoveRecipe ||
       onMoveRecipe ||
-      (onGeneratePageCandidate && onUsePageCandidate && selectedPage.recipeGraph) ||
+      (onGeneratePageCandidate && onUsePageCandidate && selectedPage.recipeGraph))) ||
       (onExportPage &&
         onVisitSource &&
-        (selectedPage.imageUrl || selectedPage.pageImage?.imageUrl || getRecipeSourceUrl(selectedPage)))),
+        (getCookbookPageImageSource(selectedPage) !== null || getRecipeSourceUrl(selectedPage)))),
   );
   const canOpenCookbookSettings = Boolean(
     !isCompactReading && !readOnly && cookbook && onRenameCookbook && onDeleteCookbook,
@@ -486,7 +486,7 @@ export function BookReader({
     pokeChrome();
   }
 
-  function goToSpread(index: number) {
+  const goToSpread = useCallback((index: number) => {
     const nextIndex = Math.max(0, Math.min(spreads.length - 1, index));
     if (nextIndex === spreadIndex) return;
     setSpreadIndex(nextIndex);
@@ -498,7 +498,7 @@ export function BookReader({
       setReadingPageId(page.id);
       onSelectPage(page.id);
     }
-  }
+  }, [onSelectPage, pages, pokeChrome, spreadIndex, spreads]);
 
   function goToLeaf(offset: -1 | 1) {
     if (recipeLeaves.length === 0) return;
@@ -514,6 +514,20 @@ export function BookReader({
     }
     pokeChrome();
   }
+
+  const goToFocusedPage = useCallback((offset: -1 | 1) => {
+    if (focusedPageIndex < 0) return;
+    const nextIndex = Math.max(0, Math.min(pages.length - 1, focusedPageIndex + offset));
+    if (nextIndex === focusedPageIndex) return;
+    const nextPage = pages[nextIndex];
+    setFocusedPage(nextPage);
+    setReadingPageId(nextPage.id);
+    setLeafIndex(getLeafIndexForPage(recipeLeaves, nextPage.id));
+    const targetSpread = getSpreadIndexForPage(spreads, nextPage.id);
+    if (targetSpread !== null) setSpreadIndex(targetSpread);
+    onSelectPage(nextPage.id);
+    pokeChrome();
+  }, [focusedPageIndex, onSelectPage, pages, pokeChrome, recipeLeaves, spreads]);
 
   function openAddPage() {
     if (!cookbook) return;
@@ -592,6 +606,33 @@ export function BookReader({
 
     pokeChrome();
   }
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined' || !isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || activeSheet || revisionMode) return;
+      const target = event.target as { tagName?: string; isContentEditable?: boolean } | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (target?.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select') return;
+
+      if (event.key === 'Escape' && focusedPage) {
+        event.preventDefault();
+        setFocusedPage(null);
+        pokeChrome();
+        return;
+      }
+
+      const offset = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : null;
+      if (!offset) return;
+      event.preventDefault();
+      if (focusedPage) goToFocusedPage(offset);
+      else goToSpread(spreadIndex + offset);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeSheet, focusedPage, goToFocusedPage, goToSpread, isOpen, pokeChrome, revisionMode, spreadIndex]);
 
   return (
     <LinearGradient colors={Colors.book.readerGradient} style={styles.container}>
@@ -735,16 +776,21 @@ export function BookReader({
           const nextLabel = isCompactReading ? 'Next recipe' : 'Next spread';
           return (
             <>
-              {!usesTouchPaging ? (
-                <Pressable
-                  style={[styles.pageButton, isNative && styles.nativeControl, atStart && styles.pageButtonDisabled]}
-                  disabled={atStart}
-                  onPress={onPrev}
-                  accessibilityLabel={prevLabel}
-                >
-                  <ChevronLeft size={18} color={Colors.text} />
-                </Pressable>
-              ) : null}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.pageButton,
+                  isNative && styles.nativeControl,
+                  atStart && styles.pageButtonDisabled,
+                  pressed && !atStart && styles.actionPressed,
+                ]}
+                disabled={atStart}
+                onPress={onPrev}
+                accessibilityRole="button"
+                accessibilityLabel={prevLabel}
+                accessibilityState={{ disabled: atStart }}
+              >
+                <ChevronLeft size={18} color={Colors.text} />
+              </Pressable>
 
               {usesTouchPaging ? (
                 <View style={[styles.counter, styles.nativeCounter]}>
@@ -760,29 +806,34 @@ export function BookReader({
                 </Pressable>
               )}
 
-              {!usesTouchPaging ? (
-                <Pressable
-                  style={[styles.pageButton, isNative && styles.nativeControl, atEnd && styles.pageButtonDisabled]}
-                  disabled={atEnd}
-                  onPress={onNext}
-                  accessibilityLabel={nextLabel}
-                >
-                  <ChevronRight size={18} color={Colors.text} />
-                </Pressable>
-              ) : null}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.pageButton,
+                  isNative && styles.nativeControl,
+                  atEnd && styles.pageButtonDisabled,
+                  pressed && !atEnd && styles.actionPressed,
+                ]}
+                disabled={atEnd}
+                onPress={onNext}
+                accessibilityRole="button"
+                accessibilityLabel={nextLabel}
+                accessibilityState={{ disabled: atEnd }}
+              >
+                <ChevronRight size={18} color={Colors.text} />
+              </Pressable>
             </>
           );
         })()}
       </Animated.View>
 
-      {!readOnly && pages.length > 0 && isOpen && (selectedPage || cookbookId) ? (
+      {pages.length > 0 && isOpen && (selectedPage || (!readOnly && cookbookId)) ? (
         <Animated.View
           style={[styles.readerActionDock, { top: insets.top + 58 }, floatingIdleStyle]}
           pointerEvents={chromeVisible ? 'auto' : 'none'}
           accessibilityElementsHidden={!chromeVisible}
           importantForAccessibility={chromeVisible ? 'auto' : 'no-hide-descendants'}
         >
-          {selectedPage && cookbook && (!usesTouchPaging || isCompactReading) ? (
+          {selectedPage && cookbook && isCompactReading ? (
             <NoshAssistantChatButton
               page={selectedPage}
               cookbook={cookbook}
@@ -790,7 +841,7 @@ export function BookReader({
               onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
             />
           ) : null}
-          {cookbookId && (!usesTouchPaging || !isCompactReading) ? (
+          {!readOnly && cookbookId && (!usesTouchPaging || !isCompactReading) ? (
             <Pressable
               style={({ pressed }) => [styles.floatingAddButton, pressed && styles.actionPressed]}
               onPress={openAddPage}
@@ -803,7 +854,7 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
-      {!readOnly && isOpen && showFirstNoshTip && selectedPage ? (
+      {!readOnly && isOpen && showFirstNoshTip && selectedPage && isCompactReading ? (
         <Animated.View
           style={[
             styles.firstNoshTip,
@@ -855,6 +906,7 @@ export function BookReader({
           onRedesign={onGeneratePageCandidate && onUsePageCandidate ? () => setRevisionMode('design') : undefined}
           onMove={onMoveRecipe}
           onRemove={onRemoveRecipe}
+          readOnly={readOnly}
         />
       ) : null}
 
@@ -894,25 +946,45 @@ export function BookReader({
         >
           <LinearGradient colors={Colors.book.readerGradient} style={styles.focusedReader}>
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
-              <Pressable
-                style={styles.focusedAction}
-                onPress={() => setFocusedPage(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Return to open cookbook"
-              >
-                <ChevronLeft size={18} color={Colors.text} />
-                <Text style={styles.focusedActionText} maxFontSizeMultiplier={1.35}>Cookbook</Text>
-              </Pressable>
+              <View style={[styles.focusedHeaderSide, width < 720 && styles.focusedHeaderSideCompact]}>
+                <Pressable
+                  style={[styles.focusedAction, width < 720 && styles.focusedActionCompact]}
+                  onPress={() => setFocusedPage(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Return to open cookbook"
+                >
+                  <ChevronLeft size={18} color={Colors.text} />
+                  {width < 720 ? null : (
+                    <Text style={styles.focusedActionText} maxFontSizeMultiplier={1.35}>Cookbook</Text>
+                  )}
+                </Pressable>
+              </View>
               <Text style={styles.focusedTitle} numberOfLines={1} maxFontSizeMultiplier={1.35}>
                 {focusedPage.title}
               </Text>
-              <Pressable
-                style={styles.focusedIcon}
-                onPress={() => setActiveSheet('recipe')}
-                accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
-              >
-                <Ellipsis size={18} color={Colors.text} />
-              </Pressable>
+              <View style={[
+                styles.focusedHeaderSide,
+                styles.focusedHeaderRight,
+                width < 720 && styles.focusedHeaderSideCompact,
+              ]}>
+                {cookbook ? (
+                  <NoshAssistantChatButton
+                    page={focusedPage}
+                    cookbook={cookbook}
+                    cookbookPages={pages}
+                    compact={width < 720}
+                    onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
+                  />
+                ) : null}
+                <Pressable
+                  style={styles.focusedIcon}
+                  onPress={() => setActiveSheet('recipe')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
+                >
+                  <Ellipsis size={18} color={Colors.text} />
+                </Pressable>
+              </View>
             </View>
             <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>
               {recipePreview?.pageId === focusedPage.id ? (
@@ -923,19 +995,48 @@ export function BookReader({
               <Animated.View
                 entering={reduceMotion ? undefined : focusedPageEnter}
                 exiting={reduceMotion ? undefined : focusedPageExit}
+                style={styles.focusedPageTransition}
               >
                 <PageCanvas page={renderedFocusedPage ?? focusedPage} />
               </Animated.View>
             </View>
-            <Pressable
-              style={[styles.focusedReturnButton, { bottom: insets.bottom + 12 }]}
-              onPress={() => setFocusedPage(null)}
-              accessibilityRole="button"
-              accessibilityLabel="Back to open cookbook"
-            >
-              <ChevronLeft size={17} color={Colors.onPrimary} />
-              <Text style={styles.focusedReturnText} maxFontSizeMultiplier={1.35}>Back to cookbook</Text>
-            </Pressable>
+            <View style={[styles.focusedNavigation, { bottom: insets.bottom + 12 }]}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.pageButton,
+                  styles.nativeControl,
+                  focusedPageIndex <= 0 && styles.pageButtonDisabled,
+                  pressed && focusedPageIndex > 0 && styles.actionPressed,
+                ]}
+                disabled={focusedPageIndex <= 0}
+                onPress={() => goToFocusedPage(-1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous recipe"
+                accessibilityState={{ disabled: focusedPageIndex <= 0 }}
+              >
+                <ChevronLeft size={18} color={Colors.text} />
+              </Pressable>
+              <View style={[styles.counter, styles.nativeCounter]} accessibilityLiveRegion="polite">
+                <Text style={styles.counterNumber}>
+                  {String(focusedPageIndex + 1).padStart(2, '0')} / {String(pages.length).padStart(2, '0')}
+                </Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.pageButton,
+                  styles.nativeControl,
+                  focusedPageIndex >= pages.length - 1 && styles.pageButtonDisabled,
+                  pressed && focusedPageIndex < pages.length - 1 && styles.actionPressed,
+                ]}
+                disabled={focusedPageIndex >= pages.length - 1}
+                onPress={() => goToFocusedPage(1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next recipe"
+                accessibilityState={{ disabled: focusedPageIndex >= pages.length - 1 }}
+              >
+                <ChevronRight size={18} color={Colors.text} />
+              </Pressable>
+            </View>
           </LinearGradient>
         </Animated.View>
       ) : null}
@@ -1273,6 +1374,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.legacySurface.v46,
   },
+  focusedHeaderSide: {
+    width: 178,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  focusedHeaderSideCompact: {
+    width: 96,
+  },
+  focusedHeaderRight: {
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+  },
   focusedAction: {
     minWidth: 108,
     height: 42,
@@ -1285,6 +1398,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.ash,
+  },
+  focusedActionCompact: {
+    minWidth: 44,
+    width: 44,
+    paddingHorizontal: 0,
   },
   focusedActionText: {
     color: Colors.text,
@@ -1314,6 +1432,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },
+  focusedPageTransition: {
+    width: '100%',
+    alignItems: 'center',
+  },
   sessionPreviewBadge: {
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.sm,
@@ -1326,23 +1448,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.semibold,
     fontSize: Typography.sizes.md,
   },
-  focusedReturnButton: {
+  focusedNavigation: {
     position: 'absolute',
     alignSelf: 'center',
-    height: 46,
-    paddingHorizontal: Spacing.values[18],
-    borderRadius: Radii.full,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.values[7],
-    backgroundColor: Colors.primary,
-    boxShadow: Colors.book.liftedShadow,
+    gap: Spacing.values[12],
     zIndex: 4,
-  },
-  focusedReturnText: {
-    color: Colors.onPrimary,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
   },
 });

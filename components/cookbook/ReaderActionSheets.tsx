@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
@@ -22,6 +23,7 @@ interface RecipeActionsSheetProps {
   onRedesign?: (page: CookbookPage) => void;
   onMove?: (page: CookbookPage, destination: Cookbook) => Promise<void> | void;
   onRemove?: (page: CookbookPage) => Promise<void> | void;
+  readOnly?: boolean;
 }
 
 export function RecipeActionsSheet({
@@ -37,15 +39,17 @@ export function RecipeActionsSheet({
   onRedesign,
   onMove,
   onRemove,
+  readOnly = false,
 }: RecipeActionsSheetProps) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'actions' | 'move'>('actions');
   const sourceUrl = page ? getRecipeSourceUrl(page) : null;
-  const hasPageImage = Boolean(page?.imageUrl ?? page?.pageImage?.imageUrl);
+  const hasPageImage = getCookbookPageImageSource(page) !== null;
   const destinations = cookbooks.filter((cookbook) => cookbook.id !== cookbookId);
-  const canRevise = Boolean(page?.recipeGraph && (onEdit || onRedesign));
-  const hasStandardActions = Boolean(canRevise || sourceUrl || hasPageImage || (onMove && destinations.length > 0));
+  const canRevise = Boolean(!readOnly && page?.recipeGraph && (onEdit || onRedesign));
+  const canMove = Boolean(!readOnly && onMove && destinations.length > 0);
+  const hasStandardActions = Boolean(canRevise || sourceUrl || hasPageImage || canMove);
 
   useEffect(() => {
     if (!visible) return;
@@ -103,7 +107,7 @@ export function RecipeActionsSheet({
       {view === 'actions' ? (
         <>
           {hasStandardActions ? <View style={styles.actionGroup}>
-            {page.recipeGraph && onEdit ? (
+            {!readOnly && page.recipeGraph && onEdit ? (
               <ActionRow
                 icon={<Pencil size={19} color={Colors.text} />}
                 title="Edit recipe"
@@ -115,7 +119,7 @@ export function RecipeActionsSheet({
                 }}
               />
             ) : null}
-            {page.recipeGraph && onRedesign ? (
+            {!readOnly && page.recipeGraph && onRedesign ? (
               <ActionRow
                 icon={<RefreshCw size={19} color={Colors.text} />}
                 title="Try another design"
@@ -140,7 +144,7 @@ export function RecipeActionsSheet({
               <>
                 <ActionRow
                   icon={<Download size={19} color={Colors.text} />}
-                  title="Export page image"
+                  title="Save page image"
                   pending={pendingAction === 'export'}
                   disabled={Boolean(pendingAction)}
                   onPress={() => void runAction('export', () => onExport(page))}
@@ -154,7 +158,7 @@ export function RecipeActionsSheet({
                 />
               </>
             ) : null}
-            {onMove && destinations.length > 0 ? (
+            {canMove ? (
               <ActionRow
                 icon={<BookOpen size={19} color={Colors.text} />}
                 title="Move to another cookbook"
@@ -167,7 +171,7 @@ export function RecipeActionsSheet({
               />
             ) : null}
           </View> : null}
-          {onRemove ? (
+          {!readOnly && onRemove ? (
             <View style={styles.recipeDangerSection}>
               <Pressable
                 style={({ pressed }) => [styles.removeRecipeButton, pressed && styles.pressed]}
@@ -320,7 +324,7 @@ export function CookbookSettingsSheet({
         <View style={styles.actionGroup}>
           <ActionRow
             icon={<FileDown size={19} color={Colors.text} />}
-            title="Export cookbook"
+            title="Download cookbook PDF"
             pending={exporting}
             disabled={saving || exporting}
             onPress={() => void exportCookbook()}

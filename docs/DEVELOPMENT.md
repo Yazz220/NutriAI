@@ -125,6 +125,7 @@ Live functions:
 - `extract-recipe`
 - `capture-recipe`
 - `nosh-chat`
+- `report-ai-response`
 - `generate-page-art`
 - `credits` (legacy endpoint; not used by the active client or generation path)
 - `delete-account`

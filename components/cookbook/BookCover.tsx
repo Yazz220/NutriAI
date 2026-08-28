@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Citrus, CookingPot, Heart, Leaf, NotebookPen, Soup } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Fonts } from '@/utils/fonts';
 import { getCookbookStyle } from '@/constants/cookbookStyles';
 import type { CookbookStyleId } from '@/types/cookbook';
@@ -22,7 +23,7 @@ interface BookCoverProps {
 }
 
 const DEFAULT_WIDTH = 220;
-const ASPECT = 1.38;
+const ASPECT = COOKBOOK_GEOMETRY.page.heightRatio;
 
 export function BookCover({
   title,

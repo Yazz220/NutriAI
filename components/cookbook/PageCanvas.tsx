@@ -6,6 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
@@ -76,11 +77,17 @@ export function buildRecipePageAccessibilityLabel(page: CookbookPage): string {
   return details.filter((detail): detail is string => Boolean(detail)).join(' ');
 }
 
+export function resolveFocusedPageWidth(viewportWidth: number, viewportHeight: number): number {
+  const horizontalInset = viewportWidth < 390 ? Spacing.md : Spacing.xl;
+  const availableWidth = viewportWidth - horizontalInset * 2;
+  const availableHeight = Math.max(240, viewportHeight - 210);
+  return Math.min(availableWidth, availableHeight * COOKBOOK_GEOMETRY.page.aspectRatio, 560);
+}
+
 export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
-  const horizontalInset = width < 390 ? Spacing.md : Spacing.xl;
-  const pageWidth = bookMode ? '100%' : Math.min(width - horizontalInset * 2, 430);
-  const maxHeight = bookMode ? undefined : Math.max(500, height - 220);
+  const pageWidth = bookMode ? '100%' : resolveFocusedPageWidth(width, height);
+  const maxHeight = bookMode ? undefined : Math.max(240, height - 210);
 
   const completePageSource = page.pageImage?.imageUrl
     ? { uri: page.pageImage.imageUrl }
@@ -94,7 +101,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
         <Image
           source={completePageSource}
           style={styles.image}
-          resizeMode="cover"
+          resizeMode="contain"
           onLoad={onRenderReady}
           accessible
           accessibilityRole="image"
@@ -133,7 +140,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
 
 const styles = StyleSheet.create({
   frame: {
-    aspectRatio: 3 / 4,
+    aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio,
     borderRadius: Radii.md,
     backgroundColor: Colors.parchment,
     borderWidth: 1,

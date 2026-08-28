@@ -51,7 +51,7 @@ describe('complete recipe page generation contract', () => {
     expect(payload.styleReferences).toEqual([reference]);
   });
 
-  it('requests a portrait 3:4 page from Qwen Image 3 Pro', () => {
+  it('requests the canonical portrait 4:5 page from Qwen Image 3 Pro', () => {
     const request = buildOpenRouterImageRequest(
       'qwen/qwen-image-3-pro',
       'Complete pasta page',
@@ -61,12 +61,20 @@ describe('complete recipe page generation contract', () => {
 
     expect(request).toMatchObject({
       model: 'qwen/qwen-image-3-pro',
-      aspect_ratio: '3:4',
+      aspect_ratio: '4:5',
       resolution: '2K',
       n: 1,
     });
     expect(request).toHaveProperty('seed');
     expect(request).not.toHaveProperty('output_format');
+  });
+
+  it('records the geometry revision with every page prompt', () => {
+    const { payload } = buildRecipePagePrompt(recipe, 'illustrated');
+
+    expect(payload.geometryId).toBe('nosh-cookbook-4x5-v1');
+    expect(payload.geometryRevision).toBe(1);
+    expect(payload.output.aspectRatio).toBe('4:5');
   });
 
   it('supports a stable seed for tests without forcing one in production', () => {

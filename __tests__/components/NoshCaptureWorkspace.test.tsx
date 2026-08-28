@@ -12,12 +12,16 @@ import {
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockCaptures: RecipeCapture[] = [];
 const mockRetryCapture = jest.fn();
+const mockStartCapture = jest.fn();
+const mockUploadRecipeCaptureImage = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockCloseNoshConversation = jest.fn();
 const mockRequestConsent = jest.fn().mockResolvedValue(true);
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
-jest.mock('@/utils/cookbook/api', () => ({ uploadRecipeCaptureImage: jest.fn() }));
+jest.mock('@/utils/cookbook/api', () => ({
+  uploadRecipeCaptureImage: (...args: unknown[]) => mockUploadRecipeCaptureImage(...args),
+}));
 jest.mock('@/utils/analytics', () => ({ trackEvent: (...args: unknown[]) => mockTrackEvent(...args) }));
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
 jest.mock('@/contexts/NoshConversationContext', () => ({
@@ -43,7 +47,7 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
     isStale: false,
     error: null,
     refresh: jest.fn(),
-    startCapture: jest.fn(),
+    startCapture: (...args: unknown[]) => mockStartCapture(...args),
     retryCapture: mockRetryCapture,
     prepareDestination: jest.fn(),
     isStarting: false,
@@ -53,12 +57,29 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
 }));
 jest.mock('@/components/cookbook/UnifiedIntakeComposer', () => {
   const mockReact = require('react');
-  const { Text, View } = require('react-native');
+  const { Pressable, Text, View } = require('react-native');
   return {
-    UnifiedIntakeComposer: () => mockReact.createElement(
+    UnifiedIntakeComposer: ({ isSubmitting, onSubmit }: {
+      isSubmitting?: boolean;
+      onSubmit: (payload: unknown) => Promise<void>;
+    }) => mockReact.createElement(
       View,
       null,
       mockReact.createElement(Text, null, 'Recipe composer'),
+      mockReact.createElement(
+        Pressable,
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: 'Submit test image',
+          disabled: isSubmitting,
+          onPress: () => onSubmit({
+            type: 'image',
+            imageUri: 'file:///recipe.jpg',
+            mimeType: 'image/jpeg',
+          }),
+        },
+        mockReact.createElement(Text, null, isSubmitting ? 'Starting page' : 'Create page'),
+      ),
     ),
   };
 });
@@ -119,6 +140,32 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Recipe composer')).toBeTruthy();
     expect(screen.queryByText('Active')).toBeNull();
     expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  it('stays busy through photo upload and ignores a duplicate submission', async () => {
+    let finishUpload!: (value: { storagePath: string; mimeType: string }) => void;
+    mockUploadRecipeCaptureImage.mockImplementationOnce(() => new Promise((resolve) => {
+      finishUpload = resolve;
+    }));
+    mockStartCapture.mockResolvedValueOnce({ capture: capture() });
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+    const submit = screen.getByRole('button', { name: 'Submit test image' });
+
+    fireEvent.press(submit);
+    await waitFor(() => expect(screen.getByText('Starting page')).toBeTruthy());
+    fireEvent.press(submit);
+    expect(mockUploadRecipeCaptureImage).toHaveBeenCalledTimes(1);
+    expect(mockStartCapture).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishUpload({ storagePath: 'user-1/request.jpg', mimeType: 'image/jpeg' });
+    });
+
+    await waitFor(() => expect(mockStartCapture).toHaveBeenCalledTimes(1));
+    expect(mockUploadRecipeCaptureImage).toHaveBeenCalledWith(expect.objectContaining({
+      imageUri: 'file:///recipe.jpg',
+      mimeType: 'image/jpeg',
+    }));
   });
 
   it('separates active and recent recipe history', async () => {

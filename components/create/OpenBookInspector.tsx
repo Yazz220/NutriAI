@@ -22,6 +22,7 @@ import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookPageHeight } from '@/constants/cookbookGeometry';
 import type { CookbookStylePreset } from '@/constants/cookbookStyles';
 import { withAlpha } from '@/utils/cookbook/coverArt';
 import { Fonts } from '@/utils/fonts';
@@ -52,7 +53,7 @@ export function OpenBookInspector({
 }: OpenBookInspectorProps) {
   const binding = getCookbookBindingForStyle(preset.id);
   const pageWidth = Math.min((width - 20) / 2, 164);
-  const pageHeight = pageWidth * 1.38;
+  const pageHeight = resolveCookbookPageHeight(pageWidth);
   const spreadWidth = pageWidth * 2;
   const [isOpen, setIsOpen] = useState(false);
 

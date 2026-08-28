@@ -1,10 +1,12 @@
 # Recipe page styles
 
-The creation Studio currently offers three book-owned page languages. Each has two generated sample pages: brownies and cookies. The assets are bundled under `assets/cookbook/style-previews/` and appear as the live inside spread when the user selects a style.
+The creation Studio offers three book-owned page languages: Illustrated, Editorial, and Heritage. Each has two generated sample pages under `assets/cookbook/style-previews/`. The Cover and Inside preview switcher shows those samples as a live spread when the user selects a style.
+
+The 4:5 contract applies to the finished page canvas, not to the food photograph or illustration placed inside the layout. Each style may compose its internal imagery differently within that fixed page. The shared complete-page prompt and provider request own the canvas ratio; the three style profiles only control visual language and composition.
 
 ## Shared sample-page prompt
 
-Generate one finished, flat, portrait 2:3 cookbook recipe page. It must look like a polished published page, not a photographed book, device mockup, loose paper, or multi-page spread. Keep every supplied line accurate and readable, with generous safe margins and no logos, watermarks, hands, utensils covering text, or extra recipe claims.
+Generate one finished, flat, portrait 4:5 cookbook recipe page. It must look like a polished published page, not a photographed book, device mockup, loose paper, or multi-page spread. Keep every supplied line accurate and readable, with generous symmetric safe margins and no logos, watermarks, hands, utensils covering text, or extra recipe claims.
 
 Brownie copy: “Fudgy Chocolate Brownies — Deep chocolate brownies with glossy tops and soft centers. Bake 25 min · Makes 16.” Ingredients: 170 g butter; 200 g dark chocolate; 200 g sugar; 3 eggs; 95 g flour; 25 g cocoa; 1 tsp vanilla; 1/2 tsp salt. Method: melt butter and chocolate; whisk sugar, eggs, and vanilla; fold in dry ingredients; bake at 175°C for 25 minutes; cool before slicing.
 

@@ -51,5 +51,14 @@
         "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "tft.656@gmail.com",
+        "ascAppId": "6762021802",
+        "appleTeamId": "729XHPX947"
+      }
+    }
   }
 }

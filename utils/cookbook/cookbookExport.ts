@@ -1,9 +1,12 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
+import { getCookbookPageImageUri } from '@/utils/cookbook/pageImage';
 
-const PDF_WIDTH = 595;
-const PDF_HEIGHT = 842;
+const PDF_POINTS_PER_INCH = 72;
+const PDF_WIDTH = COOKBOOK_GEOMETRY.print.widthInches * PDF_POINTS_PER_INCH;
+const PDF_HEIGHT = COOKBOOK_GEOMETRY.print.heightInches * PDF_POINTS_PER_INCH;
 
 interface PdfRecipePage {
   title: string;
@@ -17,12 +20,12 @@ export async function exportCookbookPdf(
   const orderedPages = [...pages].sort((a, b) => a.sortOrder - b.sortOrder || a.pageNumber - b.pageNumber);
   if (orderedPages.length === 0) throw new Error('Add a recipe before exporting this cookbook.');
 
-  const missingPage = orderedPages.find((page) => !getPageImageUrl(page));
+  const missingPage = orderedPages.find((page) => !getCookbookPageImageUri(page));
   if (missingPage) throw new Error(`${missingPage.title} is not ready to export yet.`);
 
   const pdfPages: PdfRecipePage[] = [];
   for (const page of orderedPages) {
-    const imageUrl = getPageImageUrl(page);
+    const imageUrl = getCookbookPageImageUri(page);
     if (!imageUrl) continue;
     pdfPages.push({
       title: page.title,
@@ -86,13 +89,13 @@ export function buildCookbookPdfHtml(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      @page { size: A4 portrait; margin: 0; }
+      @page { size: ${COOKBOOK_GEOMETRY.print.widthInches}in ${COOKBOOK_GEOMETRY.print.heightInches}in; margin: 0; }
       * { box-sizing: border-box; }
-      html, body { width: 210mm; margin: 0; padding: 0; background: #f5f1e8; }
+      html, body { width: ${COOKBOOK_GEOMETRY.print.widthInches}in; margin: 0; padding: 0; background: #f5f1e8; }
       .page {
         position: relative;
-        width: 210mm;
-        height: 297mm;
+        width: ${COOKBOOK_GEOMETRY.print.widthInches}in;
+        height: ${COOKBOOK_GEOMETRY.print.heightInches}in;
         overflow: hidden;
         break-after: page;
         page-break-after: always;
@@ -144,7 +147,7 @@ export function buildCookbookPdfHtml(
         height: 100%;
         max-width: none;
         max-height: none;
-        object-fit: cover;
+        object-fit: contain;
         object-position: center;
       }
     </style>
@@ -158,10 +161,6 @@ export function buildCookbookPdfHtml(
     </section>${recipePages}
   </body>
 </html>`;
-}
-
-function getPageImageUrl(page: CookbookPage): string | undefined {
-  return page.imageUrl ?? page.pageImage?.imageUrl;
 }
 
 async function imageToDataUri(imageUrl: string, pageId: string): Promise<string> {

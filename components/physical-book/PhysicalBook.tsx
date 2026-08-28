@@ -9,6 +9,7 @@ import { FoilStampedTitle } from '@/components/physical-book/FoilStampedTitle';
 import { PageBlockEdges } from '@/components/physical-book/PageBlockEdges';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
 import { getCookbookBinding } from '@/constants/cookbookBindings';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { getCookbookStyle } from '@/constants/cookbookStyles';
 import type { CookbookStyleId } from '@/types/cookbook';
 
@@ -35,7 +36,7 @@ import type { CookbookStyleId } from '@/types/cookbook';
  * by `width` / `height`. Do NOT introduce pixel-space coordinates.
  */
 
-export const PHYSICAL_BOOK_ASPECT = 1.38;
+export const PHYSICAL_BOOK_ASPECT = COOKBOOK_GEOMETRY.page.heightRatio;
 const DEFAULT_WIDTH = 220;
 
 interface PhysicalBookProps {

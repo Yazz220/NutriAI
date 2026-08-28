@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from 'react-native';
+import { Image, type ImageSourcePropType } from 'react-native';
 import type { CookbookPage } from '@/types/cookbook';
 
 /**
@@ -20,6 +20,16 @@ export function getCookbookPageImageSource(
     return (asset as { uri: string }).uri;
   }
   return page.imageUrl ?? null;
+}
+
+/** Resolves generated and bundled page images into a URI that can be shared. */
+export function getCookbookPageImageUri(
+  page: Pick<CookbookPage, 'imageAsset' | 'imageUrl' | 'pageImage'> | null | undefined,
+): string | null {
+  const source = getCookbookPageImageSource(page);
+  if (typeof source === 'string') return source;
+  if (source === null) return null;
+  return Image.resolveAssetSource(source)?.uri ?? null;
 }
 
 /**

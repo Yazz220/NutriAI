@@ -18,7 +18,7 @@ import { shiftColor, withAlpha } from '@/utils/cookbook/coverArt';
 /**
  * Skia-drawn front cover for a physically bound cookbook: cloth gradient,
  * material weave, procedural grain, a curved spine face with headbands and
- * hub bands, foil border/corner rules, and a board edge. Static per
+ * hub bands and a restrained board edge. Static per
  * (binding, size) — the canvas only re-renders when the binding or
  * dimensions change, so carousel motion never touches it.
  *
@@ -94,60 +94,16 @@ function buildWeavePath(material: CookbookBinding['material'], width: number, he
   return path;
 }
 
-/** Four L-shaped corner ticks around the foil border. */
-function buildCornerTicks(x: number, y: number, w: number, h: number, leg: number) {
-  const path = Skia.Path.Make();
-  const corners = [
-    { cx: x, cy: y, dx: 1, dy: 1 },
-    { cx: x + w, cy: y, dx: -1, dy: 1 },
-    { cx: x, cy: y + h, dx: 1, dy: -1 },
-    { cx: x + w, cy: y + h, dx: -1, dy: -1 },
-  ];
-  for (const { cx, cy, dx, dy } of corners) {
-    path.moveTo(cx + leg * dx, cy);
-    path.lineTo(cx, cy);
-    path.lineTo(cx, cy + leg * dy);
-  }
-  return path;
-}
-
-/** Small diamond emblem flanked by two rules, stamped above the title zone. */
-function buildEmblemPath(cx: number, cy: number, radius: number, rule: number, gap: number) {
-  const path = Skia.Path.Make();
-  path.moveTo(cx, cy - radius);
-  path.lineTo(cx + radius, cy);
-  path.lineTo(cx, cy + radius);
-  path.lineTo(cx - radius, cy);
-  path.close();
-  path.moveTo(cx - radius - gap - rule, cy);
-  path.lineTo(cx - radius - gap, cy);
-  path.moveTo(cx + radius + gap, cy);
-  path.lineTo(cx + radius + gap + rule, cy);
-  return path;
-}
-
 export const SkiaBookCover = React.memo(function SkiaBookCover({
   binding,
   width,
   height,
   spineWidth,
 }: SkiaBookCoverProps) {
-  const { cloth, weave, foil, band, material, grain } = binding;
+  const { cloth, weave, band, material, grain } = binding;
   const effect = getGrainEffect();
 
   const weavePath = useMemo(() => buildWeavePath(material, width, height), [material, width, height]);
-  const borderX = spineWidth + 12;
-  const borderY = 12;
-  const borderW = width - borderX - 12;
-  const borderH = height - borderY * 2;
-  const cornerTicks = useMemo(
-    () => buildCornerTicks(borderX, borderY, borderW, borderH, 13),
-    [borderX, borderY, borderW, borderH],
-  );
-  const emblemCx = spineWidth + (width - spineWidth) / 2;
-  const emblemCy = height * 0.3;
-  const emblem = useMemo(() => buildEmblemPath(emblemCx, emblemCy, 7, 26, 9), [emblemCx, emblemCy]);
-
   const hubY = [height * 0.16, height * 0.84];
   const weaveOpacity = material === 'linen' ? 0.16 : 0.1;
 
@@ -227,32 +183,6 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           />
         </Rect>
       </Group>
-
-      {/* Foil border, double-ruled on leather */}
-      <RoundedRect
-        x={borderX}
-        y={borderY}
-        width={borderW}
-        height={borderH}
-        r={6}
-        style="stroke"
-        strokeWidth={1}
-        color={withAlpha(foil[1], 0.8)}
-      />
-      {material === 'leather' ? (
-        <RoundedRect
-          x={borderX + 4}
-          y={borderY + 4}
-          width={borderW - 8}
-          height={borderH - 8}
-          r={4}
-          style="stroke"
-          strokeWidth={0.75}
-          color={withAlpha(foil[1], 0.45)}
-        />
-      ) : null}
-      <Path path={cornerTicks} style="stroke" strokeWidth={1.4} strokeCap="round" color={withAlpha(foil[1], 0.9)} />
-      <Path path={emblem} style="stroke" strokeWidth={1.1} strokeJoin="round" color={withAlpha(foil[1], 0.85)} />
 
       {/* Board edge */}
       <RoundedRect

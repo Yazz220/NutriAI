@@ -8,16 +8,21 @@ import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 
-export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen }: {
+export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen, compact = false }: {
   page: CookbookPage;
   cookbook: Cookbook;
   cookbookPages: CookbookPage[];
   onOpen?: () => void;
+  compact?: boolean;
 }) {
   const { open, setVisibleBookContext } = useNoshConversation();
   return (
     <Pressable
-      style={styles.recipeButton}
+      style={({ pressed }) => [
+        styles.recipeButton,
+        compact && styles.recipeButtonCompact,
+        pressed && styles.recipeButtonPressed,
+      ]}
       accessibilityLabel={`Ask Nosh about ${page.title}`}
       accessibilityRole="button"
       onPress={() => {
@@ -27,7 +32,7 @@ export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen 
       }}
     >
       <ChefHat size={19} color={Colors.text} />
-      <Text style={styles.recipeLabel}>Ask Nosh</Text>
+      {compact ? null : <Text style={styles.recipeLabel}>Ask Nosh</Text>}
     </Pressable>
   );
 }
@@ -51,6 +56,8 @@ export function NoshShelfChatButton() {
 
 const styles = StyleSheet.create({
   recipeButton: { minWidth: 126, height: 44, borderRadius: Radii.full, paddingHorizontal: Spacing.values[18], flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.values[7], backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.charcoal, boxShadow: Colors.book.cardShadow },
+  recipeButtonCompact: { minWidth: 44, width: 44, paddingHorizontal: 0 },
+  recipeButtonPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
   recipeLabel: { color: Colors.text, fontFamily: Fonts.ui.medium },
   shelfButton: { position: 'absolute', right: Spacing.md, top: 132, width: 54, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.numeric[27], borderWidth: 1, borderColor: Colors.charcoal, backgroundColor: Colors.primary, boxShadow: Colors.book.liftedShadow },
   shelfButtonPressed: { transform: [{ scale: 0.96 }], opacity: 0.92 },

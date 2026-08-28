@@ -1,9 +1,9 @@
 import {
-  COOKBOOK_COVER_FINISHES,
+  DEFAULT_CREATION_PAGE_STYLE_ID,
+  COOKBOOK_COVER_COLORS,
   COOKBOOK_PAGE_STYLES,
-  FIRST_BOOK_LOOKS,
+  listCookbookCoverColors,
   listCreationPageStyles,
-  listFeaturedCookbookCoverFinishes,
   normalizeCookbookPageStyleId,
 } from '@/constants/cookbookCustomization';
 import {
@@ -12,17 +12,22 @@ import {
 } from '../../supabase/functions/_shared/artGeneration';
 
 describe('cookbook customization catalog', () => {
-  it('keeps inline cover choices curated while retaining future catalog entries', () => {
-    const featured = listFeaturedCookbookCoverFinishes();
+  it('offers one ordered palette of cover colors', () => {
+    const colors = listCookbookCoverColors();
 
-    expect(featured).toHaveLength(4);
-    expect(COOKBOOK_COVER_FINISHES.length).toBeGreaterThan(featured.length);
-    expect(featured.map((option) => option.studioOrder)).toEqual([0, 1, 2, 3]);
-    expect(new Set(COOKBOOK_COVER_FINISHES.map((option) => option.id)).size)
-      .toBe(COOKBOOK_COVER_FINISHES.length);
+    expect(colors.map((option) => option.name)).toEqual([
+      'Sage',
+      'Clay',
+      'Midnight',
+      'Alabaster',
+      'Charcoal',
+      'Umber',
+    ]);
+    expect(new Set(COOKBOOK_COVER_COLORS.map((option) => option.id)).size)
+      .toBe(COOKBOOK_COVER_COLORS.length);
   });
 
-  it('keeps the client catalog and generation service aligned', () => {
+  it('keeps the three selectable page identities aligned with generation', () => {
     const pageStyles = listCreationPageStyles();
 
     expect(pageStyles.map((style) => style.id)).toEqual([
@@ -38,6 +43,7 @@ describe('cookbook customization catalog', () => {
       expect(style.samples.cookies).toBeTruthy();
     });
     expect(Object.keys(COOKBOOK_PAGE_STYLES)).toHaveLength(3);
+    expect(DEFAULT_CREATION_PAGE_STYLE_ID).toBe('illustrated');
   });
 
   it('preserves the previous cover-linked page style for existing books', () => {
@@ -46,11 +52,4 @@ describe('cookbook customization catalog', () => {
       .toBe('studio-editorial');
   });
 
-  it('offers three coherent first-book presets backed by the active catalogs', () => {
-    expect(FIRST_BOOK_LOOKS).toHaveLength(3);
-    FIRST_BOOK_LOOKS.forEach((look) => {
-      expect(COOKBOOK_COVER_FINISHES.some((cover) => cover.id === look.coverStyle)).toBe(true);
-      expect(COOKBOOK_PAGE_STYLES[look.pageStyleId]).toBeTruthy();
-    });
-  });
 });

@@ -8,6 +8,7 @@ import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { COOKBOOK_PAGES_QUERY_KEY, useCookbook } from '@/hooks/useCookbook';
 import { useCookbooks } from '@/hooks/useCookbooks';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportCookbookPageImage, shareCookbookPage } from '@/utils/cookbook/share';
 import { exportCookbookPdf } from '@/utils/cookbook/cookbookExport';
@@ -29,6 +30,7 @@ import type { RecipeGraph } from '@/types/recipeGraph';
 
 export default function BookReaderScreen() {
   const { showToast } = useToast();
+  const { requestConsent } = useAiDataConsent();
   const queryClient = useQueryClient();
   const { cookbookId, pageId } = useLocalSearchParams<{
     cookbookId: string;
@@ -178,6 +180,8 @@ export default function BookReaderScreen() {
     idempotencyKey: string,
   ): Promise<GeneratedRecipePage> => {
     if (!effectiveCookbook) throw new Error('Cookbook not found.');
+    const allowed = await requestConsent();
+    if (!allowed) throw new Error('AI processing permission is required to create a new recipe page.');
     const styleReferences = effectiveCookbook.pageStyleReferences?.length
       ? effectiveCookbook.pageStyleReferences
       : getCookbookPageStyleReferences(effectiveCookbook.pageStyleId);

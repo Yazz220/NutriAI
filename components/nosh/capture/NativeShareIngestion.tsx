@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { File } from 'expo-file-system';
 import { useNetworkState } from 'expo-network';
 import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
@@ -76,10 +75,9 @@ export function NativeShareIngestion() {
         let source: RecipeCaptureSource;
 
         if (normalized.type === 'image') {
-          const imageBase64 = await new File(normalized.fileUri).base64();
           const upload = await uploadRecipeCaptureImage({
             userId,
-            imageBase64,
+            imageUri: normalized.fileUri,
             mimeType: normalized.mimeType,
             requestKey,
           });

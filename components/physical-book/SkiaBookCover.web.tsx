@@ -7,7 +7,7 @@ import { shiftColor, withAlpha } from '@/utils/cookbook/coverArt';
 
 /**
  * Web fallback for the Skia cover: same layout (cloth gradient, curved spine
- * zone, headbands, hub bands, foil border) without the SkSL grain shader or
+ * zone, headbands, and hub bands) without the SkSL grain shader or
  * weave paths, so `expo start --web` keeps working without CanvasKit.
  */
 
@@ -26,7 +26,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
   height,
   spineWidth,
 }: SkiaBookCoverProps) {
-  const { cloth, weave, foil, band, material } = binding;
+  const { cloth, weave, band, material } = binding;
   return (
     <View style={{ width, height }}>
       <LinearGradient
@@ -78,17 +78,6 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         ]}
       />
 
-      {/* Foil border */}
-      <View
-        style={[
-          styles.foilBorder,
-          {
-            left: spineWidth + 12,
-            borderColor: withAlpha(foil[1], 0.8),
-            shadowColor: foil[1],
-          },
-        ]}
-      />
     </View>
   );
 });
@@ -126,13 +115,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     width: 1.2,
-  },
-  foilBorder: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    bottom: 12,
-    borderWidth: 1,
-    borderRadius: Radii.numeric[6],
   },
 });

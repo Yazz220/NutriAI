@@ -27,15 +27,24 @@ export type UnifiedIntakePayload =
   | { type: 'url'; input: string }
   | { type: 'text'; input: string }
   | { type: 'video'; input: string }
-  | { type: 'image'; imageBase64: string; input?: string };
+  | {
+      type: 'image';
+      imageUri?: string;
+      imageBase64?: string;
+      mimeType?: string;
+      input?: string;
+    };
 
 interface UnifiedIntakeComposerProps {
   isSubmitting?: boolean;
   input: string;
   imageBase64: string | null;
+  imageUri?: string | null;
+  imageMimeType?: string | null;
   error?: string | null;
   onInputChange: (value: string) => void;
   onImageBase64Change: (value: string | null) => void;
+  onImageUriChange?: (uri: string | null, mimeType: string | null) => void;
   onRetry?: () => Promise<void> | void;
   onSubmit: (payload: UnifiedIntakePayload) => Promise<void> | void;
 }
@@ -61,8 +70,19 @@ function looksLikeVideoUrl(value: string) {
 export function buildIntakePayload(
   input: string,
   imageBase64: string | null,
+  imageUri: string | null = null,
+  imageMimeType: string | null = null,
 ): UnifiedIntakePayload | null {
   const trimmed = input.trim();
+
+  if (imageUri) {
+    return {
+      type: 'image',
+      imageUri,
+      mimeType: imageMimeType ?? undefined,
+      input: trimmed || undefined,
+    };
+  }
 
   if (imageBase64) {
     return { type: 'image', imageBase64, input: trimmed || undefined };
@@ -85,9 +105,12 @@ export function UnifiedIntakeComposer({
   isSubmitting = false,
   input,
   imageBase64,
+  imageUri = null,
+  imageMimeType = null,
   error = null,
   onInputChange,
   onImageBase64Change,
+  onImageUriChange,
   onRetry,
   onSubmit,
 }: UnifiedIntakeComposerProps) {
@@ -97,24 +120,28 @@ export function UnifiedIntakeComposer({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      base64: true,
+      base64: false,
       quality: 0.8,
       allowsEditing: false,
     });
 
-    const base64 = result.canceled ? null : result.assets?.[0]?.base64 ?? null;
-    if (base64) onImageBase64Change(base64);
+    const asset = result.canceled ? null : result.assets?.[0] ?? null;
+    if (asset?.uri) {
+      onImageBase64Change(null);
+      onImageUriChange?.(asset.uri, asset.mimeType ?? null);
+    }
   }
 
   async function submit() {
     if (isSubmitting) return;
-    const payload = buildIntakePayload(input, imageBase64);
+    const payload = buildIntakePayload(input, imageBase64, imageUri, imageMimeType);
     if (payload) await onSubmit(payload);
   }
 
-  const canSubmit = Boolean(imageBase64 || input.trim()) && !isSubmitting;
+  const hasImage = Boolean(imageUri || imageBase64);
+  const canSubmit = Boolean(hasImage || input.trim()) && !isSubmitting;
 
-  const submitIcon = imageBase64 ? (
+  const submitIcon = hasImage ? (
     <Camera size={18} color={Colors.onPrimary} />
   ) : looksLikeVideoUrl(input) ? (
     <Video size={18} color={Colors.onPrimary} />
@@ -155,18 +182,21 @@ export function UnifiedIntakeComposer({
             onPress={pickImage}
             disabled={isSubmitting}
             accessibilityRole="button"
-            accessibilityLabel={imageBase64 ? 'Change attached image' : 'Attach image or screenshot'}
-            accessibilityState={{ disabled: isSubmitting, selected: Boolean(imageBase64) }}
+            accessibilityLabel={hasImage ? 'Change attached image' : 'Attach image or screenshot'}
+            accessibilityState={{ disabled: isSubmitting, selected: hasImage }}
             hitSlop={Spacing.sm}
           >
-            <Paperclip size={19} color={imageBase64 ? Colors.primary : Colors.textMuted} />
+            <Paperclip size={19} color={hasImage ? Colors.primary : Colors.textMuted} />
           </Pressable>
 
-          {imageBase64 ? (
+          {hasImage ? (
             <View style={styles.attachmentChip}>
               <Text style={styles.attachmentText}>Photo attached{input.trim() ? ' with notes' : ''}</Text>
               <Pressable
-                onPress={() => onImageBase64Change(null)}
+                onPress={() => {
+                  onImageBase64Change(null);
+                  onImageUriChange?.(null, null);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Remove attached image"
                 hitSlop={Spacing.sm}

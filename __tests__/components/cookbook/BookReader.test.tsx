@@ -12,6 +12,7 @@ import {
   recordFirstReadyRecipeOpened,
 } from '@/utils/cookbook/firstRunOnboarding';
 import { Typography } from '@/constants/spacing';
+import { shouldUseTouchPaging } from '@/utils/cookbook/reader';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -92,6 +93,7 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
 
 beforeEach(async () => {
   await AsyncStorage.clear();
+  jest.mocked(shouldUseTouchPaging).mockReturnValue(true);
 });
 
 async function renderReader(props: React.ComponentProps<typeof BookReader>) {
@@ -133,13 +135,29 @@ describe('BookReader cover entry', () => {
     expect(router.dismissTo).toHaveBeenCalledWith('/(book)');
   });
 
-  it('marks the sample as read-only and hides recipe capture actions', async () => {
+  it('keeps the sample useful without exposing mutable recipe actions', async () => {
+    const samplePage = {
+      ...SAMPLE_COOKBOOK_PAGES[0],
+      imageAsset: { uri: 'file:///sample-page.png' },
+    };
+    const destinationCookbook = {
+      ...SAMPLE_COOKBOOK,
+      id: 'cookbook-desserts',
+      title: 'Desserts',
+    };
     const screen = await renderReader({
       cookbook: SAMPLE_COOKBOOK,
-      pages: SAMPLE_COOKBOOK_PAGES,
-      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      pages: [samplePage, ...SAMPLE_COOKBOOK_PAGES.slice(1)],
+      initialPageId: samplePage.id,
       onSelectPage: jest.fn(),
       onShare: jest.fn(),
+      onExportPage: jest.fn(),
+      onVisitSource: jest.fn(),
+      availableCookbooks: [destinationCookbook],
+      onMoveRecipe: jest.fn(),
+      onRemoveRecipe: jest.fn(),
+      onGeneratePageCandidate: jest.fn(),
+      onUsePageCandidate: jest.fn(),
       readOnly: true,
     });
 
@@ -150,6 +168,21 @@ describe('BookReader cover entry', () => {
     });
     expect(sampleLabel.props.maxFontSizeMultiplier).toBe(1);
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
+    expect(screen.getByRole('button', {
+      name: `Ask Nosh about ${samplePage.title}`,
+    })).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', {
+      name: `Recipe actions for ${samplePage.title}`,
+    }));
+    expect(screen.getByRole('button', { name: 'Save page image' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Share recipe' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit recipe' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Try another design' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Move to another cookbook' })).toBeNull();
+    expect(screen.queryByRole('button', {
+      name: `Remove ${SAMPLE_COOKBOOK_PAGES[0].title} from this cookbook`,
+    })).toBeNull();
   });
 
   it('gives an empty real book one clear first-recipe action', async () => {
@@ -230,8 +263,33 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByText('Recipe reading page')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Back to open cookbook' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Read this page' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Previous recipe' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next recipe' })).toBeEnabled();
+  });
+
+  it('keeps direct navigation inside the focused one-page reader', async () => {
+    jest.mocked(shouldUseTouchPaging).mockReturnValue(false);
+    const onSelectPage = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage,
+      onShare: jest.fn(),
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Open recipe page' }));
+    expect(screen.getByRole('button', { name: 'Previous recipe' })).toBeDisabled();
+    expect(screen.getByRole('button', {
+      name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[0].title}`,
+    })).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Next recipe' }));
+    expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
+    expect(screen.getByText('02 / 10')).toBeTruthy();
+    expect(screen.getByRole('button', {
+      name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[1].title}`,
+    })).toBeTruthy();
   });
 
   it('uses page tap to enter reading mode and back to return to the same spread', async () => {
@@ -327,7 +385,7 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByText('Cookbook settings')).toBeTruthy();
     expect(screen.getByLabelText('Book name')).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Export cookbook' }));
+      fireEvent.press(screen.getByRole('button', { name: 'Download cookbook PDF' }));
     });
     expect(onExportCookbook).toHaveBeenCalledTimes(1);
 
@@ -351,7 +409,7 @@ describe('BookReader compact reading flow', () => {
 
     fireEvent.press(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` }));
     await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Export page image' }));
+      fireEvent.press(screen.getByRole('button', { name: 'Save page image' }));
     });
     expect(onExportPage).toHaveBeenCalledWith(sourcedPage);
 

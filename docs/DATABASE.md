@@ -117,6 +117,12 @@ Private outbox rows for Storage objects that became unreferenced during recipe o
 
 `supabase/tests/reader_storage_cleanup.sql` proves the outbox, shared-page reference check, capture cleanup, orphan-recipe cleanup, ownership checks, and direct-delete privilege revocations in a rollback-only transaction.
 
+### `nutriai.ai_response_reports`
+
+Private safety and quality reports submitted from completed Nosh responses. Each row stores the authenticated owner, device-local assistant message identifier, reported response text, review status, and creation time. Mobile roles have no table privileges. The authenticated `report-ai-response` Edge Function derives the owner from the verified JWT and inserts with the service role. Account deletion removes reports through the `auth.users` foreign-key cascade.
+
+`supabase/tests/ai_response_reports.sql` proves that anonymous and authenticated clients cannot access the table while the service role can manage the review queue.
+
 ## Removed tables (legacy cleanup, 2026-05-05)
 
 These belonged to older product directions and have no live code references in the current book-first branch:

@@ -3,18 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { CreationStudio } from '@/components/create/CreationStudio';
+import { CreationStudio, type CreateCookbookDetails } from '@/components/create/CreationStudio';
 import { Text } from '@/components/ui/Text';
-import type { CreationPageStyleId } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
 import { trackEvent } from '@/utils/analytics';
-import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
@@ -29,11 +27,7 @@ export default function BookLibraryScreen() {
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
 
-  async function handleCreate(
-    title: string,
-    coverStyle: CookbookStyleId,
-    pageStyleId: CreationPageStyleId,
-  ) {
+  async function handleCreate({ title, coverStyle, pageStyleId }: CreateCookbookDetails) {
     const cookbook = await createCookbook({ title, coverStyle, pageStyleId });
     if (captureId) {
       try {
@@ -48,7 +42,11 @@ export default function BookLibraryScreen() {
       await recordFirstCookbookCreated(user.id, cookbook.id).catch(() => undefined);
       trackEvent({
         type: 'first_cookbook_created',
-        data: { cookbookId: cookbook.id, coverStyle, pageStyleId },
+        data: {
+          cookbookId: cookbook.id,
+          coverStyle,
+          pageStyleId,
+        },
       });
     }
     router.replace(`/(book)/${cookbook.id}`);

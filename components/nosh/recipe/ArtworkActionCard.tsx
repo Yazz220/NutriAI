@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-nat
 import { ImageIcon, RotateCcw } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { GeneratedRecipePage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
@@ -169,8 +170,8 @@ const styles = StyleSheet.create({
   copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
   cost: { color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
   error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
-  preview: { width: '100%', aspectRatio: 3 / 4, borderRadius: Radii.md, backgroundColor: Colors.background },
-  generatingPreview: { width: '100%', aspectRatio: 3 / 4, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.md, backgroundColor: Colors.background },
+  preview: { width: '100%', aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio, borderRadius: Radii.md, backgroundColor: Colors.background },
+  generatingPreview: { width: '100%', aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.md, backgroundColor: Colors.background },
   primaryButton: {
     minHeight: 46,
     flexDirection: 'row',

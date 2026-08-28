@@ -2,7 +2,6 @@ import { Colors } from '@/constants/colors';
 /* eslint-disable react/no-unknown-property, react-hooks/immutability -- R3F animates Three.js objects and uses renderer-specific JSX props. */
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Asset } from 'expo-asset';
 import { Canvas, extend, useFrame, useLoader, useThree, type ThreeElement } from '@react-three/fiber';
 import {
   ACESFilmicToneMapping,
@@ -27,6 +26,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Group } from 'three';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import type { CookbookPage } from '@/types/cookbook';
 import {
   buildPageCurlCurve,
@@ -38,6 +38,7 @@ import {
   type CookbookLeaf,
   type CookbookSpread,
 } from '@/utils/cookbook/reader';
+import { resolveImageAssetUri } from '@/utils/cookbook/imageAsset';
 
 extend({ RoundedBoxGeometry });
 
@@ -48,7 +49,7 @@ declare module '@react-three/fiber' {
 }
 
 const BOOK_WIDTH = 4.25;
-const BOOK_HEIGHT = 6.15;
+const BOOK_HEIGHT = BOOK_WIDTH * COOKBOOK_GEOMETRY.page.heightRatio;
 const COVER_THICKNESS = 0.09;
 const PAGE_Y = 0.25;
 const PAPER = Colors.legacySurface.v37;
@@ -65,7 +66,7 @@ const TOPDOWN_DIRECTION = new Vector3(0, 1, 0.12).normalize();
 const CLOSED_PADDING = 1.48;
 const OPEN_PADDING = 1.18;
 const TOPDOWN_PADDING = 1.04;
-const AUTOMATIC_TURN_DURATION = 1.35;
+const AUTOMATIC_TURN_DURATION = 0.72;
 const WEB_CURL_LIFT = 0.28;
 const MIN_TURN_TRAVEL = 60;
 
@@ -88,6 +89,7 @@ export function Cookbook3DScene({
   spreads,
   spreadIndex,
   isOpen,
+  reduceMotion = false,
   readingView = 'spread',
   onOpen,
   onNext,
@@ -96,9 +98,9 @@ export function Cookbook3DScene({
   onOpenRecipe,
   style,
 }: Cookbook3DSceneProps) {
-  const coverUri = resolveImageUri(cookbook?.coverImageAsset) ?? makeFallbackImageUri(cookbook?.title ?? 'My Cookbook');
+  const coverUri = resolveImageAssetUri(cookbook?.coverImageAsset) ?? makeFallbackImageUri(cookbook?.title ?? 'My Cookbook');
   const pageUris = pages.map(
-    (page) => resolveImageUri(page.imageAsset) ?? page.imageUrl ?? makeFallbackImageUri(page.title),
+    (page) => resolveImageAssetUri(page.imageAsset) ?? page.imageUrl ?? makeFallbackImageUri(page.title),
   );
   const textureUris = [coverUri, ...pageUris];
 
@@ -125,6 +127,7 @@ export function Cookbook3DScene({
             spreads={spreads}
             spreadIndex={spreadIndex}
             isOpen={isOpen}
+            reduceMotion={reduceMotion}
             readingView={readingView}
             textureUris={textureUris}
             onOpen={onOpen}
@@ -191,6 +194,7 @@ function BookScene({
   spreads,
   spreadIndex,
   isOpen,
+  reduceMotion,
   readingView,
   textureUris,
   onOpen,
@@ -204,6 +208,7 @@ function BookScene({
   spreads: CookbookSpread[];
   spreadIndex: number;
   isOpen: boolean;
+  reduceMotion: boolean;
   readingView: 'spread' | 'page';
   textureUris: string[];
   onOpen: () => void;
@@ -290,6 +295,11 @@ function BookScene({
     if (transitionRef.current) return;
     const target = requestedIndexRef.current;
     if (target === visualIndexRef.current) return;
+    if (reduceMotion) {
+      visualIndexRef.current = target;
+      setDisplayIndex(target);
+      return;
+    }
     // Long jumps from restored state snap to the marked page; short jumps
     // animate the leaf turn.
     if (Math.abs(target - visualIndexRef.current) > 2) {
@@ -307,7 +317,7 @@ function BookScene({
       duration: AUTOMATIC_TURN_DURATION,
     };
     setTransition({ from: visualIndexRef.current, to: target, direction });
-  }, [setTransition]);
+  }, [reduceMotion, setTransition]);
 
   useEffect(() => {
     requestedIndexRef.current = spreadIndex;
@@ -471,7 +481,9 @@ function BookScene({
   );
 
   useFrame((_, delta) => {
-    openingRef.current = MathUtils.damp(openingRef.current, isOpen ? 1 : 0, isOpen ? 2.8 : 4.2, delta);
+    openingRef.current = reduceMotion
+      ? isOpen ? 1 : 0
+      : MathUtils.damp(openingRef.current, isOpen ? 1 : 0, isOpen ? 2.8 : 4.2, delta);
     const open = smoothstep(openingRef.current);
 
     if (coverPivotRef.current) {
@@ -500,10 +512,15 @@ function BookScene({
     const desiredTarget = !isOpen ? CLOSED_TARGET : isTopdown ? TOPDOWN_TARGET : OPEN_TARGET;
     const desiredDirection = !isOpen ? CLOSED_DIRECTION : isTopdown ? TOPDOWN_DIRECTION : OPEN_DIRECTION;
     desiredCameraPosition.current.copy(desiredDirection).multiplyScalar(fitDistance).add(desiredTarget);
-    camera.position.x = MathUtils.damp(camera.position.x, desiredCameraPosition.current.x, 2.2, delta);
-    camera.position.y = MathUtils.damp(camera.position.y, desiredCameraPosition.current.y, 2.2, delta);
-    camera.position.z = MathUtils.damp(camera.position.z, desiredCameraPosition.current.z, 2.2, delta);
-    lookTargetRef.current.lerp(desiredTarget, 1 - Math.exp(-2.2 * delta));
+    if (reduceMotion) {
+      camera.position.copy(desiredCameraPosition.current);
+      lookTargetRef.current.copy(desiredTarget);
+    } else {
+      camera.position.x = MathUtils.damp(camera.position.x, desiredCameraPosition.current.x, 2.2, delta);
+      camera.position.y = MathUtils.damp(camera.position.y, desiredCameraPosition.current.y, 2.2, delta);
+      camera.position.z = MathUtils.damp(camera.position.z, desiredCameraPosition.current.z, 2.2, delta);
+      lookTargetRef.current.lerp(desiredTarget, 1 - Math.exp(-2.2 * delta));
+    }
     camera.lookAt(lookTargetRef.current);
 
     const activeTransition = transitionRef.current;
@@ -847,41 +864,33 @@ function createRestingPageGeometry(side: 'left' | 'right'): PlaneGeometry {
   return geometry;
 }
 
-function resolveImageUri(source: CookbookPage['imageAsset'] | undefined): string | null {
-  if (!source) return null;
-  if (typeof source === 'number') return Asset.fromModule(source).uri;
-  if (Array.isArray(source)) return resolveImageUri(source[0]);
-  if (typeof source === 'object' && typeof source.uri === 'string') return source.uri;
-  return null;
-}
-
 function createCoverTitleTexture(title: string): CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1536;
+  canvas.width = COOKBOOK_GEOMETRY.page.designWidth;
+  canvas.height = COOKBOOK_GEOMETRY.page.designHeight;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Could not create cover title texture');
 
   context.textAlign = 'center';
   context.fillStyle = Colors.legacySurface.v33;
-  context.font = '600 24px Georgia';
-  context.fillText('A PERSONAL COOKBOOK', canvas.width / 2, 390);
+  context.font = `600 ${Math.round(canvas.width * 0.024)}px Georgia`;
+  context.fillText('A PERSONAL COOKBOOK', canvas.width / 2, canvas.height * 0.25);
 
   context.fillStyle = Colors.legacySurface.v39;
-  context.font = 'bold 92px Georgia';
-  drawWrappedText(context, title, canvas.width / 2, 505, 720, 102);
+  context.font = `bold ${Math.round(canvas.width * 0.09)}px Georgia`;
+  drawWrappedText(context, title, canvas.width / 2, canvas.height * 0.33, canvas.width * 0.7, canvas.height * 0.067);
 
   context.strokeStyle = Colors.legacySurface.v49;
   context.lineWidth = 2;
   context.beginPath();
-  context.moveTo(370, 735);
-  context.lineTo(654, 735);
+  context.moveTo(canvas.width * 0.36, canvas.height * 0.48);
+  context.lineTo(canvas.width * 0.64, canvas.height * 0.48);
   context.stroke();
 
   context.fillStyle = Colors.legacySurface.v08;
-  context.font = 'bold 22px Georgia';
-  context.letterSpacing = '6px';
-  context.fillText('RECIPES', canvas.width / 2, 1312);
+  context.font = `bold ${Math.round(canvas.width * 0.022)}px Georgia`;
+  context.letterSpacing = `${Math.round(canvas.width * 0.006)}px`;
+  context.fillText('RECIPES', canvas.width / 2, canvas.height * 0.86);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -891,8 +900,10 @@ function createCoverTitleTexture(title: string): CanvasTexture {
 
 function makeFallbackImageUri(title: string): string {
   const safeTitle = escapeXml(title);
+  const width = COOKBOOK_GEOMETRY.page.designWidth;
+  const height = COOKBOOK_GEOMETRY.page.designHeight;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1240"><rect width="100%" height="100%" fill=Colors.legacySurface.v36/><rect x="38" y="38" width="824" height="1164" rx="24" fill="none" stroke=Colors.legacySurface.v20 stroke-width="4"/><text x="450" y="590" text-anchor="middle" font-family="Georgia" font-size="54" fill=Colors.legacySurface.v06>${safeTitle}</text><text x="450" y="654" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill=Colors.legacySurface.v15>COOKBOOK</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill=Colors.legacySurface.v36/><rect x="38" y="38" width="${width - 76}" height="${height - 76}" rx="24" fill="none" stroke=Colors.legacySurface.v20 stroke-width="4"/><text x="${width / 2}" y="${height * 0.48}" text-anchor="middle" font-family="Georgia" font-size="54" fill=Colors.legacySurface.v06>${safeTitle}</text><text x="${width / 2}" y="${height * 0.54}" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill=Colors.legacySurface.v15>COOKBOOK</text></svg>`,
   )}`;
 }
 
@@ -988,8 +999,8 @@ function createPaperTexture(
   draw: (context: CanvasRenderingContext2D, width: number, height: number) => void,
 ): CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 900;
-  canvas.height = 1240;
+  canvas.width = COOKBOOK_GEOMETRY.page.designWidth;
+  canvas.height = COOKBOOK_GEOMETRY.page.designHeight;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Could not create cookbook page texture');
   context.fillStyle = Colors.legacySurface.v41;

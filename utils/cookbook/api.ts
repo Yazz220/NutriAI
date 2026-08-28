@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
@@ -610,16 +611,23 @@ function decodeBase64(value: string): Uint8Array {
 
 export async function uploadRecipeCaptureImage(input: {
   userId: string;
-  imageBase64: string;
+  imageUri?: string;
+  imageBase64?: string;
   mimeType?: string;
   requestKey: string;
 }): Promise<{ storagePath: string; mimeType: string }> {
   const mimeType = input.mimeType ?? 'image/jpeg';
   const extension = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
   const storagePath = `${input.userId}/${input.requestKey}.${extension}`;
+  const imageBytes = input.imageUri
+    ? await new File(input.imageUri).bytes()
+    : input.imageBase64
+      ? decodeBase64(input.imageBase64)
+      : null;
+  if (!imageBytes) throw new Error('The selected image could not be read');
   const { error } = await supabase.storage
     .from('recipe-captures')
-    .upload(storagePath, decodeBase64(input.imageBase64), { contentType: mimeType, upsert: false });
+    .upload(storagePath, imageBytes, { contentType: mimeType, upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) throw error;
   return { storagePath, mimeType };
 }
