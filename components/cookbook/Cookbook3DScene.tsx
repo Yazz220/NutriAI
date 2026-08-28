@@ -54,6 +54,13 @@ const STACK_WIDTH = 4;
 const STACK_MIN_RATIO = 0.06;
 const STACK_MAX_RATIO = 0.42;
 const STACK_STRIATIONS = 5;
+const CORNER_LIFT_PROGRESS = 0.05;
+const TURN_COMMIT_SPRING = {
+  damping: 24,
+  stiffness: 175,
+  mass: 0.78,
+  overshootClamping: true,
+} as const;
 
 /**
  * Vertical page stack on the outer edge of the book. The height represents
@@ -164,6 +171,7 @@ export function Cookbook3DScene({
   readingPageId,
   leaves,
   leafIndex = 0,
+  turnRequest,
   onOpen,
   onClose,
   isBackClosed = false,
@@ -255,6 +263,7 @@ export function Cookbook3DScene({
   const isSettling = useSharedValue(0);
   const turnGrabX = useSharedValue(0);
   const grabYRatio = useSharedValue(0.5);
+  const lastHandledTurnRequestId = useRef<number | null>(null);
   const pageZoomScale = useSharedValue(READER_MIN_ZOOM);
   const pageZoomStartScale = useSharedValue(READER_MIN_ZOOM);
   const pageZoomTranslateX = useSharedValue(0);
@@ -569,6 +578,59 @@ export function Cookbook3DScene({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const startCanonicalTurn = useCallback((direction: -1 | 1) => {
+    const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
+    if (!isOpen || isPageZoomed || !canTurn) return;
+    if (turnDirection.value !== 0 || isSettling.value !== 0) return;
+
+    if (isBackClosed) {
+      if (direction === -1 && onOpenBack) onOpenBack();
+      return;
+    }
+
+    onStageTap?.();
+    notifyTurnGrabbed();
+    cancelAnimation(turnProgress);
+    grabYRatio.value = 0.5;
+    turnDirection.value = direction;
+    turnProgress.value = CORNER_LIFT_PROGRESS;
+    isSettling.value = 1;
+
+    if (reduceMotion) {
+      turnProgress.value = 0;
+      turnDirection.value = 0;
+      isSettling.value = 0;
+      commitTurn(direction);
+      return;
+    }
+
+    turnProgress.value = withSpring(1, TURN_COMMIT_SPRING, (finished) => {
+      if (!finished) return;
+      runOnJS(commitTurn)(direction);
+    });
+  }, [
+    canTurnNext,
+    canTurnPrevious,
+    commitTurn,
+    grabYRatio,
+    isBackClosed,
+    isOpen,
+    isPageZoomed,
+    isSettling,
+    notifyTurnGrabbed,
+    onOpenBack,
+    onStageTap,
+    reduceMotion,
+    turnDirection,
+    turnProgress,
+  ]);
+
+  useEffect(() => {
+    if (!turnRequest || lastHandledTurnRequestId.current === turnRequest.id) return;
+    lastHandledTurnRequestId.current = turnRequest.id;
+    startCanonicalTurn(turnRequest.direction);
+  }, [startCanonicalTurn, turnRequest]);
+
   // Layout effect: resets the turn values synchronously after the new leaves
   // commit but before paint, so the handoff frame never flashes stale content.
   // The display indices are updated here too, so the Skia/underneath images
@@ -595,8 +657,6 @@ export function Cookbook3DScene({
   // slightly in the turn direction implied by the touch position — right side
   // → forward, left side → backward. This makes the page feel alive under the
   // finger, matching the StPageFlip fold_corner behavior.
-  const CORNER_LIFT_PROGRESS = 0.05;
-
   // Swipe-to-open on the closed cover: a forward swipe (left) opens the
   // book. Only active when the book is closed — when open, the cover layer
   // has pointerEvents: 'none' so this gesture never receives touches.
@@ -791,10 +851,7 @@ export function Cookbook3DScene({
           turnProgress.value = withSpring(
             1,
             {
-              damping: 24,
-              stiffness: 175,
-              mass: 0.78,
-              overshootClamping: true,
+              ...TURN_COMMIT_SPRING,
               velocity: release.settleVelocity,
             },
             (finished) => {
@@ -1158,10 +1215,10 @@ export function Cookbook3DScene({
                     ]}
                     onAccessibilityAction={(event) => {
                       if (event.nativeEvent.actionName === 'decrement' && displayCanGoPrevious) {
-                        onPrevious();
+                        startCanonicalTurn(-1);
                       }
                       if (event.nativeEvent.actionName === 'increment' && displayCanGoNext) {
-                        onNext();
+                        startCanonicalTurn(1);
                       }
                       if (event.nativeEvent.actionName === 'zoom-in') {
                         setPageZoom(nextDoubleTapZoomScale(READER_MIN_ZOOM));

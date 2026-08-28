@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
+import type { CookbookTurnRequest } from '@/components/cookbook/Cookbook3DScene.types';
 import {
   CookbookSettingsSheet,
   RecipeActionsSheet,
@@ -172,6 +173,8 @@ export function BookReader({
       : focusedPage;
   const focusedPageIndex = focusedPage ? pages.findIndex((page) => page.id === focusedPage.id) : -1;
   const [isBackClosed, setIsBackClosed] = useState(false);
+  const [nativeTurnRequest, setNativeTurnRequest] = useState<CookbookTurnRequest>();
+  const nativeTurnRequestId = useRef(0);
   const handledInitialPageId = useRef<string | null>(null);
   const entryOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opening = useSharedValue(initialPageId ? 1 : 0);
@@ -515,6 +518,18 @@ export function BookReader({
     pokeChrome();
   }
 
+  function requestReaderTurn(direction: -1 | 1) {
+    if (!isNative) {
+      if (isCompactReading) goToLeaf(direction);
+      else goToSpread(spreadIndex + direction);
+      return;
+    }
+
+    nativeTurnRequestId.current += 1;
+    setNativeTurnRequest({ id: nativeTurnRequestId.current, direction });
+    pokeChrome();
+  }
+
   const goToFocusedPage = useCallback((offset: -1 | 1) => {
     if (focusedPageIndex < 0) return;
     const nextIndex = Math.max(0, Math.min(pages.length - 1, focusedPageIndex + offset));
@@ -699,6 +714,7 @@ export function BookReader({
           readingPageId={readingPageId}
           leaves={recipeLeaves}
           leafIndex={leafIndex}
+          turnRequest={nativeTurnRequest}
           onOpen={openBook}
           onClose={closeBook}
           isBackClosed={isBackClosed}
@@ -770,8 +786,6 @@ export function BookReader({
         {(() => {
           const atStart = isCompactReading ? leafIndex === 0 : spreadIndex === 0;
           const atEnd = isCompactReading ? leafIndex === recipeLeaves.length - 1 : spreadIndex === spreads.length - 1;
-          const onPrev = isCompactReading ? () => goToLeaf(-1) : () => goToSpread(spreadIndex - 1);
-          const onNext = isCompactReading ? () => goToLeaf(1) : () => goToSpread(spreadIndex + 1);
           const prevLabel = isCompactReading ? 'Previous recipe' : 'Previous spread';
           const nextLabel = isCompactReading ? 'Next recipe' : 'Next spread';
           return (
@@ -784,7 +798,7 @@ export function BookReader({
                   pressed && !atStart && styles.actionPressed,
                 ]}
                 disabled={atStart}
-                onPress={onPrev}
+                onPress={() => requestReaderTurn(-1)}
                 accessibilityRole="button"
                 accessibilityLabel={prevLabel}
                 accessibilityState={{ disabled: atStart }}
@@ -814,7 +828,7 @@ export function BookReader({
                   pressed && !atEnd && styles.actionPressed,
                 ]}
                 disabled={atEnd}
-                onPress={onNext}
+                onPress={() => requestReaderTurn(1)}
                 accessibilityRole="button"
                 accessibilityLabel={nextLabel}
                 accessibilityState={{ disabled: atEnd }}

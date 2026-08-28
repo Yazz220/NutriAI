@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import type { CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -138,4 +138,28 @@ describe('Cookbook3DScene canonical native page turn', () => {
       expect(props.backwardEnabled).not.toBe(false);
     },
   );
+
+  it('commits a requested turn through the native animation controller', async () => {
+    const pages = Array.from({ length: 4 }, (_, index) => makePage(index, 'generated'));
+    const spreads = buildCookbookSpreads(pages.map((page) => page.id));
+    const onNext = jest.fn();
+
+    render(
+      <Cookbook3DScene
+        cookbook={null}
+        pages={pages}
+        spreads={spreads}
+        spreadIndex={1}
+        isOpen
+        turnRequest={{ id: 1, direction: 1 }}
+        onOpen={jest.fn()}
+        onNext={onNext}
+        onPrevious={jest.fn()}
+        onEnterReadingView={jest.fn()}
+        onOpenRecipe={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+  });
 });

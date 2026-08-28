@@ -3,6 +3,11 @@ import type { SharedValue } from 'react-native-reanimated';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import type { CookbookLeaf, CookbookSpread } from '@/utils/cookbook/reader';
 
+export interface CookbookTurnRequest {
+  id: number;
+  direction: -1 | 1;
+}
+
 export interface Cookbook3DSceneProps {
   cookbook: Cookbook | null;
   pages: CookbookPage[];
@@ -25,6 +30,8 @@ export interface Cookbook3DSceneProps {
   leaves?: CookbookLeaf[];
   /** Current position in the flat leaf list for one-page mode. */
   leafIndex?: number;
+  /** Native controls request a physical turn; the scene commits navigation after the curl lands. */
+  turnRequest?: CookbookTurnRequest;
   onOpen: () => void;
   /** Close the book (swing the front cover back shut). */
   onClose?: () => void;

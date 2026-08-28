@@ -55,6 +55,9 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
       onOpen,
       pages,
       readingView,
+      turnRequest,
+      onNext,
+      onPrevious,
       onEnterReadingView,
       onOpenRecipe,
     }: {
@@ -62,6 +65,9 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
       onOpen: () => void;
       pages: unknown[];
       readingView: 'spread' | 'page';
+      turnRequest?: { id: number; direction: -1 | 1 };
+      onNext: () => void;
+      onPrevious: () => void;
       onEnterReadingView: (page: unknown) => void;
       onOpenRecipe: (page: unknown) => void;
     }) =>
@@ -86,6 +92,21 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
               readingView === 'spread' ? onEnterReadingView(pages[0]) : onOpenRecipe(pages[0]),
           },
           ReactModule.createElement(Text, null, readingView === 'spread' ? 'Recipe spread' : 'Recipe reading page'),
+        ),
+        ReactModule.createElement(
+          Text,
+          { testID: 'native-turn-request' },
+          turnRequest ? `${turnRequest.id}:${turnRequest.direction}` : 'none',
+        ),
+        ReactModule.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Complete native page turn',
+            disabled: !turnRequest,
+            onPress: () => turnRequest?.direction === 1 ? onNext() : onPrevious(),
+          },
+          ReactModule.createElement(Text, null, 'Complete turn'),
         ),
       ),
   };
@@ -265,6 +286,29 @@ describe('BookReader compact reading flow', () => {
     expect(screen.queryByRole('button', { name: 'Read this page' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Previous recipe' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next recipe' })).toBeEnabled();
+  });
+
+  it('lets the native scene animate an arrow turn before committing navigation', async () => {
+    const onSelectPage = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage,
+      onShare: jest.fn(),
+    });
+    onSelectPage.mockClear();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Next recipe' }));
+
+    expect(screen.getByTestId('native-turn-request')).toHaveTextContent('1:1');
+    expect(screen.getByText('01 / 10')).toBeTruthy();
+    expect(onSelectPage).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Complete native page turn' }));
+
+    expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
+    expect(screen.getByText('02 / 10')).toBeTruthy();
   });
 
   it('keeps direct navigation inside the focused one-page reader', async () => {
