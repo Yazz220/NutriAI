@@ -6,10 +6,14 @@ import { ContactShadow } from '@/components/physical-book/ContactShadow';
 import { FoilStampedTitle } from '@/components/physical-book/FoilStampedTitle';
 import { PageBlockEdges } from '@/components/physical-book/PageBlockEdges';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
-import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookBinding } from '@/constants/cookbookBindings';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { resolveNoshBookMaterialGeometry } from '@/constants/cookbookMaterial';
-import type { CookbookStyleId } from '@/types/cookbook';
+import type {
+  CookbookCoverColorId,
+  CookbookCoverFinishId,
+  CookbookStyleId,
+} from '@/types/cookbook';
 
 /**
  * A physically bound cookbook volume: page block on the fore-edge, a Skia
@@ -40,6 +44,8 @@ const DEFAULT_WIDTH = 220;
 interface PhysicalBookProps {
   title: string;
   coverStyle: CookbookStyleId;
+  coverFinishId?: CookbookCoverFinishId;
+  coverColorId?: CookbookCoverColorId;
   pageCount?: number;
   imageAsset?: ImageSourcePropType;
   face?: 'front' | 'back';
@@ -59,6 +65,8 @@ export function resolveSpineWidth(width: number, pageCount: number): number {
 export const PhysicalBook = React.memo(function PhysicalBook({
   title,
   coverStyle,
+  coverFinishId,
+  coverColorId,
   pageCount,
   imageAsset,
   face = 'front',
@@ -67,7 +75,11 @@ export const PhysicalBook = React.memo(function PhysicalBook({
   showShadow = true,
   style,
 }: PhysicalBookProps) {
-  const binding = getCookbookBindingForStyle(coverStyle);
+  const binding = resolveCookbookBinding({
+    finishId: coverFinishId,
+    colorId: coverColorId,
+    legacyStyleId: coverStyle,
+  });
   const height = width * PHYSICAL_BOOK_ASPECT;
   const materialGeometry = resolveNoshBookMaterialGeometry(width, pageCount);
   const hingeWidth = materialGeometry.hingeWidth;

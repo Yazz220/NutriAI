@@ -9,11 +9,15 @@ The user's collection of personal cookbooks and the home of the signed-in produc
 _Avoid_: Dashboard, recipe manager
 
 **Cookbook**:
-A named physical-looking Nosh book personalized by its title and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
+A named physical-looking Nosh book personalized by its title, cover texture, and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
 _Avoid_: Folder, collection
 
+**Cover texture**:
+The user-selected surface finish applied to the canonical Nosh cover construction. Fine cloth and Natural linen change only weave and grain; they never change geometry or behavior.
+_Avoid_: Book type, binding, page style
+
 **Cover color**:
-The user-selected surface color applied to the canonical Nosh book. It personalizes the book without changing its structure or behavior.
+The user-selected curated color applied independently to either canonical cover texture. It personalizes the book without changing its structure or behavior.
 _Avoid_: Book type, recipe style, page template
 
 **Recipe-page style**:

@@ -128,6 +128,8 @@ describe('createCookbook', () => {
             theme_prompt: payload.theme_prompt,
             section_order: [],
             cover_style: payload.cover_style,
+            cover_finish_id: payload.cover_finish_id,
+            cover_color_id: payload.cover_color_id,
             page_style_id: payload.page_style_id,
             style_revision: payload.style_revision,
             page_style_references: payload.page_style_references,
@@ -151,19 +153,24 @@ describe('createCookbook', () => {
     const cookbook = await createCookbook({
       userId: 'user-1',
       title: 'Desserts',
-      coverStyle: 'navy-leather',
-      pageStyleId: 'heritage',
+      coverFinishId: 'natural-linen',
+      coverColorId: 'midnight',
+      pageStyleId: 'studio-editorial',
     });
 
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Desserts',
       cover_style: 'navy-leather',
-      page_style_id: 'heritage',
+      cover_finish_id: 'natural-linen',
+      cover_color_id: 'midnight',
+      page_style_id: 'studio-editorial',
     }));
     expect(cookbook).toMatchObject({
       title: 'Desserts',
       coverStyle: 'navy-leather',
-      pageStyleId: 'heritage',
+      coverFinishId: 'natural-linen',
+      coverColorId: 'midnight',
+      pageStyleId: 'studio-editorial',
     });
   });
 });

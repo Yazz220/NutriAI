@@ -68,11 +68,12 @@ function getGrainEffect(): SkRuntimeEffect | null {
   return grainEffect ?? null;
 }
 
-/** Fine woven book cloth shared by every launch cover color. */
-function buildWeavePath(width: number, height: number) {
+/** Material weave comes from the finish; geometry remains unchanged. */
+function buildWeavePath(binding: CookbookBinding, width: number, height: number) {
   const path = Skia.Path.Make();
-  const verticalGap = Math.max(3.4, width / 66);
-  const horizontalGap = Math.max(5.4, width / 42);
+  const pattern = binding.weavePattern;
+  const verticalGap = Math.max(pattern.verticalGapMin, width / pattern.verticalGapRatio);
+  const horizontalGap = Math.max(pattern.horizontalGapMin, width / pattern.horizontalGapRatio);
   for (let x = 0; x <= width; x += verticalGap) {
     path.moveTo(x, 0);
     path.lineTo(x, height);
@@ -95,7 +96,10 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
   const materialGeometry = resolveNoshBookMaterialGeometry(width);
   const boardRadius = materialGeometry.boardCornerRadius;
 
-  const weavePath = useMemo(() => buildWeavePath(width, height), [width, height]);
+  const weavePath = useMemo(
+    () => buildWeavePath(binding, width, height),
+    [binding, width, height],
+  );
   const boardClip = useMemo(() => {
     const path = Skia.Path.Make();
     path.addRRect(Skia.RRectXY(Skia.XYWHRect(0, 0, width, height), boardRadius, boardRadius));
@@ -116,7 +120,12 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
 
       {/* Material weave, clipped to the board shape by the group clip */}
       <Group clip={boardClip}>
-        <Path path={weavePath} style="stroke" strokeWidth={0.52} color={withAlpha(weave, 0.11)} />
+        <Path
+          path={weavePath}
+          style="stroke"
+          strokeWidth={binding.weavePattern.strokeWidth}
+          color={withAlpha(weave, binding.weavePattern.opacity)}
+        />
 
         {/* Procedural grain */}
         {effect ? (

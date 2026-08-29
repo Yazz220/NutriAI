@@ -11,7 +11,7 @@ import { ShelfCarousel } from '@/components/shelf/ShelfCarousel';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookBinding } from '@/constants/cookbookBindings';
 import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
@@ -110,6 +110,8 @@ export function ShelfScene({
             <PhysicalBook
               title={book.title}
               coverStyle={book.coverStyle}
+              coverFinishId={book.coverFinishId}
+              coverColorId={book.coverColorId}
               pageCount={book.pageCount}
               imageAsset={book.coverImageAsset}
               width={width}
@@ -119,7 +121,11 @@ export function ShelfScene({
           renderSpine={(book, spineWidth, height) => (
             <SpineFace
               title={book.title}
-              binding={getCookbookBindingForStyle(book.coverStyle)}
+              binding={resolveCookbookBinding({
+                finishId: book.coverFinishId,
+                colorId: book.coverColorId,
+                legacyStyleId: book.coverStyle,
+              })}
               width={spineWidth}
               height={height}
             />

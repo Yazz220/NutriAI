@@ -39,6 +39,8 @@ jest.mock('@/hooks/useCookbooks', () => ({
       userId: 'user-1',
       title: 'Family Table',
       coverStyle: 'sage-linen',
+      coverFinishId: 'fine-cloth',
+      coverColorId: 'sage',
     }],
   }),
 }));

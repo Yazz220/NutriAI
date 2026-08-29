@@ -28,6 +28,18 @@ export type CookbookStyleId =
   | 'alabaster-linen'
   | 'umber-leather';
 
+/** Surface finish applied to the one canonical Nosh cover construction. */
+export type CookbookCoverFinishId = 'fine-cloth' | 'natural-linen';
+
+/** Curated cover color, independent from the surface finish. */
+export type CookbookCoverColorId =
+  | 'sage'
+  | 'clay'
+  | 'midnight'
+  | 'alabaster'
+  | 'charcoal'
+  | 'umber';
+
 /**
  * The book-owned visual language used by complete-page generation.
  * Legacy cover-linked ids remain valid so existing cookbooks preserve their
@@ -64,6 +76,10 @@ export interface Cookbook {
   sectionOrder: CookbookSection[];
   /** Physical binding/skin shown on the shelf and closed book. */
   coverStyle: CookbookStyleId;
+  /** Surface texture on the canonical cover construction. */
+  coverFinishId: CookbookCoverFinishId;
+  /** Curated color applied independently to the selected cover finish. */
+  coverColorId: CookbookCoverColorId;
   /** Book-owned recipe-page visual language, independent of its cover. */
   pageStyleId: CookbookPageStyleId;
   /** Immutable page-style revision used by every generated page in this book. */

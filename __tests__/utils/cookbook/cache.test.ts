@@ -18,6 +18,8 @@ const sampleCookbook: Cookbook = {
   theme: { name: 'Warm', prompt: 'warm cookbook' },
   sectionOrder: ['breakfast', 'dinner', 'favorites'],
   coverStyle: 'handwritten',
+  coverFinishId: 'fine-cloth',
+  coverColorId: 'sage',
   sections: [],
   createdAt: '2026-05-03T00:00:00.000Z',
   updatedAt: '2026-05-03T00:00:00.000Z',

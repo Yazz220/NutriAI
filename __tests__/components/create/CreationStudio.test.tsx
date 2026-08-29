@@ -20,14 +20,21 @@ jest.mock('@/components/physical-book/PhysicalBook', () => {
   };
 });
 
+jest.mock('@/components/physical-book/SkiaBookCover', () => ({
+  SkiaBookCover: () => null,
+}));
+
 describe('CreationStudio', () => {
-  it('creates one canonical book with the selected cover color and recipe-page style', async () => {
+  it('creates one canonical book with independent texture, color, and recipe-page style', async () => {
     const onCreateBook = jest.fn().mockResolvedValue(undefined);
     const screen = render(
       <CreationStudio canCreate onCreateBook={onCreateBook} onSignIn={jest.fn()} />,
     );
 
     fireEvent.changeText(screen.getByPlaceholderText('e.g. Healthy Meals'), 'Desserts');
+    fireEvent.press(screen.getByRole('button', {
+      name: 'Natural linen cover texture: A warmer, more open woven texture',
+    }));
     fireEvent.press(screen.getByRole('button', { name: 'Midnight cover color' }));
     fireEvent.press(screen.getByRole('button', {
       name: 'Editorial recipe page style: Bold imagery and clean type',
@@ -37,7 +44,8 @@ describe('CreationStudio', () => {
     await waitFor(() => {
       expect(onCreateBook).toHaveBeenCalledWith({
         title: 'Desserts',
-        coverStyle: 'navy-leather',
+        coverFinishId: 'natural-linen',
+        coverColorId: 'midnight',
         pageStyleId: 'studio-editorial',
       });
     });
@@ -57,7 +65,7 @@ describe('CreationStudio', () => {
     expect(screen.getByRole('button', { name: 'Close cookbook preview' })).toBeTruthy();
     expect(screen.getByLabelText('Heritage brownie recipe sample')).toBeTruthy();
     expect(screen.getByLabelText('Heritage cookie recipe sample')).toBeTruthy();
-    expect(screen.getByText('Sage cover · Heritage recipe pages')).toBeTruthy();
+    expect(screen.getByText('Fine cloth · Sage cover · Heritage recipe pages')).toBeTruthy();
   });
 
   it('starts the first cookbook with a usable name and the full identity controls', async () => {
@@ -72,6 +80,7 @@ describe('CreationStudio', () => {
     );
 
     expect(screen.getByDisplayValue('My Cookbook')).toBeTruthy();
+    expect(screen.getByText('Cover texture')).toBeTruthy();
     expect(screen.getByText('Cover color')).toBeTruthy();
     expect(screen.getByText('Recipe page style')).toBeTruthy();
 
@@ -84,7 +93,8 @@ describe('CreationStudio', () => {
     await waitFor(() => {
       expect(onCreateBook).toHaveBeenCalledWith({
         title: 'My Cookbook',
-        coverStyle: 'terracotta-cloth',
+        coverFinishId: 'fine-cloth',
+        coverColorId: 'clay',
         pageStyleId: 'heritage',
       });
     });

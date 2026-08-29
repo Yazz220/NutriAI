@@ -1,8 +1,10 @@
 import {
   DEFAULT_CREATION_PAGE_STYLE_ID,
   COOKBOOK_COVER_COLORS,
+  COOKBOOK_COVER_FINISHES,
   COOKBOOK_PAGE_STYLES,
   listCookbookCoverColors,
+  listCookbookCoverFinishes,
   listCreationPageStyles,
   normalizeCookbookPageStyleId,
 } from '@/constants/cookbookCustomization';
@@ -12,6 +14,13 @@ import {
 } from '../../supabase/functions/_shared/artGeneration';
 
 describe('cookbook customization catalog', () => {
+  it('offers two ordered finishes without changing book construction', () => {
+    const finishes = listCookbookCoverFinishes();
+
+    expect(finishes.map((option) => option.id)).toEqual(['fine-cloth', 'natural-linen']);
+    expect(Object.keys(COOKBOOK_COVER_FINISHES)).toHaveLength(2);
+  });
+
   it('offers one ordered palette of cover colors', () => {
     const colors = listCookbookCoverColors();
 
@@ -23,8 +32,8 @@ describe('cookbook customization catalog', () => {
       'Charcoal',
       'Umber',
     ]);
-    expect(new Set(COOKBOOK_COVER_COLORS.map((option) => option.id)).size)
-      .toBe(COOKBOOK_COVER_COLORS.length);
+    expect(new Set(Object.values(COOKBOOK_COVER_COLORS).map((option) => option.id)).size)
+      .toBe(Object.keys(COOKBOOK_COVER_COLORS).length);
   });
 
   it('keeps the three selectable page identities aligned with generation', () => {

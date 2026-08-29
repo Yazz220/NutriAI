@@ -17,7 +17,9 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 | `title` | text | User-provided ("Desserts", "Italian", "Family") |
 | `theme_name`, `theme_prompt` | text | Legacy theme fields, kept for backward compat |
 | `section_order` | jsonb | Default order of the seven canonical sections |
-| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Physical cover color, material, binding, and foil |
+| `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Legacy compatibility preset derived from `cover_color_id` by new clients |
+| `cover_finish_id` | text CHECK ∈ {`fine-cloth`, `natural-linen`} | Surface weave and grain on the canonical cover construction |
+| `cover_color_id` | text CHECK ∈ {`sage`, `clay`, `midnight`, `alabaster`, `charcoal`, `umber`} | Curated cover color, independent from finish and recipe-page style |
 | `page_style_id` | text CHECK including the legacy style ids plus {`illustrated`, `studio-editorial`, `heritage`} | Database-owned visual language for complete-page generation; independent from the cover |
 | `style_revision` | integer | Version of the book-owned page-style contract |
 | `page_style_references` | jsonb string array | Optional immutable visual anchors for page consistency |
@@ -160,6 +162,8 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260822153000_simplify_recipe_page_pipeline.sql` | Collapses capture/review into processing, optional destination choice, retry, and ready; adds default books and versioned page-style anchors |
 | `supabase/migrations/20260823020628_suspend_internal_generation_credits.sql` | Suspends the legacy internal credit gate while preserving ledger history and compatibility RPCs |
 | `supabase/migrations/20260823041346_add_cookbook_page_styles.sql` | Separates physical `cover_style` from book-owned `page_style_id` and preserves existing books' page identities |
+| `supabase/migrations/20260829183126_separate_cover_finish_and_color.sql` | Separates the canonical cover's surface finish from its curated color while preserving `cover_style` compatibility |
+| `supabase/migrations/20260829183847_sync_legacy_cover_style_and_color.sql` | Keeps legacy `cover_style` writes synchronized with `cover_color_id` across app versions |
 | `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |
 
 ## RLS posture

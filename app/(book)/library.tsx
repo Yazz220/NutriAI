@@ -27,8 +27,8 @@ export default function BookLibraryScreen() {
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
 
-  async function handleCreate({ title, coverStyle, pageStyleId }: CreateCookbookDetails) {
-    const cookbook = await createCookbook({ title, coverStyle, pageStyleId });
+  async function handleCreate({ title, coverFinishId, coverColorId, pageStyleId }: CreateCookbookDetails) {
+    const cookbook = await createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
     if (captureId) {
       try {
         await prepareDestination({ captureId, destinationCookbookId: cookbook.id });
@@ -44,7 +44,8 @@ export default function BookLibraryScreen() {
         type: 'first_cookbook_created',
         data: {
           cookbookId: cookbook.id,
-          coverStyle,
+          coverFinishId,
+          coverColorId,
           pageStyleId,
         },
       });

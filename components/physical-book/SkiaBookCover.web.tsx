@@ -35,9 +35,19 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         style={[StyleSheet.absoluteFill, styles.face, { borderRadius: boardCornerRadius }]}
       />
 
-      {/* Weave hint: sparse vertical threads for the shared cloth. */}
-      {Array.from({ length: Math.floor(width / 9) }).map((_, index) => (
-        <View key={index} style={[styles.weaveLine, { left: index * 9, backgroundColor: withAlpha(weave, 0.08) }]} />
+      {/* Weave hint follows the same finish tuning as the native renderer. */}
+      {Array.from({ length: Math.ceil(width / binding.weavePattern.verticalGapMin) }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.weaveLine,
+            {
+              left: index * binding.weavePattern.verticalGapMin,
+              width: binding.weavePattern.strokeWidth,
+              backgroundColor: withAlpha(weave, binding.weavePattern.opacity * 0.72),
+            },
+          ]}
+        />
       ))}
 
       {/* Curved spine face */}

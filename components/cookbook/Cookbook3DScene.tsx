@@ -27,7 +27,7 @@ import {
 } from '@/components/cookbook/OpenBookSpread';
 import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
-import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookBinding } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
@@ -196,7 +196,12 @@ export function Cookbook3DScene({
   const readingPageGeometry = resolveNativeReadingPageGeometry(width, height);
   const leafWidth = bookGeometry.pageWidth;
   const bookHeight = bookGeometry.pageHeight;
-  const coverColor = getCookbookBindingForStyle(cookbook?.coverStyle).cloth;
+  const coverBinding = resolveCookbookBinding({
+    finishId: cookbook?.coverFinishId,
+    colorId: cookbook?.coverColorId,
+    legacyStyleId: cookbook?.coverStyle,
+  });
+  const coverColor = coverBinding.cloth;
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
   const requestedPageIndex = pages.findIndex((page) => page.id === readingPageId);
   const fallbackLeaf =
@@ -1378,6 +1383,8 @@ export function Cookbook3DScene({
                 <PhysicalBook
                   title={cookbook?.title ?? 'My Cookbook'}
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  coverFinishId={cookbook?.coverFinishId}
+                  coverColorId={cookbook?.coverColorId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   width={leafWidth}
@@ -1398,6 +1405,8 @@ export function Cookbook3DScene({
                 <PhysicalBook
                   title=""
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  coverFinishId={cookbook?.coverFinishId}
+                  coverColorId={cookbook?.coverColorId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   face="back"

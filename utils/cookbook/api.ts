@@ -4,6 +4,11 @@ import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
 import { COOKBOOK_STYLE_PRESETS, getCookbookStyle } from '@/constants/cookbookStyles';
 import {
+  getLegacyCoverStyleForColor,
+  normalizeCoverColorId,
+  normalizeCoverFinishId,
+} from '@/constants/cookbookBindings';
+import {
   getCookbookPageStyleModelDescription,
   getCookbookPageStyleName,
   getCookbookPageStyleReferences,
@@ -13,6 +18,8 @@ import {
 import { DEFAULT_RECIPE_TEMPLATE_ID, getRecipeTemplate, isRecipeTemplateId } from '@/constants/recipeTemplates';
 import type {
   Cookbook,
+  CookbookCoverColorId,
+  CookbookCoverFinishId,
   CookbookPage,
   CookbookPageStyleId,
   CookbookSectionEntry,
@@ -39,6 +46,8 @@ type CookbookInsertPayload = {
   theme_name: string;
   theme_prompt: string;
   cover_style?: CookbookStyleId;
+  cover_finish_id?: CookbookCoverFinishId;
+  cover_color_id?: CookbookCoverColorId;
   page_style_id?: CookbookPageStyleId;
   page_template_id?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -55,6 +64,8 @@ interface CookbookRow {
   theme_prompt: string;
   section_order?: unknown;
   cover_style?: string | null;
+  cover_finish_id?: string | null;
+  cover_color_id?: string | null;
   page_style_id?: string | null;
   page_template_id?: string | null;
   sections?: unknown;
@@ -161,11 +172,14 @@ function normalizeSectionOrder(value: unknown): Cookbook['sectionOrder'] {
 }
 
 function normalizeCoverStyle(value?: string | null, themeName?: string | null): CookbookStyleId {
+  if (value && getCookbookStyle(value).id === value) {
+    return value as CookbookStyleId;
+  }
   const matchingTheme = themeName
     ? Object.values(COOKBOOK_STYLE_PRESETS).find((preset) => preset.theme.name === themeName)
     : undefined;
   if (matchingTheme) return matchingTheme.id;
-  return getCookbookStyle(value).id;
+  return getCookbookStyle().id;
 }
 
 function normalizePageTemplateId(value?: string | null): RecipeTemplateId {
@@ -180,6 +194,8 @@ function getEmbeddedVersion(row: CookbookPageRow): PageVersionRow | undefined {
 
 export function mapCookbook(row: CookbookRow): Cookbook {
   const coverStyle = normalizeCoverStyle(row.cover_style, row.theme_name);
+  const coverFinishId = normalizeCoverFinishId(row.cover_finish_id);
+  const coverColorId = normalizeCoverColorId(row.cover_color_id, coverStyle);
   const pageStyleId = normalizeCookbookPageStyleId(row.page_style_id, coverStyle);
   const pageTemplateId = normalizePageTemplateId(row.page_template_id);
   const sections = normalizeSections(row.sections);
@@ -190,6 +206,8 @@ export function mapCookbook(row: CookbookRow): Cookbook {
     theme: { name: row.theme_name, prompt: row.theme_prompt },
     sectionOrder: normalizeSectionOrder(row.section_order),
     coverStyle,
+    coverFinishId,
+    coverColorId,
     pageStyleId,
     styleRevision: row.style_revision ?? getCookbookPageStyleRevision(pageStyleId),
     pageStyleReferences: asStringArray(row.page_style_references),
@@ -384,7 +402,8 @@ export async function getCookbook(cookbookId: string): Promise<Cookbook | null> 
 export interface CreateCookbookInput {
   userId: string;
   title: string;
-  coverStyle: CookbookStyleId;
+  coverFinishId: CookbookCoverFinishId;
+  coverColorId: CookbookCoverColorId;
   pageStyleId: CookbookPageStyleId;
   pageTemplateId?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -400,6 +419,13 @@ function isMissingCookbookColumnError(error: unknown): boolean {
     message.includes("Could not find the 'page_style_id' column") ||
     message.includes("Could not find the 'sections' column")
   );
+}
+
+function isMissingCoverAppearanceColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = (error as { message?: string }).message ?? '';
+  return message.includes("Could not find the 'cover_finish_id' column")
+    || message.includes("Could not find the 'cover_color_id' column");
 }
 
 function isCoverStyleConstraintError(error: unknown): boolean {
@@ -422,7 +448,7 @@ async function insertCookbook(payload: CookbookInsertPayload): Promise<CookbookR
 }
 
 export async function createCookbook(input: CreateCookbookInput): Promise<Cookbook> {
-  const coverPreset = getCookbookStyle(input.coverStyle);
+  const coverPreset = getCookbookStyle(getLegacyCoverStyleForColor(input.coverColorId));
   const pageStyleId = normalizeCookbookPageStyleId(input.pageStyleId, coverPreset.id);
   const templateId = getRecipeTemplate(input.pageTemplateId).id;
   const title = input.title.trim() || 'My Cookbook';
@@ -437,6 +463,8 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     const row = await insertCookbook({
       ...basePayload,
       cover_style: coverPreset.id,
+      cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+      cover_color_id: normalizeCoverColorId(input.coverColorId),
       page_style_id: pageStyleId,
       style_revision: getCookbookPageStyleRevision(pageStyleId),
       page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -445,10 +473,39 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     });
     return { ...mapCookbook(row), pageCount: 0 };
   } catch (error) {
+    if (isMissingCoverAppearanceColumnError(error)) {
+      try {
+        const row = await insertCookbook({
+          ...basePayload,
+          cover_style: coverPreset.id,
+          page_style_id: pageStyleId,
+          style_revision: getCookbookPageStyleRevision(pageStyleId),
+          page_style_references: getCookbookPageStyleReferences(pageStyleId),
+          page_template_id: templateId,
+          sections: input.sections ?? [],
+        });
+        return { ...mapCookbook(row), pageCount: 0 };
+      } catch (legacyError) {
+        if (!isCoverStyleConstraintError(legacyError)) throw legacyError;
+        const row = await insertCookbook({
+          ...basePayload,
+          cover_style: 'handwritten',
+          page_style_id: pageStyleId,
+          style_revision: getCookbookPageStyleRevision(pageStyleId),
+          page_style_references: getCookbookPageStyleReferences(pageStyleId),
+          page_template_id: templateId,
+          sections: input.sections ?? [],
+        });
+        return { ...mapCookbook(row), pageCount: 0 };
+      }
+    }
+
     if (isCoverStyleConstraintError(error)) {
       const row = await insertCookbook({
         ...basePayload,
         cover_style: 'handwritten',
+        cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+        cover_color_id: normalizeCoverColorId(input.coverColorId),
         page_style_id: pageStyleId,
         style_revision: getCookbookPageStyleRevision(pageStyleId),
         page_style_references: getCookbookPageStyleReferences(pageStyleId),

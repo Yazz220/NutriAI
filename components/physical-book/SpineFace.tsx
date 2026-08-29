@@ -29,6 +29,8 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
   const { cloth, foil, band, weave } = binding;
   const titleSize = Math.max(9, Math.round(width * 0.36));
   const textTrack = height * 0.56;
+  const threadCount = binding.finishId === 'natural-linen' ? 7 : 9;
+  const threadOpacity = binding.finishId === 'natural-linen' ? 0.2 : 0.13;
 
   return (
     <View style={[styles.wrapper, { width, height }]}>
@@ -42,14 +44,15 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
       />
 
       {/* The threads are deliberately quiet. They should read as cloth, not decoration. */}
-      {Array.from({ length: 9 }).map((_, index) => (
+      {Array.from({ length: threadCount }).map((_, index) => (
         <View
           key={index}
           style={[
             styles.thread,
             {
-              left: ((index + 1) / 10) * width,
-              backgroundColor: withAlpha(index % 2 === 0 ? weave : shiftColor(weave, 12), 0.13),
+              left: ((index + 1) / (threadCount + 1)) * width,
+              width: binding.weavePattern.strokeWidth,
+              backgroundColor: withAlpha(index % 2 === 0 ? weave : shiftColor(weave, 12), threadOpacity),
             },
           ]}
         />

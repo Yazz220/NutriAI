@@ -1,14 +1,20 @@
 import type { ImageSourcePropType } from 'react-native';
 import type { CookbookPageStyleId, CookbookStyleId } from '@/types/cookbook';
 import { getCookbookStyle } from '@/constants/cookbookStyles';
+export {
+  COOKBOOK_COVER_COLORS,
+  COOKBOOK_COVER_FINISHES,
+  DEFAULT_COVER_COLOR_ID,
+  DEFAULT_COVER_FINISH_ID,
+  listCookbookCoverColors,
+  listCookbookCoverFinishes,
+} from '@/constants/cookbookBindings';
+export type {
+  CookbookCoverColor as CookbookCoverColorOption,
+  CookbookCoverFinish as CookbookCoverFinishOption,
+} from '@/constants/cookbookBindings';
 
 export type CreationPageStyleId = 'illustrated' | 'studio-editorial' | 'heritage';
-
-export interface CookbookCoverColorOption {
-  id: CookbookStyleId;
-  name: string;
-  studioOrder: number;
-}
 
 export interface CookbookPageStyleOption {
   id: CreationPageStyleId;
@@ -23,20 +29,6 @@ export interface CookbookPageStyleOption {
   };
   studioOrder: number;
 }
-
-/**
- * New cookbooks share one physical system. These ids select only the cover's
- * surface color while legacy binding metadata remains available to render
- * existing books.
- */
-export const COOKBOOK_COVER_COLORS: readonly CookbookCoverColorOption[] = [
-  { id: 'sage-linen', name: 'Sage', studioOrder: 0 },
-  { id: 'terracotta-cloth', name: 'Clay', studioOrder: 1 },
-  { id: 'navy-leather', name: 'Midnight', studioOrder: 2 },
-  { id: 'alabaster-linen', name: 'Alabaster', studioOrder: 3 },
-  { id: 'charcoal-cloth', name: 'Charcoal', studioOrder: 4 },
-  { id: 'umber-leather', name: 'Umber', studioOrder: 5 },
-];
 
 export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyleOption> = {
   illustrated: {
@@ -86,10 +78,6 @@ export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyle
 export const DEFAULT_CREATION_PAGE_STYLE_ID: CreationPageStyleId = 'illustrated';
 
 const CREATION_PAGE_STYLE_IDS = new Set<string>(Object.keys(COOKBOOK_PAGE_STYLES));
-
-export function listCookbookCoverColors(): CookbookCoverColorOption[] {
-  return [...COOKBOOK_COVER_COLORS].sort((left, right) => left.studioOrder - right.studioOrder);
-}
 
 export function listCreationPageStyles(): CookbookPageStyleOption[] {
   return Object.values(COOKBOOK_PAGE_STYLES).sort((left, right) => left.studioOrder - right.studioOrder);

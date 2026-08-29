@@ -17,6 +17,8 @@ export const SAMPLE_COOKBOOK: Cookbook = {
   },
   sectionOrder: ['dinner', 'healthy', 'sides', 'desserts'],
   coverStyle: 'sage-linen',
+  coverFinishId: 'fine-cloth',
+  coverColorId: 'sage',
   pageStyleId: 'illustrated',
   styleRevision: 1,
   isDefault: false,
