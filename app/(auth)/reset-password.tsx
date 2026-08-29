@@ -89,7 +89,7 @@ export default function ResetPasswordScreen() {
     <AuthScaffold
       title="Set a new password"
       subtitle="Choose a new password, then sign back in to your cookbook shelf."
-      showIllustration={false}
+      compactHeader
     >
       {!hasSession ? (
         <Text style={styles.notice}>Open the password reset link from your email again.</Text>

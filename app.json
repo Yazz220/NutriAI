@@ -6,13 +6,20 @@
     "orientation": "portrait",
     "scheme": "nosh",
     "userInterfaceStyle": "automatic",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/platform/icon.png",
+    "backgroundColor": "#F7F2EA",
+    "primaryColor": "#65436F",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/brand/platform/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F7F2"
+      "backgroundColor": "#F7F2EA"
     },
     "ios": {
+      "icon": {
+        "light": "./assets/brand/platform/icon.png",
+        "dark": "./assets/brand/platform/icon-dark.png",
+        "tinted": "./assets/brand/platform/icon-tinted.png"
+      },
       "supportsTablet": false,
       "bundleIdentifier": "com.yaz12.nosh",
       "buildNumber": "13",
@@ -92,9 +99,12 @@
     "android": {
       "package": "com.yaz12.nosh",
       "versionCode": 1,
+      "icon": "./assets/brand/platform/icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F5F7F2"
+        "foregroundImage": "./assets/brand/platform/adaptive-icon.png",
+        "backgroundImage": "./assets/brand/platform/adaptive-background.png",
+        "monochromeImage": "./assets/brand/platform/adaptive-monochrome.png",
+        "backgroundColor": "#F7F2EA"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -125,7 +135,19 @@
       "expo-localization",
       "expo-router",
       "expo-asset",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7F2EA",
+          "image": "./assets/brand/platform/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "dark": {
+            "image": "./assets/brand/platform/splash-dark.png",
+            "backgroundColor": "#65436F"
+          }
+        }
+      ],
       [
         "expo-share-intent",
         {
@@ -147,7 +169,10 @@
       ]
     ],
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/brand/platform/favicon.png",
+      "name": "Nosh",
+      "shortName": "Nosh"
     },
     "extra": {
       "eas": {

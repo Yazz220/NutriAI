@@ -519,6 +519,7 @@ function CaptureDetail({
         <View style={styles.destinationCard} accessibilityLiveRegion="polite">
           <View style={styles.icon}><BookOpen size={21} color={Colors.text} /></View>
           <Text style={styles.title}>{presentation.title}</Text>
+          <Text style={styles.copy}>{presentation.detail}</Text>
           {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
           <View style={styles.bookList}>
             {availableCookbooks.map((cookbook) => (
@@ -988,6 +989,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
     padding: Spacing.xl,
+    boxShadow: Colors.book.cardShadow,
   },
   destinationCard: {
     alignItems: 'center',
@@ -997,6 +999,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.ash,
     backgroundColor: Colors.white,
     padding: Spacing.xl,
+    boxShadow: Colors.book.cardShadow,
   },
   icon: {
     width: 46,
@@ -1153,12 +1156,12 @@ const styles = StyleSheet.create({
     minHeight: 24,
     justifyContent: 'center',
     borderRadius: Radii.full,
-    backgroundColor: Colors.parchment,
+    backgroundColor: Colors.book.accentSoft,
     paddingHorizontal: Spacing.sm,
   },
   activityStatusReady: { backgroundColor: Colors.successLight },
   activityStatusAttention: { backgroundColor: Colors.errorLight },
-  activityRowLabel: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.sm },
+  activityRowLabel: { color: Colors.primary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.sm },
   activityRowLabelReady: { color: Colors.success },
   activityRowLabelError: { color: Colors.error },
   showMore: {

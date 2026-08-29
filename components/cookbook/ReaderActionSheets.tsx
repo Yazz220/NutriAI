@@ -97,6 +97,9 @@ export function RecipeActionsSheet({
             </Pressable>
           ) : null}
           <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow} maxFontSizeMultiplier={1.15}>
+              {view === 'move' ? 'MOVE RECIPE' : 'RECIPE ACTIONS'}
+            </Text>
             <Text style={styles.sheetTitle} numberOfLines={2}>
               {view === 'move' ? 'Choose a cookbook' : page.title}
             </Text>
@@ -285,6 +288,7 @@ export function CookbookSettingsSheet({
       closeButtonStyle={styles.closeButton}
       header={
         <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow} maxFontSizeMultiplier={1.15}>COOKBOOK</Text>
           <Text style={styles.sheetTitle}>Cookbook settings</Text>
         </View>
       }
@@ -404,11 +408,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   eyebrow: {
-    color: Colors.textTertiary,
+    color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight13,
-    letterSpacing: Typography.metrics.letterSpacing11,
+    fontSize: Typography.sizes.xs,
+    lineHeight: Typography.metrics.lineHeight12,
+    letterSpacing: Typography.metrics.letterSpacing14,
   },
   sheetTitle: {
     color: Colors.text,
@@ -449,7 +453,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.book.accentSoft,
   },
   actionCopy: {
     flex: 1,
@@ -556,6 +560,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.metrics.lineHeight18,
   },
   pressed: {
-    opacity: 0.72,
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
   },
 });

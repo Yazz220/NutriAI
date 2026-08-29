@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { captureError } from '@/utils/analytics';
+import { Fonts } from '@/utils/fonts';
 
 interface State {
   hasError: boolean;
@@ -57,8 +58,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   title: {
-    fontSize: Typography.sizes.md,
-    fontWeight: '700',
+    fontSize: Typography.sizes.xxl,
+    lineHeight: Typography.metrics.lineHeight32,
+    fontFamily: Fonts.display.bold,
     color: Colors.text,
     marginBottom: Spacing.values[8],
   },

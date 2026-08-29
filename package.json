@@ -13,12 +13,14 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\" --ignore-path .gitignore",
     "typecheck": "tsc --noEmit",
+    "brand:generate": "node scripts/brand/generate-assets.mjs",
     "postinstall": "patch-package"
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.15",
     "@assistant-ui/react-native": "^0.1.38",
     "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
@@ -102,6 +104,7 @@
     "prettier": "^3.8.1",
     "react-native-svg-transformer": "^1.5.0",
     "react-test-renderer": "19.1.0",
+    "sharp": "^0.35.4",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },

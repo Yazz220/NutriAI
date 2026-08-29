@@ -14,9 +14,10 @@
  */
 
 import React from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Link, Paperclip, Send, Sparkles, Video, X } from 'lucide-react-native';
+import { Camera, Link, Paperclip, Send, Video, X } from 'lucide-react-native';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -141,7 +142,9 @@ export function UnifiedIntakeComposer({
   const hasImage = Boolean(imageUri || imageBase64);
   const canSubmit = Boolean(hasImage || input.trim()) && !isSubmitting;
 
-  const submitIcon = hasImage ? (
+  const submitIcon = isSubmitting ? (
+    <ActivityIndicator size="small" color={Colors.onPrimary} />
+  ) : hasImage ? (
     <Camera size={18} color={Colors.onPrimary} />
   ) : looksLikeVideoUrl(input) ? (
     <Video size={18} color={Colors.onPrimary} />
@@ -154,11 +157,12 @@ export function UnifiedIntakeComposer({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.iconBadge}>
-          <Sparkles size={18} color={Colors.text} />
+        <View style={styles.iconBadge} accessibilityElementsHidden>
+          <NoshSymbol size={30} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Paste a link, text, or attach a photo</Text>
+          <Text style={styles.title}>Turn a recipe into a page</Text>
+          <Text style={styles.helper}>Paste a link or recipe text, or attach a photo.</Text>
         </View>
       </View>
 
@@ -263,10 +267,11 @@ const styles = StyleSheet.create({
     borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.parchment,
+    backgroundColor: Colors.book.accentSoft,
   },
   headerText: {
     flex: 1,
+    gap: Spacing.values[3],
   },
   title: {
     color: Colors.text,
@@ -274,6 +279,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight28,
     letterSpacing: Typography.metrics.letterSpacing0,
+  },
+  helper: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   inputShell: {
     borderRadius: Radii.lg,

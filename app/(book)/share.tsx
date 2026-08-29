@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { Check, Clock3, Share2, TriangleAlert } from 'lucide-react-native';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -28,15 +29,20 @@ export default function NativeShareReceiptScreen() {
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={styles.card} accessibilityLiveRegion="polite">
+        <View style={styles.brand} accessibilityElementsHidden>
+          <NoshHorizontalLockup width={132} />
+        </View>
         {receipt.status === 'saving' ? (
           <>
             <View style={styles.icon}><ActivityIndicator color={Colors.primary} /></View>
-            <Text style={styles.title}>Handing the recipe to Nosh</Text>
+            <Text style={styles.title}>Saving your recipe</Text>
+            <Text style={styles.copy}>Nosh is securing the shared item before page creation begins.</Text>
           </>
         ) : receipt.status === 'saved' ? (
           <>
             <View style={[styles.icon, styles.successIcon]}><Check size={24} color={Colors.onSuccess} /></View>
-            <Text style={styles.title}>Nosh is making your page</Text>
+            <Text style={styles.title}>Recipe saved</Text>
+            <Text style={styles.copy}>Page creation will continue in the background.</Text>
             <Button
               title="View progress"
               icon={<Clock3 size={17} color={Colors.onPrimary} />}
@@ -68,6 +74,7 @@ export default function NativeShareReceiptScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
   card: { width: '100%', maxWidth: 460, alignItems: 'center', gap: Spacing.md, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.white, padding: Spacing.xl, boxShadow: Colors.book.liftedShadow },
+  brand: { minHeight: 34, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
   icon: { width: 52, height: 52, borderRadius: Radii.numeric[26], alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.parchment },
   successIcon: { backgroundColor: Colors.success },
   errorIcon: { backgroundColor: Colors.errorLight },

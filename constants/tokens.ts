@@ -6,7 +6,7 @@ export const Tokens = {
     brand: {
       primary: Colors.primary,
       onPrimary: Colors.onPrimary,
-      accent: Colors.butterscotch,
+      accent: Colors.accent,
       onAccent: Colors.onAccent,
     },
     surface: {

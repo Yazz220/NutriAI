@@ -1,6 +1,5 @@
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookReader } from '@/components/cookbook/BookReader';
 import { NoshConversationProvider } from '@/contexts/NoshConversationContext';
@@ -11,7 +10,6 @@ import {
   recordFirstCookbookCreated,
   recordFirstReadyRecipeOpened,
 } from '@/utils/cookbook/firstRunOnboarding';
-import { Typography } from '@/constants/spacing';
 import { shouldUseTouchPaging } from '@/utils/cookbook/reader';
 
 jest.mock('expo-router', () => ({
@@ -218,12 +216,8 @@ describe('BookReader cover entry', () => {
       readOnly: true,
     });
 
-    const sampleLabel = screen.getByText('SAMPLE COOKBOOK');
-    expect(StyleSheet.flatten(sampleLabel.props.style)).toMatchObject({
-      fontSize: Typography.sizes.xxxs,
-      lineHeight: Typography.metrics.lineHeight11,
-    });
-    expect(sampleLabel.props.maxFontSizeMultiplier).toBe(1);
+    expect(screen.getByText(samplePage.title)).toBeTruthy();
+    expect(screen.queryByText('SAMPLE COOKBOOK')).toBeNull();
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
     expect(screen.getByRole('button', {
       name: `Ask Nosh about ${samplePage.title}`,
@@ -353,6 +347,8 @@ describe('BookReader compact reading flow', () => {
     expect(screen.queryByRole('button', { name: 'Read this page' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Previous recipe' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next recipe' })).toBeEnabled();
+    expect(screen.queryByText('RECIPE')).toBeNull();
+    expect(screen.getByText(`1 / ${SAMPLE_COOKBOOK_PAGES.length}`)).toBeTruthy();
   });
 
   it('lets the native scene animate an arrow turn before committing navigation', async () => {
@@ -369,13 +365,13 @@ describe('BookReader compact reading flow', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Next recipe' }));
 
     expect(screen.getByTestId('native-turn-request')).toHaveTextContent('1:1');
-    expect(screen.getByText('01 / 10')).toBeTruthy();
+    expect(screen.getByText('1 / 10')).toBeTruthy();
     expect(onSelectPage).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByRole('button', { name: 'Complete native page turn' }));
 
     expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
-    expect(screen.getByText('02 / 10')).toBeTruthy();
+    expect(screen.getByText('2 / 10')).toBeTruthy();
   });
 
   it('keeps direct navigation inside the focused one-page reader', async () => {
@@ -397,7 +393,7 @@ describe('BookReader compact reading flow', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'Next recipe' }));
     expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
-    expect(screen.getByText('02 / 10')).toBeTruthy();
+    expect(screen.getByText('2 / 10')).toBeTruthy();
     expect(screen.getByRole('button', {
       name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[1].title}`,
     })).toBeTruthy();

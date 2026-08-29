@@ -1,34 +1,36 @@
+import { BrandPalette } from './brandTheme';
+
 /**
- * Nosh visual foundation.
+ * Nosh product color system.
  *
- * Nosh editorial visual foundation.
- *
- * The global system follows the attached reference: warm ivory pages, charcoal
- * ink, soft limestone controls, hairline borders, restrained butterscotch
- * accents, and quiet semantic states. Compatibility aliases remain so older
- * cookbook components can keep importing stable color names.
+ * Canonical brand values come from brandTheme. Physical-book compatibility
+ * values remain here so existing covers and generated pages keep their intended
+ * material appearance while the surrounding product adopts the Nosh identity.
  */
 
-const carbon = '#000000';
-const charcoal = '#171614';
-const alabaster = '#fbfaf6';
-const white = '#ffffff';
-const parchment = '#f0ede7';
-const slate = '#4b4842';
-const ash = '#d9d3c8';
-const duskGrey = '#8c857a';
-const fadedStone = '#9d9588';
-const peach = '#a7422b';
-const butterscotch = '#e8aa42';
-const honeyBronze = '#b77a10';
-const skyMist = '#ecefe7';
-const deepOcean = '#435744';
+const carbon = BrandPalette.black;
+const charcoal = BrandPalette.ink;
+const alabaster = BrandPalette.paperIvory;
+const white = BrandPalette.white;
+const parchment = '#F0E9E0';
+const slate = '#5F5961';
+const ash = '#DED5DF';
+const duskGrey = '#777078';
+const fadedStone = '#918A92';
+const plum = BrandPalette.plum;
+const sage = BrandPalette.sage;
+const coral = BrandPalette.coral;
+const peach = BrandPalette.coral;
+const butterscotch = BrandPalette.peach;
+const honeyBronze = '#B86B2E';
+const skyMist = '#E7EEE2';
+const deepOcean = '#627755';
 const burnishedBronze = '#453d37';
 const warmUmber = '#2d2824';
 const blushMist = '#f4ded9';
 
 export const Colors = {
-  // Boords reference palette
+  // Canonical palette and compatibility neutrals
   carbon,
   charcoal,
   alabaster,
@@ -45,27 +47,32 @@ export const Colors = {
   deepOcean,
   burnishedBronze,
   warmUmber,
+  plum,
+  sage,
+  coral,
+  paperIvory: alabaster,
+  ink: charcoal,
 
   // Legacy Nosh palette aliases
   paperCream: alabaster,
   inkBlack: charcoal,
   warmGray: duskGrey,
   blush: skyMist,
-  bookAccent: butterscotch,
+  bookAccent: plum,
 
   // Brand and controls
-  primary: charcoal,
-  primaryLight: slate,
-  primaryDark: carbon,
-  onPrimary: white,
+  primary: plum,
+  primaryLight: '#7B5A84',
+  primaryDark: '#4D3155',
+  onPrimary: alabaster,
 
-  secondary: duskGrey,
-  secondaryLight: ash,
-  secondaryDark: slate,
+  secondary: sage,
+  secondaryLight: '#C8D3BE',
+  secondaryDark: '#7F916F',
   onSecondary: charcoal,
 
-  accent: butterscotch,
-  accentStrong: butterscotch,
+  accent: coral,
+  accentStrong: coral,
   onAccent: charcoal,
 
   // Surfaces
@@ -129,13 +136,13 @@ export const Colors = {
     light: 'rgba(0, 0, 0, 0.10)',
     medium: 'rgba(0, 0, 0, 0.10)',
     strong: 'rgba(0, 0, 0, 0.14)',
-    colored: 'rgba(232, 170, 66, 0.22)',
+    colored: 'rgba(101, 67, 111, 0.22)',
   },
   overlay: {
     light: 'rgba(18, 18, 18, 0.18)',
     medium: 'rgba(18, 18, 18, 0.38)',
     strong: 'rgba(18, 18, 18, 0.58)',
-    colored: 'rgba(232, 170, 66, 0.28)',
+    colored: 'rgba(101, 67, 111, 0.28)',
   },
 
   // Compatibility artwork and platform-surface colors retained from the
@@ -251,8 +258,8 @@ export const Colors = {
     charcoal,
     mutedInk: slate,
     caption: fadedStone,
-    accent: butterscotch,
-    accentSoft: parchment,
+    accent: plum,
+    accentSoft: '#F0E7F2',
     blush: skyMist,
     coverSpine: duskGrey,
     shelfGradient: [alabaster, alabaster, parchment] as const,
@@ -265,33 +272,33 @@ export const Colors = {
 
   // Interactive states
   interactive: {
-    buttonPrimary: charcoal,
-    buttonPrimaryHover: carbon,
-    buttonPrimaryPressed: carbon,
+    buttonPrimary: plum,
+    buttonPrimaryHover: '#593B62',
+    buttonPrimaryPressed: '#4D3155',
     buttonPrimaryDisabled: ash,
     buttonSecondary: alabaster,
     buttonSecondaryHover: parchment,
     buttonSecondaryPressed: ash,
     buttonSecondaryDisabled: parchment,
-    link: deepOcean,
-    linkHover: charcoal,
-    linkPressed: carbon,
-    linkVisited: slate,
-    focus: charcoal,
-    selection: skyMist,
-    highlight: skyMist,
+    link: plum,
+    linkHover: '#593B62',
+    linkPressed: '#4D3155',
+    linkVisited: '#7B5A84',
+    focus: plum,
+    selection: '#F0E7F2',
+    highlight: '#F0E7F2',
   },
 
   chart: {
-    primary: charcoal,
-    secondary: butterscotch,
-    tertiary: duskGrey,
-    quaternary: peach,
+    primary: plum,
+    secondary: coral,
+    tertiary: sage,
+    quaternary: duskGrey,
     quinary: ash,
     senary: parchment,
     gradients: {
-      primary: [charcoal, slate] as const,
-      secondary: [butterscotch, honeyBronze] as const,
+      primary: [plum, '#7B5A84'] as const,
+      secondary: [coral, butterscotch] as const,
       success: [deepOcean, skyMist] as const,
       info: [deepOcean, skyMist] as const,
     },
@@ -301,15 +308,15 @@ export const Colors = {
   black: carbon,
   lightText: fadedStone,
   lightGray: ash,
-  brandPrimary: charcoal,
-  accentPrimary: butterscotch,
+  brandPrimary: plum,
+  accentPrimary: coral,
   fresh: deepOcean,
   aging: honeyBronze,
   expiring: peach,
   danger: peach,
   tints: {
-    brandTintSoft: skyMist,
-    brandTintStrong: butterscotch,
+    brandTintSoft: '#F0E7F2',
+    brandTintStrong: plum,
   },
 
   gray: {
@@ -329,11 +336,11 @@ export const Colors = {
     highContrast: {
       text: carbon,
       background: white,
-      primary: carbon,
-      secondary: charcoal,
+      primary: plum,
+      secondary: sage,
     },
     focus: {
-      ring: deepOcean,
+      ring: plum,
       width: 2,
       offset: 2,
     },
@@ -346,23 +353,23 @@ export const Colors = {
     focusOpacity: 0.16,
     disabledOpacity: 0.42,
     selectedOpacity: 0.12,
-    focusRing: { color: deepOcean, width: 2, offset: 2, radius: 6 },
+    focusRing: { color: plum, width: 2, offset: 2, radius: 6 },
   },
 
   alpha: {
     primary: {
-      5: 'rgba(23, 22, 20, 0.05)',
-      10: 'rgba(23, 22, 20, 0.10)',
-      20: 'rgba(23, 22, 20, 0.20)',
-      30: 'rgba(23, 22, 20, 0.30)',
-      50: 'rgba(23, 22, 20, 0.50)',
+      5: 'rgba(101, 67, 111, 0.05)',
+      10: 'rgba(101, 67, 111, 0.10)',
+      20: 'rgba(101, 67, 111, 0.20)',
+      30: 'rgba(101, 67, 111, 0.30)',
+      50: 'rgba(101, 67, 111, 0.50)',
     },
     secondary: {
-      5: 'rgba(232, 170, 66, 0.05)',
-      10: 'rgba(232, 170, 66, 0.10)',
-      20: 'rgba(232, 170, 66, 0.20)',
-      30: 'rgba(232, 170, 66, 0.30)',
-      50: 'rgba(232, 170, 66, 0.50)',
+      5: 'rgba(255, 138, 91, 0.05)',
+      10: 'rgba(255, 138, 91, 0.10)',
+      20: 'rgba(255, 138, 91, 0.20)',
+      30: 'rgba(255, 138, 91, 0.30)',
+      50: 'rgba(255, 138, 91, 0.50)',
     },
     black: {
       0: 'rgba(0, 0, 0, 0)',
