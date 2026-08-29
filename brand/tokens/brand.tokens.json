@@ -1,0 +1,72 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "brand": {
+    "color": {
+      "plum": {
+        "$type": "color",
+        "$value": "#65436F",
+        "$description": "Primary Nosh brand color"
+      },
+      "paperIvory": {
+        "$type": "color",
+        "$value": "#F7F2EA",
+        "$description": "Primary light surface and reverse-mark color"
+      },
+      "sage": {
+        "$type": "color",
+        "$value": "#A8B89A",
+        "$description": "Grounded supporting accent"
+      },
+      "coral": {
+        "$type": "color",
+        "$value": "#FF8A5B",
+        "$description": "Primary warm action accent"
+      },
+      "peach": {
+        "$type": "color",
+        "$value": "#FFB185",
+        "$description": "Soft warm accent"
+      },
+      "palePeach": {
+        "$type": "color",
+        "$value": "#FFD9C2",
+        "$description": "Subtle warm background accent"
+      },
+      "ink": {
+        "$type": "color",
+        "$value": "#2B2B2B",
+        "$description": "Primary text and dark surface color"
+      },
+      "white": {
+        "$type": "color",
+        "$value": "#FFFFFF"
+      },
+      "black": {
+        "$type": "color",
+        "$value": "#000000"
+      }
+    },
+    "typography": {
+      "displayFamily": {
+        "$type": "fontFamily",
+        "$value": "Playfair Display"
+      },
+      "displayWeight": {
+        "$type": "fontWeight",
+        "$value": 700
+      },
+      "interfaceFamily": {
+        "$type": "fontFamily",
+        "$value": "Inter"
+      },
+      "interfaceRegularWeight": {
+        "$type": "fontWeight",
+        "$value": 400
+      },
+      "interfaceMediumWeight": {
+        "$type": "fontWeight",
+        "$value": 500
+      }
+    }
+  }
+}

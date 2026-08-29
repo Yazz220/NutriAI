@@ -10,7 +10,6 @@ import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChefHat } from 'lucide-react-native';
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -19,6 +18,7 @@ import {
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react-native';
 import { Sheet } from '@/components/ui/Sheet';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { NoshHeaderActions, NoshHeaderIdentity } from '@/components/nosh/conversation/NoshConversationHeader';
 import { NoshThreadHistory } from '@/components/nosh/conversation/NoshThreadHistory';
 import { NoshInteractionStateSync } from '@/components/nosh/conversation/NoshInteractionStateSync';
@@ -597,7 +597,7 @@ export function NoshConversationHost() {
         header={
           <>
             <View style={styles.iconBadge}>
-              <ChefHat size={20} color={Colors.onPrimary} />
+              <NoshSymbol size={26} tone="ivory" />
             </View>
             <NoshHeaderIdentity contextLabel={contextLabel} showingHistory={showingHistory} />
             {interaction.task !== 'capture' ? (

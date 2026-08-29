@@ -1,4 +1,4 @@
-// Shared layout scale from the Boords-inspired Nosh design system.
+// Shared layout scale for the Nosh product system.
 export const Spacing = {
   xxs: 4,
   xs: 4,
@@ -88,7 +88,7 @@ export const Typography = {
     display: 60,
   },
   families: {
-    title: 'Inter-Bold' as const,
+    title: 'PlayfairDisplay-Bold' as const,
     body: 'Inter' as const,
   },
   weights: {

@@ -4,7 +4,7 @@ import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChefHat, ChevronLeft, ChevronRight, Ellipsis, LayoutGrid, Plus, X } from 'lucide-react-native';
+import { BookOpen, ChevronLeft, ChevronRight, Ellipsis, Plus, X } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -29,13 +29,14 @@ import {
   type RecipeRevisionMode,
 } from '@/components/cookbook/RecipeRevisionSheet';
 import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
   buildRecipeLeaves,
@@ -237,7 +238,7 @@ export function BookReader({
     };
   }, [isOpen, pokeChrome]);
 
-  const topSideWidth = width < 480 ? 44 : 60;
+  const topSideWidth = 44;
   const cookbookId = cookbook?.id;
   const cookbookTitle = cookbook?.title ?? 'My Cookbook';
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
@@ -758,7 +759,11 @@ export function BookReader({
         style={[styles.topBar, { paddingTop: insets.top + Spacing.xs }, topBarStyle]}
       >
         <Pressable
-          style={[styles.backButton, { minWidth: topSideWidth }]}
+          style={({ pressed }) => [
+            styles.backButton,
+            { width: topSideWidth },
+            pressed && styles.actionPressed,
+          ]}
           onPress={() => (isOverview ? closeOverview() : isCompactReading ? exitReadingView() : router.dismissTo('/(book)'))}
           accessibilityRole="button"
           accessibilityLabel={
@@ -769,20 +774,16 @@ export function BookReader({
                 : 'Back to my collection'
           }
         >
-          <ChevronLeft size={20} color={Colors.text} />
-          {width >= 480 || isCompactReading || isOverview ? (
-            <Text style={styles.backText}>{isCompactReading || isOverview ? 'Book' : 'Library'}</Text>
-          ) : null}
+          <ChevronLeft size={19} color={Colors.primary} />
         </Pressable>
         <View style={styles.titleBlock}>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
             {isOverview ? 'Page overview' : isCompactReading && readingPage ? readingPage.title : cookbookTitle}
           </Text>
-          {readOnly ? <Text style={styles.sampleLabel} maxFontSizeMultiplier={1}>SAMPLE COOKBOOK</Text> : null}
         </View>
         {isOpen && (canOpenRecipeActions || canOpenCookbookSettings) ? (
           <Pressable
-            style={styles.iconButton}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.actionPressed]}
             onPress={() => {
               pokeChrome();
               setActiveSheet(isCompactReading ? 'recipe' : 'cookbook');
@@ -794,7 +795,7 @@ export function BookReader({
                 : `Cookbook settings for ${cookbookTitle}`
             }
           >
-            <Ellipsis size={20} color={Colors.text} />
+            <Ellipsis size={20} color={Colors.primary} />
           </Pressable>
         ) : (
           <View style={{ width: topSideWidth }} />
@@ -934,51 +935,18 @@ export function BookReader({
           const prevLabel = isCompactReading ? 'Previous recipe' : 'Previous spread';
           const nextLabel = isCompactReading ? 'Next recipe' : 'Next spread';
           return (
-            <>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.pageButton,
-                  isNative && styles.nativeControl,
-                  atStart && styles.pageButtonDisabled,
-                  pressed && !atStart && styles.actionPressed,
-                ]}
-                disabled={atStart}
-                onPress={() => requestReaderTurn(-1)}
-                accessibilityRole="button"
-                accessibilityLabel={prevLabel}
-                accessibilityState={{ disabled: atStart }}
-              >
-                <ChevronLeft size={18} color={Colors.text} />
-              </Pressable>
-
-              <Pressable
-                style={[styles.counter, styles.nativeCounter, styles.overviewTrigger]}
-                onPress={openOverview}
-                accessibilityRole="button"
-                accessibilityLabel="Open page overview"
-              >
-                <LayoutGrid size={14} color={Colors.textSecondary} />
-                <Text style={styles.counterNumber}>
-                  {String(counterCurrent).padStart(2, '0')} / {String(counterTotal).padStart(2, '0')}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.pageButton,
-                  isNative && styles.nativeControl,
-                  atEnd && styles.pageButtonDisabled,
-                  pressed && !atEnd && styles.actionPressed,
-                ]}
-                disabled={atEnd}
-                onPress={() => requestReaderTurn(1)}
-                accessibilityRole="button"
-                accessibilityLabel={nextLabel}
-                accessibilityState={{ disabled: atEnd }}
-              >
-                <ChevronRight size={18} color={Colors.text} />
-              </Pressable>
-            </>
+            <ReaderNavigationRail
+              current={counterCurrent}
+              total={counterTotal}
+              previousLabel={prevLabel}
+              nextLabel={nextLabel}
+              previousDisabled={atStart}
+              nextDisabled={atEnd}
+              onPrevious={() => requestReaderTurn(-1)}
+              onNext={() => requestReaderTurn(1)}
+              onStatusPress={openOverview}
+              statusLabel="Open page overview"
+            />
           );
         })()}
       </Animated.View> : null}
@@ -1021,7 +989,7 @@ export function BookReader({
         >
           <View style={styles.firstNoshTipHeader}>
             <View style={styles.firstNoshTipIcon}>
-              <ChefHat size={17} color={Colors.onPrimary} />
+              <NoshSymbol size={24} tone="ivory" />
             </View>
             <View style={styles.firstNoshTipHeadingCopy}>
               <Text style={styles.firstNoshTipTitle}>Your chef knows this recipe.</Text>
@@ -1106,15 +1074,15 @@ export function BookReader({
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
               <View style={[styles.focusedHeaderSide, width < 720 && styles.focusedHeaderSideCompact]}>
                 <Pressable
-                  style={[styles.focusedAction, width < 720 && styles.focusedActionCompact]}
+                  style={({ pressed }) => [
+                    styles.focusedAction,
+                    pressed && styles.actionPressed,
+                  ]}
                   onPress={() => setFocusedPage(null)}
                   accessibilityRole="button"
                   accessibilityLabel="Return to open cookbook"
                 >
-                  <ChevronLeft size={18} color={Colors.text} />
-                  {width < 720 ? null : (
-                    <Text style={styles.focusedActionText} maxFontSizeMultiplier={1.35}>Cookbook</Text>
-                  )}
+                  <ChevronLeft size={18} color={Colors.primary} />
                 </Pressable>
               </View>
               <Text style={styles.focusedTitle} numberOfLines={1} maxFontSizeMultiplier={1.35}>
@@ -1135,12 +1103,12 @@ export function BookReader({
                   />
                 ) : null}
                 <Pressable
-                  style={styles.focusedIcon}
+                  style={({ pressed }) => [styles.focusedIcon, pressed && styles.actionPressed]}
                   onPress={() => setActiveSheet('recipe')}
                   accessibilityRole="button"
                   accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
                 >
-                  <Ellipsis size={18} color={Colors.text} />
+                  <Ellipsis size={18} color={Colors.primary} />
                 </Pressable>
               </View>
             </View>
@@ -1159,46 +1127,101 @@ export function BookReader({
               </Animated.View>
             </View>
             <View style={[styles.focusedNavigation, { bottom: insets.bottom + 12 }]}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.pageButton,
-                  styles.nativeControl,
-                  focusedPageIndex <= 0 && styles.pageButtonDisabled,
-                  pressed && focusedPageIndex > 0 && styles.actionPressed,
-                ]}
-                disabled={focusedPageIndex <= 0}
-                onPress={() => goToFocusedPage(-1)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous recipe"
-                accessibilityState={{ disabled: focusedPageIndex <= 0 }}
-              >
-                <ChevronLeft size={18} color={Colors.text} />
-              </Pressable>
-              <View style={[styles.counter, styles.nativeCounter]} accessibilityLiveRegion="polite">
-                <Text style={styles.counterNumber}>
-                  {String(focusedPageIndex + 1).padStart(2, '0')} / {String(pages.length).padStart(2, '0')}
-                </Text>
-              </View>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.pageButton,
-                  styles.nativeControl,
-                  focusedPageIndex >= pages.length - 1 && styles.pageButtonDisabled,
-                  pressed && focusedPageIndex < pages.length - 1 && styles.actionPressed,
-                ]}
-                disabled={focusedPageIndex >= pages.length - 1}
-                onPress={() => goToFocusedPage(1)}
-                accessibilityRole="button"
-                accessibilityLabel="Next recipe"
-                accessibilityState={{ disabled: focusedPageIndex >= pages.length - 1 }}
-              >
-                <ChevronRight size={18} color={Colors.text} />
-              </Pressable>
+              <ReaderNavigationRail
+                current={focusedPageIndex + 1}
+                total={pages.length}
+                previousLabel="Previous recipe"
+                nextLabel="Next recipe"
+                previousDisabled={focusedPageIndex <= 0}
+                nextDisabled={focusedPageIndex >= pages.length - 1}
+                onPrevious={() => goToFocusedPage(-1)}
+                onNext={() => goToFocusedPage(1)}
+              />
             </View>
           </LinearGradient>
         </Animated.View>
       ) : null}
     </LinearGradient>
+  );
+}
+
+function ReaderNavigationRail({
+  current,
+  total,
+  previousLabel,
+  nextLabel,
+  previousDisabled,
+  nextDisabled,
+  onPrevious,
+  onNext,
+  onStatusPress,
+  statusLabel,
+}: {
+  current: number;
+  total: number;
+  previousLabel: string;
+  nextLabel: string;
+  previousDisabled: boolean;
+  nextDisabled: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onStatusPress?: () => void;
+  statusLabel?: string;
+}) {
+  const count = (
+    <Text style={styles.navigationCount} maxFontSizeMultiplier={1.3}>
+      {current} / {total}
+    </Text>
+  );
+
+  return (
+    <View style={styles.navigationRail}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.navigationButton,
+          previousDisabled && styles.pageButtonDisabled,
+          pressed && !previousDisabled && styles.actionPressed,
+        ]}
+        disabled={previousDisabled}
+        onPress={onPrevious}
+        accessibilityRole="button"
+        accessibilityLabel={previousLabel}
+        accessibilityState={{ disabled: previousDisabled }}
+      >
+        <ChevronLeft size={20} color={Colors.primary} strokeWidth={1.8} />
+      </Pressable>
+
+      {onStatusPress ? (
+        <Pressable
+          style={({ pressed }) => [styles.navigationStatus, pressed && styles.actionPressed]}
+          onPress={onStatusPress}
+          accessibilityRole="button"
+          accessibilityLabel={statusLabel}
+          accessibilityLiveRegion="polite"
+        >
+          {count}
+        </Pressable>
+      ) : (
+        <View style={styles.navigationStatus} accessibilityLiveRegion="polite">
+          {count}
+        </View>
+      )}
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.navigationButton,
+          nextDisabled && styles.pageButtonDisabled,
+          pressed && !nextDisabled && styles.actionPressed,
+        ]}
+        disabled={nextDisabled}
+        onPress={onNext}
+        accessibilityRole="button"
+        accessibilityLabel={nextLabel}
+        accessibilityState={{ disabled: nextDisabled }}
+      >
+        <ChevronRight size={20} color={Colors.primary} strokeWidth={1.8} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -1225,34 +1248,22 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backButton: {
-    minWidth: 60,
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.values[4],
-  },
-  backText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
+    justifyContent: 'center',
+    borderRadius: Radii.full,
   },
   titleBlock: {
     flex: 1,
     alignItems: 'center',
-    gap: Spacing.values[1],
+    minWidth: 0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.lg,
     lineHeight: Typography.metrics.lineHeight20,
-  },
-  sampleLabel: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.xxxs,
-    lineHeight: Typography.metrics.lineHeight11,
-    letterSpacing: Typography.metrics.letterSpacing11,
     textAlign: 'center',
   },
   iconButton: {
@@ -1261,9 +1272,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.legacySurface.v82,
-    borderWidth: 1,
-    borderColor: Colors.ash,
   },
   staleNotice: {
     paddingHorizontal: Spacing.xl,
@@ -1420,52 +1428,40 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    minHeight: 56,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.values[18],
     zIndex: 10,
   },
-  pageButton: {
+  navigationRail: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.values[14],
+  },
+  navigationButton: {
     width: 44,
     height: 44,
-    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.legacySurface.v82,
-    borderWidth: 1,
-    borderColor: Colors.ash,
+    borderRadius: Radii.full,
   },
   pageButtonDisabled: {
-    opacity: 0.28,
+    opacity: 0.26,
   },
-  nativeControl: {
-    backgroundColor: Colors.legacySurface.v66,
-    borderColor: Colors.legacySurface.v97,
-    boxShadow: Shadows.custom.reader,
-  },
-  counter: {
-    minWidth: 72,
+  navigationStatus: {
+    minWidth: 64,
+    minHeight: 32,
     alignItems: 'center',
-  },
-  nativeCounter: {
-    height: 36,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.values[10],
-    borderRadius: Radii.full,
-    backgroundColor: Colors.legacySurface.v66,
-    borderWidth: 1,
-    borderColor: Colors.legacySurface.v96,
   },
-  overviewTrigger: {
-    flexDirection: 'row',
-    gap: Spacing.values[6],
-  },
-  counterNumber: {
+  navigationCount: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     fontVariant: ['tabular-nums'],
   },
   floatingAddButton: {
@@ -1575,9 +1571,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     zIndex: 3,
-    backgroundColor: Colors.legacySurface.v65,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.legacySurface.v46,
   },
   focusedHeaderSide: {
     width: 178,
@@ -1592,33 +1585,19 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   focusedAction: {
-    minWidth: 108,
-    height: 42,
+    width: 44,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.values[6],
-    paddingHorizontal: Spacing.values[10],
     borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-  },
-  focusedActionCompact: {
-    minWidth: 44,
-    width: 44,
-    paddingHorizontal: 0,
-  },
-  focusedActionText: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
   },
   focusedTitle: {
     flex: 1,
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.lg,
+    lineHeight: Typography.metrics.lineHeight20,
     textAlign: 'center',
   },
   focusedIcon: {
@@ -1627,9 +1606,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
   },
   focusedPage: {
     flex: 1,

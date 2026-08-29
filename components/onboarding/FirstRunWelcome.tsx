@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -41,14 +42,14 @@ export function FirstRunWelcome({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.wordmarkRow}>
-          <Text style={styles.wordmark}>Nosh</Text>
+          <NoshHorizontalLockup width={116} />
           <Pressable
             onPress={onSkip}
             style={({ pressed }) => [styles.notNowButton, pressed && styles.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Skip welcome and open my cookbook shelf"
           >
-            <Text style={styles.notNowText}>Not now</Text>
+            <Text variant="bodySmall" style={styles.notNowText}>Not now</Text>
           </Pressable>
         </View>
 
@@ -63,7 +64,7 @@ export function FirstRunWelcome({
         </View>
 
         <View style={styles.copy}>
-          <Text style={styles.title}>Recipes worth keeping deserve a book.</Text>
+          <Text variant="h1" style={styles.title}>Recipes worth keeping deserve a book.</Text>
         </View>
 
         <View style={styles.actions}>
@@ -74,7 +75,7 @@ export function FirstRunWelcome({
             accessibilityLabel="Make my first cookbook"
           >
             <BookOpen size={19} color={Colors.onPrimary} />
-            <Text style={styles.primaryText}>Make my first cookbook</Text>
+            <Text variant="button" style={styles.primaryText}>Make my first cookbook</Text>
             <ChevronRight size={19} color={Colors.onPrimary} />
           </Pressable>
 
@@ -84,7 +85,7 @@ export function FirstRunWelcome({
             accessibilityRole="button"
             accessibilityLabel="Look inside a sample cookbook"
           >
-            <Text style={styles.secondaryText}>Look inside a sample</Text>
+            <Text variant="button" style={styles.secondaryText}>Look inside a sample</Text>
           </Pressable>
         </View>
 
@@ -114,12 +115,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  wordmark: {
-    color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight32,
-  },
   notNowButton: {
     minWidth: 76,
     minHeight: 44,
@@ -129,8 +124,6 @@ const styles = StyleSheet.create({
   },
   notNowText: {
     color: Colors.textSecondary,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
   },
   bookStage: {
     minHeight: 250,
@@ -160,9 +153,6 @@ const styles = StyleSheet.create({
   title: {
     maxWidth: 430,
     color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight42,
     textAlign: 'center',
   },
   body: {
@@ -190,9 +180,6 @@ const styles = StyleSheet.create({
   primaryText: {
     flexShrink: 1,
     color: Colors.onPrimary,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight22,
     textAlign: 'center',
   },
   secondaryButton: {
@@ -207,9 +194,6 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight21,
   },
   footnote: {
     color: Colors.textMuted,

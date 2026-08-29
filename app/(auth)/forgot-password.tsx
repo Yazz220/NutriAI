@@ -47,7 +47,7 @@ export default function ForgotPasswordScreen() {
           ? 'Use the reset link to choose a new password, then return to your cookbook shelf.'
           : "Enter your email and we'll send you a reset link."
       }
-      showIllustration={!sent}
+      compactHeader={sent}
     >
       {sent ? (
         <View style={styles.sentContainer}>

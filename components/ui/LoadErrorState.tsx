@@ -4,8 +4,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
+import { Radii, Spacing } from '@/constants/spacing';
 
 interface LoadErrorStateProps {
   title: string;
@@ -18,11 +17,11 @@ export function LoadErrorState({ title, message, onRetry, onBack }: LoadErrorSta
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <View style={styles.icon}>
+        <View style={styles.icon} accessibilityElementsHidden>
           <AlertTriangle size={24} color={Colors.error} />
         </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text variant="h2" style={styles.title}>{title}</Text>
+        <Text variant="body" style={styles.message}>{message}</Text>
         <View style={styles.actions}>
           {onRetry ? <Button title="Try again" onPress={onRetry} fullWidth /> : null}
           {onBack ? <Button title="Back to shelf" variant="ghost" onPress={onBack} fullWidth /> : null}
@@ -62,15 +61,10 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight30,
     textAlign: 'center',
   },
   message: {
     color: Colors.textMuted,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight22,
     textAlign: 'center',
   },
   actions: {

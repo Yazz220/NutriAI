@@ -22,7 +22,7 @@ export function NoshConversationStart({
   return (
     <AuiIf condition={(state) => state.thread.isEmpty}>
       <View style={styles.container}>
-        <Text style={styles.title}>{config.title}</Text>
+        <Text variant="h2" style={styles.title}>{config.title}</Text>
         <View style={styles.actions}>
           {config.prompts.map((prompt) => prompt === 'Save or check a recipe' ? (
             <Pressable
@@ -35,11 +35,11 @@ export function NoshConversationStart({
                 router.push('/(book)/save');
               }}
             >
-              <Text style={styles.actionText}>{prompt}</Text>
+              <Text variant="bodySmall" style={styles.actionText}>{prompt}</Text>
             </Pressable>
           ) : (
             <ThreadPrimitive.Suggestion key={prompt} prompt={prompt} send style={styles.action} accessibilityLabel={prompt}>
-              <Text style={styles.actionText}>{prompt}</Text>
+              <Text variant="bodySmall" style={styles.actionText}>{prompt}</Text>
             </ThreadPrimitive.Suggestion>
           ))}
         </View>
@@ -49,8 +49,8 @@ export function NoshConversationStart({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.xs, paddingVertical: Spacing.sm },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
+  container: { gap: Spacing.sm, paddingVertical: Spacing.sm },
+  title: { color: Colors.text },
   copy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight19, maxWidth: 390 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingTop: Spacing.xs },
   action: {
@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.charcoal,
+    borderColor: Colors.primary,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  actionText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  actionText: { color: Colors.primary, fontFamily: Fonts.ui.medium },
 });

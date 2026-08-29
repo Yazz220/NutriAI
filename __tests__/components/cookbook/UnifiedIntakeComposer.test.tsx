@@ -43,6 +43,8 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
 
     expect(screen.getByRole('button', { name: 'Attach image or screenshot' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Create recipe page' })).toBeTruthy();
+    expect(screen.getByText('Turn a recipe into a page')).toBeTruthy();
+    expect(screen.getByText('Paste a link or recipe text, or attach a photo.')).toBeTruthy();
     expect(screen.queryByText('Attach photo')).toBeNull();
   });
 

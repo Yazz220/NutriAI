@@ -1,19 +1,17 @@
 import type { ReactNode } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
-
-const noshReading = require('../../assets/illustrations/nosh-reading-cookbook.png');
+import { Radii, Spacing } from '@/constants/spacing';
 
 interface AuthScaffoldProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
-  showIllustration?: boolean;
+  compactHeader?: boolean;
 }
 
 export function AuthScaffold({
@@ -21,7 +19,7 @@ export function AuthScaffold({
   subtitle,
   children,
   footer,
-  showIllustration = true,
+  compactHeader = false,
 }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
 
@@ -39,12 +37,10 @@ export function AuthScaffold({
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.wordmark}>Nosh</Text>
-          {showIllustration ? (
-            <Image source={noshReading} style={styles.illustration} resizeMode="contain" />
-          ) : null}
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <NoshHorizontalLockup width={172} />
+          {!compactHeader ? <View style={styles.brandSpacing} /> : null}
+          <Text variant="h1" style={styles.title}>{title}</Text>
+          {subtitle ? <Text variant="body" style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
 
         <View style={styles.card}>{children}</View>
@@ -68,30 +64,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  wordmark: {
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight40,
-    color: Colors.text,
-    letterSpacing: Typography.metrics.letterSpacing0,
-  },
-  illustration: {
-    width: '100%',
-    maxWidth: 340,
-    height: 188,
+  brandSpacing: {
+    height: Spacing.md,
   },
   title: {
-    fontFamily: Fonts.display.bold,
     color: Colors.text,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight34,
     textAlign: 'center',
-    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.slate,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight24,
     textAlign: 'center',
     maxWidth: 360,
   },

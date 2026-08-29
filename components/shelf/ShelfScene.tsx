@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-n
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
 import { SpineFace } from '@/components/physical-book/SpineFace';
 import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBookVolume';
@@ -60,7 +61,7 @@ export function ShelfScene({
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
-        <Text style={styles.logo} maxFontSizeMultiplier={shelfTextMultiplier}>Nosh</Text>
+        <NoshHorizontalLockup width={112} />
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
@@ -73,7 +74,7 @@ export function ShelfScene({
       </View>
 
       <View style={styles.heading}>
-        <Text style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>My Cookbooks</Text>
+        <Text variant="h1" style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>My Cookbooks</Text>
         {isStale && onRefresh ? (
           <View style={styles.staleNotice}>
             <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} />
@@ -144,23 +145,23 @@ export function ShelfScene({
         {isEmptyShelf ? (
           <>
             <View style={styles.emptyRule} />
-            <Text style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>
+            <Text variant="h3" style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>
               A shelf waiting to be filled
             </Text>
           </>
         ) : activeBook ? (
           <>
-            <Text style={styles.metaTitle} numberOfLines={1} maxFontSizeMultiplier={shelfTextMultiplier}>
+            <Text variant="h3" style={styles.metaTitle} numberOfLines={1} maxFontSizeMultiplier={shelfTextMultiplier}>
               {activeBook.title}
             </Text>
-            <Text style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
+            <Text variant="bodySmall" style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
               {formatRecipeCount(activeBook.pageCount)}
             </Text>
           </>
         ) : (
           <>
-            <Text style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>New cookbook</Text>
-            <Text style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
+            <Text variant="h3" style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>New cookbook</Text>
+            <Text variant="bodySmall" style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
             </Text>
           </>
         )}
@@ -236,13 +237,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.sm,
   },
-  logo: {
-    color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight30,
-    letterSpacing: Typography.metrics.letterSpacing0,
-  },
   iconButton: {
     width: 44,
     height: 44,
@@ -262,10 +256,6 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight38,
-    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.slate,
@@ -308,16 +298,10 @@ const styles = StyleSheet.create({
   },
   metaTitle: {
     color: Colors.text,
-    fontFamily: Fonts.display.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight24,
     textAlign: 'center',
   },
   metaSub: {
     color: Colors.textMuted,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
   },
   menuLayer: {
