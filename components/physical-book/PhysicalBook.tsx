@@ -1,29 +1,27 @@
 import { Colors } from '@/constants/colors';
-import { Radii } from '@/constants/spacing';
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, ViewStyle } from 'react-native';
-import { BookCover } from '@/components/cookbook/BookCover';
 import { ContactShadow } from '@/components/physical-book/ContactShadow';
 import { FoilStampedTitle } from '@/components/physical-book/FoilStampedTitle';
 import { PageBlockEdges } from '@/components/physical-book/PageBlockEdges';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
-import { getCookbookBinding } from '@/constants/cookbookBindings';
+import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
-import { getCookbookStyle } from '@/constants/cookbookStyles';
+import { resolveNoshBookMaterialGeometry } from '@/constants/cookbookMaterial';
 import type { CookbookStyleId } from '@/types/cookbook';
 
 /**
  * A physically bound cookbook volume: page block on the fore-edge, a Skia
- * cloth/leather cover with curved spine and foil stamping, and a contact
- * shadow. Shared by the 3D shelf, the creation studio, and (in Phase 3) the
- * reader's closed cover so the shelf-to-reader handoff is pixel-continuous.
+ * clothbound cover with a curved spine, restrained title stamp, and contact
+ * shadow. Shared by the 3D shelf, creation studio, and reader so the
+ * shelf-to-reader handoff stays physically continuous.
  *
  * Static in Phase 1: `rotateYDeg` poses the book with a perspective
  * transform. The shelf (Phase 2) drives the same pose from shared values.
  *
- * Legacy styles without a binding archetype render the classic `BookCover`
- * artwork so existing cookbooks stay intact on the new shelf.
+ * Legacy cover ids and optional artwork are normalized onto this same shell.
+ * Artwork is a cloth print layer, never a replacement physical book.
  *
  * ## Decal coordinate convention (future sticker customization)
  *
@@ -69,11 +67,12 @@ export const PhysicalBook = React.memo(function PhysicalBook({
   showShadow = true,
   style,
 }: PhysicalBookProps) {
-  const preset = getCookbookStyle(coverStyle);
-  const binding = preset.binding ? getCookbookBinding(preset.binding) : undefined;
+  const binding = getCookbookBindingForStyle(coverStyle);
   const height = width * PHYSICAL_BOOK_ASPECT;
-  const spineWidth = resolveSpineWidth(width, pageCount ?? 12);
-  const blockWidth = Math.max(6, Math.min(width * 0.09, 6 + (pageCount ?? 8) * 0.25));
+  const materialGeometry = resolveNoshBookMaterialGeometry(width, pageCount);
+  const hingeWidth = materialGeometry.hingeWidth;
+  const blockWidth = materialGeometry.pageBlockDepth;
+  const boardRadius = materialGeometry.boardCornerRadius;
 
   return (
     <View
@@ -89,32 +88,21 @@ export const PhysicalBook = React.memo(function PhysicalBook({
       {showShadow ? <ContactShadow width={width} /> : null}
 
       <View style={[styles.face, face === 'back' && styles.backFace]}>
+        <PageBlockEdges
+          width={width}
+          height={height}
+          blockWidth={blockWidth}
+          inset={materialGeometry.pageBlockInset}
+          cornerRadius={materialGeometry.pageCornerRadius}
+        />
+        <SkiaBookCover binding={binding} width={width} height={height} spineWidth={hingeWidth} />
         {imageAsset ? (
-          <>
-            <PageBlockEdges height={height} blockWidth={blockWidth} />
-            <Image source={imageAsset} style={styles.generatedCover} resizeMode="cover" />
-            {face === 'back' ? <View pointerEvents="none" style={styles.backWash} /> : null}
-          </>
-        ) : face === 'back' && binding ? (
-          <>
-            <PageBlockEdges height={height} blockWidth={blockWidth} />
-            <SkiaBookCover binding={binding} width={width} height={height} spineWidth={spineWidth} />
-          </>
-        ) : binding ? (
-          <>
-            <PageBlockEdges height={height} blockWidth={blockWidth} />
-            <SkiaBookCover binding={binding} width={width} height={height} spineWidth={spineWidth} />
-            <FoilStampedTitle title={title || 'Untitled'} foil={binding.foil} width={width} spineWidth={spineWidth} />
-          </>
+          <Image source={imageAsset} style={[styles.coverArtwork, { borderRadius: boardRadius }]} resizeMode="cover" />
+        ) : null}
+        {face === 'back' ? (
+          <View pointerEvents="none" style={[styles.backWash, { borderRadius: boardRadius }]} />
         ) : (
-          <BookCover
-            title={title}
-            coverStyle={coverStyle}
-            pageCount={pageCount}
-            face={face}
-            width={width}
-            showPageCount={false}
-          />
+          <FoilStampedTitle title={title || 'Untitled'} foil={binding.foil} width={width} spineWidth={hingeWidth} />
         )}
       </View>
     </View>
@@ -132,14 +120,14 @@ const styles = StyleSheet.create({
   backFace: {
     transform: [{ scaleX: -1 }],
   },
-  generatedCover: {
+  coverArtwork: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
-    borderRadius: Radii.numeric[12],
+    opacity: 0.34,
   },
   backWash: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: Radii.numeric[12],
-    backgroundColor: Colors.legacySurface.v47,
+    backgroundColor: Colors.legacySurface.v55,
   },
 });

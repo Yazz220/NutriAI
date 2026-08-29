@@ -18,12 +18,18 @@ import { useImage } from '@shopify/react-native-skia';
 import { releaseCapture } from 'react-native-view-shot';
 import { CookbookLeafPage } from '@/components/cookbook/CookbookLeafPage';
 import { Text } from '@/components/ui/Text';
-import { BOOK_GUTTER_WIDTH, BookGutter, OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
+import {
+  BOOK_GUTTER_WIDTH,
+  BookBlockUnderlay,
+  BookGutter,
+  BookLeafShade,
+  OpenBookSpread,
+} from '@/components/cookbook/OpenBookSpread';
 import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography, Shadows} from '@/constants/spacing';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
 import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
@@ -325,7 +331,9 @@ export function Cookbook3DScene({
   useEffect(() => {
     if (propOpening) return; // Parent owns the open/close animation.
     opening.value = reduceMotion
-      ? isOpen ? 1 : 0
+      ? isOpen
+        ? 1
+        : 0
       : withTiming(isOpen ? 1 : 0, {
           duration: isOpen ? 980 : 620,
           easing: isOpen ? Easing.bezier(0.22, 0.72, 0.24, 1) : Easing.bezier(0.5, 0, 0.75, 0.2),
@@ -341,7 +349,9 @@ export function Cookbook3DScene({
 
   useEffect(() => {
     backOpening.value = reduceMotion
-      ? isBackClosed ? 0 : 1
+      ? isBackClosed
+        ? 0
+        : 1
       : withTiming(isBackClosed ? 0 : 1, {
           duration: isBackClosed ? 620 : 760,
           easing: isBackClosed ? Easing.bezier(0.5, 0, 0.75, 0.2) : Easing.bezier(0.22, 0.72, 0.24, 1),
@@ -578,52 +588,55 @@ export function Cookbook3DScene({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  const startCanonicalTurn = useCallback((direction: -1 | 1) => {
-    const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
-    if (!isOpen || isPageZoomed || !canTurn) return;
-    if (turnDirection.value !== 0 || isSettling.value !== 0) return;
+  const startCanonicalTurn = useCallback(
+    (direction: -1 | 1) => {
+      const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
+      if (!isOpen || isPageZoomed || !canTurn) return;
+      if (turnDirection.value !== 0 || isSettling.value !== 0) return;
 
-    if (isBackClosed) {
-      if (direction === -1 && onOpenBack) onOpenBack();
-      return;
-    }
+      if (isBackClosed) {
+        if (direction === -1 && onOpenBack) onOpenBack();
+        return;
+      }
 
-    onStageTap?.();
-    notifyTurnGrabbed();
-    cancelAnimation(turnProgress);
-    grabYRatio.value = 0.5;
-    turnDirection.value = direction;
-    turnProgress.value = CORNER_LIFT_PROGRESS;
-    isSettling.value = 1;
+      onStageTap?.();
+      notifyTurnGrabbed();
+      cancelAnimation(turnProgress);
+      grabYRatio.value = 0.5;
+      turnDirection.value = direction;
+      turnProgress.value = CORNER_LIFT_PROGRESS;
+      isSettling.value = 1;
 
-    if (reduceMotion) {
-      turnProgress.value = 0;
-      turnDirection.value = 0;
-      isSettling.value = 0;
-      commitTurn(direction);
-      return;
-    }
+      if (reduceMotion) {
+        turnProgress.value = 0;
+        turnDirection.value = 0;
+        isSettling.value = 0;
+        commitTurn(direction);
+        return;
+      }
 
-    turnProgress.value = withSpring(1, TURN_COMMIT_SPRING, (finished) => {
-      if (!finished) return;
-      runOnJS(commitTurn)(direction);
-    });
-  }, [
-    canTurnNext,
-    canTurnPrevious,
-    commitTurn,
-    grabYRatio,
-    isBackClosed,
-    isOpen,
-    isPageZoomed,
-    isSettling,
-    notifyTurnGrabbed,
-    onOpenBack,
-    onStageTap,
-    reduceMotion,
-    turnDirection,
-    turnProgress,
-  ]);
+      turnProgress.value = withSpring(1, TURN_COMMIT_SPRING, (finished) => {
+        if (!finished) return;
+        runOnJS(commitTurn)(direction);
+      });
+    },
+    [
+      canTurnNext,
+      canTurnPrevious,
+      commitTurn,
+      grabYRatio,
+      isBackClosed,
+      isOpen,
+      isPageZoomed,
+      isSettling,
+      notifyTurnGrabbed,
+      onOpenBack,
+      onStageTap,
+      reduceMotion,
+      turnDirection,
+      turnProgress,
+    ],
+  );
 
   useEffect(() => {
     if (!turnRequest || lastHandledTurnRequestId.current === turnRequest.id) return;
@@ -918,16 +931,8 @@ export function Cookbook3DScene({
           const nextTranslateY =
             pageZoomStartTranslateY.value + (1 - scaleRatio) * (focalY - pageZoomStartTranslateY.value);
           pageZoomScale.value = nextScale;
-          pageZoomTranslateX.value = clampReaderZoomTranslation(
-            nextTranslateX,
-            readingPageWidth,
-            nextScale,
-          );
-          pageZoomTranslateY.value = clampReaderZoomTranslation(
-            nextTranslateY,
-            readingPageHeight,
-            nextScale,
-          );
+          pageZoomTranslateX.value = clampReaderZoomTranslation(nextTranslateX, readingPageWidth, nextScale);
+          pageZoomTranslateY.value = clampReaderZoomTranslation(nextTranslateY, readingPageHeight, nextScale);
         })
         .onEnd(() => {
           const zoomed = pageZoomScale.value > READER_ZOOMED_THRESHOLD;
@@ -1003,18 +1008,10 @@ export function Cookbook3DScene({
           const nextScale = nextDoubleTapZoomScale(pageZoomScale.value);
           const zoomed = nextScale > READER_ZOOMED_THRESHOLD;
           const nextTranslateX = zoomed
-            ? clampReaderZoomTranslation(
-                (width / 2 - event.x) * (nextScale - 1),
-                readingPageWidth,
-                nextScale,
-              )
+            ? clampReaderZoomTranslation((width / 2 - event.x) * (nextScale - 1), readingPageWidth, nextScale)
             : 0;
           const nextTranslateY = zoomed
-            ? clampReaderZoomTranslation(
-                (height / 2 - event.y) * (nextScale - 1),
-                readingPageHeight,
-                nextScale,
-              )
+            ? clampReaderZoomTranslation((height / 2 - event.y) * (nextScale - 1), readingPageHeight, nextScale)
             : 0;
           pageZoomScale.value = reduceMotion ? nextScale : withTiming(nextScale, { duration: 180 });
           pageZoomTranslateX.value = reduceMotion ? nextTranslateX : withTiming(nextTranslateX, { duration: 180 });
@@ -1093,22 +1090,8 @@ export function Cookbook3DScene({
                     </>
                   );
                 })()}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.physicalPageFallback, pageZoomStyle]}
-                >
-                  <View
-                    style={[
-                      styles.physicalFallbackCover,
-                      { width: readingPageWidth + 10, height: readingPageHeight + 12, backgroundColor: coverColor },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.physicalFallbackEdges,
-                      { width: readingPageWidth + 4, height: readingPageHeight + 6 },
-                    ]}
-                  />
+                <Animated.View pointerEvents="none" style={[styles.physicalPageFallback, pageZoomStyle]}>
+                  <BookBlockUnderlay width={readingPageWidth} height={readingPageHeight} coverColor={coverColor} />
                   {displayCanGoNext ? (
                     <Animated.View
                       style={[
@@ -1125,6 +1108,7 @@ export function Cookbook3DScene({
                         onOpenRecipe={onOpenRecipe}
                         onPageTextureReady={handlePageTextureReady}
                       />
+                      <BookLeafShade side="right" />
                     </Animated.View>
                   ) : null}
                   {displayCanGoPrevious ? (
@@ -1143,6 +1127,7 @@ export function Cookbook3DScene({
                         onOpenRecipe={onOpenRecipe}
                         onPageTextureReady={handlePageTextureReady}
                       />
+                      <BookLeafShade side="right" />
                     </Animated.View>
                   ) : null}
                   <Animated.View
@@ -1161,6 +1146,7 @@ export function Cookbook3DScene({
                       onOpenRecipe={onOpenRecipe}
                       onPageTextureReady={handlePageTextureReady}
                     />
+                    <BookLeafShade side="right" />
                   </Animated.View>
                   {SKIA_ENABLED ? (
                     <TurningLeafSkia
@@ -1231,10 +1217,7 @@ export function Cookbook3DScene({
                 ) : null}
                 {isPageZoomed ? (
                   <Pressable
-                    style={[
-                      styles.resetZoomButton,
-                      { right: readingPageGeometry.pageOffsetX + Spacing.sm },
-                    ]}
+                    style={[styles.resetZoomButton, { right: readingPageGeometry.pageOffsetX + Spacing.sm }]}
                     onPress={resetPageZoom}
                     accessibilityRole="button"
                     accessibilityLabel="Reset page zoom"
@@ -1333,6 +1316,7 @@ export function Cookbook3DScene({
                           onOpenRecipe={onOpenRecipe}
                           onPageTextureReady={handlePageTextureReady}
                         />
+                        <BookLeafShade side="right" />
                       </Animated.View>
                     ) : null}
                     {prevSpread ? (
@@ -1351,6 +1335,7 @@ export function Cookbook3DScene({
                           onOpenRecipe={onOpenRecipe}
                           onPageTextureReady={handlePageTextureReady}
                         />
+                        <BookLeafShade side="left" />
                       </Animated.View>
                     ) : null}
                     {SKIA_ENABLED ? (
@@ -1470,18 +1455,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  physicalFallbackCover: {
-    position: 'absolute',
-    borderRadius: Radii.numeric[12],
-    transform: [{ translateY: 3 }],
-    boxShadow: Shadows.custom.scene,
-  },
-  physicalFallbackEdges: {
-    position: 'absolute',
-    borderRadius: Radii.numeric[10],
-    backgroundColor: Colors.legacySurface.v34,
-    transform: [{ translateY: 1 }],
   },
   physicalFallbackLeaf: {
     overflow: 'hidden',

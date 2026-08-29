@@ -155,8 +155,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'sage-linen': {
     id: 'sage-linen',
-    name: 'Sage Linen',
-    tagline: 'Sage green linen with gold foil stamping',
+    name: 'Sage',
+    tagline: 'Sage book cloth with warm foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.page,
@@ -177,8 +177,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'terracotta-cloth': {
     id: 'terracotta-cloth',
-    name: 'Terracotta Cloth',
-    tagline: 'Warm terracotta cloth with copper foil',
+    name: 'Clay',
+    tagline: 'Clay book cloth with warm foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.page,
@@ -199,8 +199,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'navy-leather': {
     id: 'navy-leather',
-    name: 'Navy Leather',
-    tagline: 'Midnight navy leather with silver foil',
+    name: 'Midnight',
+    tagline: 'Midnight book cloth with cool foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.pageAlt,
@@ -221,8 +221,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'charcoal-cloth': {
     id: 'charcoal-cloth',
-    name: 'Charcoal Cloth',
-    tagline: 'Charcoal cloth with gold foil',
+    name: 'Charcoal',
+    tagline: 'Charcoal book cloth with warm foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.page,
@@ -243,8 +243,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'alabaster-linen': {
     id: 'alabaster-linen',
-    name: 'Alabaster Linen',
-    tagline: 'Pale alabaster linen with copper foil',
+    name: 'Alabaster',
+    tagline: 'Alabaster book cloth with warm foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.pageAlt,
@@ -265,8 +265,8 @@ export const COOKBOOK_STYLE_PRESETS: Record<CookbookStyleId, CookbookStylePreset
   },
   'umber-leather': {
     id: 'umber-leather',
-    name: 'Umber Leather',
-    tagline: 'Dark umber leather with gold foil',
+    name: 'Umber',
+    tagline: 'Umber book cloth with warm foil stamping',
     styleRevision: 1,
     palette: {
       paper: Colors.book.pageWarm,

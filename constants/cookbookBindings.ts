@@ -6,11 +6,9 @@ import type { CookbookStyleId } from '@/types/cookbook';
 /**
  * Physical binding archetypes for the 3D bookshelf and creation studio.
  *
- * Each archetype describes how a cookbook is bound: the cloth color of the
- * boards, the material weave (linen / cloth / leather), the metallic foil
- * ramp used for stamped typography and ornaments, and the headband / hub
- * band color. Cover presets in `constants/cookbookStyles.ts` reference an
- * archetype through their `binding` key; `PhysicalBook` renders from it.
+ * Every persisted cover id now resolves to the same launch cloth binding.
+ * The ids remain stable for existing books; only color, weave tone, and foil
+ * vary. `PhysicalBook` owns the shared geometry and material behavior.
  */
 
 export type CookbookBindingId =
@@ -21,7 +19,7 @@ export type CookbookBindingId =
   | 'alabaster-linen'
   | 'umber-leather';
 
-export type BindingMaterial = 'linen' | 'cloth' | 'leather';
+export type BindingMaterial = 'cloth';
 
 export interface CookbookBinding {
   id: CookbookBindingId;
@@ -30,11 +28,11 @@ export interface CookbookBinding {
   material: BindingMaterial;
   /** Base cloth/board color. */
   cloth: string;
-  /** Woven thread line color (linen and cloth materials). */
+  /** Woven thread line color. */
   weave: string;
   /** Metallic foil ramp: [shadow, base, highlight]. */
   foil: readonly [string, string, string];
-  /** Hub band and headband color. */
+  /** Quiet head and tail cap color. */
   band: string;
   /**
    * SkSL grain tuning. `frequency` scales the noise field (higher = finer),
@@ -52,69 +50,69 @@ export const FOIL_RAMPS = {
 export const COOKBOOK_BINDINGS: Record<CookbookBindingId, CookbookBinding> = {
   'sage-linen': {
     id: 'sage-linen',
-    name: 'Sage Linen',
-    tagline: 'Sage green linen with gold foil stamping',
-    material: 'linen',
+    name: 'Sage',
+    tagline: 'Sage book cloth with warm foil stamping',
+    material: 'cloth',
     cloth: '#7d8471',
     weave: '#6b7260',
     foil: FOIL_RAMPS.gold,
     band: '#5c624f',
-    grain: { frequency: 0.9, amplitude: 0.05 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
   'terracotta-cloth': {
     id: 'terracotta-cloth',
-    name: 'Terracotta Cloth',
-    tagline: 'Warm terracotta cloth with copper foil',
+    name: 'Clay',
+    tagline: 'Clay book cloth with warm foil stamping',
     material: 'cloth',
     cloth: Colors.peach,
     weave: '#8f3823',
     foil: FOIL_RAMPS.copper,
     band: '#7c3120',
-    grain: { frequency: 0.6, amplitude: 0.045 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
   'navy-leather': {
     id: 'navy-leather',
-    name: 'Navy Leather',
-    tagline: 'Midnight navy leather with silver foil',
-    material: 'leather',
+    name: 'Midnight',
+    tagline: 'Midnight book cloth with cool foil stamping',
+    material: 'cloth',
     cloth: '#2f3b52',
     weave: '#27334a',
     foil: FOIL_RAMPS.silver,
     band: '#232c3e',
-    grain: { frequency: 0.25, amplitude: 0.09 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
   'charcoal-cloth': {
     id: 'charcoal-cloth',
-    name: 'Charcoal Cloth',
-    tagline: 'Charcoal cloth with gold foil',
+    name: 'Charcoal',
+    tagline: 'Charcoal book cloth with warm foil stamping',
     material: 'cloth',
     cloth: Colors.charcoal,
     weave: '#262420',
     foil: FOIL_RAMPS.gold,
     band: '#0f0e0c',
-    grain: { frequency: 0.6, amplitude: 0.04 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
   'alabaster-linen': {
     id: 'alabaster-linen',
-    name: 'Alabaster Linen',
-    tagline: 'Pale alabaster linen with copper foil',
-    material: 'linen',
+    name: 'Alabaster',
+    tagline: 'Alabaster book cloth with warm foil stamping',
+    material: 'cloth',
     cloth: Colors.alabaster,
     weave: '#e6e1d5',
     foil: FOIL_RAMPS.copper,
     band: '#ded8cb',
-    grain: { frequency: 0.9, amplitude: 0.03 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
   'umber-leather': {
     id: 'umber-leather',
-    name: 'Umber Leather',
-    tagline: 'Dark umber leather with gold foil',
-    material: 'leather',
+    name: 'Umber',
+    tagline: 'Umber book cloth with warm foil stamping',
+    material: 'cloth',
     cloth: Colors.warmUmber,
     weave: '#241f1c',
     foil: FOIL_RAMPS.gold,
     band: '#1c1815',
-    grain: { frequency: 0.22, amplitude: 0.08 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   },
 };
 
@@ -141,9 +139,7 @@ export function listCookbookBindings(): CookbookBinding[] {
 }
 
 /**
- * Resolves the binding archetype for a cover style. Luxury presets carry a
- * `binding` key; legacy presets synthesize a neutral cloth binding from
- * their palette so their spines still render on the packed shelf.
+ * Resolves every current or legacy style onto the canonical cloth shell.
  */
 export function getCookbookBindingForStyle(id?: CookbookStyleId | string | null): CookbookBinding {
   const preset = getCookbookStyle(id);
@@ -158,6 +154,6 @@ export function getCookbookBindingForStyle(id?: CookbookStyleId | string | null)
     weave: shiftColor(cloth, -14),
     foil: FOIL_RAMPS.gold,
     band: shiftColor(cloth, -24),
-    grain: { frequency: 0.6, amplitude: 0.04 },
+    grain: { frequency: 0.72, amplitude: 0.038 },
   };
 }

@@ -24,17 +24,13 @@ jest.mock('@/components/physical-book/PhysicalBook', () => {
 describe('OpenBookInspector', () => {
   it('previews the cookbook identity without asking for a page template', () => {
     const screen = render(
-      <OpenBookInspector
-        preset={getCookbookStyle('sage-linen')}
-        title="Weeknight Table"
-        width={340}
-      />,
+      <OpenBookInspector preset={getCookbookStyle('sage-linen')} title="Weeknight Table" width={340} />,
     );
 
     expect(screen.getByText('Tap the cover to open')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Open cookbook preview' }));
 
-    expect(screen.getByText('Sage Linen visual identity')).toBeTruthy();
+    expect(screen.getByText('Sage visual identity')).toBeTruthy();
     expect(screen.queryByLabelText('Sample cookbook pages')).toBeNull();
   });
 });

@@ -14,7 +14,7 @@ interface ContactShadowProps {
   opacity?: number;
 }
 
-const SHADOW_HEIGHT = 22;
+const SHADOW_HEIGHT = 28;
 const CANVAS_PAD = 24;
 
 export const ContactShadow = React.memo(function ContactShadow({ width, opacity = 0.3 }: ContactShadowProps) {
@@ -23,7 +23,7 @@ export const ContactShadow = React.memo(function ContactShadow({ width, opacity 
     <Canvas
       style={{
         position: 'absolute',
-        bottom: -SHADOW_HEIGHT + 6,
+        bottom: -SHADOW_HEIGHT + 8,
         left: -CANVAS_PAD,
         width: canvasWidth,
         height: SHADOW_HEIGHT,
@@ -31,13 +31,22 @@ export const ContactShadow = React.memo(function ContactShadow({ width, opacity 
       pointerEvents="none"
     >
       <Oval
-        x={CANVAS_PAD + 6}
-        y={SHADOW_HEIGHT / 2 - 5}
-        width={width - 12}
-        height={10}
-        color={withAlpha(Colors.charcoal, opacity)}
+        x={CANVAS_PAD}
+        y={SHADOW_HEIGHT / 2 - 7}
+        width={width}
+        height={14}
+        color={withAlpha(Colors.charcoal, opacity * 0.42)}
       >
-        <BlurMask blur={6} style="normal" />
+        <BlurMask blur={9} style="normal" />
+      </Oval>
+      <Oval
+        x={CANVAS_PAD + 8}
+        y={SHADOW_HEIGHT / 2 - 3}
+        width={width - 16}
+        height={7}
+        color={withAlpha(Colors.charcoal, opacity * 0.72)}
+      >
+        <BlurMask blur={4} style="normal" />
       </Oval>
     </Canvas>
   );

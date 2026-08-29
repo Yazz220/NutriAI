@@ -1,7 +1,7 @@
-import { Spacing } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { NOSH_BOOK_MATERIAL } from '@/constants/cookbookMaterial';
 
 /**
  * The book's page block peeking past the boards on the fore-edge. Rendered
@@ -9,57 +9,138 @@ import { Colors } from '@/constants/colors';
  */
 
 interface PageBlockEdgesProps {
+  width: number;
   height: number;
   blockWidth: number;
+  inset?: number;
+  cornerRadius?: number;
 }
 
-const STRIATIONS = 4;
-
 export const PageBlockEdges = React.memo(function PageBlockEdges({
+  width,
   height,
   blockWidth,
+  inset = 3,
+  cornerRadius = 5,
 }: PageBlockEdgesProps) {
+  const { paper, pageBlock } = NOSH_BOOK_MATERIAL;
+
   return (
-    <View
-      style={[
-        styles.block,
-        {
-          width: blockWidth,
-          right: -blockWidth + 2,
-          top: 3,
-          height: height - 6,
-        },
-      ]}
-    >
-      {Array.from({ length: STRIATIONS }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.striation,
-            { width: index % 2 === 0 ? blockWidth - 3 : blockWidth - 5 },
-          ]}
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <View
+        style={[
+          styles.foreEdge,
+          {
+            width: blockWidth,
+            right: -blockWidth + 2,
+            top: inset,
+            height: height - inset * 2,
+            borderTopRightRadius: cornerRadius,
+            borderBottomRightRadius: cornerRadius,
+            borderColor: paper.edgeShade,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={[paper.edgeHighlight, paper.edge, paper.edgeShade]}
+          locations={[0, 0.56, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
         />
-      ))}
+        {Array.from({ length: pageBlock.striationCount }).map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.foreStriation,
+              {
+                top: ((index + 1) / (pageBlock.striationCount + 1)) * (height - inset * 2),
+                width: index % 3 === 0 ? blockWidth - 2 : blockWidth - 4,
+                backgroundColor: paper.edgeShade,
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      <View
+        style={[
+          styles.tailEdge,
+          {
+            left: inset * 2,
+            bottom: -blockWidth + 3,
+            width: width - inset * 2 + blockWidth - 2,
+            height: blockWidth,
+            borderBottomLeftRadius: cornerRadius,
+            borderBottomRightRadius: cornerRadius,
+            borderColor: paper.edgeShade,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={[paper.edgeHighlight, paper.edge, paper.edgeShade]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {Array.from({ length: 3 }).map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.tailStriation,
+              {
+                top: ((index + 1) / 4) * blockWidth,
+                backgroundColor: paper.edgeShade,
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      <View
+        style={[
+          styles.headEdge,
+          {
+            left: inset * 2,
+            top: -2,
+            width: width - inset * 3,
+            backgroundColor: paper.edgeHighlight,
+            borderTopLeftRadius: cornerRadius,
+            borderTopRightRadius: cornerRadius,
+          },
+        ]}
+      />
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  block: {
+  foreEdge: {
     position: 'absolute',
-    backgroundColor: Colors.book.pageWarm,
-    borderWidth: 1,
-    borderColor: Colors.book.edge,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    gap: Spacing.values[4],
-    paddingRight: Spacing.values[1],
+    borderWidth: 0.7,
+    overflow: 'hidden',
   },
-  striation: {
-    height: 1,
-    backgroundColor: Colors.book.edgeStrong,
-    opacity: 0.5,
+  foreStriation: {
+    position: 'absolute',
+    right: 1,
+    height: 0.55,
+    opacity: 0.32,
+  },
+  tailEdge: {
+    position: 'absolute',
+    borderWidth: 0.7,
+    overflow: 'hidden',
+  },
+  tailStriation: {
+    position: 'absolute',
+    left: 3,
+    right: 3,
+    height: 0.5,
+    opacity: 0.3,
+  },
+  headEdge: {
+    position: 'absolute',
+    height: 3,
+    opacity: 0.82,
   },
 });

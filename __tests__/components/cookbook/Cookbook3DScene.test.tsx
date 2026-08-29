@@ -17,9 +17,14 @@ jest.mock('@/components/cookbook/CookbookLeafPage', () => ({
 
 jest.mock('@/components/cookbook/OpenBookSpread', () => ({
   BOOK_GUTTER_WIDTH: 14,
+  BookBlockUnderlay: () => null,
   BookGutter: () => null,
+  BookLeafShade: () => null,
   OpenBookSpread: ({ left, right }: { left: React.ReactNode; right: React.ReactNode }) => (
-    <>{left}{right}</>
+    <>
+      {left}
+      {right}
+    </>
   ),
 }));
 
@@ -33,15 +38,26 @@ jest.mock('@/utils/cookbook/leafTexture', () => ({
 
 jest.mock('@shopify/react-native-skia', () => ({
   ...jest.requireActual('@shopify/react-native-skia/lib/module/mock'),
-  useImage: (source: unknown) => source ? { width: () => 800, height: () => 1000 } : null,
+  useImage: (source: unknown) => (source ? { width: () => 800, height: () => 1000 } : null),
 }));
 
 jest.mock('react-native-gesture-handler', () => {
   const chain = () => {
     const gesture: Record<string, jest.Mock> = {};
     for (const method of [
-      'enabled', 'maxPointers', 'minDistance', 'activeOffsetX', 'failOffsetY', 'cancelsTouchesInView',
-      'numberOfTaps', 'maxDuration', 'onBegin', 'onStart', 'onUpdate', 'onEnd', 'onFinalize',
+      'enabled',
+      'maxPointers',
+      'minDistance',
+      'activeOffsetX',
+      'failOffsetY',
+      'cancelsTouchesInView',
+      'numberOfTaps',
+      'maxDuration',
+      'onBegin',
+      'onStart',
+      'onUpdate',
+      'onEnd',
+      'onFinalize',
     ]) {
       gesture[method] = jest.fn(() => gesture);
     }
@@ -130,14 +146,11 @@ describe('Cookbook3DScene canonical native page turn', () => {
     mockTurningLeafSkia.mockClear();
   });
 
-  it.each(['sample', 'generated', 'legacy'] as const)(
-    'keeps the Skia curl enabled for %s recipe pages',
-    (kind) => {
-      const props = renderScene(kind);
-      expect(props.forwardEnabled).not.toBe(false);
-      expect(props.backwardEnabled).not.toBe(false);
-    },
-  );
+  it.each(['sample', 'generated', 'legacy'] as const)('keeps the Skia curl enabled for %s recipe pages', (kind) => {
+    const props = renderScene(kind);
+    expect(props.forwardEnabled).not.toBe(false);
+    expect(props.backwardEnabled).not.toBe(false);
+  });
 
   it('commits a requested turn through the native animation controller', async () => {
     const pages = Array.from({ length: 4 }, (_, index) => makePage(index, 'generated'));

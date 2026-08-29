@@ -1,4 +1,4 @@
-import { Radii, Typography , Spacing} from '@/constants/spacing';
+import { Radii, Typography } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,8 +10,8 @@ import { shiftColor, withAlpha } from '@/utils/cookbook/coverArt';
 /**
  * The spine face of a bound volume, rendered head-on. On the packed shelf
  * every flank book shows this face: cloth with a rounded-face gradient,
- * silk headbands top and bottom, raised hub ribs, a gilded vertical foil
- * title, and a small stamped ornament near the foot.
+ * quiet head and tail caps, a shallow shoulder on either side, and a
+ * restrained vertical title. It shares the same cloth as the front board.
  *
  * Pure RN views (not Skia) because the shelf rotates this plane with a
  * Reanimated transform every frame.
@@ -25,11 +25,9 @@ interface SpineFaceProps {
   height: number;
 }
 
-const RIB_RATIOS = [0.14, 0.5, 0.86];
-
 export const SpineFace = React.memo(function SpineFace({ title, binding, width, height }: SpineFaceProps) {
-  const { cloth, foil, band } = binding;
-  const titleSize = Math.max(9, Math.round(width * 0.42));
+  const { cloth, foil, band, weave } = binding;
+  const titleSize = Math.max(9, Math.round(width * 0.36));
   const textTrack = height * 0.56;
 
   return (
@@ -43,17 +41,26 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Silk headbands */}
-      <View style={[styles.headband, { top: 3, backgroundColor: withAlpha(band, 0.95) }]} />
-      <View style={[styles.headband, { bottom: 3, backgroundColor: withAlpha(band, 0.95) }]} />
-
-      {/* Raised hub ribs with their cast shadow */}
-      {RIB_RATIOS.map((ratio) => (
-        <View key={ratio} style={[styles.ribRow, { top: height * ratio, width }]}>
-          <View style={[styles.rib, { backgroundColor: shiftColor(cloth, 10) }]} />
-          <View style={[styles.ribShadow, { backgroundColor: withAlpha(shiftColor(cloth, -34), 0.5) }]} />
-        </View>
+      {/* The threads are deliberately quiet. They should read as cloth, not decoration. */}
+      {Array.from({ length: 9 }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.thread,
+            {
+              left: ((index + 1) / 10) * width,
+              backgroundColor: withAlpha(index % 2 === 0 ? weave : shiftColor(weave, 12), 0.13),
+            },
+          ]}
+        />
       ))}
+
+      <View style={[styles.shoulder, { left: 1, backgroundColor: withAlpha(shiftColor(cloth, -28), 0.36) }]} />
+      <View style={[styles.shoulder, { right: 1, backgroundColor: withAlpha(shiftColor(cloth, 16), 0.28) }]} />
+
+      {/* Compact caps replace the old decorative silk bands and raised ribs. */}
+      <View style={[styles.headband, { top: 2, backgroundColor: withAlpha(band, 0.62) }]} />
+      <View style={[styles.headband, { bottom: 2, backgroundColor: withAlpha(band, 0.62) }]} />
 
       {/* Gilded vertical title, letterpress-stamped */}
       <View style={styles.titleZone} pointerEvents="none">
@@ -85,20 +92,6 @@ export const SpineFace = React.memo(function SpineFace({ title, binding, width, 
           </Text>
         </View>
       </View>
-
-      {/* Stamped ornament near the foot */}
-      <View
-        style={[
-          styles.ornament,
-          {
-            bottom: height * 0.05,
-            left: width / 2 - width * 0.14,
-            width: width * 0.28,
-            height: width * 0.28,
-            borderColor: withAlpha(foil[1], 0.85),
-          },
-        ]}
-      />
     </View>
   );
 });
@@ -110,21 +103,22 @@ const styles = StyleSheet.create({
   },
   headband: {
     position: 'absolute',
-    left: 1,
-    right: 1,
-    height: 5,
+    left: 2,
+    right: 2,
+    height: 2,
     borderRadius: Radii.numeric[2],
   },
-  ribRow: {
+  thread: {
     position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 0.6,
   },
-  rib: {
-    height: 5,
-    borderRadius: Radii.numeric[2.5],
-  },
-  ribShadow: {
-    height: 1,
-    marginTop: Spacing.values[0.5],
+  shoulder: {
+    position: 'absolute',
+    top: 5,
+    bottom: 5,
+    width: 1,
   },
   titleZone: {
     ...StyleSheet.absoluteFillObject,
@@ -143,11 +137,5 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 0,
     textAlign: 'center',
-  },
-  ornament: {
-    position: 'absolute',
-    borderWidth: 1.1,
-    borderRadius: Radii.numeric[2],
-    transform: [{ rotate: '45deg' }],
   },
 });
