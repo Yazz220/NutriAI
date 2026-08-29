@@ -6,7 +6,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChefHat } from 'lucide-react-native';
@@ -97,6 +98,7 @@ export function NoshConversationHost() {
   const { cookbooks } = useCookbooks();
   const conversation = useNoshConversation();
   const { requestConsent } = useAiDataConsent();
+  const captureScrollRef = useAnimatedRef<Animated.ScrollView>();
   const {
     visible,
     interaction,
@@ -620,7 +622,8 @@ export function NoshConversationHost() {
         ) : (
           <>
             {interaction.task === 'capture' ? (
-              <ScrollView
+              <Animated.ScrollView
+                ref={captureScrollRef}
                 style={styles.captureScroll}
                 contentContainerStyle={styles.captureScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -634,8 +637,9 @@ export function NoshConversationHost() {
                   captureId={interaction.focus.kind === 'capture'
                     ? interaction.focus.captureId
                     : undefined}
+                  scrollableRef={captureScrollRef}
                 />
-              </ScrollView>
+              </Animated.ScrollView>
             ) : (
               <NoshConversationDisplay
                 interaction={interaction}

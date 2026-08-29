@@ -2,6 +2,7 @@ import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { NoshCaptureWorkspace } from '@/components/nosh/capture/NoshCaptureWorkspace';
+import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import {
   loadFirstRunOnboardingState,
@@ -11,6 +12,7 @@ import {
 
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockCaptures: RecipeCapture[] = [];
+let mockPageSlots: CookbookPage[] = [];
 const mockRetryCapture = jest.fn();
 const mockStartCapture = jest.fn();
 const mockUploadRecipeCaptureImage = jest.fn();
@@ -55,6 +57,41 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
     isPreparingDestination: false,
   }),
 }));
+jest.mock('@/hooks/useCookbook', () => ({
+  useCookbook: () => ({
+    cookbook: { id: 'book-1', title: 'Family Table' },
+    pageSlots: mockPageSlots,
+  }),
+}));
+jest.mock('@/hooks/useCookbookPageOrder', () => ({
+  useCookbookPageOrder: () => ({ movePage: jest.fn(), isReordering: false, error: null }),
+}));
+jest.mock('@/components/cookbook/CookbookPageGrid', () => {
+  const mockReact = require('react');
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    CookbookPageGrid: ({ pageSlots, captures, onOpenPage }: {
+      pageSlots: CookbookPage[];
+      captures: RecipeCapture[];
+      onOpenPage: (page: CookbookPage) => void;
+    }) => mockReact.createElement(
+      View,
+      null,
+      mockReact.createElement(Text, null, `Cookbook grid: ${pageSlots.length} pages`),
+      mockReact.createElement(Text, null, `Grid activity: ${captures.map((item) => item.status).join(',')}`),
+      ...pageSlots.map((item) => mockReact.createElement(
+        Pressable,
+        {
+          key: item.id,
+          accessibilityRole: 'button',
+          accessibilityLabel: `Open grid page ${item.title}`,
+          onPress: () => onOpenPage(item),
+        },
+        mockReact.createElement(Text, null, item.title),
+      )),
+    ),
+  };
+});
 jest.mock('@/components/cookbook/UnifiedIntakeComposer', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
@@ -126,6 +163,7 @@ describe('NoshCaptureWorkspace', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockCaptures = [];
+    mockPageSlots = [];
     await AsyncStorage.clear();
   });
 
@@ -168,7 +206,7 @@ describe('NoshCaptureWorkspace', () => {
     }));
   });
 
-  it('separates active and recent recipe history', async () => {
+  it('keeps only unfinished work in recipe activity', async () => {
     mockCaptures = [
       capture({ id: 'working' }),
       capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
@@ -178,10 +216,10 @@ describe('NoshCaptureWorkspace', () => {
 
     expect(screen.queryByText('Recipe composer')).toBeNull();
     expect(screen.getByText('Active')).toBeTruthy();
-    expect(screen.getByText('Recent')).toBeTruthy();
+    expect(screen.queryByText('Recent')).toBeNull();
     expect(screen.getByText('Reading recipe')).toBeTruthy();
     expect(screen.getByText('Try again')).toBeTruthy();
-    expect(screen.getByText('Ready')).toBeTruthy();
+    expect(screen.queryByText('Ready')).toBeNull();
   });
 
   it('frames the first capture around a recipe the user already loves', async () => {
@@ -193,23 +231,17 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Recipe composer')).toBeTruthy();
   });
 
-  it('shows live background progress while a page is processing', async () => {
+  it('keeps live generation inside the cookbook workspace', async () => {
     mockCaptures = [capture({
       recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
       pageStatus: 'generating',
     })];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    expect(screen.getByText('Creating your cookbook page')).toBeTruthy();
-    expect(screen.getByText('Source saved')).toBeTruthy();
-    expect(screen.getByText('Recipe understood')).toBeTruthy();
-    expect(screen.getByText('Page added to cookbook')).toBeTruthy();
-    expect(screen.getByRole('progressbar', { name: 'Recipe page progress' }).props.accessibilityValue).toEqual({
-      min: 0,
-      max: 3,
-      now: 2,
-      text: 'Page added to cookbook in progress. 2 of 3 steps complete.',
-    });
+    expect(screen.getByText('Recipe composer')).toBeTruthy();
+    expect(screen.getAllByText('Family Table').length).toBeGreaterThan(0);
+    expect(screen.getByText('Grid activity: processing')).toBeTruthy();
+    expect(screen.queryByText('Creating your cookbook page')).toBeNull();
   });
 
   it('keeps failure recovery in the same workspace', async () => {
@@ -228,18 +260,29 @@ describe('NoshCaptureWorkspace', () => {
     });
   });
 
-  it('shows completion before the user chooses to open the recipe', async () => {
+  it('replaces completion cards with the finished page in the grid', async () => {
     mockCaptures = [capture({
       status: 'ready',
       pageStatus: 'ready',
       pageId: 'page-1',
       recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
     })];
+    mockPageSlots = [{
+      id: 'page-1',
+      cookbookId: 'book-1',
+      recipeId: 'recipe-1',
+      title: 'Tomato Pasta',
+      section: 'dinner',
+      pageNumber: 1,
+      sortOrder: 0,
+      lifecycleStatus: 'approved',
+      captureId: 'capture-1',
+    }];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    expect(screen.getByText('Your page is ready')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Open recipe' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Save another recipe' })).toBeTruthy();
+    expect(screen.queryByText('Your page is ready')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open grid page Tomato Pasta' })).toBeTruthy();
+    expect(screen.getByText('Recipe composer')).toBeTruthy();
   });
 
   it('offers cookbook choice only when destination resolution needs it', async () => {
@@ -263,14 +306,25 @@ describe('NoshCaptureWorkspace', () => {
       pageId: 'page-1',
       recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
     })];
+    mockPageSlots = [{
+      id: 'page-1',
+      cookbookId: 'book-1',
+      recipeId: 'recipe-1',
+      title: 'Tomato Pasta',
+      section: 'dinner',
+      pageNumber: 1,
+      sortOrder: 0,
+      lifecycleStatus: 'approved',
+      captureId: 'capture-1',
+    }];
 
     const screen = await renderWorkspace({
       destinationCookbookId: 'book-1',
       captureId: 'capture-1',
     });
 
-    expect(await screen.findByText('Your first page is ready')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Open my first page' }));
+    expect(await screen.findByText('Start with a recipe you already love.')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Open grid page Tomato Pasta' }));
 
     await waitFor(() => {
       expect(mockCloseNoshConversation).toHaveBeenCalledTimes(1);

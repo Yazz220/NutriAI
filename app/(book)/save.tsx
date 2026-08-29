@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, History, Plus } from 'lucide-react-native';
@@ -13,6 +14,7 @@ export default function SaveRecipeScreen() {
   const params = useLocalSearchParams<{ captureId?: string | string[] }>();
   const captureId = Array.isArray(params.captureId) ? params.captureId[0] : params.captureId;
   const [showActivity, setShowActivity] = useState(Boolean(captureId));
+  const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const [activitySummary, setActivitySummary] = useState({ pendingCount: 0, attentionCount: 0 });
   const activityLabel = activitySummary.pendingCount === 0
     ? 'Recipe activity'
@@ -20,7 +22,8 @@ export default function SaveRecipeScreen() {
 
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
-      <ScrollView
+      <Animated.ScrollView
+        ref={scrollableRef}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -68,9 +71,10 @@ export default function SaveRecipeScreen() {
           key={showActivity ? `activity-${captureId ?? 'history'}` : 'composer'}
           captureId={showActivity ? captureId : undefined}
           activityVisible={showActivity}
+          scrollableRef={scrollableRef}
           onActivitySummaryChange={setActivitySummary}
         />
-      </ScrollView>
+      </Animated.ScrollView>
     </LinearGradient>
   );
 }

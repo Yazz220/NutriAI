@@ -6,12 +6,14 @@ import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 import { useAuth } from '@/hooks/useAuth';
 import { isSampleCookbookId, SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleCookbook';
 import type { Cookbook, CookbookPage, RecipeTemplateId } from '@/types/cookbook';
+import { approvedPages } from '@/utils/cookbook/captureLifecycle';
 
 export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
 export const COOKBOOK_PAGES_QUERY_KEY = (id?: string | null) => ['cookbook-pages', id];
 
 export interface UseCookbookResult {
   cookbook: Cookbook | null;
+  pageSlots: CookbookPage[];
   pages: CookbookPage[];
   selectedPage: CookbookPage | null;
   selectedPageId: string | null;
@@ -81,9 +83,13 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
     saveCachedPages(cookbookId, pagesQuery.data).catch(() => {});
   }, [cookbookId, pagesQuery.data]);
 
-  const effectivePages = useMemo<CookbookPage[]>(() => {
+  const effectivePageSlots = useMemo<CookbookPage[]>(() => {
     return isSampleCookbook ? SAMPLE_COOKBOOK_PAGES : (pagesQuery.data ?? []);
   }, [isSampleCookbook, pagesQuery.data]);
+  const effectivePages = useMemo(
+    () => approvedPages(effectivePageSlots),
+    [effectivePageSlots],
+  );
 
   const effectiveCookbook = useMemo<Cookbook | null>(() => {
     return isSampleCookbook ? SAMPLE_COOKBOOK : (cookbookQuery.data ?? null);
@@ -146,11 +152,12 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
         return a.pageNumber - b.pageNumber;
       });
     });
-    setSelectedPageId(page.id);
+    if (page.lifecycleStatus !== 'processing') setSelectedPageId(page.id);
   }
 
   return {
     cookbook: effectiveCookbook,
+    pageSlots: effectivePageSlots,
     pages: effectivePages,
     selectedPage,
     selectedPageId,

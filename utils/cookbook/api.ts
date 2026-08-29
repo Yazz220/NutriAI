@@ -547,7 +547,6 @@ export async function fetchCookbookPages(cookbookId: string): Promise<CookbookPa
   }
 
   return rows
-    .filter((row) => row.lifecycle_status === 'approved')
     .map((row) => mapPage(row, selectedVersions))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }

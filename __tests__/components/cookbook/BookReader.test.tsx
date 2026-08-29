@@ -112,6 +112,42 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   };
 });
 
+jest.mock('@/components/cookbook/CookbookPageGrid', () => {
+  const ReactModule = require('react');
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    CookbookPageGrid: ({ pageSlots, onOpenPage, onMovePage }: {
+      pageSlots: Array<{ id: string; title: string }>;
+      onOpenPage: (page: { id: string; title: string }) => void;
+      onMovePage?: (input: { pageId: string; beforePageId: string | null }) => void;
+    }) => ReactModule.createElement(
+      View,
+      { testID: 'cookbook-page-grid' },
+      ...pageSlots.map((page) => ReactModule.createElement(
+        Pressable,
+        {
+          key: page.id,
+          accessibilityRole: 'button',
+          accessibilityLabel: `Open ${page.title} from overview`,
+          onPress: () => onOpenPage(page),
+        },
+        ReactModule.createElement(Text, null, page.title),
+      )),
+      onMovePage && pageSlots[0]
+        ? ReactModule.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Move first overview page to end',
+            onPress: () => onMovePage({ pageId: pageSlots[0].id, beforePageId: null }),
+          },
+          ReactModule.createElement(Text, null, 'Move page'),
+        )
+        : null,
+    ),
+  };
+});
+
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.mocked(shouldUseTouchPaging).mockReturnValue(true);
@@ -272,6 +308,37 @@ describe('BookReader cover entry', () => {
 });
 
 describe('BookReader compact reading flow', () => {
+  it('opens the canonical page overview and jumps back into the selected recipe', async () => {
+    const onSelectPage = jest.fn();
+    const onReorderPage = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      pageSlots: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage,
+      onShare: jest.fn(),
+      onReorderPage,
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Open page overview' }));
+
+    expect(screen.getByTestId('cookbook-page-grid')).toBeTruthy();
+    expect(screen.queryByText('Recipe reading page')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Move first overview page to end' }));
+    expect(onReorderPage).toHaveBeenCalledWith({
+      pageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      beforePageId: null,
+    });
+
+    fireEvent.press(screen.getByRole('button', {
+      name: `Open ${SAMPLE_COOKBOOK_PAGES[1].title} from overview`,
+    }));
+
+    expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
+  });
+
   it('opens a linked recipe directly in reading mode', async () => {
     const screen = await renderReader({
       cookbook: SAMPLE_COOKBOOK,

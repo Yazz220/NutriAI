@@ -7,7 +7,9 @@ import { LoadErrorState } from '@/components/ui/LoadErrorState';
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { COOKBOOK_PAGES_QUERY_KEY, useCookbook } from '@/hooks/useCookbook';
+import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
 import { useCookbooks } from '@/hooks/useCookbooks';
+import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportCookbookPageImage, shareCookbookPage } from '@/utils/cookbook/share';
@@ -37,9 +39,11 @@ export default function BookReaderScreen() {
     pageId?: string | string[];
   }>();
   const normalizedPageId = Array.isArray(pageId) ? pageId[0] : pageId;
+  const readOnly = isSampleCookbookId(cookbookId);
   const {
     cookbook,
     pages,
+    pageSlots,
     setSelectedPageId,
     isLoading,
     cookbookError,
@@ -48,6 +52,8 @@ export default function BookReaderScreen() {
     isStale,
     refresh,
   } = useCookbook(cookbookId);
+  const { captures } = useRecipeCaptures();
+  const pageOrder = useCookbookPageOrder(cookbookId);
 
   // The shelf already has the cookbook metadata cached. Use it to render
   // the cover instantly while useCookbook fetches pages — eliminates the
@@ -66,7 +72,10 @@ export default function BookReaderScreen() {
     const remainingPages = pages.filter((page) => page.id !== removedPageId);
     const fallbackPage = remainingPages[Math.min(Math.max(removedIndex, 0), remainingPages.length - 1)];
 
-    queryClient.setQueryData<CookbookPage[]>(COOKBOOK_PAGES_QUERY_KEY(cookbookId), remainingPages);
+    queryClient.setQueryData<CookbookPage[]>(
+      COOKBOOK_PAGES_QUERY_KEY(cookbookId),
+      (current = []) => current.filter((page) => page.id !== removedPageId),
+    );
     setSelectedPageId(fallbackPage?.id ?? null);
   };
 
@@ -282,6 +291,8 @@ export default function BookReaderScreen() {
     <BookReader
       cookbook={effectiveCookbook}
       pages={pages}
+      pageSlots={pageSlots}
+      captures={captures}
       initialPageId={normalizedPageId}
       onSelectPage={setSelectedPageId}
       onShare={handleShare}
@@ -290,12 +301,14 @@ export default function BookReaderScreen() {
       availableCookbooks={movableCookbooks}
       onMoveRecipe={handleMoveRecipe}
       onRemoveRecipe={handleRemoveRecipe}
+      onReorderPage={readOnly || pageOrder.isReordering ? undefined : pageOrder.movePage}
+      reorderError={Boolean(pageOrder.error)}
       onGeneratePageCandidate={handleGeneratePageCandidate}
       onUsePageCandidate={handleUsePageCandidate}
       onRenameCookbook={handleRenameCookbook}
       onExportCookbook={handleExportCookbook}
       onDeleteCookbook={handleDeleteCookbook}
-      readOnly={isSampleCookbookId(cookbookId)}
+      readOnly={readOnly}
       isStale={isStale}
       onRefresh={() => {
         void refresh();

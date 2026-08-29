@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, History, Plus } from 'lucide-react-native';
 import { NoshCaptureWorkspace } from '@/components/nosh/capture/NoshCaptureWorkspace';
@@ -14,6 +15,7 @@ export default function AddPageScreen() {
   const { cookbookId } = useLocalSearchParams<{ cookbookId: string }>();
   const { cookbook } = useCookbook(cookbookId);
   const [showActivity, setShowActivity] = useState(false);
+  const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const [activitySummary, setActivitySummary] = useState({ pendingCount: 0, attentionCount: 0 });
 
   const cookbookTitle = cookbook?.title ?? 'Cookbook';
@@ -23,7 +25,8 @@ export default function AddPageScreen() {
 
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
-      <ScrollView
+      <Animated.ScrollView
+        ref={scrollableRef}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -73,9 +76,10 @@ export default function AddPageScreen() {
           key={showActivity ? 'activity' : 'composer'}
           destinationCookbookId={cookbookId}
           activityVisible={showActivity}
+          scrollableRef={scrollableRef}
           onActivitySummaryChange={setActivitySummary}
         />
-      </ScrollView>
+      </Animated.ScrollView>
     </LinearGradient>
   );
 }

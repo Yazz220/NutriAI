@@ -33,6 +33,14 @@ export interface RemoveRecipePageResult {
   recipeId: string;
 }
 
+export interface ReorderCookbookPageResult {
+  cookbookId: string;
+  pageId: string;
+  beforePageId?: string | null;
+  orderedPageIds: string[];
+  changed: boolean;
+}
+
 interface CollectionActionRpcRow {
   action: CollectionActionKind;
   sourcePageId: string;
@@ -92,6 +100,25 @@ export async function organizeRecipePage(input: {
   if (error) throw error;
   if (!data || typeof data !== 'object') throw new Error('Nosh could not confirm the collection change.');
   return data as CollectionActionRpcRow;
+}
+
+export async function reorderCookbookPage(input: {
+  cookbookId: string;
+  pageId: string;
+  beforePageId?: string | null;
+  idempotencyKey: string;
+}): Promise<ReorderCookbookPageResult> {
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .rpc('reorder_cookbook_page', {
+      p_cookbook_id: input.cookbookId,
+      p_page_id: input.pageId,
+      p_before_page_id: input.beforePageId ?? null,
+      p_idempotency_key: input.idempotencyKey,
+    });
+  if (error) throw error;
+  if (!data || typeof data !== 'object') throw new Error('Nosh could not confirm the new page order.');
+  return data as ReorderCookbookPageResult;
 }
 
 export async function removeRecipePage(pageId: string): Promise<RemoveRecipePageResult> {

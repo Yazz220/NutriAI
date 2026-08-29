@@ -55,8 +55,8 @@ export function useRecipeCaptures() {
   }, [query.data, user?.id]);
 
   useEffect(() => {
-    const completed = (query.data ?? []).filter((capture) => capture.status === 'ready' && capture.pageId);
-    for (const capture of completed) {
+    const placedCaptures = (query.data ?? []).filter((capture) => capture.pageId);
+    for (const capture of placedCaptures) {
       void fetchPageById(capture.pageId!).then((page) => {
         if (!page) return;
         queryClient.setQueryData<CookbookPage[]>(
@@ -72,7 +72,7 @@ export function useRecipeCaptures() {
       result.capture,
       ...current.filter((capture) => capture.id !== result.capture.id),
     ]);
-    if (result.pendingPage?.lifecycleStatus === 'approved') {
+    if (result.pendingPage) {
       queryClient.setQueryData<CookbookPage[]>(
         COOKBOOK_PAGES_QUERY_KEY(result.pendingPage.cookbookId),
         (current = []) => reconcileCapturePage(current, result.pendingPage),

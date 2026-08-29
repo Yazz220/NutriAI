@@ -36,6 +36,14 @@ jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => mockUseCookbooks(),
 }));
 
+jest.mock('@/hooks/useRecipeCaptures', () => ({
+  useRecipeCaptures: () => ({ captures: [] }),
+}));
+
+jest.mock('@/hooks/useCookbookPageOrder', () => ({
+  useCookbookPageOrder: () => ({ movePage: jest.fn(), isReordering: false, error: null }),
+}));
+
 jest.mock('@/utils/cookbook/pageProduction', () => ({
   finishRecipePageCandidate: (...args: unknown[]) => mockFinishRecipePageCandidate(...args),
 }));
@@ -110,6 +118,7 @@ describe('BookReaderScreen AI data consent', () => {
     mockUseCookbook.mockReturnValue({
       cookbook: SAMPLE_COOKBOOK,
       pages: [SAMPLE_COOKBOOK_PAGES[0]],
+      pageSlots: [SAMPLE_COOKBOOK_PAGES[0]],
       setSelectedPageId: jest.fn(),
       isLoading: false,
       cookbookError: null,

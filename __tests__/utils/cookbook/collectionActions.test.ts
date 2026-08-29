@@ -3,6 +3,7 @@ import { getCookbook } from '@/utils/cookbook/api';
 import {
   loadCollectionActionPreview,
   organizeRecipePage,
+  reorderCookbookPage,
   removeRecipePage,
 } from '@/utils/cookbook/collectionActions';
 import { loadRecipeFromCollection } from '@/utils/cookbook/recipeCollection';
@@ -99,6 +100,31 @@ describe('collection organization actions', () => {
     expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
       action: 'removeRecipe',
       pageId: 'page-cheesecake',
+    });
+  });
+
+  it('moves a page relative to a stable page id through the private-schema RPC', async () => {
+    const result = {
+      cookbookId: 'book-desserts',
+      pageId: 'page-cheesecake',
+      beforePageId: 'page-pie',
+      orderedPageIds: ['page-cheesecake', 'page-pie'],
+      changed: true,
+    };
+    const rpc = jest.fn().mockResolvedValue({ data: result, error: null });
+    mockedSchema.mockReturnValue({ rpc } as never);
+
+    await expect(reorderCookbookPage({
+      cookbookId: 'book-desserts',
+      pageId: 'page-cheesecake',
+      beforePageId: 'page-pie',
+      idempotencyKey: 'page-order:stable-request',
+    })).resolves.toEqual(result);
+    expect(rpc).toHaveBeenCalledWith('reorder_cookbook_page', {
+      p_cookbook_id: 'book-desserts',
+      p_page_id: 'page-cheesecake',
+      p_before_page_id: 'page-pie',
+      p_idempotency_key: 'page-order:stable-request',
     });
   });
 });

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { type AnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   UnifiedIntakeComposer,
   type UnifiedIntakePayload,
 } from '@/components/cookbook/UnifiedIntakeComposer';
+import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -22,19 +24,19 @@ import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { useCookbook } from '@/hooks/useCookbook';
+import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
-import type { Cookbook } from '@/types/cookbook';
+import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
   createCaptureRequestKey,
-  isCaptureReadyToOpen,
   normalizeCaptureDestinationCookbookId,
   type RecipeCapture,
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
 import {
-  captureProgressSteps,
   getCapturePresentation,
   prioritizeCaptureActivity,
   type CapturePresentationPhase,
@@ -55,6 +57,7 @@ interface NoshCaptureWorkspaceProps {
   captureId?: string;
   initialSource?: NoshCaptureHandoffSource | null;
   activityVisible?: boolean;
+  scrollableRef?: AnimatedRef<Animated.ScrollView>;
   onActivitySummaryChange?: (summary: { pendingCount: number; attentionCount: number }) => void;
 }
 
@@ -71,6 +74,7 @@ export function NoshCaptureWorkspace({
   captureId: initialCaptureId,
   initialSource,
   activityVisible,
+  scrollableRef,
   onActivitySummaryChange,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
@@ -87,6 +91,9 @@ export function NoshCaptureWorkspace({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activityLimit, setActivityLimit] = useState(INITIAL_ACTIVITY_LIMIT);
+  const [selectedDestinationCookbookId, setSelectedDestinationCookbookId] = useState(
+    destinationCookbookId,
+  );
   const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
     defaultFirstRunOnboardingState,
   );
@@ -103,12 +110,21 @@ export function NoshCaptureWorkspace({
     [availableCookbooks],
   );
   const activity = useMemo(
-    () => prioritizeCaptureActivity(captureState.captures),
+    () => prioritizeCaptureActivity(captureState.captures.filter((candidate) => candidate.status !== 'ready')),
     [captureState.captures],
+  );
+  const exceptionActivity = useMemo(
+    () => activity.filter((candidate) =>
+      candidate.status === 'needs_attention' || candidate.status === 'needs_destination'
+    ),
+    [activity],
   );
   const capture = captureState.captures.find((candidate) => candidate.id === captureId);
   const activeDestinationCookbookId = capture?.destinationCookbookId
-    ?? destinationCookbookId;
+    ?? destinationCookbookId
+    ?? selectedDestinationCookbookId;
+  const cookbookState = useCookbook(activeDestinationCookbookId);
+  const pageOrder = useCookbookPageOrder(activeDestinationCookbookId);
   const destination = availableCookbooks.find(
     (cookbook) => cookbook.id === activeDestinationCookbookId,
   );
@@ -117,6 +133,20 @@ export function NoshCaptureWorkspace({
     activeDestinationCookbookId,
     capture?.id,
   );
+
+  useEffect(() => {
+    if (destinationCookbookId) {
+      setSelectedDestinationCookbookId(destinationCookbookId);
+      return;
+    }
+    if (capture?.destinationCookbookId) {
+      setSelectedDestinationCookbookId(capture.destinationCookbookId);
+      return;
+    }
+    if (!selectedDestinationCookbookId && availableCookbooks[0]) {
+      setSelectedDestinationCookbookId(availableCookbooks[0].id);
+    }
+  }, [availableCookbooks, capture?.destinationCookbookId, destinationCookbookId, selectedDestinationCookbookId]);
 
   useEffect(() => {
     if (!onActivitySummaryChange) return;
@@ -186,13 +216,13 @@ export function NoshCaptureWorkspace({
       }
       const result = await captureState.startCapture({
         source,
-        destinationCookbookId: normalizeCaptureDestinationCookbookId(destinationCookbookId),
+        destinationCookbookId: normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
         idempotencyKey: requestKey,
       });
       const firstCapture = await recordFirstCaptureStarted(
         user.id,
         result.capture.id,
-        result.capture.destinationCookbookId ?? normalizeCaptureDestinationCookbookId(destinationCookbookId),
+        result.capture.destinationCookbookId ?? normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
       ).catch(() => null);
       if (firstCapture) {
         setFirstRunState(firstCapture.state);
@@ -202,7 +232,7 @@ export function NoshCaptureWorkspace({
             data: {
               captureId: result.capture.id,
               sourceType: source.type,
-              cookbookId: result.capture.destinationCookbookId ?? destinationCookbookId,
+              cookbookId: result.capture.destinationCookbookId ?? activeDestinationCookbookId,
             },
           });
         }
@@ -218,7 +248,7 @@ export function NoshCaptureWorkspace({
       submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }, [captureState, destinationCookbookId, requestConsent, user]);
+  }, [activeDestinationCookbookId, captureState, requestConsent, user]);
 
   useEffect(() => {
     if (!initialSource || !user || capture || handoffStartedRef.current) return;
@@ -261,13 +291,15 @@ export function NoshCaptureWorkspace({
     setActivityLimit(INITIAL_ACTIVITY_LIMIT);
   }
 
-  async function openRecipe() {
-    if (!capture?.destinationCookbookId || !capture.pageId) return;
-    if (user?.id) {
+  async function openCookbookPage(page: CookbookPage) {
+    const pageCapture = captureState.captures.find((candidate) =>
+      candidate.id === page.captureId || candidate.pageId === page.id
+    );
+    if (user?.id && pageCapture) {
       const activation = await recordFirstReadyRecipeOpened(
         user.id,
-        capture.destinationCookbookId,
-        capture.pageId,
+        page.cookbookId,
+        page.id,
       ).catch(() => null);
       if (activation) {
         setFirstRunState(activation.state);
@@ -275,23 +307,22 @@ export function NoshCaptureWorkspace({
           trackEvent({
             type: 'first_ready_recipe_opened',
             data: {
-              captureId: capture.id,
-              cookbookId: capture.destinationCookbookId,
-              pageId: capture.pageId,
+              captureId: pageCapture.id,
+              cookbookId: page.cookbookId,
+              pageId: page.id,
             },
           });
         }
       }
     }
     closeNoshConversation();
-    router.replace(`/(book)/${capture.destinationCookbookId}?pageId=${capture.pageId}`);
+    router.replace(`/(book)/${page.cookbookId}?pageId=${page.id}`);
   }
 
-  if (capture) {
+  if (capture?.status === 'needs_destination' || capture?.status === 'needs_attention') {
     return (
       <CaptureDetail
         capture={capture}
-        firstRun={isFirstCaptureExperience}
         destination={destination}
         availableCookbooks={availableCookbooks}
         error={error}
@@ -302,7 +333,6 @@ export function NoshCaptureWorkspace({
         onChooseDestination={chooseDestination}
         onRetry={() => { void retryCapture(); }}
         onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
-        onOpenRecipe={() => { void openRecipe(); }}
       />
     );
   }
@@ -336,6 +366,13 @@ export function NoshCaptureWorkspace({
   return (
     <View style={styles.workspace}>
       {isFirstCaptureExperience ? <FirstCaptureIntro /> : null}
+      {!destinationCookbookId && availableCookbooks.length > 0 ? (
+        <WorkspaceDestinationPicker
+          cookbooks={availableCookbooks}
+          selectedCookbookId={activeDestinationCookbookId}
+          onSelect={setSelectedDestinationCookbookId}
+        />
+      ) : null}
       <UnifiedIntakeComposer
         isSubmitting={isSubmitting || captureState.isStarting}
         input={input}
@@ -352,10 +389,43 @@ export function NoshCaptureWorkspace({
         onSubmit={submit}
       />
 
-      {activityVisible === undefined ? (
+      {activeDestinationCookbookId ? (
+        <View style={styles.pageWorkspaceSection}>
+          <View style={styles.pageWorkspaceHeader}>
+            <View style={styles.pageWorkspaceHeading}>
+              <Text style={styles.pageWorkspaceEyebrow}>COOKBOOK WORKSPACE</Text>
+              <Text style={styles.pageWorkspaceTitle} numberOfLines={1}>
+                {destination?.title ?? cookbookState.cookbook?.title ?? 'Your cookbook'}
+              </Text>
+            </View>
+            <Text style={styles.pageWorkspaceCount}>
+              {cookbookState.pageSlots.length} {cookbookState.pageSlots.length === 1 ? 'page' : 'pages'}
+            </Text>
+          </View>
+          <Text style={styles.pageWorkspaceHint}>
+            Tap a page to read it. Long-press and drag a finished page to reorder.
+          </Text>
+          {pageOrder.error ? (
+            <Text style={styles.errorText} accessibilityRole="alert">
+              The new page order could not be saved. Your previous order was restored.
+            </Text>
+          ) : null}
+          <CookbookPageGrid
+            cookbookId={activeDestinationCookbookId}
+            pageSlots={cookbookState.pageSlots}
+            captures={captureState.captures}
+            onOpenPage={(page) => { void openCookbookPage(page); }}
+            onMovePage={pageOrder.isReordering ? undefined : pageOrder.movePage}
+            scrollableRef={scrollableRef}
+            testID="capture-cookbook-page-grid"
+          />
+        </View>
+      ) : null}
+
+      {activityVisible === undefined && exceptionActivity.length > 0 ? (
         <CaptureActivitySection
-          captures={activity.slice(0, activityLimit)}
-          totalCount={activity.length}
+          captures={exceptionActivity.slice(0, activityLimit)}
+          totalCount={exceptionActivity.length}
           cookbookTitles={cookbookTitles}
           isLoading={captureState.isLoading}
           isStale={captureState.isStale}
@@ -369,9 +439,54 @@ export function NoshCaptureWorkspace({
   );
 }
 
+function WorkspaceDestinationPicker({
+  cookbooks,
+  selectedCookbookId,
+  onSelect,
+}: {
+  cookbooks: Cookbook[];
+  selectedCookbookId?: string;
+  onSelect: (cookbookId: string) => void;
+}) {
+  return (
+    <View style={styles.workspaceDestination}>
+      <Text style={styles.workspaceDestinationLabel}>Adding pages to</Text>
+      <View style={styles.workspaceDestinationChoices}>
+        {cookbooks.map((cookbook) => {
+          const selected = cookbook.id === selectedCookbookId;
+          return (
+            <Pressable
+              key={cookbook.id}
+              style={({ pressed }) => [
+                styles.workspaceDestinationChoice,
+                selected && styles.workspaceDestinationChoiceSelected,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => onSelect(cookbook.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Add recipes to ${cookbook.title}`}
+            >
+              <Text
+                style={[
+                  styles.workspaceDestinationChoiceText,
+                  selected && styles.workspaceDestinationChoiceTextSelected,
+                ]}
+                numberOfLines={1}
+              >
+                {cookbook.title}
+              </Text>
+              {selected ? <Check size={14} color={Colors.onPrimary} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function CaptureDetail({
   capture,
-  firstRun,
   destination,
   availableCookbooks,
   error,
@@ -382,10 +497,8 @@ function CaptureDetail({
   onChooseDestination,
   onRetry,
   onCreateCookbook,
-  onOpenRecipe,
 }: {
   capture: RecipeCapture;
-  firstRun: boolean;
   destination?: Cookbook;
   availableCookbooks: Cookbook[];
   error: string | null;
@@ -396,24 +509,8 @@ function CaptureDetail({
   onChooseDestination: (cookbookId: string) => Promise<void>;
   onRetry: () => void;
   onCreateCookbook: () => void;
-  onOpenRecipe: () => void;
 }) {
   const presentation = getCapturePresentation(capture, destination?.title);
-
-  if (capture.status === 'processing') {
-    return (
-      <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} label={backLabel} />
-        <View style={styles.processingCard} accessibilityLiveRegion="polite">
-          <View style={styles.workingIcon}>
-            <ActivityIndicator color={Colors.primary} />
-          </View>
-          <Text style={styles.title}>{presentation.title}</Text>
-          <CaptureProgress capture={capture} />
-        </View>
-      </View>
-    );
-  }
 
   if (capture.status === 'needs_destination') {
     return (
@@ -456,20 +553,6 @@ function CaptureDetail({
     );
   }
 
-  if (isCaptureReadyToOpen(capture)) {
-    return (
-      <View style={styles.detailStack}>
-        <DetailBackButton onPress={onBack} label={backLabel} />
-        <StateCard
-          icon={<Check size={21} color={Colors.onSuccess} />}
-          iconTone="success"
-          title={firstRun ? 'Your first page is ready' : 'Your page is ready'}
-          action={<Button title={firstRun ? 'Open my first page' : 'Open recipe'} onPress={onOpenRecipe} fullWidth />}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.detailStack}>
       <DetailBackButton onPress={onBack} label={backLabel} />
@@ -493,49 +576,6 @@ function FirstCaptureIntro() {
       <View style={styles.firstCaptureCopy}>
         <Text style={styles.firstCaptureTitle}>Start with a recipe you already love.</Text>
       </View>
-    </View>
-  );
-}
-
-function CaptureProgress({ capture }: { capture: RecipeCapture }) {
-  const steps = captureProgressSteps(capture);
-  const activeStep = steps.find((step) => step.state === 'active');
-  const completeCount = steps.filter((step) => step.state === 'complete').length;
-  const progressText = activeStep
-    ? `${activeStep.label} in progress. ${completeCount} of ${steps.length} steps complete.`
-    : `${completeCount} of ${steps.length} steps complete.`;
-
-  return (
-    <View
-      style={styles.progress}
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Recipe page progress"
-      accessibilityValue={{ min: 0, max: steps.length, now: completeCount, text: progressText }}
-    >
-      {steps.map((step, index) => (
-        <View key={step.label} style={styles.progressRow}>
-          <View style={styles.progressRail}>
-            <View style={[
-              styles.progressDot,
-              step.state === 'complete' && styles.progressDotComplete,
-              step.state === 'active' && styles.progressDotActive,
-            ]}>
-              {step.state === 'complete' ? <Check size={11} color={Colors.onSuccess} /> : null}
-            </View>
-            {index < steps.length - 1 ? (
-              <View style={[
-                styles.progressLine,
-                step.state === 'complete' && styles.progressLineComplete,
-              ]} />
-            ) : null}
-          </View>
-          <Text style={[
-            styles.progressLabel,
-            step.state === 'upcoming' && styles.progressLabelUpcoming,
-          ]}>{step.label}</Text>
-        </View>
-      ))}
     </View>
   );
 }
@@ -813,6 +853,78 @@ function CookbookChoice({
 
 const styles = StyleSheet.create({
   workspace: { gap: Spacing.lg },
+  workspaceDestination: {
+    gap: Spacing.sm,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+  },
+  workspaceDestinationLabel: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
+  },
+  workspaceDestinationChoices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  workspaceDestinationChoice: {
+    minHeight: 38,
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.alabaster,
+    paddingHorizontal: Spacing.md,
+  },
+  workspaceDestinationChoiceSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  workspaceDestinationChoiceText: {
+    maxWidth: 220,
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.md,
+  },
+  workspaceDestinationChoiceTextSelected: { color: Colors.onPrimary },
+  pageWorkspaceSection: { gap: Spacing.sm },
+  pageWorkspaceHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  pageWorkspaceHeading: { flex: 1, gap: Spacing.values[2] },
+  pageWorkspaceEyebrow: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.xs,
+    letterSpacing: Typography.metrics.letterSpacing12,
+  },
+  pageWorkspaceTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: Typography.sizes.xxlSm,
+    lineHeight: Typography.metrics.lineHeight28,
+  },
+  pageWorkspaceCount: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
+  },
+  pageWorkspaceHint: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight18,
+  },
   firstCaptureIntro: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -877,16 +989,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     padding: Spacing.xl,
   },
-  processingCard: {
-    minHeight: 300,
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    padding: Spacing.xl,
-  },
   destinationCard: {
     alignItems: 'center',
     gap: Spacing.sm,
@@ -900,14 +1002,6 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: Radii.numeric[23],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.parchment,
-  },
-  workingIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: Radii.numeric[26],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.parchment,
@@ -954,32 +1048,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight18,
   },
-  progress: { width: '100%', maxWidth: 360, marginTop: Spacing.sm },
-  progressRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start' },
-  progressRail: { width: 28, alignItems: 'center' },
-  progressDot: {
-    width: 18,
-    height: 18,
-    borderRadius: Radii.numeric[9],
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressDotComplete: { borderColor: Colors.success, backgroundColor: Colors.success },
-  progressDotActive: { borderColor: Colors.charcoal, borderWidth: 5 },
-  progressLine: { width: 1, flex: 1, minHeight: 24, backgroundColor: Colors.ash },
-  progressLineComplete: { backgroundColor: Colors.success },
-  progressLabel: {
-    flex: 1,
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight18,
-    paddingLeft: Spacing.sm,
-  },
-  progressLabelUpcoming: { color: Colors.textMuted, fontFamily: Fonts.ui.regular },
   errorText: {
     width: '100%',
     color: Colors.error,
