@@ -572,3 +572,40 @@ tree:
           - "AXe: Reset onboarding after sign-in confirmation resolved and activated"
           - "npm test -- --runInBand: 57 suites, 218 tests passed"
         status: resolved
+  - id: N32
+    type: decision
+    title: "Dedicate the Mac session to real-user AI pipeline QA"
+    provenance: user
+    timestamp: "2026-08-30T00:00+03:00"
+    choice: >-
+      Use this session as the testing side of an iterative loop focused on real recipe
+      ingestion, extraction, complete-page generation, cookbook placement, and Chat with
+      Nosh context. Synchronize from the PC commit before each test cycle and report
+      failures without changing product code in the testing session.
+    alternatives:
+      - "Spend the session primarily on general UI and visual polish QA"
+      - "Modify the product before establishing the testing setup"
+    evidence:
+      - "User direction: test the core recipe-to-book and Chat with Nosh promise using varied real-world sources"
+      - "User direction: PC session owns fixes; Mac session pulls and retests current commits"
+    status: resolved
+  - id: N33
+    type: experiment
+    title: "Research Codex-driven iOS simulator testing setup"
+    provenance: ai-executed
+    timestamp: "2026-08-30T00:00+03:00"
+    result: >-
+      Official Codex guidance recommends an agent-owned simulator loop with project and
+      simulator discovery, accessibility-tree inspection, labeled taps and typing,
+      gestures, screenshots, logs, and debugger evidence. This workspace does not expose
+      XcodeBuildMCP, but the equivalent local path is available: Xcode 26.3, a prebuilt
+      native Expo iOS project, AXe at /usr/local/bin/axe, asc at /usr/local/bin/asc, and
+      iOS 26.0-26.2 simulators. The mobile connector currently reports no connected
+      devices, so it is not a dependable driver for this session.
+    evidence:
+      - "https://learn.chatgpt.com/use-cases/ios-simulator-bug-debugging"
+      - "xcodebuild -version: Xcode 26.3, Build version 17C528"
+      - "axe --help: accessibility selectors, gestures, batch, screenshots, and video"
+      - "xcrun simctl list devices available: iPhone 17 Pro, iOS 26.2 available"
+      - "mcp__mobile_mcp__mobile_list_available_devices: devices=[]"
+    status: resolved

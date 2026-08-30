@@ -236,3 +236,53 @@ observations:
     promoted_to: "logic/solution/heuristics.md:H08"
     crystallized_via: artifact-commitment
     stale: false
+  - id: O16
+    timestamp: "2026-08-30T00:00+03:00"
+    provenance: ai-suggested
+    content: >-
+      Drive native simulator flows through AXe accessibility identifiers or labels,
+      re-read the accessibility tree after every state-changing action, and reserve
+      batch automation for stable mechanical sequences.
+    context: >-
+      Official Codex guidance and local AXe capabilities both emphasize accessibility
+      selectors over guessed coordinates while dynamic AI capture screens require fresh
+      state inspection.
+    potential_type: heuristic
+    bound_to: [N33]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O17
+    timestamp: "2026-08-30T00:00+03:00"
+    provenance: ai-suggested
+    content: >-
+      Treat the simulator and a physical iPhone as separate QA lanes: the simulator can
+      cover in-app URL, text, image, video-link, generation, reader, and chat flows, while
+      native share-extension behavior and final device coverage require a physical device.
+    context: >-
+      Nosh documents audio as unimplemented and native sharing as a physical-device gate;
+      this Mac currently has no device visible through the mobile connector.
+    potential_type: constraint
+    bound_to: [N32, N33]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O18
+    timestamp: "2026-08-30T00:00+03:00"
+    provenance: ai-suggested
+    content: >-
+      Use a stable source corpus and separate source truth from app output: exercise the
+      same recipe as URL, pasted text, screenshot, and supported video link where possible,
+      record expected facts before import, and evaluate extraction, page text, and chat
+      answers against those facts.
+    context: >-
+      The testing goal is reliability and semantic correctness across messy user inputs,
+      not visual polish or whether the chat sheet merely opens.
+    potential_type: heuristic
+    bound_to: [N32, N33]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false

@@ -1,0 +1,74 @@
+session:
+  id: "2026-08-30_001"
+  date: "2026-08-30"
+  started: "2026-08-30T00:00+03:00"
+  last_turn: "2026-08-30T00:00+03:00"
+  turn_count: 1
+  summary: "Defined a simulator-first, evidence-driven real-user QA loop for recipe capture, generation, and Chat with Nosh; awaiting the PC commit to begin."
+
+events_logged:
+  - turn: 1
+    type: decision
+    id: N32
+    routing: direct
+    provenance: user
+    summary: "Use the Mac session for iterative real-user AI pipeline and Chat with Nosh QA; PC session owns fixes."
+  - turn: 1
+    type: experiment
+    id: N33
+    routing: direct
+    provenance: ai-executed
+    summary: "Researched Codex iOS simulator workflows and verified local Xcode, AXe, asc, and simulator capabilities."
+  - turn: 1
+    type: observation
+    id: O16
+    routing: staged
+    provenance: ai-suggested
+    summary: "Prefer AXe accessibility selectors with fresh tree reads; batch only stable actions."
+  - turn: 1
+    type: observation
+    id: O17
+    routing: staged
+    provenance: ai-suggested
+    summary: "Keep simulator and physical-device QA as separate lanes for in-app versus native-share coverage."
+  - turn: 1
+    type: observation
+    id: O18
+    routing: staged
+    provenance: ai-suggested
+    summary: "Compare multiple representations of the same real recipe against pre-recorded source facts."
+
+ai_actions:
+  - turn: 1
+    action: >-
+      Searched current official OpenAI and Expo documentation for Codex-driven iOS
+      simulator workflows, including the simulator-debugging use case, development
+      builds, accessibility-driven interactions, and Record & Replay boundaries.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 1
+    action: >-
+      Inspected the Nosh repository's live product-flow and architecture documentation,
+      source composer contracts, device matrix, tool availability, branch state, and
+      runtime versions without changing product code.
+    provenance: ai-executed
+    files_changed: []
+
+claims_touched: []
+
+key_context:
+  - turn: 1
+    excerpt: >-
+      Use real recipe sources, run them through Nosh, evaluate extraction and generated
+      pages, test Chat with Nosh against the imported content, document failures, then
+      pull the PC fixes and retest.
+
+open_threads:
+  - "Await the latest PC commit or branch reference, verify it, and fast-forward this clean branch before testing."
+  - "Use a fixed iPhone 17 Pro / iOS 26.2 simulator for the repeatable in-app loop."
+  - "Obtain a physical iPhone later for native share-extension and device-only gates."
+
+ai_suggestions_pending:
+  - "Adopt AXe plus xcrun simctl as the primary local simulator driver; use mobile_mcp only if a device becomes visible."
+  - "Use stable case IDs, source-fact oracles, screenshots, and logs for every capture/chat run."
+  - "Treat audio as an explicit unsupported-input check because the current product documentation says it is not implemented."

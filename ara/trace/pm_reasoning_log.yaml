@@ -77,3 +77,9 @@ entries:
       - "Did not stage a general authentication claim: this turn made a scoped pre-launch product decision and verified its implementation."
       - "Recorded Google authentication as deferred follow-up and kept the reset production-safe by rendering it only in development builds."
       - "Left O11 staged because this auth cleanup does not close the remaining RTL and localization verification work."
+  - turn: "2026-08-30_001#1"
+    notes:
+      - "Routed the user's explicit real-user AI QA scope and PC-fix/Mac-retest loop as resolved decision N32."
+      - "Routed the official-docs research and local capability reconnaissance as experiment N33; no product files were changed."
+      - "Staged O16-O18 because AXe selector discipline, simulator-versus-physical coverage, and source-fact oracles are proposed testing heuristics/constraints awaiting use or user confirmation."
+      - "Noted the Node mismatch as setup context only; it was not routed as a research event because environment checks are skip-filter activity."

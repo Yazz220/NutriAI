@@ -13,3 +13,10 @@ sessions:
     events_count: 32
     claims_touched: [C02]
     open_threads: 4
+  - id: "2026-08-30_001"
+    date: "2026-08-30"
+    summary: "Defined a simulator-first, evidence-driven real-user QA loop for recipe capture, generation, and Chat with Nosh; awaiting the PC commit to begin."
+    turn_count: 1
+    events_count: 5
+    claims_touched: []
+    open_threads: 3
