@@ -49,6 +49,7 @@ describe('AddPageScreen durable capture flow', () => {
     expect(screen.getByLabelText('Capture for cookbook-1').props.accessibilityHint).toBe('Composer only');
     expect(screen.getByText('Save a recipe')).toBeTruthy();
     expect(screen.getByText('Composer workspace')).toBeTruthy();
+    expect(screen.getByText('1 page needs attention')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', {
       name: '2 recipe items active, 1 needs attention',
@@ -56,7 +57,10 @@ describe('AddPageScreen durable capture flow', () => {
 
     expect(screen.getByText('Recipe activity')).toBeTruthy();
     expect(screen.getByText('Activity workspace')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Save another recipe' })).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByLabelText('Back to save a recipe'));
+    expect(screen.getByText('Composer workspace')).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByLabelText('Back to cookbook'));

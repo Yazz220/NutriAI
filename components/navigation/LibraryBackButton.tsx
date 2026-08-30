@@ -2,10 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
+import { Spacing } from '@/constants/spacing';
 
 export function LibraryBackButton() {
   return (
@@ -18,31 +16,21 @@ export function LibraryBackButton() {
       accessibilityRole="button"
       accessibilityLabel="Back to cookbook library"
     >
-      <ChevronLeft size={18} color={Colors.text} />
-      <Text style={styles.label}>Library</Text>
+      <ChevronLeft size={22} color={Colors.text} strokeWidth={1.8} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 44,
+    width: 44,
+    height: 44,
     alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radii.full,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.values[4],
-    backgroundColor: Colors.legacySurface.v81,
-    borderWidth: 1,
-    borderColor: Colors.ash,
+    justifyContent: 'center',
+    marginLeft: -Spacing.sm,
   },
   buttonPressed: {
-    backgroundColor: Colors.parchment,
-  },
-  label: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
+    opacity: 0.5,
   },
 });

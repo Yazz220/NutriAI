@@ -903,7 +903,7 @@ function makeFallbackImageUri(title: string): string {
   const width = COOKBOOK_GEOMETRY.page.designWidth;
   const height = COOKBOOK_GEOMETRY.page.designHeight;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill=Colors.legacySurface.v36/><rect x="38" y="38" width="${width - 76}" height="${height - 76}" rx="24" fill="none" stroke=Colors.legacySurface.v20 stroke-width="4"/><text x="${width / 2}" y="${height * 0.48}" text-anchor="middle" font-family="Georgia" font-size="54" fill=Colors.legacySurface.v06>${safeTitle}</text><text x="${width / 2}" y="${height * 0.54}" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill=Colors.legacySurface.v15>COOKBOOK</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${Colors.legacySurface.v36}"/><rect x="38" y="38" width="${width - 76}" height="${height - 76}" rx="24" fill="none" stroke="${Colors.legacySurface.v20}" stroke-width="4"/><text x="${width / 2}" y="${height * 0.48}" text-anchor="middle" font-family="Georgia" font-size="54" fill="${Colors.legacySurface.v06}">${safeTitle}</text><text x="${width / 2}" y="${height * 0.54}" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill="${Colors.legacySurface.v15}">COOKBOOK</text></svg>`,
   )}`;
 }
 

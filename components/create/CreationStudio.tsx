@@ -555,6 +555,7 @@ const styles = StyleSheet.create({
   },
   previewToggleItem: {
     minWidth: 64,
+    minHeight: 44,
     paddingHorizontal: Spacing.xs,
     paddingVertical: Spacing.values[6],
     borderBottomWidth: 1,
@@ -696,13 +697,14 @@ const styles = StyleSheet.create({
   },
   colorRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.values[2],
+    justifyContent: 'center',
+    columnGap: Spacing.values[2],
+    rowGap: Spacing.md,
   },
   colorOption: {
-    flex: 1,
-    minWidth: 0,
+    width: 72,
     alignItems: 'center',
     gap: Spacing.values[6],
   },

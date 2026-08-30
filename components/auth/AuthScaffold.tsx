@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 
 interface AuthScaffoldProps {
   title: string;
@@ -37,7 +37,7 @@ export function AuthScaffold({
         ]}
       >
         <View style={styles.header}>
-          <NoshHorizontalLockup width={172} />
+          <NoshHorizontalLockup width={148} />
           {!compactHeader ? <View style={styles.brandSpacing} /> : null}
           <Text variant="h1" style={styles.title}>{title}</Text>
           {subtitle ? <Text variant="body" style={styles.subtitle}>{subtitle}</Text> : null}
@@ -57,15 +57,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.xl,
+    gap: Spacing.xxl,
   },
   header: {
     alignItems: 'center',
     gap: Spacing.sm,
   },
   brandSpacing: {
-    height: Spacing.md,
+    height: Spacing.sm,
   },
   title: {
     color: Colors.text,
@@ -78,12 +82,6 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: Spacing.md,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    padding: Spacing.xl,
-    boxShadow: Colors.book.cardShadow,
   },
   footer: {
     alignItems: 'center',

@@ -8,6 +8,7 @@ import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { GeneratedRecipePage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
+import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
 
 export function ArtworkActionCard({
   instruction,
@@ -68,7 +69,7 @@ export function ArtworkActionCard({
         ) : null}
         {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [styles.primaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
           disabled={busy !== null}
           accessibilityRole="button"
           accessibilityLabel="Use new recipe page"
@@ -79,7 +80,7 @@ export function ArtworkActionCard({
           <Text style={styles.primaryText}>Use new page</Text>
         </Pressable>
         <Pressable
-          style={styles.secondaryButton}
+          style={({ pressed }) => [styles.secondaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
           disabled={busy !== null}
           accessibilityRole="button"
           accessibilityLabel="Keep current recipe page"
@@ -95,11 +96,9 @@ export function ArtworkActionCard({
   return (
     <View style={styles.card}>
       <View style={styles.heading}>
-        <View style={styles.icon}>
-          {hasCurrentArtwork
-            ? <RotateCcw size={17} color={Colors.onPrimary} />
-            : <ImageIcon size={17} color={Colors.onPrimary} />}
-        </View>
+        {hasCurrentArtwork
+          ? <RotateCcw size={18} color={Colors.primary} />
+          : <ImageIcon size={18} color={Colors.primary} />}
         <View style={styles.headingCopy}>
           <Text style={styles.title}>{hasCurrentArtwork ? 'Create a replacement?' : 'Create this page?'}</Text>
         </View>
@@ -107,16 +106,13 @@ export function ArtworkActionCard({
       {instruction ? <Text style={styles.copy}>{instruction}</Text> : null}
       {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
       {busy === 'generate' ? (
-        <View
-          style={styles.generatingPreview}
-          accessibilityRole="progressbar"
-          accessibilityLabel="Creating recipe page"
-        >
-          <ActivityIndicator size="small" color={Colors.primary} />
+        <View style={styles.generating} accessibilityRole="progressbar" accessibilityLabel="Creating recipe page">
+          <NoshActivityDots size={5} />
+          <Text style={styles.generatingText}>Creating page</Text>
         </View>
       ) : null}
       <Pressable
-        style={styles.primaryButton}
+        style={({ pressed }) => [styles.primaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
         disabled={busy !== null}
         accessibilityRole="button"
         accessibilityLabel="Generate recipe page"
@@ -126,7 +122,7 @@ export function ArtworkActionCard({
         <Text style={styles.primaryText}>{busy === 'generate' ? 'Creating page' : 'Generate page'}</Text>
       </Pressable>
       <Pressable
-        style={styles.secondaryButton}
+        style={({ pressed }) => [styles.secondaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
         disabled={busy !== null}
         accessibilityRole="button"
         accessibilityLabel="Cancel page generation"
@@ -141,47 +137,34 @@ export function ArtworkActionCard({
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
     padding: Spacing.md,
     marginVertical: Spacing.values[4],
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
     borderRadius: Radii.lg,
     backgroundColor: Colors.white,
   },
   heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: Radii.numeric[17],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
   headingCopy: { flex: 1, gap: Spacing.values[2] },
-  eyebrow: {
-    color: Colors.primary,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    letterSpacing: Typography.metrics.letterSpacing07,
-    textTransform: 'uppercase',
-  },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
-  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
-  cost: { color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.lgMd },
+  copy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight20 },
   error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   preview: { width: '100%', aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio, borderRadius: Radii.md, backgroundColor: Colors.background },
-  generatingPreview: { width: '100%', aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.md, backgroundColor: Colors.background },
+  generating: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  generatingText: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.sm },
   primaryButton: {
-    minHeight: 46,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    borderRadius: Radii.md,
+    borderRadius: Radii.full,
     backgroundColor: Colors.primary,
   },
   primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: Colors.textMuted, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
+  disabled: { opacity: 0.55 },
+  pressed: { opacity: 0.7 },
 });

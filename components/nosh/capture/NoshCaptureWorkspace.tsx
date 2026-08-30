@@ -150,12 +150,11 @@ export function NoshCaptureWorkspace({
 
   useEffect(() => {
     if (!onActivitySummaryChange) return;
-    const pending = captureState.captures.filter((candidate) => candidate.status !== 'ready');
     onActivitySummaryChange({
-      pendingCount: pending.length,
-      attentionCount: pending.filter((candidate) => candidate.status === 'needs_attention').length,
+      pendingCount: activity.length,
+      attentionCount: exceptionActivity.length,
     });
-  }, [captureState.captures, onActivitySummaryChange]);
+  }, [activity.length, exceptionActivity.length, onActivitySummaryChange]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -869,6 +868,7 @@ function CookbookChoice({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Add recipe to ${cookbook.title}`}
+      accessibilityState={{ disabled }}
     >
       <View style={[styles.bookSwatch, { backgroundColor: style.palette.spine }]} />
       <View style={styles.bookCopy}>
@@ -1154,19 +1154,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.white,
     padding: Spacing.xl,
   },
   activityEmptyIcon: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.parchment,
   },
   activityGroup: { gap: Spacing.sm },
   activityGroupTitle: {

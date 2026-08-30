@@ -63,6 +63,7 @@ export const Input: React.FC<InputProps> = ({
           style={inputStyle}
           secureTextEntry={isSecure}
           placeholderTextColor={Colors.lightText}
+          accessibilityLabel={props.accessibilityLabel ?? label}
           {...props}
         />
         
@@ -70,6 +71,7 @@ export const Input: React.FC<InputProps> = ({
           <TouchableOpacity
             style={styles.rightIcon}
             onPress={() => setIsSecure(!isSecure)}
+            accessibilityRole="button"
             accessibilityLabel={isSecure ? 'Show password' : 'Hide password'}
           >
             {isSecure ? (
@@ -140,7 +142,10 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.lg,
   },
   rightIcon: {
-    paddingRight: Spacing.lg,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorContainer: {
     flexDirection: 'row',

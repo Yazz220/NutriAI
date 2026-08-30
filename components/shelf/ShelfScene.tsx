@@ -14,7 +14,7 @@ import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { resolveCookbookBinding } from '@/constants/cookbookBindings';
-import { Radii, Spacing, Typography } from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 import type { ContextActionGroup, ContextActionId } from '@/utils/cookbook/contextActions';
@@ -74,6 +74,7 @@ export function ShelfScene({
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
             onPress={onOpenSettings}
+            accessibilityRole="button"
             accessibilityLabel="Open settings"
           >
             <SettingsIcon size={21} color={Colors.text} strokeWidth={1.8} />
@@ -157,14 +158,12 @@ export function ShelfScene({
                 actions={actions}
                 onSelect={(actionId) => onContextAction(book, actionId)}
                 fallbackOnPress={onOpenCookbookActions ? () => onOpenCookbookActions(book) : undefined}
+                accessibilityLabel={`Actions for ${book.title}`}
                 title={book.title}
                 testID={`cookbook-actions-${book.id}`}
               >
                 <View
                   style={styles.coverMenuButton}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={`Actions for ${book.title}`}
                 >
                   <Ellipsis size={23} color={iconColor} strokeWidth={2} />
                 </View>
@@ -243,15 +242,11 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.legacySurface.v81,
   },
   buttonPressed: {
-    backgroundColor: Colors.parchment,
+    opacity: 0.5,
   },
   heading: {
     paddingHorizontal: Spacing.xl,

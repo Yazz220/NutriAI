@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 
 interface LoadErrorStateProps {
   title: string;
@@ -16,9 +16,9 @@ interface LoadErrorStateProps {
 export function LoadErrorState({ title, message, onRetry, onBack }: LoadErrorStateProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
+      <View style={styles.content} accessibilityRole="alert">
         <View style={styles.icon} accessibilityElementsHidden>
-          <AlertTriangle size={24} color={Colors.error} />
+          <AlertTriangle size={22} color={Colors.error} strokeWidth={1.8} />
         </View>
         <Text variant="h2" style={styles.title}>{title}</Text>
         <Text variant="body" style={styles.message}>{message}</Text>
@@ -39,25 +39,17 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     backgroundColor: Colors.background,
   },
-  card: {
+  content: {
     width: '100%',
     maxWidth: 420,
     alignItems: 'center',
     gap: Spacing.md,
-    padding: Spacing.xl,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    boxShadow: Colors.book.cardShadow,
   },
   icon: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.errorLight,
   },
   title: {
     color: Colors.text,
@@ -69,6 +61,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     width: '100%',
+    maxWidth: 280,
     gap: Spacing.sm,
     marginTop: Spacing.sm,
   },

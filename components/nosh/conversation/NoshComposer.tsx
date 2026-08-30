@@ -1,7 +1,16 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type NativeSyntheticEvent,
+  type TextInputContentSizeChangeEventData,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Send, X } from 'lucide-react-native';
+import { Paperclip, Send, Square, X } from 'lucide-react-native';
 import { ComposerPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -10,6 +19,14 @@ import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import type { NoshInteractionSession } from '@/types/noshInteraction';
 import { Fonts } from '@/utils/fonts';
 import { getNoshComposerMode } from './noshConversationPresentation';
+
+const PHOTO_PROMPT = 'Add this recipe from the attached photo';
+const INPUT_MIN_HEIGHT = 44;
+const INPUT_MAX_HEIGHT = 120;
+
+export function clampNoshComposerHeight(height: number) {
+  return Math.min(INPUT_MAX_HEIGHT, Math.max(INPUT_MIN_HEIGHT, Math.ceil(height)));
+}
 
 export function NoshComposer({
   interaction,
@@ -21,10 +38,26 @@ export function NoshComposer({
   sendDisabled?: boolean;
 }) {
   const isEmpty = useAuiState((state) => state.composer.isEmpty);
+  const composerText = useAuiState((state) => state.composer.text);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const aui = useAui();
   const mode = getNoshComposerMode(interaction, contextModelEnabled);
-  const { pendingImageBase64, setPendingImageBase64, setPendingImageMimeType } = useNoshConversation();
+  const {
+    pendingImageBase64,
+    pendingImageMimeType,
+    setPendingImageBase64,
+    setPendingImageMimeType,
+  } = useNoshConversation();
+  const [inputHeight, setInputHeight] = React.useState(INPUT_MIN_HEIGHT);
+  const ownsPhotoPromptRef = React.useRef(false);
+  const sendIsDisabled = sendDisabled || isEmpty;
+
+  const handleContentSizeChange = React.useCallback((
+    event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
+  ) => {
+    if (Platform.OS === 'web') return;
+    setInputHeight(clampNoshComposerHeight(event.nativeEvent.contentSize.height));
+  }, []);
 
   async function pickRecipePhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -57,7 +90,10 @@ export function NoshComposer({
       });
       setPendingImageBase64(asset.base64);
       setPendingImageMimeType(mimeType);
-      if (isEmpty) aui.composer.setText('Add this recipe from the attached photo');
+      const shouldOwnPrompt = isEmpty
+        || (ownsPhotoPromptRef.current && composerText === PHOTO_PROMPT);
+      if (shouldOwnPrompt) aui.composer.setText(PHOTO_PROMPT);
+      ownsPhotoPromptRef.current = shouldOwnPrompt;
     } catch {
       Alert.alert('Could not attach photo', 'Please choose the photo again.');
     }
@@ -67,77 +103,178 @@ export function NoshComposer({
     await aui.composer.clearAttachments();
     setPendingImageBase64(null);
     setPendingImageMimeType(null);
+    if (ownsPhotoPromptRef.current && composerText === PHOTO_PROMPT) {
+      aui.composer.setText('');
+    }
+    ownsPhotoPromptRef.current = false;
   }
 
   return (
     <View style={styles.area}>
-      {mode.allowsRecipePhoto && pendingImageBase64 ? (
-        <View style={styles.attachment}>
-          <Camera size={14} color={Colors.text} />
-          <Text style={styles.attachmentText}>Recipe photo attached</Text>
-          <Pressable
-            onPress={() => void removeRecipePhoto()}
-            accessibilityRole="button"
-            accessibilityLabel="Remove recipe photo"
-            hitSlop={8}
-          >
-            <X size={14} color={Colors.textMuted} />
-          </Pressable>
-        </View>
-      ) : null}
       <ComposerPrimitive.Root style={styles.composer}>
-        {mode.allowsRecipePhoto ? (
-          <Pressable
-            onPress={() => void pickRecipePhoto()}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel="Attach a recipe photo"
-          >
-            <Camera size={18} color={Colors.text} />
-          </Pressable>
+        {mode.allowsRecipePhoto && pendingImageBase64 ? (
+          <View style={styles.attachment}>
+            <Image
+              source={{
+                uri: `data:${pendingImageMimeType ?? 'image/jpeg'};base64,${pendingImageBase64}`,
+              }}
+              style={styles.attachmentImage}
+              accessible
+              accessibilityLabel="Attached recipe photo"
+            />
+            <Text style={styles.attachmentText} numberOfLines={1}>Recipe photo</Text>
+            <Pressable
+              onPress={() => void removeRecipePhoto()}
+              disabled={isRunning}
+              accessibilityRole="button"
+              accessibilityLabel="Remove recipe photo"
+              accessibilityState={{ disabled: isRunning }}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.attachmentRemove,
+                isRunning && styles.controlDisabled,
+                pressed && !isRunning && styles.controlPressed,
+              ]}
+            >
+              <X size={16} color={Colors.textMuted} />
+            </Pressable>
+          </View>
         ) : null}
-        <ComposerPrimitive.Input
-          placeholder={mode.placeholder}
-          placeholderTextColor={Colors.textMuted}
-          multiline
-          submitMode={sendDisabled ? 'none' : 'enter'}
-          style={styles.input}
-        />
-        {isRunning ? (
-          <ComposerPrimitive.Cancel style={styles.cancel}>
-            <Text style={styles.cancelText}>Stop</Text>
-          </ComposerPrimitive.Cancel>
-        ) : (
-          <ComposerPrimitive.Send
-            disabled={sendDisabled || isEmpty}
-            accessibilityState={{ disabled: sendDisabled || isEmpty }}
-            style={[styles.send, (sendDisabled || isEmpty) && styles.sendDisabled]}
-          >
-            <Send size={17} color={Colors.onPrimary} />
-          </ComposerPrimitive.Send>
-        )}
+        <View style={styles.inputRow}>
+          {mode.allowsRecipePhoto ? (
+            <Pressable
+              onPress={() => void pickRecipePhoto()}
+              disabled={isRunning || sendDisabled}
+              style={({ pressed }) => [
+                styles.iconButton,
+                (isRunning || sendDisabled) && styles.controlDisabled,
+                pressed && !isRunning && !sendDisabled && styles.controlPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={pendingImageBase64 ? 'Change attached image' : 'Attach image or screenshot'}
+              accessibilityState={{ disabled: isRunning || sendDisabled, selected: Boolean(pendingImageBase64) }}
+            >
+              <Paperclip size={18} color={pendingImageBase64 ? Colors.primary : Colors.textSecondary} />
+            </Pressable>
+          ) : null}
+          <ComposerPrimitive.Input
+            placeholder={mode.placeholder}
+            placeholderTextColor={Colors.textMuted}
+            accessibilityLabel="Message Nosh"
+            accessibilityHint={Platform.OS === 'web'
+              ? 'Press Enter to send. Press Shift and Enter for a new line.'
+              : undefined}
+            multiline
+            numberOfLines={1}
+            scrollEnabled
+            maxFontSizeMultiplier={2}
+            textAlignVertical="top"
+            submitMode={sendDisabled ? 'none' : 'enter'}
+            onContentSizeChange={handleContentSizeChange}
+            style={[
+              styles.input,
+              Platform.OS === 'web' ? undefined : { height: inputHeight },
+            ]}
+          />
+          {isRunning ? (
+            <ComposerPrimitive.Cancel
+              accessibilityLabel="Stop response"
+              accessibilityHint="Stops Nosh's current response"
+              style={({ pressed }) => [styles.actionButton, pressed && styles.controlPressed]}
+            >
+              <Square size={12} color={Colors.onPrimary} fill={Colors.onPrimary} />
+            </ComposerPrimitive.Cancel>
+          ) : (
+            <ComposerPrimitive.Send
+              disabled={sendIsDisabled}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              accessibilityState={{ disabled: sendIsDisabled }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                sendIsDisabled && styles.sendDisabled,
+                pressed && !sendIsDisabled && styles.controlPressed,
+              ]}
+            >
+              <Send size={17} color={Colors.onPrimary} />
+            </ComposerPrimitive.Send>
+          )}
+        </View>
       </ComposerPrimitive.Root>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  area: { gap: Spacing.xs },
-  attachment: {
-    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
-    borderRadius: Radii.full, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.ash,
-    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.values[6],
-  },
-  attachmentText: { color: Colors.text, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
+  area: { width: '100%', maxWidth: 760, alignSelf: 'center' },
   composer: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.xs, borderRadius: Radii.xl,
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xs,
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+    padding: Spacing.xs,
   },
-  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.full },
-  input: { flex: 1, minHeight: 40, maxHeight: 112, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.values[10], color: Colors.text, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
-  send: { width: 40, height: 40, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary },
-  sendDisabled: { opacity: 0.45 },
-  cancel: { height: 40, justifyContent: 'center', paddingHorizontal: Spacing.sm },
-  cancelText: { color: Colors.primary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  attachment: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.surfaceMuted,
+    padding: Spacing.values[4],
+    marginBottom: Spacing.xs,
+  },
+  attachmentImage: {
+    width: 44,
+    height: 44,
+    borderRadius: Radii.sm,
+    backgroundColor: Colors.backgroundSecondary,
+  },
+  attachmentText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: Typography.sizes.smPlus,
+    fontFamily: Fonts.ui.medium,
+  },
+  attachmentRemove: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.xs,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radii.full,
+  },
+  input: {
+    flex: 1,
+    minHeight: INPUT_MIN_HEIGHT,
+    maxHeight: INPUT_MAX_HEIGHT,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.values[10],
+    color: Colors.text,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
+    outlineWidth: 0,
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  sendDisabled: { opacity: Colors.state.disabledOpacity },
+  controlDisabled: { opacity: Colors.state.disabledOpacity },
+  controlPressed: { opacity: 0.78, transform: [{ scale: 0.96 }] },
 });

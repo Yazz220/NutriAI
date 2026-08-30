@@ -117,8 +117,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { BookReader } from '@/components/cookbook/BookReader';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { COOKBOOK_PAGES_QUERY_KEY, useCookbook } from '@/hooks/useCookbook';
@@ -259,7 +260,7 @@ export default function BookReaderScreen() {
   if (isLoading && !effectiveCookbook) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={Colors.primary} />
+        <LoadingSpinner text="Opening your cookbook…" />
       </View>
     );
   }

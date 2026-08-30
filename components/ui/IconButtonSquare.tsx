@@ -4,7 +4,7 @@ import { Colors } from '@/constants/colors';
 import { Radii } from '@/constants/spacing';
 
 export type IconButtonSquareProps = PropsWithChildren<{
-  size?: number; // default 42
+  size?: number; // default 44
   radius?: number; // default capsule/circle
   onPress?: () => void;
   disabled?: boolean;
@@ -13,7 +13,7 @@ export type IconButtonSquareProps = PropsWithChildren<{
 }>;
 
 export const IconButtonSquare: React.FC<IconButtonSquareProps> = ({
-  size = 42,
+  size = 44,
   radius = Radii.full,
   onPress,
   disabled,

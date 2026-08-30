@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordScreen() {
@@ -68,7 +68,10 @@ export default function ForgotPasswordScreen() {
           <Input
             label="Email"
             autoCapitalize="none"
+            autoComplete="email"
             keyboardType="email-address"
+            textContentType="emailAddress"
+            spellCheck={false}
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
@@ -117,8 +120,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
 });

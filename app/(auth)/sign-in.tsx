@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { LockKeyhole, Mail } from 'lucide-react-native';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
@@ -111,7 +110,10 @@ export default function SignInScreen() {
       <Input
         label="Email"
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
+        textContentType="emailAddress"
+        spellCheck={false}
         value={email}
         onChangeText={setEmail}
         placeholder="you@example.com"
@@ -120,6 +122,8 @@ export default function SignInScreen() {
       <Input
         label="Password"
         secureTextEntry
+        autoComplete="current-password"
+        textContentType="password"
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
@@ -140,13 +144,18 @@ export default function SignInScreen() {
         loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={8}
-            style={styles.appleButton}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Apple"
             onPress={onAppleSignIn}
-          />
+            style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
+          >
+            <Image
+              source={require('../../assets/auth/apple-sign-in-logo-black.png')}
+              style={styles.appleButtonImage}
+              accessible={false}
+            />
+          </Pressable>
         )
       ) : null}
 
@@ -172,9 +181,19 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   appleButton: {
+    alignSelf: 'center',
     height: 44,
-    width: '100%',
-    borderRadius: Radii.sm,
+    width: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  appleButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }],
+  },
+  appleButtonImage: {
+    height: 44,
+    width: 44,
   },
   footer: {
     flexDirection: 'row',
@@ -190,9 +209,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   shareNotice: { gap: Spacing.xs, borderRadius: Radii.sm, backgroundColor: Colors.parchment, padding: Spacing.md },
   shareNoticeTitle: { color: Colors.text, fontWeight: '600' },

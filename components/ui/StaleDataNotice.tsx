@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.metrics.lineHeight16,
   },
   refresh: {
-    minHeight: 32,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

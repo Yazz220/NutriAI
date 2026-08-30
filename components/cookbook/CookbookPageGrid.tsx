@@ -244,17 +244,12 @@ export function CookbookPageGrid({
                   actions={contextActions}
                   onSelect={(actionId) => onContextAction(item.page!, actionId)}
                   fallbackOnPress={onPageActions ? () => onPageActions(item.page!) : undefined}
+                  accessibilityLabel={`Actions for ${item.title}`}
+                  style={styles.moreButton}
                   title={item.title}
                   testID={`page-context-menu-${item.page.id}`}
                 >
-                  <View
-                    style={styles.moreButton}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={`Actions for ${item.title}`}
-                  >
-                    <Ellipsis size={18} color={Colors.textSecondary} />
-                  </View>
+                  <Ellipsis size={18} color={Colors.textSecondary} />
                 </ContextActionMenu>
               ) : item.page && !contextActionsFor && onPageActions ? (
                 <Pressable
@@ -428,10 +423,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radii.full,
-    backgroundColor: Colors.surfaceMuted,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,

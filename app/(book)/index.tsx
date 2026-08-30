@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { NotebookPen } from 'lucide-react-native';
 import { ShelfScene } from '@/components/shelf/ShelfScene';
 import { NoshShelfChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { CookbookSettingsSheet } from '@/components/cookbook/ReaderActionSheets';
 import { FirstRunWelcome } from '@/components/onboarding/FirstRunWelcome';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/colors';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -152,7 +153,7 @@ export default function MyCookbooksScreen() {
   if (isLoading && cookbooks.length === 0) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={Colors.primary} />
+        <LoadingSpinner text="Opening your shelf…" />
       </View>
     );
   }
@@ -193,12 +194,12 @@ export default function MyCookbooksScreen() {
         />
         <NoshShelfChatButton />
         <Pressable
-          style={styles.captureButton}
+          style={({ pressed }) => [styles.captureButton, pressed && styles.captureButtonPressed]}
           onPress={() => router.push('/(book)/save')}
           accessibilityRole="button"
           accessibilityLabel="Save a recipe with Nosh"
         >
-          <Plus size={Spacing.values[22]} color={Colors.text} />
+          <NotebookPen size={Spacing.values[22]} color={Colors.text} strokeWidth={1.8} />
         </Pressable>
       </View>
       {showFirstRunWelcome ? (
@@ -251,8 +252,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Radii.numeric[27],
     borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.parchment,
-    boxShadow: Colors.book.cardShadow,
+    borderColor: Colors.coral,
+    backgroundColor: Colors.coral,
+    boxShadow: Colors.book.liftedShadow,
+  },
+  captureButtonPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.92,
   },
 });

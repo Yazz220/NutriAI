@@ -184,10 +184,6 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 50,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.legacySurface.v79,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,

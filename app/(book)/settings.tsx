@@ -16,7 +16,7 @@ import {
 import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
@@ -117,6 +117,7 @@ export default function CookbookSettingsScreen() {
       <View style={styles.topBar}>
         <LibraryBackButton />
         <Text style={styles.title}>Settings</Text>
+        <View style={styles.topBarBalance} />
       </View>
 
       <ScrollView
@@ -127,13 +128,8 @@ export default function CookbookSettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Account */}
-        <Section title="Account">
+        <Section title="Overview">
           <Row icon={<Mail size={18} color={Colors.textSecondary} />} label="Email" value={user?.email ?? '-'} />
-        </Section>
-
-        {/* Stats */}
-        <Section title="Your library">
           <Row
             icon={<Sparkles size={18} color={Colors.textSecondary} />}
             label="Cookbooks"
@@ -159,24 +155,25 @@ export default function CookbookSettingsScreen() {
           />
         </Section>
 
-        {/* Danger zone */}
         <Section title="Account actions">
           <ActionRow
             icon={<LogOut size={18} color={Colors.text} />}
-            label={signingOut ? 'Signing out...' : 'Sign out'}
+            label={signingOut ? 'Signing out…' : 'Sign out'}
             onPress={handleSignOut}
             disabled={signingOut || deletingAccount}
+            busy={signingOut}
           />
           <ActionRow
             icon={<Trash2 size={18} color={Colors.error} />}
-            label={deletingAccount ? 'Deleting account...' : 'Delete account'}
+            label={deletingAccount ? 'Deleting account…' : 'Delete account'}
             destructive
             onPress={confirmDeleteAccount}
             disabled={deletingAccount || signingOut}
+            busy={deletingAccount}
           />
         </Section>
 
-        <Text style={styles.footer}>Nosh | Personal cookbook | v0.1</Text>
+        <Text style={styles.footer}>Nosh v0.1</Text>
       </ScrollView>
     </View>
   );
@@ -186,7 +183,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionCard}>{children}</View>
+      <View style={styles.sectionBody}>{children}</View>
     </View>
   );
 }
@@ -217,12 +214,14 @@ function ActionRow({
   onPress,
   destructive,
   disabled,
+  busy,
 }: {
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
   destructive?: boolean;
   disabled?: boolean;
+  busy?: boolean;
 }) {
   return (
     <Pressable
@@ -230,6 +229,8 @@ function ActionRow({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, busy }}
     >
       <View style={styles.rowIcon}>{icon}</View>
       <Text style={[styles.rowLabel, destructive && styles.destructiveText]}>{label}</Text>
@@ -244,10 +245,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   topBar: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
-    gap: Spacing.xs,
   },
   title: {
     fontFamily: Fonts.display.bold,
@@ -255,6 +261,11 @@ const styles = StyleSheet.create({
     lineHeight: Typography.metrics.lineHeight38,
     letterSpacing: Typography.metrics.letterSpacing0,
     color: Colors.text,
+    textAlign: 'center',
+  },
+  topBarBalance: {
+    width: 44,
+    height: 44,
   },
   scroll: {
     flex: 1,
@@ -262,33 +273,31 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxxl,
-    gap: Spacing.lg,
+    gap: Spacing.xl,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   section: {
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.sm,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: Typography.metrics.letterSpacing0,
+    letterSpacing: Typography.metrics.letterSpacing10,
     color: Colors.textMuted,
-    paddingHorizontal: Spacing.sm,
+    textTransform: 'uppercase',
   },
-  sectionCard: {
-    borderRadius: Radii.lg,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    overflow: 'hidden',
+  sectionBody: {
   },
   row: {
-    minHeight: 56,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.ash,
+    paddingHorizontal: Spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.ash,
   },
   actionRow: {
     minHeight: 56,
@@ -297,12 +306,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   rowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: Radii.full,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.parchment,
   },
   rowLabel: {
     flex: 1,
