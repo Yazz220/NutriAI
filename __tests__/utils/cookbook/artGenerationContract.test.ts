@@ -32,7 +32,7 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
-    expect(payload.generationContractVersion).toBe('complete-recipe-page-v1');
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v2');
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',

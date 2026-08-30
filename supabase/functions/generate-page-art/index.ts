@@ -43,6 +43,7 @@ import {
   buildOpenRouterImageRequest,
   isRecipePageStyleId,
 } from '../_shared/artGeneration.ts';
+import { assertCanonicalCookbookPageImage } from '../_shared/cookbookPageGeometry.ts';
 import {
   RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
   RECIPE_PAGE_GENERATION_STAGE_VERSION,
@@ -506,6 +507,7 @@ serve(async (req: Request) => {
 
       try {
         const { bytes, cost } = await generatePageImage(prompt, inputReferences);
+        assertCanonicalCookbookPageImage(bytes);
 
         storagePath = `${user!.id}/${cookbookId}/${crypto.randomUUID()}.png`;
         const upload = await admin.storage.from(BUCKET).upload(storagePath, bytes, {

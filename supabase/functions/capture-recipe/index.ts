@@ -39,9 +39,11 @@ import {
   recipeQualityStageVersion,
   RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
   RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION,
+  RECIPE_PAGE_GENERATION_STAGE_VERSION,
   sourceStageVersion,
   type CaptureCheckpointName,
 } from '../_shared/captureStages.ts';
+import { isCanonicalCookbookPageGenerationPayload } from '../_shared/cookbookPageGeometry.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
@@ -380,9 +382,9 @@ async function readyCapturePageGenerationVersion(
   if (version?.status !== 'ready') return null;
 
   const promptPayload = isRecord(version.prompt_payload) ? version.prompt_payload : {};
-  return typeof promptPayload.generationContractVersion === 'string'
-    ? promptPayload.generationContractVersion
-    : LEGACY_CAPTURE_STAGE_VERSION;
+  return isCanonicalCookbookPageGenerationPayload(promptPayload)
+    ? RECIPE_PAGE_GENERATION_STAGE_VERSION
+    : null;
 }
 
 async function publishCapturePage(
