@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { deleteAccount } from '@/utils/account';
 import { clearCachedPages, clearCachedShelf } from '@/utils/cookbook/cache';
+import { clearBookshelfScene } from '@/utils/cookbook/shelfAppearanceStorage';
 import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/constants/legal';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import {
@@ -67,6 +68,7 @@ export default function CookbookSettingsScreen() {
       const cleanupResults = await Promise.allSettled([
         clearCachedPages(cookbookIds),
         clearCachedShelf(user.id),
+        clearBookshelfScene(user.id),
       ]);
       cleanupResults.forEach((result) => {
         if (result.status === 'rejected') {

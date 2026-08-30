@@ -14,7 +14,7 @@ import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { requestFirstRunOnboardingReset } from '@/utils/cookbook/firstRunOnboarding';
 
-export default function SignInScreen() {
+export function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,6 +90,7 @@ export default function SignInScreen() {
   return (
     <AuthScaffold
       title="Return to your cookbook shelf"
+      backgroundImage={require('../../assets/brand/patterns/auth-organic-botanical-concept-a-v2.png')}
       footer={
         <View style={styles.footer}>
           <Text style={styles.footerText}>New to Nosh?</Text>
@@ -174,6 +175,8 @@ export default function SignInScreen() {
     </AuthScaffold>
   );
 }
+
+export default SignInScreen;
 
 const styles = StyleSheet.create({
   forgotPassword: {

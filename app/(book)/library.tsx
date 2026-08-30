@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { useShelfAppearance } from '@/hooks/useShelfAppearance';
 import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
 import { trackEvent } from '@/utils/analytics';
 
@@ -25,6 +26,7 @@ export default function BookLibraryScreen() {
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
+  const { scene, setShelfStyleId, setWallpaperStyleId } = useShelfAppearance();
 
   async function handleCreate({ title, coverFinishId, coverColorId, pageStyleId }: CreateCookbookDetails) {
     const cookbook = await createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
@@ -77,7 +79,11 @@ export default function BookLibraryScreen() {
         bottomInset={insets.bottom}
         canCreate={!!user}
         mode={isFirstRun ? 'first-run' : 'standard'}
+        shelfStyleId={scene.shelfStyleId}
+        wallpaperStyleId={scene.wallpaperStyleId}
         onCreateBook={handleCreate}
+        onShelfStyleChange={setShelfStyleId}
+        onWallpaperStyleChange={setWallpaperStyleId}
         onSignIn={openSignIn}
       />
     </View>

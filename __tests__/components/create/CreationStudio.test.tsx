@@ -31,6 +31,10 @@ describe('CreationStudio', () => {
       <CreationStudio canCreate onCreateBook={onCreateBook} onSignIn={jest.fn()} />,
     );
 
+    expect(screen.getByTestId('cover-finish-rail').props.horizontal).toBe(true);
+    expect(screen.getByTestId('cover-color-rail').props.horizontal).toBe(true);
+    expect(screen.getByTestId('page-style-rail').props.horizontal).toBe(true);
+
     fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'Desserts');
     fireEvent.press(screen.getByRole('button', {
       name: 'Natural linen cover texture: A warmer, more open woven texture',
@@ -51,13 +55,22 @@ describe('CreationStudio', () => {
     });
   });
 
-  it('opens the two-page sample when a recipe-page style is selected', () => {
+  it('opens the selected sample directly from the book without nested preview tabs', () => {
     const screen = render(
       <CreationStudio canCreate onCreateBook={jest.fn()} onSignIn={jest.fn()} />,
     );
 
+    expect(screen.queryByRole('button', { name: 'Cover' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Pages' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open cookbook preview' })).toBeTruthy();
 
+    fireEvent.press(screen.getByRole('button', { name: 'Open cookbook preview' }));
+
+    expect(screen.getByRole('button', { name: 'Close cookbook preview' })).toBeTruthy();
+    expect(screen.getByLabelText('Illustrated brownie recipe sample')).toBeTruthy();
+    expect(screen.getByLabelText('Illustrated cookie recipe sample')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Close cookbook preview' }));
     fireEvent.press(screen.getByRole('button', {
       name: 'Heritage recipe page style: Classic ink and quiet ornament',
     }));
@@ -97,6 +110,43 @@ describe('CreationStudio', () => {
         coverColorId: 'clay',
         pageStyleId: 'heritage',
       });
+    });
+  });
+
+  it('keeps bookshelf scene styling separate and applies a shelf choice immediately', async () => {
+    const onShelfStyleChange = jest.fn().mockResolvedValue(undefined);
+    const onWallpaperStyleChange = jest.fn().mockResolvedValue(undefined);
+    const screen = render(
+      <CreationStudio
+        canCreate
+        shelfStyleId="classic-oak"
+        wallpaperStyleId="paper-ivory"
+        onCreateBook={jest.fn()}
+        onShelfStyleChange={onShelfStyleChange}
+        onWallpaperStyleChange={onWallpaperStyleChange}
+        onSignIn={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Customize bookshelf scene' }));
+
+    expect(screen.getByText('Set the scene')).toBeTruthy();
+    expect(screen.getByText('Shelf')).toBeTruthy();
+    expect(screen.getByText('Wallpaper')).toBeTruthy();
+    expect(screen.queryByText('Cover finish')).toBeNull();
+    expect(screen.getByTestId('shelf-style-rail').props.horizontal).toBe(true);
+    expect(screen.getByTestId('wallpaper-style-rail').props.horizontal).toBe(true);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Floating oak shelf' }));
+
+    await waitFor(() => {
+      expect(onShelfStyleChange).toHaveBeenCalledWith('floating-oak');
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Sage tile wallpaper' }));
+
+    await waitFor(() => {
+      expect(onWallpaperStyleChange).toHaveBeenCalledWith('sage-zellige');
     });
   });
 });

@@ -1,5 +1,14 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  type ImageSourcePropType,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
@@ -12,6 +21,7 @@ interface AuthScaffoldProps {
   children: ReactNode;
   footer?: ReactNode;
   compactHeader?: boolean;
+  backgroundImage?: ImageSourcePropType;
 }
 
 export function AuthScaffold({
@@ -20,14 +30,26 @@ export function AuthScaffold({
   children,
   footer,
   compactHeader = false,
+  backgroundImage,
 }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
+  const preservePortraitArtwork = width / Math.max(height, 1) < 0.64;
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      {backgroundImage ? (
+        <Image
+          source={backgroundImage}
+          style={styles.backgroundImage}
+          resizeMode={preservePortraitArtwork ? 'stretch' : 'cover'}
+          accessible={false}
+          testID="auth-background-pattern"
+        />
+      ) : null}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -54,6 +76,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: '100%',
+    width: '100%',
+    opacity: 0.72,
   },
   content: {
     flexGrow: 1,
