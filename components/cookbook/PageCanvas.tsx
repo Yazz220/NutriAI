@@ -5,9 +5,8 @@ import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage'
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
+import { getCookbookStyle } from '@/constants/cookbookStyles';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
-import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -118,11 +117,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
         <TypesetterPage
           recipeGraph={page.recipeGraph}
           artAsset={page.artAsset ?? null}
-          styleId={
-            page.styleId && !isCreationPageStyleId(page.styleId)
-              ? page.styleId
-              : DEFAULT_COOKBOOK_STYLE
-          }
+          styleId={getCookbookStyle(page.styleId).id}
           templateId={page.templateId ?? DEFAULT_RECIPE_TEMPLATE_ID}
           bookMode={bookMode}
           onRenderReady={onRenderReady}

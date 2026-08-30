@@ -42,6 +42,7 @@ import {
   buildRecipePagePrompt,
   buildOpenRouterImageRequest,
   isRecipePageStyleId,
+  isRecipePageStyleVersion,
 } from '../_shared/artGeneration.ts';
 import { assertCanonicalCookbookPageImage } from '../_shared/cookbookPageGeometry.ts';
 import {
@@ -409,6 +410,9 @@ serve(async (req: Request) => {
       && Number(cookbookRow.style_revision) > 0
       ? Number(cookbookRow.style_revision)
       : Number(requestedStyleRevision ?? 1);
+    if (!isRecipePageStyleVersion(styleId, styleRevision)) {
+      return jsonError(`Cookbook page style ${styleId}@${styleRevision} is not available`, 409, req);
+    }
     const cookbookStyleReferences = Array.isArray(cookbookRow.page_style_references)
       ? cookbookRow.page_style_references.filter((value: unknown): value is string => (
           typeof value === 'string' && /^https:\/\//i.test(value) && value.length <= 2048

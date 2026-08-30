@@ -85,7 +85,7 @@ const COLLECTION_SESSION: NoshInteractionSession = {
 function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
   const references = cookbook.pageStyleReferences?.length
     ? cookbook.pageStyleReferences
-    : getCookbookPageStyleReferences(cookbook.pageStyleId);
+    : getCookbookPageStyleReferences(cookbook.pageStyleId, cookbook.styleRevision);
   return references?.length ? [...references] : undefined;
 }
 

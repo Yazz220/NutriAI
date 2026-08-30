@@ -37,7 +37,7 @@ describe('CreationStudio', () => {
     }));
     fireEvent.press(screen.getByRole('button', { name: 'Midnight cover color' }));
     fireEvent.press(screen.getByRole('button', {
-      name: 'Editorial recipe page style: Bold imagery and clean type',
+      name: 'Editorial recipe page style: Dramatic food-magazine art direction',
     }));
     fireEvent.press(screen.getByRole('button', { name: 'Add this cookbook to my shelf' }));
 
@@ -46,7 +46,7 @@ describe('CreationStudio', () => {
         title: 'Desserts',
         coverFinishId: 'natural-linen',
         coverColorId: 'midnight',
-        pageStyleId: 'studio-editorial',
+        pageStyleId: 'editorial',
       });
     });
   });
@@ -59,7 +59,7 @@ describe('CreationStudio', () => {
     expect(screen.getByRole('button', { name: 'Open cookbook preview' })).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', {
-      name: 'Heritage recipe page style: Classic ink and quiet ornament',
+      name: 'Heritage recipe page style: Heirloom print with modern legibility',
     }));
 
     expect(screen.getByRole('button', { name: 'Close cookbook preview' })).toBeTruthy();
@@ -86,7 +86,7 @@ describe('CreationStudio', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
     fireEvent.press(screen.getByRole('button', {
-      name: 'Heritage recipe page style: Classic ink and quiet ornament',
+      name: 'Heritage recipe page style: Heirloom print with modern legibility',
     }));
     fireEvent.press(screen.getByRole('button', { name: 'Put this cookbook on my shelf' }));
 

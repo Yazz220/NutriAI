@@ -10,8 +10,8 @@ import {
 } from '@/constants/cookbookCustomization';
 import {
   isRecipePageStyleId,
-  RECIPE_PAGE_STYLE_PROFILES,
-} from '../../supabase/functions/_shared/artGeneration';
+  resolveRecipePageStyleVersion,
+} from '@/constants/recipePageStyles';
 
 describe('cookbook customization catalog', () => {
   it('offers two ordered finishes without changing book construction', () => {
@@ -36,23 +36,26 @@ describe('cookbook customization catalog', () => {
       .toBe(Object.keys(COOKBOOK_COVER_COLORS).length);
   });
 
-  it('keeps the three selectable page identities aligned with generation', () => {
+  it('keeps the six selectable page identities aligned with generation', () => {
     const pageStyles = listCreationPageStyles();
 
     expect(pageStyles.map((style) => style.id)).toEqual([
+      'studio',
+      'editorial',
       'illustrated',
-      'studio-editorial',
       'heritage',
+      'journal',
+      'bold',
     ]);
     pageStyles.forEach((style) => {
       expect(isRecipePageStyleId(style.id)).toBe(true);
-      expect(RECIPE_PAGE_STYLE_PROFILES[style.id].revision).toBe(style.revision);
+      expect(resolveRecipePageStyleVersion(style.id, style.revision)?.status).toBe('active');
       expect(style.modelDescription.length).toBeGreaterThan(40);
       expect(style.samples.brownies).toBeTruthy();
       expect(style.samples.cookies).toBeTruthy();
     });
-    expect(Object.keys(COOKBOOK_PAGE_STYLES)).toHaveLength(3);
-    expect(DEFAULT_CREATION_PAGE_STYLE_ID).toBe('illustrated');
+    expect(Object.keys(COOKBOOK_PAGE_STYLES)).toHaveLength(6);
+    expect(DEFAULT_CREATION_PAGE_STYLE_ID).toBe('studio');
   });
 
   it('preserves the previous cover-linked page style for existing books', () => {

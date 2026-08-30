@@ -21,7 +21,7 @@ The user-selected curated color applied independently to either canonical cover 
 _Avoid_: Book type, recipe style, page template
 
 **Recipe-page style**:
-The book-owned visual language shared by every generated recipe page inside it. The user chooses Illustrated, Editorial, or Heritage when creating the cookbook. It is independent from the cover color.
+The versioned, book-owned visual language shared by every generated recipe page inside it. New cookbooks choose Studio, Editorial, Illustrated, Heritage, Journal, or Bold. Style changes art direction and composition, never recipe data, page geometry, or book behavior. It is independent from the cover color.
 _Avoid_: Per-recipe theme, cover color, page template
 
 **Canonical page geometry**:

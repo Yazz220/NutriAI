@@ -505,9 +505,14 @@ function PageStyleSelector({
                 style={styles.pageStyleSample}
                 accessible={false}
               />
-              <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
-                {option.name}
-              </Text>
+              <View style={styles.pageStyleCopy}>
+                <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
+                  {option.name}
+                </Text>
+                <Text numberOfLines={2} style={styles.pageStyleDescription}>
+                  {option.description}
+                </Text>
+              </View>
               {selected ? (
                 <View style={styles.pageStyleSelectedMark}>
                   <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
@@ -757,11 +762,12 @@ const styles = StyleSheet.create({
   },
   pageStyleGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
   pageStyleCard: {
-    flex: 1,
-    minWidth: 0,
+    flexBasis: '46%',
+    flexGrow: 1,
     minHeight: 116,
     padding: Spacing.sm,
     borderRadius: Radii.md,
@@ -772,14 +778,17 @@ const styles = StyleSheet.create({
     gap: Spacing.values[6],
   },
   pageStyleCardSelected: {
-    borderColor: Colors.border,
+    borderColor: Colors.primary,
     backgroundColor: Colors.surfaceMuted,
   },
   pageStyleSample: {
     width: '100%',
-    height: 112,
+    aspectRatio: 4 / 5,
     borderRadius: Radii.sm,
     backgroundColor: Colors.book.page,
+  },
+  pageStyleCopy: {
+    gap: Spacing.values[2],
   },
   pageStyleName: {
     color: Colors.text,
@@ -790,6 +799,12 @@ const styles = StyleSheet.create({
   pageStyleNameSelected: {
     color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
+  },
+  pageStyleDescription: {
+    color: Colors.textTertiary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.xs,
+    lineHeight: Typography.metrics.lineHeight14,
   },
   pageStyleSelectedMark: {
     position: 'absolute',

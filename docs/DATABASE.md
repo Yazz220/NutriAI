@@ -20,8 +20,8 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 | `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Legacy compatibility preset derived from `cover_color_id` by new clients |
 | `cover_finish_id` | text CHECK ∈ {`fine-cloth`, `natural-linen`} | Surface weave and grain on the canonical cover construction |
 | `cover_color_id` | text CHECK ∈ {`sage`, `clay`, `midnight`, `alabaster`, `charcoal`, `umber`} | Curated cover color, independent from finish and recipe-page style |
-| `page_style_id` | text CHECK including the legacy style ids plus {`illustrated`, `studio-editorial`, `heritage`} | Database-owned visual language for complete-page generation; independent from the cover |
-| `style_revision` | integer | Version of the book-owned page-style contract |
+| `page_style_id` | text, composite FK with `style_revision` → `recipe_page_style_versions` | Database-owned visual language for complete-page generation; independent from the cover |
+| `style_revision` | integer, composite FK with `page_style_id` → `recipe_page_style_versions` | Immutable version of the book-owned page-style contract |
 | `page_style_references` | jsonb string array | Optional immutable visual anchors for page consistency |
 | `is_default` | boolean | At most one per user; automatic destination for new captures |
 | `page_template_id` | text CHECK ∈ {`clean-cream`, `ink-sketch`, `modern-editorial`} default `clean-cream` | Legacy vector-layout default. It is not an input to complete-page image generation. |
@@ -31,6 +31,9 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 Indexes:
 - `cookbooks_user_updated_idx` on `(user_id, updated_at DESC)` for shelf listing.
 - The legacy `cookbooks_one_per_user_idx` UNIQUE constraint is **dropped** (multi-book support).
+
+### `nutriai.recipe_page_style_versions`
+Private catalog of valid immutable page-style identities. `(style_id, revision)` is the primary key and at most one revision of an identity can have `status = 'active'`. Existing revision-1 identities remain `legacy`; new Studio choices resolve to Studio 1, Editorial 2, Illustrated 2, Heritage 2, Journal 1, or Bold 1. Prompt and art-direction definitions live in `constants/recipePageStyles.ts`; the database catalog protects persisted identity integrity without exposing prompt internals to clients.
 
 ### `nutriai.recipes`
 Structured recipe data extracted from a source. One recipe per imported page.
@@ -62,7 +65,7 @@ A page = one recipe rendered into one book.
 | `sort_order` | integer | Manual ordering inside a section |
 | `selected_version_id` | uuid → `page_versions` | Which generated version is "the" page |
 | `recipe_graph` | jsonb | Canonical machine-readable recipe used by Nosh |
-| `style_id`, `style_revision` | text, integer | Visual identity snapshot used for this page |
+| `style_id`, `style_revision` | text, integer, composite FK → `recipe_page_style_versions` | Visual identity snapshot used for this page |
 | `template_id` | text | Legacy vector-layout metadata. Complete-page image generation does not read it. |
 | `search_vector` | tsvector generated | Weighted lexical document derived from the canonical graph |
 | `lifecycle_status` | text | `processing` until its complete image is ready, then `approved`. The database value `approved` now means published and does not imply a user approval step. |
@@ -174,6 +177,8 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260830162003_add_audio_recipe_captures.sql` | Adds private existing-audio capture, bounded transcription evidence, and audio source constraints |
 | `supabase/migrations/20260830174134_version_recipe_capture_stages.sql` | Adds versioned capture checkpoints, stage-specific failures, and publication-only retry for already-generated pages |
 | `supabase/migrations/20260830210000_add_permissioned_video_captures.sql` | Expands private capture Storage and row constraints for permissioned video files while preserving URL-only video bookmarks |
+| `supabase/migrations/20260830231805_version_recipe_page_styles.sql` | Replaces duplicated style-id checks with an immutable style/version catalog and activates the six-style creation family |
+| `supabase/migrations/20260830234436_harden_recipe_page_style_catalog.sql` | Adds covering indexes for style-version foreign keys and an explicit service-role read policy |
 | `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |
 
 ## RLS posture

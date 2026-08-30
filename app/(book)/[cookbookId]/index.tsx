@@ -193,7 +193,10 @@ export default function BookReaderScreen() {
     if (!allowed) throw new Error('AI processing permission is required to create a new recipe page.');
     const styleReferences = effectiveCookbook.pageStyleReferences?.length
       ? effectiveCookbook.pageStyleReferences
-      : getCookbookPageStyleReferences(effectiveCookbook.pageStyleId);
+      : getCookbookPageStyleReferences(
+          effectiveCookbook.pageStyleId,
+          effectiveCookbook.styleRevision,
+        );
 
     return finishRecipePageCandidate({
       cookbookId,

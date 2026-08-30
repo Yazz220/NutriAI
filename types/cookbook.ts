@@ -4,6 +4,7 @@ import type {
   RecipeCategory,
   RecipeSourceType as CanonicalRecipeSourceType,
 } from '@/types/recipeGraph';
+import type { RecipePageStyleId } from '@/constants/recipePageStyles';
 
 export type CookbookSection =
   | 'breakfast'
@@ -44,16 +45,8 @@ export type CookbookCoverColorId =
   | 'charcoal'
   | 'umber';
 
-/**
- * The book-owned visual language used by complete-page generation.
- * Legacy cover-linked ids remain valid so existing cookbooks preserve their
- * visual identity while new books use the three Studio page languages.
- */
-export type CookbookPageStyleId =
-  | CookbookStyleId
-  | 'illustrated'
-  | 'studio-editorial'
-  | 'heritage';
+/** The versioned, book-owned visual language used by complete-page generation. */
+export type CookbookPageStyleId = RecipePageStyleId;
 
 export type RecipeTemplateId =
   | 'clean-cream'
