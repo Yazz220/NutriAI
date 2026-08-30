@@ -31,7 +31,7 @@ describe('CreationStudio', () => {
       <CreationStudio canCreate onCreateBook={onCreateBook} onSignIn={jest.fn()} />,
     );
 
-    fireEvent.changeText(screen.getByPlaceholderText('e.g. Healthy Meals'), 'Desserts');
+    fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'Desserts');
     fireEvent.press(screen.getByRole('button', {
       name: 'Natural linen cover texture: A warmer, more open woven texture',
     }));
@@ -65,7 +65,7 @@ describe('CreationStudio', () => {
     expect(screen.getByRole('button', { name: 'Close cookbook preview' })).toBeTruthy();
     expect(screen.getByLabelText('Heritage brownie recipe sample')).toBeTruthy();
     expect(screen.getByLabelText('Heritage cookie recipe sample')).toBeTruthy();
-    expect(screen.getByText('Fine cloth · Sage cover · Heritage recipe pages')).toBeTruthy();
+    expect(screen.queryByText('Fine cloth · Sage cover · Heritage recipe pages')).toBeNull();
   });
 
   it('starts the first cookbook with a usable name and the full identity controls', async () => {
@@ -80,9 +80,9 @@ describe('CreationStudio', () => {
     );
 
     expect(screen.getByDisplayValue('My Cookbook')).toBeTruthy();
-    expect(screen.getByText('Cover texture')).toBeTruthy();
-    expect(screen.getByText('Cover color')).toBeTruthy();
-    expect(screen.getByText('Recipe page style')).toBeTruthy();
+    expect(screen.getByText('Cover finish')).toBeTruthy();
+    expect(screen.getByText('Color')).toBeTruthy();
+    expect(screen.getByText('Page style')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
     fireEvent.press(screen.getByRole('button', {

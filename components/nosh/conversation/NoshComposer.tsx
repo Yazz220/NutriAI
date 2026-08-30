@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   attachmentText: { color: Colors.text, fontSize: Typography.sizes.md, fontFamily: Fonts.ui.medium },
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.xs, borderRadius: Radii.xl,
-    borderWidth: 1, borderColor: Colors.charcoal, backgroundColor: Colors.white,
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white,
     paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xs,
   },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.full },

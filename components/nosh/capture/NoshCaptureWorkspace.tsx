@@ -392,19 +392,16 @@ export function NoshCaptureWorkspace({
       {activeDestinationCookbookId ? (
         <View style={styles.pageWorkspaceSection}>
           <View style={styles.pageWorkspaceHeader}>
-            <View style={styles.pageWorkspaceHeading}>
-              <Text style={styles.pageWorkspaceEyebrow}>COOKBOOK WORKSPACE</Text>
-              <Text style={styles.pageWorkspaceTitle} numberOfLines={1}>
-                {destination?.title ?? cookbookState.cookbook?.title ?? 'Your cookbook'}
-              </Text>
-            </View>
+            <Text style={styles.pageWorkspaceTitle} numberOfLines={1}>
+              {destination?.title ?? cookbookState.cookbook?.title ?? 'Your cookbook'}
+            </Text>
             <Text style={styles.pageWorkspaceCount}>
               {cookbookState.pageSlots.length} {cookbookState.pageSlots.length === 1 ? 'page' : 'pages'}
             </Text>
           </View>
-          <Text style={styles.pageWorkspaceHint}>
-            Tap a page to read it. Long-press and drag a finished page to reorder.
-          </Text>
+          {cookbookState.pageSlots.length > 1 ? (
+            <Text style={styles.pageWorkspaceHint}>Hold and drag pages to reorder.</Text>
+          ) : null}
           {pageOrder.error ? (
             <Text style={styles.errorText} accessibilityRole="alert">
               The new page order could not be saved. Your previous order was restored.
@@ -417,6 +414,9 @@ export function NoshCaptureWorkspace({
             onOpenPage={(page) => { void openCookbookPage(page); }}
             onMovePage={pageOrder.isReordering ? undefined : pageOrder.movePage}
             scrollableRef={scrollableRef}
+            emptyTitle="Your first page will appear here."
+            emptyDetail=""
+            showPattern={false}
             testID="capture-cookbook-page-grid"
           />
         </View>
@@ -448,39 +448,67 @@ function WorkspaceDestinationPicker({
   selectedCookbookId?: string;
   onSelect: (cookbookId: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const selectedCookbook = cookbooks.find((cookbook) => cookbook.id === selectedCookbookId) ?? cookbooks[0];
+  const selectedStyle = selectedCookbook ? getCookbookStyle(selectedCookbook.coverStyle) : null;
+
   return (
     <View style={styles.workspaceDestination}>
-      <Text style={styles.workspaceDestinationLabel}>Adding pages to</Text>
-      <View style={styles.workspaceDestinationChoices}>
-        {cookbooks.map((cookbook) => {
-          const selected = cookbook.id === selectedCookbookId;
-          return (
-            <Pressable
-              key={cookbook.id}
-              style={({ pressed }) => [
-                styles.workspaceDestinationChoice,
-                selected && styles.workspaceDestinationChoiceSelected,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => onSelect(cookbook.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={`Add recipes to ${cookbook.title}`}
-            >
-              <Text
-                style={[
-                  styles.workspaceDestinationChoiceText,
-                  selected && styles.workspaceDestinationChoiceTextSelected,
+      <Text style={styles.workspaceDestinationLabel}>Add to</Text>
+      <Pressable
+        style={({ pressed }) => [styles.workspaceDestinationTrigger, pressed && styles.pressed]}
+        onPress={() => setExpanded((current) => !current)}
+        accessibilityRole="button"
+        accessibilityLabel={`Change destination cookbook. Currently ${selectedCookbook?.title ?? 'not selected'}`}
+        accessibilityState={{ expanded }}
+      >
+        <View
+          style={[
+            styles.workspaceDestinationSwatch,
+            { backgroundColor: selectedStyle?.palette.spine ?? Colors.sage },
+          ]}
+        />
+        <Text style={styles.workspaceDestinationTitle} numberOfLines={1}>
+          {selectedCookbook?.title ?? 'Choose a cookbook'}
+        </Text>
+        <ChevronDown
+          size={17}
+          color={Colors.textSecondary}
+          style={expanded ? styles.workspaceDestinationChevronExpanded : undefined}
+        />
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.workspaceDestinationOptions}>
+          {cookbooks.map((cookbook) => {
+            const selected = cookbook.id === selectedCookbookId;
+            const style = getCookbookStyle(cookbook.coverStyle);
+            return (
+              <Pressable
+                key={cookbook.id}
+                style={({ pressed }) => [
+                  styles.workspaceDestinationOption,
+                  selected && styles.workspaceDestinationOptionSelected,
+                  pressed && styles.pressed,
                 ]}
-                numberOfLines={1}
+                onPress={() => {
+                  onSelect(cookbook.id);
+                  setExpanded(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Add recipes to ${cookbook.title}`}
               >
-                {cookbook.title}
-              </Text>
-              {selected ? <Check size={14} color={Colors.onPrimary} /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
+                <View style={[styles.workspaceDestinationSwatch, { backgroundColor: style.palette.spine }]} />
+                <Text style={styles.workspaceDestinationOptionText} numberOfLines={1}>
+                  {cookbook.title}
+                </Text>
+                {selected ? <Check size={15} color={Colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -855,46 +883,73 @@ function CookbookChoice({
 const styles = StyleSheet.create({
   workspace: { gap: Spacing.lg },
   workspaceDestination: {
-    gap: Spacing.sm,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.white,
-    padding: Spacing.md,
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    zIndex: 2,
   },
   workspaceDestinationLabel: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.md,
   },
-  workspaceDestinationChoices: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  workspaceDestinationChoice: {
-    minHeight: 38,
-    maxWidth: '100%',
+  workspaceDestinationTrigger: {
+    minWidth: 0,
+    minHeight: 44,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.alabaster,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.white,
     paddingHorizontal: Spacing.md,
   },
-  workspaceDestinationChoiceSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
+  workspaceDestinationSwatch: {
+    width: 20,
+    height: 28,
+    flexShrink: 0,
+    borderRadius: Radii.numeric[3],
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
-  workspaceDestinationChoiceText: {
-    maxWidth: 220,
+  workspaceDestinationTitle: {
+    flex: 1,
+    color: Colors.text,
+    fontFamily: Fonts.display.semibold,
+    fontSize: Typography.sizes.md,
+  },
+  workspaceDestinationChevronExpanded: { transform: [{ rotate: '180deg' }] },
+  workspaceDestinationOptions: {
+    position: 'absolute',
+    top: 50,
+    left: 60,
+    right: 0,
+    gap: Spacing.values[2],
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.white,
+    padding: Spacing.xs,
+    boxShadow: Colors.book.cardShadow,
+  },
+  workspaceDestinationOption: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  workspaceDestinationOptionSelected: { backgroundColor: Colors.book.accentSoft },
+  workspaceDestinationOptionText: {
+    flex: 1,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.md,
   },
-  workspaceDestinationChoiceTextSelected: { color: Colors.onPrimary },
   pageWorkspaceSection: { gap: Spacing.sm },
   pageWorkspaceHeader: {
     flexDirection: 'row',
@@ -902,14 +957,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
-  pageWorkspaceHeading: { flex: 1, gap: Spacing.values[2] },
-  pageWorkspaceEyebrow: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.xs,
-    letterSpacing: Typography.metrics.letterSpacing12,
-  },
   pageWorkspaceTitle: {
+    flex: 1,
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
     fontSize: Typography.sizes.xxlSm,

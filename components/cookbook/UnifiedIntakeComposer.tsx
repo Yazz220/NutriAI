@@ -155,62 +155,42 @@ export function UnifiedIntakeComposer({
   );
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.iconBadge} accessibilityElementsHidden>
-          <NoshSymbol size={30} />
+    <View style={styles.composer}>
+      <View style={styles.inputRow}>
+        <View style={styles.brandMark} accessibilityElementsHidden>
+          <NoshSymbol size={24} />
         </View>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Turn a recipe into a page</Text>
-          <Text style={styles.helper}>Paste a link or recipe text, or attach a photo.</Text>
-        </View>
-      </View>
-
-      <View style={styles.inputShell}>
         <TextInput
           value={input}
           onChangeText={onInputChange}
           multiline
           style={styles.input}
-          placeholder="Paste a recipe link, text, or add notes for your photo"
+          placeholder="Paste a link, recipe, or notes…"
           placeholderTextColor={Colors.textMuted}
           editable={!isSubmitting}
           textAlignVertical="top"
           maxFontSizeMultiplier={2}
           scrollEnabled
+          accessibilityLabel="Recipe source"
         />
+      </View>
 
-        <View style={styles.inputToolbar}>
+      {hasImage ? (
+        <View style={styles.attachmentChip}>
+          <Text style={styles.attachmentText}>Photo attached{input.trim() ? ' with notes' : ''}</Text>
           <Pressable
-            style={[styles.attachButton, isSubmitting && styles.disabled]}
-            onPress={pickImage}
-            disabled={isSubmitting}
+            onPress={() => {
+              onImageBase64Change(null);
+              onImageUriChange?.(null, null);
+            }}
             accessibilityRole="button"
-            accessibilityLabel={hasImage ? 'Change attached image' : 'Attach image or screenshot'}
-            accessibilityState={{ disabled: isSubmitting, selected: hasImage }}
+            accessibilityLabel="Remove attached image"
             hitSlop={Spacing.sm}
           >
-            <Paperclip size={19} color={hasImage ? Colors.primary : Colors.textMuted} />
+            <X size={16} color={Colors.textMuted} />
           </Pressable>
-
-          {hasImage ? (
-            <View style={styles.attachmentChip}>
-              <Text style={styles.attachmentText}>Photo attached{input.trim() ? ' with notes' : ''}</Text>
-              <Pressable
-                onPress={() => {
-                  onImageBase64Change(null);
-                  onImageUriChange?.(null, null);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Remove attached image"
-                hitSlop={Spacing.sm}
-              >
-                <X size={16} color={Colors.textMuted} />
-              </Pressable>
-            </View>
-          ) : null}
         </View>
-      </View>
+      ) : null}
 
       {error ? (
         <View style={styles.errorNotice} accessibilityRole="alert">
@@ -228,9 +208,30 @@ export function UnifiedIntakeComposer({
         </View>
       ) : null}
 
-      <View style={styles.actions}>
+      <View style={styles.footer}>
         <Pressable
-          style={[styles.primaryButton, !canSubmit && styles.disabled]}
+          style={({ pressed }) => [
+            styles.attachButton,
+            hasImage && styles.attachButtonSelected,
+            isSubmitting && styles.disabled,
+            pressed && !isSubmitting && styles.pressed,
+          ]}
+          onPress={pickImage}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel={hasImage ? 'Change attached image' : 'Attach image or screenshot'}
+          accessibilityState={{ disabled: isSubmitting, selected: hasImage }}
+        >
+          <Paperclip size={18} color={hasImage ? Colors.primary : Colors.textSecondary} />
+          <Text style={[styles.attachText, hasImage && styles.attachTextSelected]}>Photo</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryButton,
+            !canSubmit && styles.disabled,
+            pressed && canSubmit && styles.pressed,
+          ]}
           onPress={submit}
           disabled={!canSubmit}
           accessibilityRole="button"
@@ -247,85 +248,66 @@ export function UnifiedIntakeComposer({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  composer: {
     borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: Colors.ash,
+    borderColor: Colors.borderLight,
     backgroundColor: Colors.white,
-    padding: Spacing.lg,
-    gap: Spacing.md,
     boxShadow: Colors.book.cardShadow,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: Radii.numeric[22],
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.book.accentSoft,
-  },
-  headerText: {
-    flex: 1,
-    gap: Spacing.values[3],
-  },
-  title: {
-    color: Colors.text,
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight28,
-    letterSpacing: Typography.metrics.letterSpacing0,
-  },
-  helper: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight18,
-  },
-  inputShell: {
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.alabaster,
     overflow: 'hidden',
   },
-  input: {
-    color: Colors.text,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight24,
-    height: 88,
-  },
-  inputToolbar: {
-    minHeight: 44,
+  inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  attachButton: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
+  brandMark: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  attachmentChip: {
+  input: {
     flex: 1,
-    minHeight: 36,
+    color: Colors.text,
+    padding: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
+    height: 104,
+  },
+  attachButton: {
+    minHeight: 44,
+    borderRadius: Radii.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+  },
+  attachButtonSelected: {
+    backgroundColor: Colors.book.accentSoft,
+  },
+  attachText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.md,
+  },
+  attachTextSelected: {
+    color: Colors.primary,
+  },
+  attachmentChip: {
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     borderRadius: Radii.full,
     backgroundColor: Colors.parchment,
     paddingHorizontal: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   attachmentText: {
     flex: 1,
@@ -333,18 +315,27 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.sm,
   },
-  actions: {
+  footer: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   primaryButton: {
-    height: 44,
+    minWidth: 154,
+    minHeight: 44,
     borderRadius: Radii.full,
     backgroundColor: Colors.primary,
-    borderWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
   },
   primaryText: {
     color: Colors.onPrimary,
@@ -370,5 +361,9 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  pressed: {
+    opacity: 0.76,
+    transform: [{ scale: 0.98 }],
   },
 });

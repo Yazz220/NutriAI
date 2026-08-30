@@ -14,6 +14,40 @@ interface PageBlockEdgesProps {
   blockWidth: number;
   inset?: number;
   cornerRadius?: number;
+  rotateYDeg?: number;
+}
+
+export interface PageBlockPresentation {
+  foreReveal: number;
+  tailReveal: number;
+  headReveal: number;
+  foreInset: number;
+  tailInset: number;
+}
+
+/**
+ * Keeps the paper block beneath the cover boards when the book faces forward.
+ * A posed book reveals a little more depth, but never the whole rectangular
+ * block; the cover should continue to read as the outer physical shell.
+ */
+export function resolvePageBlockPresentation(
+  blockWidth: number,
+  inset: number,
+  rotateYDeg = 0,
+): PageBlockPresentation {
+  const safeBlockWidth = Math.max(0, blockWidth);
+  const safeInset = Math.max(0, inset);
+  const poseProgress = Math.min(1, Math.abs(rotateYDeg) / 18);
+  const foreBase = Math.min(2, safeBlockWidth * 0.2);
+  const tailBase = Math.min(0.9, safeBlockWidth * 0.08);
+
+  return {
+    foreReveal: foreBase + poseProgress * Math.min(2, safeBlockWidth * 0.2),
+    tailReveal: tailBase + poseProgress * Math.min(0.8, safeBlockWidth * 0.08),
+    headReveal: Math.min(0.75, safeBlockWidth * 0.07),
+    foreInset: Math.max(safeInset * 1.35, safeBlockWidth * 0.65),
+    tailInset: Math.max(safeInset * 2.25, safeBlockWidth * 1.05),
+  };
 }
 
 export const PageBlockEdges = React.memo(function PageBlockEdges({
@@ -22,8 +56,12 @@ export const PageBlockEdges = React.memo(function PageBlockEdges({
   blockWidth,
   inset = 3,
   cornerRadius = 5,
+  rotateYDeg = 0,
 }: PageBlockEdgesProps) {
   const { paper, pageBlock } = NOSH_BOOK_MATERIAL;
+  const presentation = resolvePageBlockPresentation(blockWidth, inset, rotateYDeg);
+  const foreEdgeHeight = Math.max(0, height - presentation.foreInset * 2);
+  const horizontalEdgeWidth = Math.max(0, width - presentation.tailInset * 2);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -32,9 +70,9 @@ export const PageBlockEdges = React.memo(function PageBlockEdges({
           styles.foreEdge,
           {
             width: blockWidth,
-            right: -blockWidth + 2,
-            top: inset,
-            height: height - inset * 2,
+            right: -presentation.foreReveal,
+            top: presentation.foreInset,
+            height: foreEdgeHeight,
             borderTopRightRadius: cornerRadius,
             borderBottomRightRadius: cornerRadius,
             borderColor: paper.edgeShade,
@@ -54,7 +92,7 @@ export const PageBlockEdges = React.memo(function PageBlockEdges({
             style={[
               styles.foreStriation,
               {
-                top: ((index + 1) / (pageBlock.striationCount + 1)) * (height - inset * 2),
+                top: ((index + 1) / (pageBlock.striationCount + 1)) * foreEdgeHeight,
                 width: index % 3 === 0 ? blockWidth - 2 : blockWidth - 4,
                 backgroundColor: paper.edgeShade,
               },
@@ -67,9 +105,9 @@ export const PageBlockEdges = React.memo(function PageBlockEdges({
         style={[
           styles.tailEdge,
           {
-            left: inset * 2,
-            bottom: -blockWidth + 3,
-            width: width - inset * 2 + blockWidth - 2,
+            left: presentation.tailInset,
+            bottom: -presentation.tailReveal,
+            width: horizontalEdgeWidth,
             height: blockWidth,
             borderBottomLeftRadius: cornerRadius,
             borderBottomRightRadius: cornerRadius,
@@ -101,9 +139,9 @@ export const PageBlockEdges = React.memo(function PageBlockEdges({
         style={[
           styles.headEdge,
           {
-            left: inset * 2,
-            top: -2,
-            width: width - inset * 3,
+            left: presentation.tailInset,
+            top: -presentation.headReveal,
+            width: horizontalEdgeWidth,
             backgroundColor: paper.edgeHighlight,
             borderTopLeftRadius: cornerRadius,
             borderTopRightRadius: cornerRadius,
@@ -119,6 +157,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 0.7,
     overflow: 'hidden',
+    opacity: 0.84,
   },
   foreStriation: {
     position: 'absolute',
@@ -130,6 +169,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 0.7,
     overflow: 'hidden',
+    opacity: 0.62,
   },
   tailStriation: {
     position: 'absolute',
@@ -140,7 +180,7 @@ const styles = StyleSheet.create({
   },
   headEdge: {
     position: 'absolute',
-    height: 3,
-    opacity: 0.82,
+    height: 2,
+    opacity: 0.54,
   },
 });

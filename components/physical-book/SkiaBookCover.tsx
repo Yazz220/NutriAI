@@ -32,6 +32,7 @@ interface SkiaBookCoverProps {
   width: number;
   height: number;
   spineWidth: number;
+  presentation?: 'book' | 'swatch';
 }
 
 // Luminance grain: 0.5-centered noise drawn in overlay blend mode modulates
@@ -74,13 +75,43 @@ function buildWeavePath(binding: CookbookBinding, width: number, height: number)
   const pattern = binding.weavePattern;
   const verticalGap = Math.max(pattern.verticalGapMin, width / pattern.verticalGapRatio);
   const horizontalGap = Math.max(pattern.horizontalGapMin, width / pattern.horizontalGapRatio);
-  for (let x = 0; x <= width; x += verticalGap) {
+  const isLinen = binding.material === 'linen';
+  const spacing = [0.76, 1.22, 0.9, 1.34, 0.84, 1.08];
+
+  for (let x = 0, index = 0; x <= width; index += 1, x += verticalGap * (isLinen ? spacing[index % spacing.length] : 1)) {
     path.moveTo(x, 0);
-    path.lineTo(x, height);
+    if (isLinen) {
+      for (let y = 6; y <= height; y += 6) {
+        path.lineTo(x + Math.sin(index * 1.7 + y * 0.095) * 0.7, y);
+      }
+    } else {
+      path.lineTo(x, height);
+    }
   }
-  for (let y = 0; y <= height; y += horizontalGap) {
+
+  for (let y = 0, index = 0; y <= height; index += 1, y += horizontalGap * (isLinen ? spacing[(index + 2) % spacing.length] : 1)) {
     path.moveTo(0, y);
-    path.lineTo(width, y);
+    if (isLinen) {
+      for (let x = 6; x <= width; x += 6) {
+        path.lineTo(x, y + Math.cos(index * 1.35 + x * 0.08) * 0.55);
+      }
+    } else {
+      path.lineTo(width, y);
+    }
+  }
+  return path;
+}
+
+function buildLinenSlubPath(binding: CookbookBinding, width: number, height: number) {
+  const path = Skia.Path.Make();
+  if (binding.material !== 'linen') return path;
+
+  const gap = Math.max(binding.weavePattern.verticalGapMin, width / binding.weavePattern.verticalGapRatio);
+  for (let x = gap * 2.4, index = 0; x < width; index += 1, x += gap * (3.6 + (index % 3) * 0.55)) {
+    path.moveTo(x, 0);
+    for (let y = 8; y <= height; y += 8) {
+      path.lineTo(x + Math.sin(index * 2.1 + y * 0.07) * 1.05, y);
+    }
   }
   return path;
 }
@@ -90,14 +121,20 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
   width,
   height,
   spineWidth,
+  presentation = 'book',
 }: SkiaBookCoverProps) {
   const { cloth, weave, grain } = binding;
   const effect = getGrainEffect();
   const materialGeometry = resolveNoshBookMaterialGeometry(width);
-  const boardRadius = materialGeometry.boardCornerRadius;
+  const isSwatch = presentation === 'swatch';
+  const boardRadius = isSwatch ? Math.min(10, width * 0.16) : materialGeometry.boardCornerRadius;
 
   const weavePath = useMemo(
     () => buildWeavePath(binding, width, height),
+    [binding, width, height],
+  );
+  const linenSlubPath = useMemo(
+    () => buildLinenSlubPath(binding, width, height),
     [binding, width, height],
   );
   const boardClip = useMemo(() => {
@@ -126,6 +163,14 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           strokeWidth={binding.weavePattern.strokeWidth}
           color={withAlpha(weave, binding.weavePattern.opacity)}
         />
+        {binding.material === 'linen' ? (
+          <Path
+            path={linenSlubPath}
+            style="stroke"
+            strokeWidth={binding.weavePattern.strokeWidth * 1.75}
+            color={withAlpha(shiftColor(weave, 16), binding.weavePattern.opacity * 0.72)}
+          />
+        ) : null}
 
         {/* Procedural grain */}
         {effect ? (
@@ -151,55 +196,59 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           />
         </Rect>
 
-        {/* Soft shoulder beside the fixed hinge. The physical shelf spine is
-            a separate plane, so page count never changes this composition. */}
-        <Rect x={0} y={0} width={spineWidth} height={height}>
-          <LinearGradient
-            start={vec(0, 0)}
-            end={vec(spineWidth, 0)}
-            colors={[shiftColor(cloth, -18), shiftColor(cloth, 10), cloth]}
-            positions={[0, 0.44, 1]}
-          />
-        </Rect>
+        {!isSwatch ? (
+          <>
+            {/* Soft shoulder beside the fixed hinge. The physical shelf spine is
+                a separate plane, so page count never changes this composition. */}
+            <Rect x={0} y={0} width={spineWidth} height={height}>
+              <LinearGradient
+                start={vec(0, 0)}
+                end={vec(spineWidth, 0)}
+                colors={[shiftColor(cloth, -18), shiftColor(cloth, 10), cloth]}
+                positions={[0, 0.44, 1]}
+              />
+            </Rect>
 
-        {/* Hinge groove and its board-side catchlight. */}
-        <Rect
-          x={spineWidth - 1.2}
-          y={boardRadius}
-          width={1.2}
-          height={height - boardRadius * 2}
-          color={withAlpha(shiftColor(cloth, -32), 0.58)}
-        />
-        <Rect
-          x={spineWidth + 0.7}
-          y={boardRadius}
-          width={0.8}
-          height={height - boardRadius * 2}
-          color={withAlpha(shiftColor(cloth, 24), 0.24)}
-        />
+            {/* Hinge groove and its board-side catchlight. */}
+            <Rect
+              x={spineWidth - 1.2}
+              y={boardRadius}
+              width={1.2}
+              height={height - boardRadius * 2}
+              color={withAlpha(shiftColor(cloth, -32), 0.58)}
+            />
+            <Rect
+              x={spineWidth + 0.7}
+              y={boardRadius}
+              width={0.8}
+              height={height - boardRadius * 2}
+              color={withAlpha(shiftColor(cloth, 24), 0.24)}
+            />
 
-        {/* Board bevels keep the cloth matte while making its thickness legible. */}
-        <Rect
-          x={0}
-          y={0}
-          width={width}
-          height={materialGeometry.boardDepth + 1}
-          color={withAlpha(shiftColor(cloth, 28), 0.22)}
-        />
-        <Rect
-          x={width - materialGeometry.boardDepth}
-          y={0}
-          width={materialGeometry.boardDepth}
-          height={height}
-          color={withAlpha(shiftColor(cloth, -24), 0.24)}
-        />
-        <Rect x={0} y={height - materialGeometry.boardDepth - 1} width={width} height={materialGeometry.boardDepth + 1}>
-          <LinearGradient
-            start={vec(0, height - materialGeometry.boardDepth - 1)}
-            end={vec(0, height)}
-            colors={[Colors.legacySurface.v45, NOSH_BOOK_MATERIAL.light.coverShade]}
-          />
-        </Rect>
+            {/* Board bevels keep the cloth matte while making its thickness legible. */}
+            <Rect
+              x={0}
+              y={0}
+              width={width}
+              height={materialGeometry.boardDepth + 1}
+              color={withAlpha(shiftColor(cloth, 28), 0.22)}
+            />
+            <Rect
+              x={width - materialGeometry.boardDepth}
+              y={0}
+              width={materialGeometry.boardDepth}
+              height={height}
+              color={withAlpha(shiftColor(cloth, -24), 0.24)}
+            />
+            <Rect x={0} y={height - materialGeometry.boardDepth - 1} width={width} height={materialGeometry.boardDepth + 1}>
+              <LinearGradient
+                start={vec(0, height - materialGeometry.boardDepth - 1)}
+                end={vec(0, height)}
+                colors={[Colors.legacySurface.v45, NOSH_BOOK_MATERIAL.light.coverShade]}
+              />
+            </Rect>
+          </>
+        ) : null}
       </Group>
 
       {/* Board edge */}
@@ -211,7 +260,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         r={boardRadius}
         style="stroke"
         strokeWidth={0.9}
-        color={withAlpha(shiftColor(cloth, -26), 0.46)}
+        color={withAlpha(shiftColor(cloth, -26), isSwatch ? 0.3 : 0.46)}
       />
     </Canvas>
   );

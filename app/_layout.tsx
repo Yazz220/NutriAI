@@ -32,6 +32,32 @@ import { supabase } from '@/lib/supabase';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+const webInteractionStyles = `
+button,
+[role='button'],
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input:focus,
+textarea:focus,
+[contenteditable='true']:focus {
+  outline: none !important;
+}
+
+button:focus,
+[role='button']:focus {
+  outline: none;
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 1px solid rgba(101, 67, 111, 0.38);
+  outline-offset: 3px;
+}
+`;
 const shareIntentOptions = {
   scheme: 'nosh',
   resetOnBackground: false,
@@ -44,6 +70,24 @@ type TextWithDefaultProps = typeof RNText & {
     style?: StyleProp<TextStyle>;
   };
 };
+
+function WebInteractionStyles() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const existing = document.getElementById('nosh-interaction-reset');
+    if (existing) return;
+
+    const style = document.createElement('style');
+    style.id = 'nosh-interaction-reset';
+    style.textContent = webInteractionStyles;
+    document.head.appendChild(style);
+
+    return () => style.remove();
+  }, []);
+
+  return null;
+}
 
 function getAuthCallbackParams(url: string): URLSearchParams {
   const params = new URLSearchParams();
@@ -256,7 +300,10 @@ export default function RootLayout() {
             <NoshConversationProvider>
               <ToastProvider>
                 <GlobalErrorBoundary>
-                  <RootLayoutNav />
+                  <>
+                    <WebInteractionStyles />
+                    <RootLayoutNav />
+                  </>
                 </GlobalErrorBoundary>
               </ToastProvider>
             </NoshConversationProvider>
