@@ -3,11 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { CreationStudio, type CreateCookbookDetails } from '@/components/create/CreationStudio';
-import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing, Typography } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
+import { Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
@@ -60,11 +59,16 @@ export default function BookLibraryScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Back to my cookbooks">
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to my cookbooks"
+        >
           <ChevronLeft size={20} color={Colors.text} />
         </Pressable>
         <View style={styles.heading}>
-          <Text style={styles.wordmark}>Nosh</Text>
+          <NoshHorizontalLockup width={88} />
         </View>
         <View style={styles.topSpacer} />
       </View>
@@ -94,28 +98,17 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: Radii.full,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.alabaster,
-    borderWidth: 1,
-    borderColor: Colors.ash,
   },
   heading: {
     flex: 1,
     alignItems: 'center',
   },
   topSpacer: {
-    width: 42,
-    height: 42,
-  },
-  wordmark: {
-    fontFamily: Fonts.display.bold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight30,
-    color: Colors.text,
-    letterSpacing: Typography.metrics.letterSpacing0,
+    width: 44,
+    height: 44,
   },
 });

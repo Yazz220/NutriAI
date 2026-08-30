@@ -41,6 +41,7 @@ interface CookbookPageGridProps {
   scrollableRef?: AnimatedRef<Animated.ScrollView>;
   emptyTitle?: string;
   emptyDetail?: string;
+  showPattern?: boolean;
   testID?: string;
 }
 
@@ -118,6 +119,7 @@ export function CookbookPageGrid({
   scrollableRef,
   emptyTitle = 'Your cookbook pages will appear here.',
   emptyDetail = 'Add a recipe and watch the book assemble itself.',
+  showPattern = true,
   testID,
 }: CookbookPageGridProps) {
   const { width } = useWindowDimensions();
@@ -245,13 +247,13 @@ export function CookbookPageGrid({
   if (orderedItems.length === 0) {
     return (
       <View style={styles.workspace} testID={testID}>
-        <DottedWorkspaceBackground />
+        {showPattern ? <DottedWorkspaceBackground /> : null}
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
             <BookOpen size={21} color={Colors.textSecondary} />
           </View>
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
-          <Text style={styles.emptyDetail}>{emptyDetail}</Text>
+          {emptyDetail ? <Text style={styles.emptyDetail}>{emptyDetail}</Text> : null}
         </View>
       </View>
     );
@@ -259,7 +261,7 @@ export function CookbookPageGrid({
 
   return (
     <View style={styles.workspace} testID={testID}>
-      <DottedWorkspaceBackground />
+      {showPattern ? <DottedWorkspaceBackground /> : null}
       <Sortable.Grid
         data={orderedItems}
         renderItem={renderItem}

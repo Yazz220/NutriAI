@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Check, Feather, Leaf, Sparkles } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
 import { Text } from '@/components/ui/Text';
@@ -122,8 +122,6 @@ export function CreationStudio({
     }
   }
 
-  const selectedFinish = coverFinishes.find((option) => option.id === coverFinishId) ?? coverFinishes[0];
-  const selectedColor = coverColors.find((option) => option.id === coverColorId) ?? coverColors[0];
   const ctaDisabled = canCreate ? !title.trim() || submitting : false;
 
   return (
@@ -138,9 +136,6 @@ export function CreationStudio({
           <Text style={styles.headingTitle}>
             {isFirstRun ? 'Give your recipes a home' : 'Make it yours'}
           </Text>
-          <Text style={styles.headingSubtitle}>
-            Choose its cover, then decide how every recipe page should look.
-          </Text>
         </View>
 
         <View style={styles.previewPanel}>
@@ -154,9 +149,6 @@ export function CreationStudio({
             availableWidth={Math.min(width - Spacing.xl * 2, 640)}
             onPress={() => selectPreviewFace(previewFace === 'cover' ? 'inside' : 'cover')}
           />
-          <Text style={styles.selectionSummary}>
-            {selectedFinish.name} · {selectedColor.name} cover · {COOKBOOK_PAGE_STYLES[pageStyleId].name} recipe pages
-          </Text>
         </View>
 
         <View style={styles.controlPanel}>
@@ -170,7 +162,6 @@ export function CreationStudio({
           />
           <CoverFinishSelector
             value={coverFinishId}
-            colorId={coverColorId}
             options={coverFinishes}
             disabled={submitting}
             onChange={selectCoverFinish}
@@ -206,12 +197,9 @@ export function CreationStudio({
             {submitting ? (
               <ActivityIndicator color={Colors.onPrimary} />
             ) : (
-              <>
-                <BookOpen size={18} color={Colors.onPrimary} />
-                <Text style={styles.finishText}>
-                  {canCreate ? (isFirstRun ? 'Put it on my shelf' : 'Add to my shelf') : 'Sign in to save'}
-                </Text>
-              </>
+              <Text style={styles.finishText}>
+                {canCreate ? (isFirstRun ? 'Create my cookbook' : 'Add to shelf') : 'Sign in to save'}
+              </Text>
             )}
           </Pressable>
         </View>
@@ -237,7 +225,7 @@ function PreviewToggle({ value, onChange }: { value: PreviewFace; onChange: (val
           accessibilityState={{ selected: value === face }}
         >
           <Text style={[styles.previewToggleText, value === face && styles.previewToggleTextSelected]}>
-            {face === 'cover' ? 'Cover' : 'Inside'}
+            {face === 'cover' ? 'Cover' : 'Pages'}
           </Text>
         </Pressable>
       ))}
@@ -265,7 +253,7 @@ function BookPreview({
   const previewTitle = title.trim() || 'My Cookbook';
   const coverWidth = Math.min(availableWidth * 0.58, 224);
   const spreadWidth = Math.min(availableWidth - Spacing.md, 460);
-  const stageHeight = availableWidth > 500 ? 390 : 318;
+  const stageHeight = availableWidth > 500 ? 360 : 292;
 
   return (
     <Pressable
@@ -274,12 +262,6 @@ function BookPreview({
       accessibilityRole="button"
       accessibilityLabel={face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
     >
-      <LinearGradient
-        colors={[Colors.legacySurface.v42, Colors.legacySurface.v40]}
-        start={{ x: 0.08, y: 0 }}
-        end={{ x: 0.92, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
       {face === 'cover' ? (
         <>
           <View pointerEvents="none" style={styles.stageHalo} />
@@ -362,14 +344,14 @@ function TitleField({
     <View style={styles.section}>
       <View style={styles.fieldHeading}>
         <Text style={styles.sectionTitle}>Book title</Text>
-        <Text style={styles.characterCount}>{value.length}/48</Text>
+        {value.length >= 40 ? <Text style={styles.characterCount}>{value.length}/48</Text> : null}
       </View>
       <TextInput
         value={value}
         editable={!disabled}
         onChangeText={onChange}
         accessibilityLabel="Cookbook title"
-        placeholder="e.g. Healthy Meals"
+        placeholder="Sunday Suppers"
         placeholderTextColor={Colors.textMuted}
         style={styles.input}
         maxLength={48}
@@ -381,27 +363,22 @@ function TitleField({
 
 function CoverFinishSelector({
   value,
-  colorId,
   options,
   disabled,
   onChange,
 }: {
   value: CookbookCoverFinishId;
-  colorId: CookbookCoverColorId;
   options: CookbookCoverFinishOption[];
   disabled: boolean;
   onChange: (value: CookbookCoverFinishId) => void;
 }) {
   return (
     <View style={styles.section}>
-      <View style={styles.pageStyleHeading}>
-        <Text style={styles.sectionTitle}>Cover texture</Text>
-        <Text style={styles.sectionHint}>The feel of the cover cloth</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Cover finish</Text>
       <View style={styles.finishGrid}>
         {options.map((option) => {
           const selected = value === option.id;
-          const binding = resolveCookbookBinding({ finishId: option.id, colorId });
+          const binding = resolveCookbookBinding({ finishId: option.id, colorId: 'sage' });
           return (
             <Pressable
               key={option.id}
@@ -413,13 +390,18 @@ function CoverFinishSelector({
               accessibilityLabel={`${option.name} cover texture: ${option.description}`}
             >
               <View style={styles.finishSample} pointerEvents="none">
-                <SkiaBookCover binding={binding} width={72} height={50} spineWidth={8} />
+                <SkiaBookCover
+                  binding={binding}
+                  width={64}
+                  height={64}
+                  spineWidth={0}
+                  presentation="swatch"
+                />
               </View>
               <View style={styles.finishCopy}>
                 <Text style={[styles.finishName, selected && styles.finishNameSelected]}>
                   {option.name}
                 </Text>
-                <Text numberOfLines={2} style={styles.finishDescription}>{option.description}</Text>
               </View>
               {selected ? (
                 <View style={styles.finishSelectedMark}>
@@ -447,7 +429,7 @@ function CoverColorSelector({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Cover color</Text>
+      <Text style={styles.sectionTitle}>Color</Text>
       <View style={styles.colorRow}>
         {options.map((option) => {
           const selected = value === option.id;
@@ -503,10 +485,7 @@ function PageStyleSelector({
 }) {
   return (
     <View style={styles.section}>
-      <View style={styles.pageStyleHeading}>
-        <Text style={styles.sectionTitle}>Recipe page style</Text>
-        <Text style={styles.sectionHint}>Used for every recipe in this cookbook</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Page style</Text>
       <View style={styles.pageStyleGrid}>
         {options.map((option) => {
           const selected = value === option.id;
@@ -520,14 +499,14 @@ function PageStyleSelector({
               accessibilityState={{ selected, disabled }}
               accessibilityLabel={`${option.name} recipe page style: ${option.description}`}
             >
-              <View style={[styles.pageStyleIcon, selected && styles.pageStyleIconSelected]}>
-                <PageStyleIcon id={option.id} selected={selected} />
-              </View>
+              <Image
+                source={option.samples.brownies}
+                resizeMode="cover"
+                style={styles.pageStyleSample}
+                accessible={false}
+              />
               <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
                 {option.name}
-              </Text>
-              <Text numberOfLines={3} style={styles.pageStyleDescription}>
-                {option.description}
               </Text>
               {selected ? (
                 <View style={styles.pageStyleSelectedMark}>
@@ -542,13 +521,6 @@ function PageStyleSelector({
   );
 }
 
-function PageStyleIcon({ id, selected }: { id: CreationPageStyleId; selected: boolean }) {
-  const color = selected ? Colors.onPrimary : Colors.text;
-  if (id === 'illustrated') return <Leaf size={18} color={color} strokeWidth={1.6} />;
-  if (id === 'studio-editorial') return <Sparkles size={18} color={color} strokeWidth={1.6} />;
-  return <Feather size={18} color={color} strokeWidth={1.6} />;
-}
-
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
@@ -559,7 +531,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.sm,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   heading: {
     alignItems: 'center',
@@ -573,35 +545,24 @@ const styles = StyleSheet.create({
     lineHeight: Typography.metrics.lineHeight34,
     textAlign: 'center',
   },
-  headingSubtitle: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight20,
-    textAlign: 'center',
-    maxWidth: 430,
-  },
   previewPanel: {
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   previewToggle: {
     alignSelf: 'center',
     flexDirection: 'row',
-    padding: Spacing.values[3],
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    gap: Spacing.lg,
   },
   previewToggleItem: {
-    minWidth: 78,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.values[8],
-    borderRadius: Radii.full,
+    minWidth: 64,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.values[6],
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
     alignItems: 'center',
   },
   previewToggleItemSelected: {
-    backgroundColor: Colors.text,
+    borderBottomColor: Colors.primary,
   },
   previewToggleText: {
     color: Colors.textSecondary,
@@ -609,16 +570,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
   },
   previewToggleTextSelected: {
-    color: Colors.onPrimary,
+    color: Colors.primary,
+    fontFamily: Fonts.ui.semibold,
   },
   bookStage: {
-    borderRadius: Radii.xl,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    boxShadow: Colors.book.cardShadow,
   },
   spreadWrap: {
     padding: Spacing.values[4],
@@ -652,25 +609,12 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: Colors.legacySurface.v64,
   },
-  selectionSummary: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight17,
-    textAlign: 'center',
-    letterSpacing: Typography.metrics.letterSpacing03,
-  },
   controlPanel: {
     gap: Spacing.xl,
-    padding: Spacing.lg,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surfaceElevated,
-    boxShadow: Shadows.sm.boxShadow,
+    paddingHorizontal: Spacing.xs,
   },
   section: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   fieldHeading: {
     flexDirection: 'row',
@@ -682,12 +626,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.semibold,
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight20,
-  },
-  sectionHint: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight17,
   },
   characterCount: {
     color: Colors.textTertiary,
@@ -701,60 +639,49 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.lg,
   },
   finishGrid: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   finishCard: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 92,
+    width: 108,
+    minHeight: 100,
     padding: Spacing.sm,
     borderRadius: Radii.md,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    flexDirection: 'row',
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.values[6],
     position: 'relative',
   },
   finishCardSelected: {
-    borderColor: Colors.text,
-    borderWidth: 1.5,
+    backgroundColor: Colors.surfaceMuted,
   },
   finishSample: {
-    width: 72,
-    height: 50,
+    width: 64,
+    height: 64,
     overflow: 'hidden',
-    borderRadius: Radii.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderRadius: Radii.md,
   },
   finishCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: Spacing.values[3],
+    alignItems: 'center',
   },
   finishName: {
     color: Colors.text,
     fontFamily: Fonts.ui.semibold,
     fontSize: Typography.sizes.sm,
     lineHeight: Typography.metrics.lineHeight17,
+    textAlign: 'center',
   },
   finishNameSelected: {
-    fontFamily: Fonts.ui.bold,
-  },
-  finishDescription: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.xs,
-    lineHeight: Typography.metrics.lineHeight14,
+    color: Colors.primary,
+    fontFamily: Fonts.ui.semibold,
   },
   finishSelectedMark: {
     position: 'absolute',
@@ -765,7 +692,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.primary,
   },
   colorRow: {
     flexDirection: 'row',
@@ -791,8 +718,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   colorSwatchFrameSelected: {
-    borderColor: Colors.text,
-    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surfaceMuted,
   },
   colorSwatch: {
     width: 36,
@@ -810,7 +737,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.primary,
     borderWidth: 2,
     borderColor: Colors.surfaceElevated,
   },
@@ -822,7 +749,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   colorNameSelected: {
-    color: Colors.text,
+    color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
   },
   pageStyleHeading: {
@@ -835,8 +762,8 @@ const styles = StyleSheet.create({
   pageStyleCard: {
     flex: 1,
     minWidth: 0,
-    minHeight: 132,
-    padding: Spacing.md,
+    minHeight: 116,
+    padding: Spacing.sm,
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -845,19 +772,14 @@ const styles = StyleSheet.create({
     gap: Spacing.values[6],
   },
   pageStyleCardSelected: {
-    borderColor: Colors.text,
-    borderWidth: 1.5,
-  },
-  pageStyleIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: Colors.border,
     backgroundColor: Colors.surfaceMuted,
   },
-  pageStyleIconSelected: {
-    backgroundColor: Colors.text,
+  pageStyleSample: {
+    width: '100%',
+    height: 112,
+    borderRadius: Radii.sm,
+    backgroundColor: Colors.book.page,
   },
   pageStyleName: {
     color: Colors.text,
@@ -866,13 +788,8 @@ const styles = StyleSheet.create({
     lineHeight: Typography.metrics.lineHeight17,
   },
   pageStyleNameSelected: {
-    fontFamily: Fonts.ui.bold,
-  },
-  pageStyleDescription: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.xs,
-    lineHeight: Typography.metrics.lineHeight14,
+    color: Colors.primary,
+    fontFamily: Fonts.ui.semibold,
   },
   pageStyleSelectedMark: {
     position: 'absolute',
@@ -883,7 +800,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.primary,
   },
   finishButton: {
     minHeight: 54,

@@ -106,6 +106,7 @@ export const PhysicalBook = React.memo(function PhysicalBook({
           blockWidth={blockWidth}
           inset={materialGeometry.pageBlockInset}
           cornerRadius={materialGeometry.pageCornerRadius}
+          rotateYDeg={rotateYDeg}
         />
         <SkiaBookCover binding={binding} width={width} height={height} spineWidth={hingeWidth} />
         {imageAsset ? (

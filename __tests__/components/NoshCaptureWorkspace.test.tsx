@@ -72,15 +72,17 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
   return {
-    CookbookPageGrid: ({ pageSlots, captures, onOpenPage }: {
+    CookbookPageGrid: ({ pageSlots, captures, onOpenPage, onMovePage }: {
       pageSlots: CookbookPage[];
       captures: RecipeCapture[];
       onOpenPage: (page: CookbookPage) => void;
+      onMovePage?: (input: unknown) => void;
     }) => mockReact.createElement(
       View,
       null,
       mockReact.createElement(Text, null, `Cookbook grid: ${pageSlots.length} pages`),
       mockReact.createElement(Text, null, `Grid activity: ${captures.map((item) => item.status).join(',')}`),
+      mockReact.createElement(Text, null, `Reordering: ${onMovePage ? 'enabled' : 'disabled'}`),
       ...pageSlots.map((item) => mockReact.createElement(
         Pressable,
         {
@@ -180,6 +182,18 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Recipe composer')).toBeTruthy();
     expect(screen.queryByText('Active')).toBeNull();
     expect(screen.queryByText('Recent')).toBeNull();
+  });
+
+  it('keeps the page workspace and reordering beneath the simplified composer', async () => {
+    const screen = await renderWorkspace({ activityVisible: false });
+
+    expect(screen.getByRole('button', {
+      name: 'Change destination cookbook. Currently Family Table',
+    })).toBeTruthy();
+    expect(screen.getByText('Cookbook grid: 0 pages')).toBeTruthy();
+    expect(screen.getByText('Reordering: enabled')).toBeTruthy();
+    expect(screen.queryByText('COOKBOOK WORKSPACE')).toBeNull();
+    expect(screen.queryByText('Tap a page to read it. Long-press and drag a finished page to reorder.')).toBeNull();
   });
 
   it('stays busy through photo upload and ignores a duplicate submission', async () => {

@@ -27,7 +27,7 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     expect(input.props.multiline).toBe(true);
     expect(input.props.scrollEnabled).toBe(true);
     expect(input.props.maxFontSizeMultiplier).toBe(2);
-    expect(input.props.style).toEqual(expect.objectContaining({ height: 88 }));
+    expect(input.props.style).toEqual(expect.objectContaining({ height: 104 }));
   });
 
   it('keeps image upload inside the composer and leaves one standalone action', () => {
@@ -43,9 +43,13 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
 
     expect(screen.getByRole('button', { name: 'Attach image or screenshot' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Create recipe page' })).toBeTruthy();
-    expect(screen.getByText('Turn a recipe into a page')).toBeTruthy();
-    expect(screen.getByText('Paste a link or recipe text, or attach a photo.')).toBeTruthy();
-    expect(screen.queryByText('Attach photo')).toBeNull();
+    expect(screen.getByText('Photo')).toBeTruthy();
+    expect(screen.queryByText('Turn a recipe into a page')).toBeNull();
+    expect(screen.queryByText('Paste a link or recipe text, or attach a photo.')).toBeNull();
+
+    const input = screen.UNSAFE_getByType(TextInput);
+    expect(input.props.accessibilityLabel).toBe('Recipe source');
+    expect(input.props.placeholder).toBe('Paste a link, recipe, or notes…');
   });
 
   it('submits a picked photo by file URI without building a base64 copy', async () => {

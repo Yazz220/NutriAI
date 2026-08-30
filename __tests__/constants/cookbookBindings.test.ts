@@ -14,6 +14,9 @@ describe('cookbook cover appearance', () => {
     expect(cloth.material).toBe('cloth');
     expect(linen.material).toBe('linen');
     expect(cloth.weavePattern).not.toEqual(linen.weavePattern);
+    expect(linen.weavePattern.verticalGapMin).toBeGreaterThan(cloth.weavePattern.verticalGapMin * 2);
+    expect(linen.weavePattern.opacity).toBeGreaterThan(cloth.weavePattern.opacity * 2);
+    expect(linen.grain.amplitude).toBeGreaterThan(cloth.grain.amplitude * 2);
   });
 
   it('maps legacy bundled styles onto the new color model', () => {
