@@ -21,7 +21,10 @@ export interface RecipeJsonLdSelection {
 export interface UrlRecipeEvidence {
   pageText: string;
   prompt: string;
-  recipeJsonLd: JsonRecord | null;
+  structuredRecipe: JsonRecord | null;
+  structuredDataFormat: 'json_ld' | 'microdata' | null;
+  structuredParserId?: string;
+  structuredParserVersion?: number;
   recipeCandidateCount: number;
   recipeSelectionReason: RecipeJsonLdSelection['reason'];
   canonicalUrl?: string;
@@ -49,6 +52,11 @@ function readAttribute(tag: string, name: string): string | undefined {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = tag.match(new RegExp(`\\b${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
   return (match?.[1] ?? match?.[2] ?? match?.[3])?.trim() || undefined;
+}
+
+function hasAttribute(tag: string, name: string): boolean {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escapedName}(?:\\s*=|\\s|/?>)`, 'i').test(tag);
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -193,13 +201,155 @@ function discoverRecipeNodes(value: unknown): Array<{ node: JsonRecord; mainEnti
   return [...deduplicated.values()];
 }
 
+interface HtmlNode {
+  tagName: string;
+  openTag: string;
+  children: HtmlNode[];
+  content: Array<string | HtmlNode>;
+}
+
+const VOID_TAGS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'param', 'source', 'track', 'wbr',
+]);
+
+function parseHtmlTree(html: string): HtmlNode {
+  const root: HtmlNode = { tagName: '#root', openTag: '', children: [], content: [] };
+  const stack = [root];
+  const tokens = html.match(/<!--[\s\S]*?-->|<![^>]*>|<\/?[a-zA-Z][^>]*>|[^<]+/g) ?? [];
+
+  for (const token of tokens) {
+    if (!token.startsWith('<')) {
+      stack[stack.length - 1].content.push(token);
+      continue;
+    }
+    if (/^<!--|^<![^-]/.test(token)) continue;
+
+    const closing = token.match(/^<\s*\/\s*([\w:-]+)/);
+    if (closing) {
+      const tagName = closing[1].toLowerCase();
+      for (let index = stack.length - 1; index > 0; index -= 1) {
+        if (stack[index].tagName !== tagName) continue;
+        stack.length = index;
+        break;
+      }
+      continue;
+    }
+
+    const opening = token.match(/^<\s*([\w:-]+)/);
+    if (!opening) continue;
+    const tagName = opening[1].toLowerCase();
+    const node: HtmlNode = { tagName, openTag: token, children: [], content: [] };
+    stack[stack.length - 1].children.push(node);
+    stack[stack.length - 1].content.push(node);
+    if (!VOID_TAGS.has(tagName) && !/\/\s*>$/.test(token)) stack.push(node);
+  }
+
+  return root;
+}
+
+function htmlNodeText(node: HtmlNode): string {
+  if (['script', 'style', 'template', 'noscript'].includes(node.tagName)) return '';
+  return decodeHtmlEntities(node.content.map((part) => (
+    typeof part === 'string' ? part : htmlNodeText(part)
+  )).join('')).replace(/\s+/g, ' ').trim();
+}
+
+function itemProperties(node: HtmlNode): string[] {
+  return (readAttribute(node.openTag, 'itemprop') ?? '').split(/\s+/).filter(Boolean);
+}
+
+function addStructuredProperty(target: JsonRecord, name: string, value: unknown): void {
+  if (value === '' || value == null) return;
+  const previous = target[name];
+  if (previous === undefined) {
+    target[name] = value;
+  } else if (Array.isArray(previous)) {
+    previous.push(value);
+  } else {
+    target[name] = [previous, value];
+  }
+}
+
+function microdataScalar(node: HtmlNode): string {
+  const attribute = node.tagName === 'meta'
+    ? readAttribute(node.openTag, 'content')
+    : node.tagName === 'time'
+      ? readAttribute(node.openTag, 'datetime')
+      : ['a', 'area', 'link'].includes(node.tagName)
+        ? readAttribute(node.openTag, 'href')
+        : ['audio', 'embed', 'iframe', 'img', 'source', 'track', 'video'].includes(node.tagName)
+          ? readAttribute(node.openTag, 'src')
+          : node.tagName === 'object'
+            ? readAttribute(node.openTag, 'data')
+            : ['data', 'meter'].includes(node.tagName)
+              ? readAttribute(node.openTag, 'value')
+              : undefined;
+  return decodeHtmlEntities(attribute ?? htmlNodeText(node)).replace(/\s+/g, ' ').trim();
+}
+
+function microdataItem(scope: HtmlNode): JsonRecord {
+  const item: JsonRecord = {};
+  const itemTypes = strings(readAttribute(scope.openTag, 'itemtype'));
+  if (itemTypes.length > 0) item['@type'] = itemTypes.map((type) => type.split(/[\/#]/).pop() ?? type);
+  const itemId = readAttribute(scope.openTag, 'itemid');
+  if (itemId) item['@id'] = itemId;
+
+  function collect(node: HtmlNode): void {
+    for (const child of node.children) {
+      const properties = itemProperties(child);
+      const nestedScope = hasAttribute(child.openTag, 'itemscope');
+      if (properties.length > 0) {
+        const value = nestedScope ? microdataItem(child) : microdataScalar(child);
+        properties.forEach((property) => addStructuredProperty(item, property, value));
+        continue;
+      }
+      if (!nestedScope) collect(child);
+    }
+  }
+
+  collect(scope);
+  return item;
+}
+
+function discoverMicrodataRecipes(html: string): Array<{ node: JsonRecord; mainEntity: boolean }> {
+  const discovered: Array<{ node: JsonRecord; mainEntity: boolean }> = [];
+
+  function walk(node: HtmlNode): void {
+    for (const child of node.children) {
+      const isScope = hasAttribute(child.openTag, 'itemscope');
+      const itemType = readAttribute(child.openTag, 'itemtype');
+      if (isScope && hasRecipeType(itemType)) {
+        discovered.push({
+          node: microdataItem(child),
+          mainEntity: itemProperties(child).includes('mainEntity'),
+        });
+        continue;
+      }
+      walk(child);
+    }
+  }
+
+  walk(parseHtmlTree(html));
+  return discovered;
+}
+
 function parseJsonLdBlocks(html: string): unknown[] {
   JSON_LD_SCRIPT_PATTERN.lastIndex = 0;
   const blocks: unknown[] = [];
   let match: RegExpExecArray | null;
   while ((match = JSON_LD_SCRIPT_PATTERN.exec(html)) !== null) {
-    const raw = match[1]?.trim();
+    let raw = match[1]?.trim();
     if (!raw) continue;
+    for (let pass = 0; pass < 3; pass += 1) {
+      raw = raw
+        .replace(/;\s*$/, '')
+        .replace(/^\s*<!--/, '')
+        .replace(/-->\s*$/, '')
+        .replace(/^\s*<!\[CDATA\[/i, '')
+        .replace(/\]\]>?\s*$/i, '')
+        .trim();
+    }
     try {
       blocks.push(JSON.parse(raw));
     } catch {
@@ -209,14 +359,17 @@ function parseJsonLdBlocks(html: string): unknown[] {
   return blocks;
 }
 
-export function selectRecipeJsonLd(html: string, sourceUrl?: string): RecipeJsonLdSelection {
+function selectRecipeCandidates(
+  discovered: Array<{ node: JsonRecord; mainEntity: boolean }>,
+  html: string,
+  sourceUrl?: string,
+): RecipeJsonLdSelection {
   const canonicalUrl = sourceUrl ? extractCanonicalUrl(html, sourceUrl) : undefined;
   const comparableSources = new Set(
     [sourceUrl, canonicalUrl]
       .flatMap((value) => value ? [comparableUrl(value)] : [])
       .filter((value): value is string => Boolean(value)),
   );
-  const discovered = parseJsonLdBlocks(html).flatMap(discoverRecipeNodes);
   const candidates: DiscoveredRecipe[] = discovered.map((candidate) => ({
     ...candidate,
     urlMatch: sourceUrl
@@ -286,6 +439,15 @@ export function selectRecipeJsonLd(html: string, sourceUrl?: string): RecipeJson
   };
 }
 
+export function selectRecipeJsonLd(html: string, sourceUrl?: string): RecipeJsonLdSelection {
+  const discovered = parseJsonLdBlocks(html).flatMap(discoverRecipeNodes);
+  return selectRecipeCandidates(discovered, html, sourceUrl);
+}
+
+export function selectRecipeMicrodata(html: string, sourceUrl?: string): RecipeJsonLdSelection {
+  return selectRecipeCandidates(discoverMicrodataRecipes(html), html, sourceUrl);
+}
+
 export function extractRecipeJsonLdObject(html: string, sourceUrl?: string): JsonRecord | null {
   return selectRecipeJsonLd(html, sourceUrl).recipe;
 }
@@ -293,6 +455,10 @@ export function extractRecipeJsonLdObject(html: string, sourceUrl?: string): Jso
 export function extractRecipeJsonLd(html: string, sourceUrl?: string): string | null {
   const recipe = extractRecipeJsonLdObject(html, sourceUrl);
   return recipe ? JSON.stringify(recipe) : null;
+}
+
+export function extractRecipeMicrodataObject(html: string, sourceUrl?: string): JsonRecord | null {
+  return selectRecipeMicrodata(html, sourceUrl).recipe;
 }
 
 export function htmlToRecipePageText(html: string): string {
@@ -314,22 +480,45 @@ const UNTRUSTED_CONTENT_SUFFIX = '</UNTRUSTED_WEB_CONTENT>';
 
 export function buildUrlRecipePrompt(url: string, html: string): UrlRecipeEvidence {
   const pageText = htmlToRecipePageText(html);
-  const selection = selectRecipeJsonLd(html, url);
-  const recipeJsonLd = selection.recipe ? JSON.stringify(selection.recipe) : null;
+  const jsonLdSelection = selectRecipeJsonLd(html, url);
+  const microdataSelection = selectRecipeMicrodata(html, url);
+  let selectedFormat: UrlRecipeEvidence['structuredDataFormat'] = null;
+  if (jsonLdSelection.recipe && microdataSelection.recipe) {
+    selectedFormat = recipeCompletenessScore(microdataSelection.recipe)
+        > recipeCompletenessScore(jsonLdSelection.recipe) + 4
+      ? 'microdata'
+      : 'json_ld';
+  } else if (jsonLdSelection.recipe) {
+    selectedFormat = 'json_ld';
+  } else if (microdataSelection.recipe) {
+    selectedFormat = 'microdata';
+  } else if (jsonLdSelection.ambiguous) {
+    selectedFormat = 'json_ld';
+  } else if (microdataSelection.ambiguous) {
+    selectedFormat = 'microdata';
+  }
+  const selection = selectedFormat === 'json_ld' ? jsonLdSelection : microdataSelection;
+  const structuredRecipe = selection.recipe ? JSON.stringify(selection.recipe) : null;
   const candidateJsonLd = selection.ambiguous
     ? JSON.stringify(selection.candidates.slice(0, 5))
     : null;
+  const structuredLabel = selectedFormat === 'microdata' ? 'Recipe Microdata' : 'Recipe JSON-LD';
 
-  const evidence = recipeJsonLd
-    ? `Recipe JSON-LD (primary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${recipeJsonLd}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
+  const evidence = structuredRecipe
+    ? `${structuredLabel} (primary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${structuredRecipe}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
     : candidateJsonLd
-      ? `Multiple Recipe JSON-LD candidates were found. Select one only if the page clearly identifies a primary recipe; otherwise return insufficient_evidence with reasonCode multiple_recipes.\n${UNTRUSTED_CONTENT_PREFIX}\n${candidateJsonLd}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
+      ? `Multiple structured Recipe candidates were found. Select one only if the page clearly identifies a primary recipe; otherwise return insufficient_evidence with reasonCode multiple_recipes.\n${UNTRUSTED_CONTENT_PREFIX}\n${candidateJsonLd}\n${UNTRUSTED_CONTENT_SUFFIX}\n\nVisible page text (secondary evidence):\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`
       : `Visible page text:\n${UNTRUSTED_CONTENT_PREFIX}\n${pageText}\n${UNTRUSTED_CONTENT_SUFFIX}`;
 
   return {
     pageText,
     prompt: `Source URL: ${url}\n\n${evidence}`,
-    recipeJsonLd: selection.recipe,
+    structuredRecipe: selection.recipe,
+    structuredDataFormat: selectedFormat,
+    ...(selectedFormat ? {
+      structuredParserId: selectedFormat === 'microdata' ? 'schema-org-microdata' : 'schema-org-json-ld',
+      structuredParserVersion: selectedFormat === 'microdata' ? 1 : 3,
+    } : {}),
     recipeCandidateCount: selection.candidateCount,
     recipeSelectionReason: selection.reason,
     canonicalUrl: extractCanonicalUrl(html, url) ?? url,

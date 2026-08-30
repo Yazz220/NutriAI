@@ -43,7 +43,17 @@ export interface RecipeCapture {
 }
 
 export type RecipeCaptureSource =
-  | { type: 'url' | 'text' | 'video'; input: string }
+  | { type: 'url' | 'text'; input: string }
+  | { type: 'video'; input: string; rightsConfirmed: boolean }
+  | {
+      type: 'video';
+      storagePath: string;
+      mimeType: string;
+      fileName: string;
+      byteSize: number;
+      rightsConfirmed: boolean;
+      notes?: string;
+    }
   | { type: 'image'; storagePath: string; mimeType: string; notes?: string }
   | {
       type: 'audio';

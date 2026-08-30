@@ -90,8 +90,8 @@ describe('URL recipe evidence', () => {
 
     expect(selection.recipe).toBeNull();
     expect(selection.ambiguous).toBe(true);
-    expect(prompt.recipeJsonLd).toBeNull();
-    expect(prompt.prompt).toContain('Multiple Recipe JSON-LD candidates');
+    expect(prompt.structuredRecipe).toBeNull();
+    expect(prompt.prompt).toContain('Multiple structured Recipe candidates');
   });
 
   it('captures canonical page metadata without changing the submitted source URL', () => {

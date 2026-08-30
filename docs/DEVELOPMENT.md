@@ -138,7 +138,7 @@ Live functions:
 - `delete-account`
 - `delete-reader-content`
 
-Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. Apply `20260830174134_version_recipe_capture_stages.sql` before the matching `capture-recipe` and `generate-page-art` versions.
+Deploy migrations before deploying Edge Functions that depend on new columns, constraints, buckets, or RPCs. Apply `20260830174134_version_recipe_capture_stages.sql` before the matching capture workers, and apply `20260830210000_add_permissioned_video_captures.sql` before enabling video file selection in the mobile build.
 
 `APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 
@@ -186,8 +186,9 @@ npx eas-cli submit --platform ios
 | Generated image exists but the page is absent | capture publication failed after page generation | confirm `failed_stage = publication`, `art_status = ready`, and a ready `selected_version_id`; retry the same capture to publish that version |
 | Recipe image fails before capture starts | source exceeds 15 MB, native decoder cannot read it, or normalization cannot produce an artifact below 8 MB | reproduce through `recipeCaptureImage.ts`; inspect the original dimensions/size and the adaptive normalization attempts |
 | Image capture asks for another source | extractor classified it as blank, unreadable, blurry/low-resolution, cropped, or incomplete | inspect `extract-recipe` logs for the provider-neutral `reasonCode` and internal `diagnostic`; keep user-facing copy in `recipeEvidence.ts` |
-| Video capture says the source is unsupported | the URL is a social HTML page or returns a non-video content type | use a public YouTube link, a direct supported video URL, screenshots, or pasted recipe text; do not pass the page URL straight to the model |
-| Public YouTube capture reaches technical retry | `VIDEO_MODEL` has no endpoint that can read YouTube URLs, or its provider is unavailable | choose a video-capable provider with documented YouTube URL support; keep the source adapter and capture lifecycle unchanged |
+| Video capture says the source is unsupported | the URL is a social-platform bookmark or the file is not MP4, MOV, MPEG, or WebM | open the original, then add a permissioned video file, screenshots, audio, or pasted recipe text; never pass a social page URL straight to the model |
+| Video capture asks for permission | the source did not pass through the Composer confirmation | add the video again and confirm that the user made it or has permission to process it |
+| Uploaded video reaches technical retry | `VIDEO_MODEL` does not accept the selected video format, or its provider is unavailable | choose a compatible video model or use a supported file format; keep the video adapter and capture lifecycle unchanged |
 | Audio is rejected before capture | unsupported format or file exceeds 6 MB | choose MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC below the source limit |
 | Saved audio cannot be transcribed | `AUDIO_TRANSCRIPTION_MODEL` is unavailable, misconfigured, or the provider is temporarily failing | inspect `capture-recipe` logs and retry the same capture; do not create another extraction path |
 | Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |

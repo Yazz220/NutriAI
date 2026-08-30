@@ -38,6 +38,18 @@ describe('native share adapter', () => {
       .toEqual({ type: 'url', input: 'https://example.com/cake', title: undefined });
   });
 
+  it('routes shared social and direct-video links through the video source contract', () => {
+    expect(normalizeNativeShareIntent(intent({ webUrl: 'https://www.tiktok.com/@cook/video/123' })))
+      .toEqual({
+        type: 'video',
+        input: 'https://www.tiktok.com/@cook/video/123',
+        rightsConfirmed: false,
+        title: undefined,
+      });
+    expect(normalizeNativeShareIntent(intent({ webUrl: 'https://cdn.example.com/recipe.mp4' })))
+      .toMatchObject({ type: 'video', rightsConfirmed: false });
+  });
+
   it('uses the canonical image source limit for native shares', () => {
     expect(() => normalizeNativeShareIntent(intent({
       files: [{

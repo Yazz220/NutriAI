@@ -1,30 +1,46 @@
 import {
   buildVideoRecipeEvidencePrompt,
   classifyVideoModelFailure,
+  inspectUploadedVideoRecipeSource,
   MAX_DIRECT_VIDEO_BYTES,
+  resolveUploadedVideoRecipeEvidence,
   resolveVideoRecipeEvidence,
 } from '@/supabase/functions/_shared/videoRecipeEvidence';
+import {
+  classifyVideoSourceUrl,
+  isRecognizedVideoSourceUrl,
+} from '@/supabase/functions/_shared/videoSource';
 
 const allowPublicUrl = async () => {};
 
+function validMp4Bytes(): Uint8Array {
+  const bytes = new Uint8Array(32);
+  bytes.set([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70], 0);
+  return bytes;
+}
+
 describe('video recipe evidence adapter', () => {
-  it('canonicalizes supported YouTube watch, short, and share links', async () => {
+  it('recognizes platform links consistently but keeps them as unprocessed bookmarks', async () => {
     for (const value of [
       'https://youtu.be/abcdefghijk?t=12',
       'https://www.youtube.com/shorts/abcdefghijk',
       'https://m.youtube.com/watch?v=abcdefghijk&feature=share',
+      'https://www.youtube-nocookie.com/embed/abcdefghijk',
     ]) {
       await expect(resolveVideoRecipeEvidence(value, {
         checkPublicUrl: allowPublicUrl,
-      })).resolves.toMatchObject({
-        ready: true,
-        kind: 'youtube',
-        canonicalUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
-        videoUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
-        transcriptStatus: 'not_supplied',
-        adapterVersion: 'video-source-v1',
-      });
+      })).resolves.toMatchObject({ ready: false, reasonCode: 'video_source_unsupported' });
     }
+
+    expect(classifyVideoSourceUrl('https://youtu.be/abcdefghijk?t=12')).toEqual({
+      kind: 'platform_link',
+      platform: 'youtube',
+      canonicalUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
+    });
+    expect(isRecognizedVideoSourceUrl('https://www.instagram.com/reel/recipe')).toBe(true);
+    expect(isRecognizedVideoSourceUrl('https://video.xx.fbcdn.net/recipe.mp4')).toBe(true);
+    expect(isRecognizedVideoSourceUrl('https://v16.tiktokcdn.com/recipe.mp4')).toBe(true);
+    expect(isRecognizedVideoSourceUrl('https://example.com/recipe')).toBe(false);
   });
 
   it('rejects social post pages instead of pretending they are video files', async () => {
@@ -34,28 +50,39 @@ describe('video recipe evidence adapter', () => {
     )).resolves.toEqual({
       ready: false,
       reasonCode: 'video_source_unsupported',
-      diagnostic: 'A tiktok.com page is not a directly retrievable video source.',
+      diagnostic: 'TikTok links are retained as source bookmarks and are not downloaded or processed at launch.',
     });
   });
 
+  it('requires an ownership or permission confirmation before direct acquisition', async () => {
+    const fetchImpl = jest.fn();
+    await expect(resolveVideoRecipeEvidence('https://cdn.example.com/recipe.mp4', {
+      fetchImpl,
+      checkPublicUrl: allowPublicUrl,
+    })).resolves.toMatchObject({ ready: false, reasonCode: 'video_permission_required' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('acquires a bounded direct video as provider-independent base64 evidence', async () => {
+    const bytes = validMp4Bytes();
     const fetchImpl = jest.fn().mockResolvedValue(new Response(
-      Uint8Array.from([1, 2, 3]),
-      { status: 200, headers: { 'content-type': 'video/mp4', 'content-length': '3' } },
+      bytes,
+      { status: 200, headers: { 'content-type': 'video/mp4', 'content-length': '32' } },
     ));
 
     await expect(resolveVideoRecipeEvidence('https://cdn.example.com/recipe.mp4', {
       fetchImpl,
       checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
     })).resolves.toEqual({
       ready: true,
       kind: 'direct_file',
       canonicalUrl: 'https://cdn.example.com/recipe.mp4',
-      videoUrl: 'data:video/mp4;base64,AQID',
+      videoUrl: expect.stringMatching(/^data:video\/mp4;base64,/),
       mimeType: 'video/mp4',
-      byteSize: 3,
+      byteSize: 32,
       transcriptStatus: 'not_supplied',
-      adapterVersion: 'video-source-v1',
+      adapterVersion: 'video-source-v2',
     });
 
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -64,10 +91,28 @@ describe('video recipe evidence adapter', () => {
     );
   });
 
+  it('rejects redirects into social-platform media hosts before downloading them', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: 'https://video.xx.fbcdn.net/recipe.mp4' },
+    }));
+
+    await expect(resolveVideoRecipeEvidence('https://redirect.example.com/recipe.mp4', {
+      fetchImpl,
+      checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
+    })).resolves.toMatchObject({
+      ready: false,
+      reasonCode: 'video_source_unsupported',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('distinguishes unavailable, oversized, and non-video URLs before model extraction', async () => {
     await expect(resolveVideoRecipeEvidence('https://cdn.example.com/private.mp4', {
       fetchImpl: jest.fn().mockResolvedValue(new Response(null, { status: 403 })),
       checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
     })).resolves.toMatchObject({ ready: false, reasonCode: 'video_unavailable' });
 
     await expect(resolveVideoRecipeEvidence('https://cdn.example.com/large.mp4', {
@@ -79,6 +124,7 @@ describe('video recipe evidence adapter', () => {
         },
       })),
       checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
     })).resolves.toMatchObject({ ready: false, reasonCode: 'video_too_large' });
 
     await expect(resolveVideoRecipeEvidence('https://example.com/reel', {
@@ -87,20 +133,75 @@ describe('video recipe evidence adapter', () => {
         headers: { 'content-type': 'text/html' },
       })),
       checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
     })).resolves.toMatchObject({ ready: false, reasonCode: 'video_source_unsupported' });
+  });
+
+  it('validates and resolves a bounded user-supplied video without a public URL', () => {
+    const bytes = validMp4Bytes();
+    expect(inspectUploadedVideoRecipeSource({
+      byteSize: 32,
+      mimeType: 'video/quicktime',
+      fileName: 'recipe.mov',
+      rightsConfirmed: true,
+    })).toEqual({
+      ready: true,
+      mimeType: 'video/mov',
+      byteSize: 32,
+      adapterVersion: 'video-source-v2',
+    });
+
+    expect(resolveUploadedVideoRecipeEvidence({
+      bytes,
+      mimeType: 'video/mp4',
+      fileName: 'recipe.mp4',
+      rightsConfirmed: true,
+    })).toEqual({
+      ready: true,
+      kind: 'owned_upload',
+      videoUrl: expect.stringMatching(/^data:video\/mp4;base64,/),
+      mimeType: 'video/mp4',
+      byteSize: 32,
+      transcriptStatus: 'not_supplied',
+      adapterVersion: 'video-source-v2',
+    });
+
+    expect(inspectUploadedVideoRecipeSource({
+      byteSize: MAX_DIRECT_VIDEO_BYTES + 1,
+      mimeType: 'video/mp4',
+      rightsConfirmed: true,
+    })).toMatchObject({ ready: false, reasonCode: 'video_too_large' });
+    expect(inspectUploadedVideoRecipeSource({
+      byteSize: 0,
+      mimeType: 'video/mp4',
+      rightsConfirmed: true,
+    })).toMatchObject({ ready: false, reasonCode: 'video_source_unsupported' });
+    expect(inspectUploadedVideoRecipeSource({
+      byteSize: 32,
+      mimeType: 'video/mp4',
+      fileName: 'renamed-file.mp4',
+      rightsConfirmed: true,
+      headerBytes: new Uint8Array(32),
+    })).toMatchObject({
+      ready: false,
+      reasonCode: 'video_source_unsupported',
+      diagnostic: expect.stringContaining('container signature'),
+    });
   });
 
   it('makes transcript availability explicit and recognizes access failures', () => {
     const prompt = buildVideoRecipeEvidencePrompt({
       ready: true,
-      kind: 'youtube',
-      canonicalUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
-      videoUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
+      kind: 'owned_upload',
+      videoUrl: 'data:video/mp4;base64,AQID',
+      mimeType: 'video/mp4',
       transcriptStatus: 'not_supplied',
-      adapterVersion: 'video-source-v1',
-    });
+      adapterVersion: 'video-source-v2',
+    }, 'Use the creator\'s corrected quantity.');
 
     expect(prompt).toContain('No separate transcript was supplied');
+    expect(prompt).toContain('<UNTRUSTED_USER_NOTES>');
+    expect(prompt).toContain("Use the creator's corrected quantity.");
     expect(prompt).toContain('return insufficient_evidence instead of inventing details');
     expect(classifyVideoModelFailure('The YouTube video is private and unavailable')).toBe('video_unavailable');
     expect(classifyVideoModelFailure('No endpoints support video input')).toBeNull();

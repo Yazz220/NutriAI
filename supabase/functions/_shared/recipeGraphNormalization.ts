@@ -19,6 +19,8 @@ export interface StructuredRecipeSourceMetadata {
   sourceContentHash?: string;
   candidateCount?: number;
   selectionReason?: string;
+  parserId?: string;
+  parserVersion?: number;
 }
 
 const STRUCTURED_RECIPE_PARSER_ID = 'schema-org-json-ld';
@@ -275,8 +277,8 @@ function structuredConfidence(input: {
   return Math.min(0.95, Math.round(score * 100) / 100);
 }
 
-/** Build a complete safety-net draft from schema.org Recipe JSON-LD. */
-export function recipeJsonLdToDraft(
+/** Build a complete safety-net draft from schema.org structured data. */
+export function recipeStructuredDataToDraft(
   value: unknown,
   sourceUrl: string,
   metadata?: StructuredRecipeSourceMetadata,
@@ -340,8 +342,8 @@ export function recipeJsonLdToDraft(
       ...(typeof recipe['@id'] === 'string' && recipe['@id'].trim()
         ? { structuredDataId: recipe['@id'].trim() }
         : {}),
-      parserId: STRUCTURED_RECIPE_PARSER_ID,
-      parserVersion: STRUCTURED_RECIPE_PARSER_VERSION,
+      parserId: metadata?.parserId ?? STRUCTURED_RECIPE_PARSER_ID,
+      parserVersion: metadata?.parserVersion ?? STRUCTURED_RECIPE_PARSER_VERSION,
       confidenceMethod: 'structured-coverage-v1',
       ...(attribution ? { sourceAttribution: attribution } : {}),
       inferredFields: sourceCategories.length > 0 ? [] : ['category'],
@@ -351,6 +353,15 @@ export function recipeJsonLdToDraft(
       confidence,
     },
   };
+}
+
+/** Compatibility name for callers that specifically parse Recipe JSON-LD. */
+export function recipeJsonLdToDraft(
+  value: unknown,
+  sourceUrl: string,
+  metadata?: StructuredRecipeSourceMetadata,
+): NormalizedRecipeGraphDraft | null {
+  return recipeStructuredDataToDraft(value, sourceUrl, metadata);
 }
 
 function ingredientGroupsFrom(value: unknown): JsonRecord[] {

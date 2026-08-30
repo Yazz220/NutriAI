@@ -27,7 +27,7 @@ describe('canonical generated cookbook page geometry', () => {
   it('only treats page versions recorded with the current geometry as reusable', () => {
     expect(isCanonicalCookbookPageGenerationPayload({
       kind: 'complete-recipe-page',
-      generationContractVersion: 'complete-recipe-page-4x5-v2',
+      generationContractVersion: 'complete-recipe-page-4x5-v3',
       geometryId: 'nosh-cookbook-4x5-v1',
       geometryRevision: 1,
       output: { aspectRatio: '4:5', resolution: '2K' },

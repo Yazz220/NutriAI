@@ -22,7 +22,7 @@ A live run passes only when:
 4. no verified recipe is rejected;
 5. URL, text, image, video, and audio each have executed release coverage.
 
-Diagnostic cases do not silently become passes. They remain in the report and document work that needs a stable, owned, or consented fixture before it can become a release gate. The initial diagnostic set includes Microdata-only pages, handwriting, positive recipe video, conflicting video evidence, and noisy audio transcription.
+Diagnostic cases do not silently become passes. They remain in the report and document work that needs a stable, owned, or consented fixture before it can become a release gate. The current diagnostic set includes handwriting, a permissioned positive recipe video, conflicting video evidence, and noisy audio transcription. Microdata-only pages are now an automated release gate.
 
 ## Commands
 
@@ -51,7 +51,7 @@ npm run eval:ingestion:live
 
 Use a dedicated test account and a short-lived access token. Never commit the token or result artifacts containing provider diagnostics. The output directory is ignored by Git.
 
-The live runner evaluates local JSON-LD fixtures without network access, injects local image assets into image requests, and sends text, audio-transcript, image, and adapter cases to the configured endpoint. The audio cases in this runner measure interpretation after transcription. End-to-end speech-to-text cases must enter `capture-recipe` and should be promoted from the diagnostic lane only when Nosh owns a stable audio fixture. Positive video cases likewise require stable, owned media rather than a third-party URL that can disappear or change.
+The live runner evaluates local JSON-LD and Microdata fixtures without network access, injects local image assets into image requests, and sends text, audio-transcript, image, and adapter cases to the configured endpoint. Image release cases include a readable screenshot, a uniformly black wrong file, a visibly cropped recipe, and unreadable low-resolution text. Unit coverage separately verifies corrupt-container and implausibly tiny-image rejection before a provider call. Release video cases verify that social bookmarks and unconfirmed direct files stop before acquisition. The audio cases in this runner measure interpretation after transcription. End-to-end speech-to-text cases must enter `capture-recipe` and should be promoted from the diagnostic lane only when Nosh owns a stable audio fixture. Positive video cases likewise require stable, permissioned media uploaded through `capture-recipe`, never an arbitrary third-party social URL.
 
 ## Comparing a model, prompt, or provider
 

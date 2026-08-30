@@ -72,7 +72,12 @@ function recipeEvidenceTitle(reasonCode: RecipeEvidenceFailureCode): string {
   if (reasonCode === 'unreadable_source') return 'Nosh could not read this recipe';
   if (reasonCode === 'blurry_or_low_resolution_image') return 'This recipe image is too blurry';
   if (reasonCode === 'cropped_recipe_image') return 'This recipe image is incomplete';
-  if (reasonCode === 'video_source_unsupported') return "This video source isn't supported yet";
+  if (reasonCode === 'url_unavailable') return 'Nosh could not open this recipe page';
+  if (reasonCode === 'url_access_restricted') return 'This site blocked recipe access';
+  if (reasonCode === 'url_source_unsupported') return "This link isn't a readable recipe page";
+  if (reasonCode === 'url_too_large') return 'This recipe page is too large';
+  if (reasonCode === 'video_source_unsupported') return 'Add the recipe another way';
+  if (reasonCode === 'video_permission_required') return 'Permission is required for this video';
   if (reasonCode === 'video_unavailable') return 'Nosh could not open this video';
   if (reasonCode === 'video_too_large') return 'This video is too large';
   if (reasonCode === 'audio_source_unsupported') return "This audio format isn't supported";
@@ -115,7 +120,8 @@ export function getCapturePresentation(
       };
     }
     if (isRecipeEvidenceFailureCode(capture.failureCode)) {
-      const retrySavedSource = capture.failureCode === 'video_unavailable'
+      const retrySavedSource = capture.failureCode === 'url_unavailable'
+        || capture.failureCode === 'video_unavailable'
         || capture.failureCode === 'audio_transcription_failed';
       return {
         phase: 'attention',
@@ -124,11 +130,13 @@ export function getCapturePresentation(
         detail: recipeEvidenceFeedback(capture.failureCode),
         cookbookTitle,
         action: retrySavedSource ? 'retry' : 'replace_source',
-        actionLabel: capture.failureCode === 'video_unavailable'
-          ? 'Try video again'
-          : capture.failureCode === 'audio_transcription_failed'
-            ? 'Try audio again'
-            : 'Choose another source',
+        actionLabel: capture.failureCode === 'url_unavailable'
+          ? 'Try link again'
+          : capture.failureCode === 'video_unavailable'
+            ? 'Try video again'
+            : capture.failureCode === 'audio_transcription_failed'
+              ? 'Try audio again'
+              : 'Choose another source',
       };
     }
     const technicalFailure = capture.failureCode

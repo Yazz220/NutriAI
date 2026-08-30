@@ -1,7 +1,10 @@
 import React from 'react';
 import { TextInput } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { UnifiedIntakeComposer } from '@/components/cookbook/UnifiedIntakeComposer';
+import {
+  buildIntakePayload,
+  UnifiedIntakeComposer,
+} from '@/components/cookbook/UnifiedIntakeComposer';
 
 const mockLaunchImageLibraryAsync = jest.fn();
 const mockGetDocumentAsync = jest.fn();
@@ -17,6 +20,19 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 describe('UnifiedIntakeComposer accessibility layout', () => {
+  it('uses the same video URL classification as native share ingestion', () => {
+    expect(buildIntakePayload(
+      'https://www.instagram.com/reel/recipe',
+      null,
+    )).toEqual({
+      type: 'video',
+      input: 'https://www.instagram.com/reel/recipe',
+      rightsConfirmed: false,
+    });
+    expect(buildIntakePayload('https://example.com/recipe', null))
+      .toEqual({ type: 'url', input: 'https://example.com/recipe' });
+  });
+
   it('keeps large recipe text inside a scrollable fixed-height input', () => {
     const screen = render(
       <UnifiedIntakeComposer
@@ -46,9 +62,9 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Attach image or screenshot' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Attach photo or video' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Create recipe page' })).toBeTruthy();
-    expect(screen.getByText('Photo')).toBeTruthy();
+    expect(screen.getByText('Media')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Attach audio file' })).toBeTruthy();
     expect(screen.getByText('Audio')).toBeTruthy();
     expect(screen.queryByText('Turn a recipe into a page')).toBeNull();
@@ -127,13 +143,53 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Attach image or screenshot' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Attach photo or video' }));
 
     await waitFor(() => {
       expect(onImageUriChange).toHaveBeenCalledWith('file:///recipe.jpg', 'image/jpeg');
     });
     expect(mockLaunchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({
       base64: false,
+      mediaTypes: ['images', 'videos'],
     }));
+  });
+
+  it('attaches a selected video as a file-backed capture source', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{
+        uri: 'file:///recipe.mov',
+        type: 'video',
+        fileName: 'Family pasta.mov',
+        fileSize: 4096,
+        mimeType: 'video/quicktime',
+      }],
+    });
+    const onVideoAttachmentChange = jest.fn();
+    const onImageUriChange = jest.fn();
+
+    const screen = render(
+      <UnifiedIntakeComposer
+        input=""
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onImageUriChange={onImageUriChange}
+        onVideoAttachmentChange={onVideoAttachmentChange}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Attach photo or video' }));
+
+    await waitFor(() => {
+      expect(onVideoAttachmentChange).toHaveBeenCalledWith({
+        uri: 'file:///recipe.mov',
+        name: 'Family pasta.mov',
+        mimeType: 'video/quicktime',
+        size: 4096,
+      });
+    });
+    expect(onImageUriChange).toHaveBeenCalledWith(null, null);
   });
 });

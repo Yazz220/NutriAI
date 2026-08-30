@@ -4,7 +4,7 @@ import {
   type IngestionEvalCase,
   type IngestionEvalObservation,
 } from '../../_shared/ingestionEval.ts';
-import { recipeJsonLdToDraft } from '../../_shared/recipeGraphNormalization.ts';
+import { recipeStructuredDataToDraft } from '../../_shared/recipeGraphNormalization.ts';
 import { buildUrlRecipePrompt } from '../../_shared/urlRecipeEvidence.ts';
 
 const projectRoot = new URL('../../../../', import.meta.url);
@@ -40,12 +40,14 @@ async function runDeterministicUrlFixture(evalCase: IngestionEvalCase): Promise<
   try {
     const html = await Deno.readTextFile(absoluteAssetUrl(assetPath));
     const evidence = buildUrlRecipePrompt(sourceUrl, html);
-    const graph = recipeJsonLdToDraft(evidence.recipeJsonLd, sourceUrl, {
+    const graph = recipeStructuredDataToDraft(evidence.structuredRecipe, sourceUrl, {
       canonicalUrl: evidence.canonicalUrl,
       sourceTitle: evidence.sourceTitle,
       sourceLanguage: evidence.sourceLanguage,
       candidateCount: evidence.recipeCandidateCount,
       selectionReason: evidence.recipeSelectionReason,
+      parserId: evidence.structuredParserId,
+      parserVersion: evidence.structuredParserVersion,
     });
     return {
       caseId: evalCase.id,

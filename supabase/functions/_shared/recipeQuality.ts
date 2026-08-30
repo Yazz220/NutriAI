@@ -317,8 +317,8 @@ export function assessRecipeQuality(candidate: RecipeQualityCandidate): RecipeQu
   if (criticalInferences.length > 0) {
     issues.push(makeIssue(
       'critical_field_inferred',
-      'blocking',
-      'Nosh had to estimate a cooking-critical detail that was not clear in the source.',
+      'warning',
+      'Nosh normalized a cooking detail that was not explicit in the source.',
       criticalInferences,
       confirmed,
     ));

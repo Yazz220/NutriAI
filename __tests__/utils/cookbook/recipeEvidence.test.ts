@@ -89,6 +89,7 @@ describe('recipe evidence decision contract', () => {
   it('keeps video acquisition failures separate from recipe-content failures', () => {
     for (const reasonCode of [
       'video_source_unsupported',
+      'video_permission_required',
       'video_unavailable',
       'video_too_large',
     ] as const) {
@@ -100,7 +101,27 @@ describe('recipe evidence decision contract', () => {
       })).toMatchObject({ outcome: 'insufficient_evidence', reasonCode });
     }
 
-    expect(recipeEvidenceFeedback('video_source_unsupported')).toContain('public YouTube links');
+    expect(recipeEvidenceFeedback('video_source_unsupported')).toContain('does not download social-platform videos');
+    expect(recipeEvidenceFeedback('video_permission_required')).toContain('permission');
+  });
+
+  it('keeps URL acquisition failures separate from recipe-content failures', () => {
+    for (const reasonCode of [
+      'url_unavailable',
+      'url_access_restricted',
+      'url_source_unsupported',
+      'url_too_large',
+    ] as const) {
+      expect(normalizeRecipeEvidenceDecision({
+        outcome: 'insufficient_evidence',
+        reasonCode,
+        diagnostic: 'The URL adapter could not produce readable page evidence.',
+        recipeGraph: null,
+      })).toMatchObject({ outcome: 'insufficient_evidence', reasonCode });
+    }
+
+    expect(recipeEvidenceFeedback('url_access_restricted')).toContain('browser');
+    expect(recipeEvidenceFeedback('url_too_large')).toContain('recipe text');
   });
 
   it('keeps audio acquisition and transcription failures deterministic', () => {

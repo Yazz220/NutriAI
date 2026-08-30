@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { type AnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import {
@@ -30,7 +30,11 @@ import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
-import { uploadRecipeCaptureAudio, uploadRecipeCaptureImage } from '@/utils/cookbook/api';
+import {
+  uploadRecipeCaptureAudio,
+  uploadRecipeCaptureImage,
+  uploadRecipeCaptureVideo,
+} from '@/utils/cookbook/api';
 import {
   createCaptureRequestKey,
   normalizeCaptureDestinationCookbookId,
@@ -44,7 +48,9 @@ import {
 } from '@/utils/cookbook/capturePresentation';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudio';
+import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVideo';
 import { trackEvent } from '@/utils/analytics';
+import { classifyVideoSourceUrl } from '@/supabase/functions/_shared/videoSource';
 import {
   defaultFirstRunOnboardingState,
   isFirstRunCapture,
@@ -91,6 +97,7 @@ export function NoshCaptureWorkspace({
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string | null>(null);
   const [audioAttachment, setAudioAttachment] = useState<RecipeCaptureAudioAsset | null>(null);
+  const [videoAttachment, setVideoAttachment] = useState<RecipeCaptureVideoAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [correctionVisible, setCorrectionVisible] = useState(false);
@@ -222,6 +229,24 @@ export function NoshCaptureWorkspace({
           requestKey,
         });
         source = { type: 'audio', ...upload, notes: payload.input };
+      } else if (payload.type === 'video' && 'video' in payload) {
+        const upload = await uploadRecipeCaptureVideo({
+          userId: user.id,
+          video: payload.video,
+          requestKey,
+        });
+        source = {
+          type: 'video',
+          ...upload,
+          rightsConfirmed: payload.rightsConfirmed,
+          notes: payload.input,
+        };
+      } else if (payload.type === 'video') {
+        source = {
+          type: 'video',
+          input: payload.input,
+          rightsConfirmed: payload.rightsConfirmed,
+        };
       } else {
         source = { type: payload.type, input: payload.input };
       }
@@ -254,6 +279,7 @@ export function NoshCaptureWorkspace({
       setImageUri(null);
       setImageMimeType(null);
       setAudioAttachment(null);
+      setVideoAttachment(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
     } finally {
@@ -277,7 +303,9 @@ export function NoshCaptureWorkspace({
           imageBase64: initialSource.imageBase64!,
           input: initialSource.input,
         }
-      : { type: initialSource.sourceType, input: initialSource.input ?? '' };
+      : initialSource.sourceType === 'video'
+        ? { type: 'video', input: initialSource.input ?? '', rightsConfirmed: false }
+        : { type: initialSource.sourceType, input: initialSource.input ?? '' };
     void submit(payload);
   }, [capture, initialSource, submit, user]);
 
@@ -416,6 +444,7 @@ export function NoshCaptureWorkspace({
         imageUri={imageUri}
         imageMimeType={imageMimeType}
         audioAttachment={audioAttachment}
+        videoAttachment={videoAttachment}
         error={error}
         onInputChange={(value) => { setInput(value); setError(null); }}
         onImageBase64Change={setImageBase64}
@@ -424,6 +453,7 @@ export function NoshCaptureWorkspace({
           setImageMimeType(mimeType);
         }}
         onAudioAttachmentChange={setAudioAttachment}
+        onVideoAttachmentChange={setVideoAttachment}
         onSubmit={submit}
       />
 
@@ -614,6 +644,12 @@ function CaptureDetail({
   if (capture.status === 'needs_attention') {
     const shouldReplaceSource = presentation.action === 'replace_source';
     const shouldCorrectRecipe = presentation.action === 'correct_recipe';
+    const sourceUrl = typeof capture.sourcePayload.input === 'string'
+      ? capture.sourcePayload.input
+      : null;
+    const sourceClassification = sourceUrl ? classifyVideoSourceUrl(sourceUrl) : null;
+    const canOpenOriginal = capture.failureCode === 'video_source_unsupported'
+      && sourceClassification?.kind === 'platform_link';
     return (
       <View style={styles.detailStack}>
         <DetailBackButton onPress={onBack} label={backLabel} />
@@ -623,12 +659,22 @@ function CaptureDetail({
           title={shouldReplaceSource || shouldCorrectRecipe ? presentation.title : 'This recipe needs another try'}
           copy={presentation.detail}
           action={(
-            <Button
-              title={presentation.actionLabel ?? 'Try again'}
-              onPress={shouldReplaceSource ? onReplaceSource : shouldCorrectRecipe ? onCorrect : onRetry}
-              loading={shouldCorrectRecipe ? isCorrecting : !shouldReplaceSource && isRetrying}
-              fullWidth
-            />
+            <View style={styles.detailActions}>
+              <Button
+                title={presentation.actionLabel ?? 'Try again'}
+                onPress={shouldReplaceSource ? onReplaceSource : shouldCorrectRecipe ? onCorrect : onRetry}
+                loading={shouldCorrectRecipe ? isCorrecting : !shouldReplaceSource && isRetrying}
+                fullWidth
+              />
+              {canOpenOriginal && sourceUrl ? (
+                <Button
+                  title="Open original"
+                  variant="outline"
+                  onPress={() => { void Linking.openURL(sourceUrl); }}
+                  fullWidth
+                />
+              ) : null}
+            </View>
           )}
         />
       </View>
@@ -1072,6 +1118,7 @@ const styles = StyleSheet.create({
   center: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   loadingCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   detailStack: { gap: Spacing.sm },
+  detailActions: { gap: Spacing.sm },
   detailBack: {
     minHeight: 40,
     alignSelf: 'flex-start',

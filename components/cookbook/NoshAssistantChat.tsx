@@ -286,10 +286,8 @@ export function NoshConversationHost() {
       ...proposal.proposed,
       provenance: {
         ...proposal.proposed.provenance,
-        extractionNotes: [
-          ...(proposal.proposed.provenance.extractionNotes ?? []),
-          `Saved as a copy of ${proposal.original.title}.`,
-        ],
+        sourceType: proposal.proposed.provenance?.sourceType ?? 'manual',
+        confidence: proposal.proposed.provenance?.confidence ?? 1,
       },
     };
     let copiedPage = await createRecipePageWithGraph({

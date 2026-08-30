@@ -66,6 +66,10 @@ _Avoid_: Recipe Graph, voice recipe
 The source-derived facts Nosh uses to decide whether one complete recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions.
 _Avoid_: Model guess, generated recipe
 
+**Extraction diagnostics**:
+Internal source provenance, confidence, inferred-field, and quality information used to improve or recover recipe ingestion. It never becomes recipe wording or cookbook-page copy.
+_Avoid_: Recipe notes, source commentary, page warnings
+
 **Insufficient recipe evidence**:
 A source that is not a recipe, is blank or unreadable, lacks core ingredients or instructions, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
 _Avoid_: Failed page, low-quality recipe
@@ -79,7 +83,7 @@ A versioned record that a recipe capture completed one trustworthy stage. Retry 
 _Avoid_: Screen progress, temporary loader state, processing attempt
 
 **Recipe Graph**:
-The canonical structured recipe Nosh uses to answer questions, scale servings, substitute ingredients, and prepare page revisions.
+The canonical cooking data Nosh uses to render pages, answer questions, scale servings, substitute ingredients, and prepare revisions. It contains the recipe rather than an explanation of how Nosh extracted it.
 _Avoid_: OCR text, generated page text
 
 **Recipe quality assessment**:

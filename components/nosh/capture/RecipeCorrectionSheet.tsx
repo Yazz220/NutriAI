@@ -55,7 +55,7 @@ export function RecipeCorrectionSheet({
   if (!draft) return null;
   const activeDraft = draft;
 
-  const issues = recipeGraph?.provenance.qualityAssessment?.issues.filter((issue) => (
+  const issues = recipeGraph?.provenance?.qualityAssessment?.issues.filter((issue) => (
     issue.severity === 'blocking' && !issue.confirmed
   )) ?? [];
 

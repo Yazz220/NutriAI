@@ -43,6 +43,10 @@ import {
   prepareRecipeCaptureAudio,
   type RecipeCaptureAudioAsset,
 } from '@/utils/cookbook/recipeCaptureAudio';
+import {
+  prepareRecipeCaptureVideo,
+  type RecipeCaptureVideoAsset,
+} from '@/utils/cookbook/recipeCaptureVideo';
 import { captureStageCheckpoints } from '@/supabase/functions/_shared/captureStages';
 
 type CookbookInsertPayload = {
@@ -719,6 +723,30 @@ export async function uploadRecipeCaptureAudio(input: {
   };
 }
 
+export async function uploadRecipeCaptureVideo(input: {
+  userId: string;
+  video: RecipeCaptureVideoAsset;
+  requestKey: string;
+}): Promise<{
+  storagePath: string;
+  mimeType: string;
+  fileName: string;
+  byteSize: number;
+}> {
+  const prepared = await prepareRecipeCaptureVideo(input.video);
+  const storagePath = `${input.userId}/${input.requestKey}.${prepared.fileExtension}`;
+  const { error } = await supabase.storage
+    .from('recipe-captures')
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+  if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+  return {
+    storagePath,
+    mimeType: prepared.mimeType,
+    fileName: prepared.fileName,
+    byteSize: prepared.byteSize,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Phase 4.5: New-pipeline page creation + art generation
 // ---------------------------------------------------------------------------
@@ -762,11 +790,11 @@ export async function createRecipePageWithGraph(input: {
       cook_time: recipeGraph.cookTimeMinutes ?? null,
       ingredients: flatIngredients,
       steps: flatSteps,
-      source_type: recipeGraph.provenance.sourceType,
-      source_url: recipeGraph.provenance.sourceUrl ?? null,
+      source_type: recipeGraph.provenance?.sourceType ?? 'manual',
+      source_url: recipeGraph.provenance?.sourceUrl ?? null,
       tags: recipeGraph.tags,
       category: recipeGraph.category,
-      confidence: recipeGraph.provenance.confidence,
+      confidence: recipeGraph.provenance?.confidence ?? 1,
     })
     .select('id')
     .single();

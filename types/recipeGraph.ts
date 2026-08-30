@@ -140,9 +140,8 @@ export interface StepGroup {
 // ---------------------------------------------------------------------------
 
 /**
- * Tracks the origin of the recipe and what the extraction model
- * inferred vs. read directly from the source. This drives the
- * "subtle notes" that appear on the page when the model had to guess.
+ * Internal source and extraction metadata. It helps Nosh retry, diagnose,
+ * and improve ingestion, but it is never cookbook-page copy.
  */
 export interface RecipeProvenance {
   sourceType: RecipeSourceType;
@@ -163,7 +162,7 @@ export interface RecipeProvenance {
   sourceAttribution?: string;
   /** Fields the model inferred rather than read directly, e.g., ["ovenTemperature", "servings"]. */
   inferredFields?: string[];
-  /** Notes the model wants to surface about extraction confidence. */
+  /** Internal extraction diagnostics. Never render these as recipe notes. */
   extractionNotes?: string[];
   /** Overall extraction confidence, 0–1. */
   confidence: number;
@@ -214,7 +213,8 @@ export interface RecipeGraph {
   dietaryTags?: string[];
 
   // --- Provenance ---
-  provenance: RecipeProvenance;
+  /** Internal extraction metadata; omitted from clean cookbook-page graphs. */
+  provenance?: RecipeProvenance;
 
   // --- Timestamps ---
   createdAt: string;

@@ -32,7 +32,7 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
-    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v2');
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v3');
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',
@@ -87,6 +87,23 @@ describe('complete recipe page generation contract', () => {
 
     expect(payload.recipe.metadata).toContain('Makes 1 loaf');
     expect(payload.recipe.metadata).not.toContain('Serves 1');
+  });
+
+  it('keeps extraction commentary out of the finished cookbook page', () => {
+    const { prompt, payload } = buildRecipePagePrompt({
+      ...recipe,
+      notes: [
+        'Serve with grated Parmesan.',
+        'The source did not explicitly state the simmering time.',
+        'Nosh inferred the temperature from the image.',
+      ],
+    }, 'illustrated');
+
+    expect(payload.recipe.notes).toEqual(['Serve with grated Parmesan.']);
+    expect(prompt).toContain('Serve with grated Parmesan.');
+    expect(prompt).not.toContain('did not explicitly state');
+    expect(prompt).not.toContain('Nosh inferred');
+    expect(prompt).toContain('Never print extraction analysis');
   });
 
   it('supports a stable seed for tests without forcing one in production', () => {

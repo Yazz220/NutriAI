@@ -8,6 +8,8 @@ A user shares a recipe with Nosh, Nosh understands it, creates a complete page i
 
 ## Typical user journey
 
+Nosh keeps source provenance, confidence, and extraction diagnostics underneath the experience. The recipe added to a cookbook contains only useful cooking content. Minor informal or optional gaps are normalized quietly; only uncertainty that materially changes the recipe interrupts the flow.
+
 ```text
 Create or choose a cookbook
   -> find a recipe in another app
@@ -32,7 +34,7 @@ The same flow starts from the shelf's Save a recipe action, a cookbook's Add pag
 | Send a recipe source to Nosh | Depends on active context | Nosh asks before switching to capture, then hands the source to the same capture workspace. |
 | Retry from Save a recipe activity | Preserved | The existing capture resumes. It does not create a second capture or page. |
 
-Supported sources are a URL, pasted text, one image, one existing audio recording, a public YouTube link, or a direct MP4, MOV, MPEG, or WebM file URL up to 20 MB. Before an image is saved, the client applies its orientation, fits it within the canonical 2400-pixel reading boundary, and encodes it as a JPEG below the extractor's 8 MB limit. Audio uses the system file picker and accepts MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC files up to 6 MB; Nosh does not record from the microphone. User notes attached to an image or audio file remain part of its recipe evidence. Social post pages such as TikTok and Instagram are not treated as video files; the capture explains how to replace them with screenshots or pasted text. Uploaded video files and multi-file share are not implemented.
+Supported sources are a URL, pasted text, one image, one existing audio recording, or one permissioned MP4, MOV, MPEG, or WebM video up to 20 MB. Permission-confirmed direct video-file URLs use the same bound. URL imports accept bounded HTML, XHTML, plain-text, JSON, or JSON-LD responses; unavailable links can retry, while access-restricted, unsupported, or oversized pages explain how to use screenshots or pasted recipe text. Before an image is saved, the client applies its orientation, fits it within the canonical 2400-pixel reading boundary, and encodes it as a JPEG below the extractor's 8 MB limit. The extractor then verifies the file signature and dimensions. The multimodal evidence decision distinguishes a blank or unrelated image from an unreadable, blurry, or visibly cropped recipe. It does not infer completeness from the image proportions. Video selection uses the system media picker and requires the user to confirm ownership or permission before private upload. Audio uses the system file picker and accepts MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC files up to 6 MB; Nosh does not record from the microphone. User notes attached to an image, video, or audio file remain part of its recipe evidence but cannot instruct the extractor. TikTok, Instagram, YouTube, Facebook, and Pinterest links are saved only as source bookmarks: Nosh does not download them, and the capture offers Open original plus another-source guidance. Multi-file share is not implemented.
 
 ## Destination rules
 
@@ -75,7 +77,7 @@ Before a Recipe Graph or cookbook page can be created, extraction returns one pr
 
 The model supplies the classification and an internal diagnostic. Nosh owns the reason codes, user-facing copy, and recovery action. Rejected evidence never reaches page creation, and provider wording is never shown directly to the user.
 
-Accepted evidence then receives a versioned recipe quality assessment. It checks observable facts such as ingredient amount coverage, oven temperature, serving-yield agreement, valid time values, and critical fields marked as inferred. The result is `auto_publish`, `publish_with_note`, or `needs_correction`. The first two continue automatically. `needs_correction` saves the Recipe Graph on the capture, stops before page creation, and opens a compact editor for the flagged recipe. Saving valid corrections resumes the same capture. Only an explicitly reviewed inferred critical field can be confirmed without changing its value; missing or contradictory facts must be fixed.
+Accepted evidence then receives a versioned recipe quality assessment. It checks observable facts such as ingredient amount coverage, oven temperature, serving-yield agreement, valid time values, and fields normalized by Nosh. The result is `auto_publish`, `publish_with_note`, or `needs_correction`. The first two continue automatically and their diagnostics stay internal. `needs_correction` is reserved for missing or contradictory facts that materially affect cooking; it saves the internal capture graph, stops before page creation, and opens a compact editor. Saving valid corrections resumes the same capture.
 
 ## What Nosh stores
 
@@ -83,7 +85,7 @@ Each completed recipe page has two related forms:
 
 | Form | Used by | Contains |
 |---|---|---|
-| Recipe Graph | Nosh and collection search | Structured title, source yield, optional numeric servings, ingredients with retained source lines, grouped steps, notes, provenance, and the latest quality assessment. |
+| Recipe Graph | Nosh and collection search | Clean structured title, source yield, optional numeric servings, ingredients, grouped steps, and useful culinary notes. Source provenance and quality assessment stay on the capture. |
 | Selected generated page image | Reader | The complete designed page with imagery and all visible recipe text. |
 
 The generated page is not a standalone food illustration. It is the full page the user reads.
@@ -136,7 +138,7 @@ See [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) for th
 | Retry repeats expensive work | Capture `stage_checkpoints`, the saved artifact for the last completed stage, and `_shared/captureStages.ts` |
 | Valid source is classified incorrectly | `supabase/functions/_shared/recipeEvidence.ts`, `extract-recipe` evidence diagnostics, and the capture `failure_code` |
 | Recipe image is oversized, blurry, or incomplete | `recipeCaptureImage.ts`, `recipeCaptureImageContract.ts`, `imageRecipeEvidence.ts`, and image-specific evidence failure codes |
-| Video link is unavailable or unsupported | `_shared/videoRecipeEvidence.ts`, `VIDEO_MODEL`, `extract-recipe` video-resolution logs, and video-specific failure codes |
+| Video is unavailable, unsupported, unconfirmed, or too large | `_shared/videoUploadContract.ts`, `_shared/videoRecipeEvidence.ts`, `VIDEO_MODEL`, `extract-recipe` video-resolution logs, and video-specific failure codes |
 | Audio cannot be read | `_shared/audioRecipeEvidence.ts`, `_shared/audioTranscription.ts`, `AUDIO_TRANSCRIPTION_MODEL`, and audio-specific failure codes |
 | Recipe extraction is wrong | `supabase/functions/extract-recipe/index.ts`, URL evidence helpers, and the stored Recipe Graph |
 | Wrong cookbook selected | `begin_recipe_capture`, the cookbook `is_default` field, and the explicit destination passed by the entry point |

@@ -133,9 +133,9 @@ There is exactly one recipe-capture pipeline. Every recipe source, including a N
 User shares or submits a link, text, photo, video, or existing audio file
   -> capture-recipe durably saves the source
   -> extract-recipe produces a RecipeGraph
-     -> URL with schema.org Recipe JSON-LD: deterministic normalization
-     -> image: normalized bounded image evidence
-     -> video: canonical public YouTube URL or bounded direct-video evidence
+     -> URL with schema.org Recipe JSON-LD or Microdata: deterministic normalization
+     -> image: normalized bounded image evidence with signature and dimension preflight
+     -> video: permissioned private upload or permission-confirmed bounded direct-video evidence
      -> audio: private bounded file -> replaceable speech-to-text adapter -> transcript evidence
      -> unstructured text/image/video/audio transcript: replaceable strict-schema multimodal model
   -> destination resolves from the active, explicit, default, or sole cookbook
@@ -149,7 +149,7 @@ User shares or submits a link, text, photo, video, or existing audio file
 
 Active functions:
 
-- `extract-recipe`: URL, text, image, resolved video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic Recipe JSON-LD when available and a replaceable strict-schema model for unstructured sources. Public YouTube and direct MP4, MOV, MPEG, or WebM URLs are supported; social post pages are rejected before model extraction. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
+- `extract-recipe`: URL, text, image, resolved video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. YouTube, TikTok, Instagram, Facebook, and Pinterest links remain source bookmarks and are rejected before model extraction. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
@@ -162,6 +162,7 @@ Pipeline invariants:
 - `nosh-chat` may request `start_recipe_capture`, but it does not extract or publish a recipe itself.
 - `generate-page-art` is a legacy route name for complete-page generation. Its output includes the visible recipe text and imagery.
 - `recipe_graph` is the canonical reasoning record. The selected `page_versions` image is the reading artifact.
+- Source provenance, confidence, inferred fields, and quality diagnostics remain on the durable capture. Project clean cooking data before creating a cookbook page or generation prompt; never render extraction commentary as recipe copy.
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
 - `recipe_captures.stage_checkpoints` versions source, optional transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
 - `recipe_captures.failed_stage` identifies where work stopped. `failure_code` decides the user recovery action; provider and database diagnostics stay in server logs.

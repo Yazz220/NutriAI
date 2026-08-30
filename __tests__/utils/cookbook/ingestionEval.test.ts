@@ -11,7 +11,7 @@ import {
   type IngestionEvalCorpus,
   type IngestionEvalObservation,
 } from '@/supabase/functions/_shared/ingestionEval';
-import { recipeJsonLdToDraft } from '@/supabase/functions/_shared/recipeGraphNormalization';
+import { recipeStructuredDataToDraft } from '@/supabase/functions/_shared/recipeGraphNormalization';
 import { buildUrlRecipePrompt } from '@/supabase/functions/_shared/urlRecipeEvidence';
 
 const projectRoot = resolve(__dirname, '..', '..', '..');
@@ -22,12 +22,14 @@ function deterministicUrlObservation(evalCase: IngestionEvalCase): IngestionEval
   const sourceUrl = evalCase.execution.sourceUrl!;
   const html = readFileSync(resolve(projectRoot, assetPath), 'utf8');
   const evidence = buildUrlRecipePrompt(sourceUrl, html);
-  const graph = recipeJsonLdToDraft(evidence.recipeJsonLd, sourceUrl, {
+  const graph = recipeStructuredDataToDraft(evidence.structuredRecipe, sourceUrl, {
     canonicalUrl: evidence.canonicalUrl,
     sourceTitle: evidence.sourceTitle,
     sourceLanguage: evidence.sourceLanguage,
     candidateCount: evidence.recipeCandidateCount,
     selectionReason: evidence.recipeSelectionReason,
+    parserId: evidence.structuredParserId,
+    parserVersion: evidence.structuredParserVersion,
   });
   return {
     caseId: evalCase.id,
@@ -71,7 +73,9 @@ describe('ingestion evaluation corpus', () => {
       .filter((evalCase) => evalCase.gate === 'diagnostic')
       .flatMap((evalCase) => evalCase.tags));
 
-    expect(diagnosticTags.has('microdata')).toBe(true);
+    expect(corpus.cases.some((evalCase) => (
+      evalCase.gate === 'release' && evalCase.tags.includes('microdata')
+    ))).toBe(true);
     expect(diagnosticTags.has('handwriting')).toBe(true);
     expect(diagnosticTags.has('manual-media')).toBe(true);
     expect(diagnosticTags.has('background-noise')).toBe(true);
@@ -117,7 +121,8 @@ describe('ingestion evaluation corpus', () => {
     expect(urlCases.length).toBeGreaterThanOrEqual(2);
     for (const evalCase of urlCases) {
       const result = scoreIngestionEvalCase(evalCase, deterministicUrlObservation(evalCase));
-      expect(result.assertions.filter((candidate) => !candidate.passed)).toEqual([]);
+      const failures = result.assertions.filter((candidate) => !candidate.passed);
+      if (failures.length > 0) throw new Error(`${evalCase.id}: ${JSON.stringify(failures)}`);
       expect(result.passed).toBe(true);
     }
   });

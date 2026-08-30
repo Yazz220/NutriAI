@@ -4,17 +4,17 @@
  * Replaces the legacy AddPageComposer (which required a sourceHint prop
  * and had different UI per source type). This component has:
  *   - One TextInput (always same size, same placeholder)
- *   - Composer-native photo and audio-file attachment controls
+ *   - Composer-native photo, video, and audio-file attachment controls
  *   - Auto-detection of source type on submit
  *
  * The user can paste a URL, paste text, paste a video link, attach an
- * image, attach an existing audio recording, or add notes. The submit handler builds the
+ * image, attach an existing video or audio recording, or add notes. The submit handler builds the
  * canonical capture source from what's present. Every source then enters
  * the same durable capture-recipe pipeline.
  */
 
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, FileAudio, Link, Paperclip, Send, Video, X } from 'lucide-react-native';
@@ -25,11 +25,22 @@ import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudio';
+import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVideo';
+import {
+  classifyVideoSourceUrl,
+  isRecognizedVideoSourceUrl,
+} from '@/supabase/functions/_shared/videoSource';
 
 export type UnifiedIntakePayload =
   | { type: 'url'; input: string }
   | { type: 'text'; input: string }
-  | { type: 'video'; input: string }
+  | { type: 'video'; input: string; rightsConfirmed: boolean }
+  | {
+      type: 'video';
+      video: RecipeCaptureVideoAsset;
+      input?: string;
+      rightsConfirmed: boolean;
+    }
   | {
       type: 'audio';
       audio: RecipeCaptureAudioAsset;
@@ -50,11 +61,13 @@ interface UnifiedIntakeComposerProps {
   imageUri?: string | null;
   imageMimeType?: string | null;
   audioAttachment?: RecipeCaptureAudioAsset | null;
+  videoAttachment?: RecipeCaptureVideoAsset | null;
   error?: string | null;
   onInputChange: (value: string) => void;
   onImageBase64Change: (value: string | null) => void;
   onImageUriChange?: (uri: string | null, mimeType: string | null) => void;
   onAudioAttachmentChange?: (audio: RecipeCaptureAudioAsset | null) => void;
+  onVideoAttachmentChange?: (video: RecipeCaptureVideoAsset | null) => void;
   onRetry?: () => Promise<void> | void;
   onSubmit: (payload: UnifiedIntakePayload) => Promise<void> | void;
 }
@@ -64,9 +77,7 @@ function looksLikeUrl(value: string) {
 }
 
 function looksLikeVideoUrl(value: string) {
-  const trimmed = value.trim();
-  if (!looksLikeUrl(trimmed)) return false;
-  return /(?:youtube\.com|youtu\.be|tiktok\.com|instagram\.com|\/reel\/|\/shorts\/|\.(?:mp4|mov|m4v|webm)(?:$|\?))/i.test(trimmed);
+  return isRecognizedVideoSourceUrl(value.trim());
 }
 
 /**
@@ -84,6 +95,7 @@ export function buildIntakePayload(
   imageUri: string | null = null,
   imageMimeType: string | null = null,
   audioAttachment: RecipeCaptureAudioAsset | null = null,
+  videoAttachment: RecipeCaptureVideoAsset | null = null,
 ): UnifiedIntakePayload | null {
   const trimmed = input.trim();
 
@@ -92,6 +104,15 @@ export function buildIntakePayload(
       type: 'audio',
       audio: audioAttachment,
       input: trimmed || undefined,
+    };
+  }
+
+  if (videoAttachment) {
+    return {
+      type: 'video',
+      video: videoAttachment,
+      input: trimmed || undefined,
+      rightsConfirmed: false,
     };
   }
 
@@ -111,7 +132,7 @@ export function buildIntakePayload(
   if (!trimmed) return null;
 
   if (looksLikeVideoUrl(trimmed)) {
-    return { type: 'video', input: trimmed };
+    return { type: 'video', input: trimmed, rightsConfirmed: false };
   }
 
   if (looksLikeUrl(trimmed)) {
@@ -128,20 +149,22 @@ export function UnifiedIntakeComposer({
   imageUri = null,
   imageMimeType = null,
   audioAttachment = null,
+  videoAttachment = null,
   error = null,
   onInputChange,
   onImageBase64Change,
   onImageUriChange,
   onAudioAttachmentChange,
+  onVideoAttachmentChange,
   onRetry,
   onSubmit,
 }: UnifiedIntakeComposerProps) {
-  async function pickImage() {
+  async function pickMedia() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== ImagePicker.PermissionStatus.GRANTED) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       base64: false,
       quality: 0.8,
       allowsEditing: false,
@@ -151,7 +174,18 @@ export function UnifiedIntakeComposer({
     if (asset?.uri) {
       onAudioAttachmentChange?.(null);
       onImageBase64Change(null);
-      onImageUriChange?.(asset.uri, asset.mimeType ?? null);
+      if (asset.type === 'video' || asset.mimeType?.startsWith('video/')) {
+        onImageUriChange?.(null, null);
+        onVideoAttachmentChange?.({
+          uri: asset.uri,
+          name: asset.fileName ?? 'recipe-video.mp4',
+          mimeType: asset.mimeType,
+          size: asset.fileSize,
+        });
+      } else {
+        onVideoAttachmentChange?.(null);
+        onImageUriChange?.(asset.uri, asset.mimeType ?? null);
+      }
     }
   }
 
@@ -165,6 +199,7 @@ export function UnifiedIntakeComposer({
     if (!asset) return;
     onImageBase64Change(null);
     onImageUriChange?.(null, null);
+    onVideoAttachmentChange?.(null);
     onAudioAttachmentChange?.({
       uri: asset.uri,
       name: asset.name,
@@ -181,13 +216,34 @@ export function UnifiedIntakeComposer({
       imageUri,
       imageMimeType,
       audioAttachment,
+      videoAttachment,
     );
-    if (payload) await onSubmit(payload);
+    if (!payload) return;
+    if (payload.type !== 'video') {
+      await onSubmit(payload);
+      return;
+    }
+    if (!('video' in payload) && classifyVideoSourceUrl(payload.input)?.kind === 'platform_link') {
+      await onSubmit(payload);
+      return;
+    }
+    Alert.alert(
+      'Use a video you can process',
+      'Only add a video you made or have permission to use. Nosh keeps it private and uses it to create your recipe page.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'I have permission',
+          onPress: () => { void onSubmit({ ...payload, rightsConfirmed: true }); },
+        },
+      ],
+    );
   }
 
   const hasImage = Boolean(imageUri || imageBase64);
   const hasAudio = Boolean(audioAttachment);
-  const canSubmit = Boolean(hasImage || hasAudio || input.trim()) && !isSubmitting;
+  const hasVideo = Boolean(videoAttachment);
+  const canSubmit = Boolean(hasImage || hasAudio || hasVideo || input.trim()) && !isSubmitting;
 
   const submitIcon = isSubmitting ? (
     <ActivityIndicator size="small" color={Colors.onPrimary} />
@@ -195,7 +251,7 @@ export function UnifiedIntakeComposer({
     <Camera size={18} color={Colors.onPrimary} />
   ) : hasAudio ? (
     <FileAudio size={18} color={Colors.onPrimary} />
-  ) : looksLikeVideoUrl(input) ? (
+  ) : hasVideo || looksLikeVideoUrl(input) ? (
     <Video size={18} color={Colors.onPrimary} />
   ) : looksLikeUrl(input) ? (
     <Link size={18} color={Colors.onPrimary} />
@@ -224,21 +280,24 @@ export function UnifiedIntakeComposer({
         />
       </View>
 
-      {hasImage || hasAudio ? (
+      {hasImage || hasAudio || hasVideo ? (
         <View style={styles.attachmentChip}>
           <Text style={styles.attachmentText} numberOfLines={1}>
             {hasAudio
               ? `${audioAttachment?.name ?? 'Audio'} attached${input.trim() ? ' with notes' : ''}`
-              : `Photo attached${input.trim() ? ' with notes' : ''}`}
+              : hasVideo
+                ? `${videoAttachment?.name ?? 'Video'} attached${input.trim() ? ' with notes' : ''}`
+                : `Photo attached${input.trim() ? ' with notes' : ''}`}
           </Text>
           <Pressable
             onPress={() => {
               onImageBase64Change(null);
               onImageUriChange?.(null, null);
               onAudioAttachmentChange?.(null);
+              onVideoAttachmentChange?.(null);
             }}
             accessibilityRole="button"
-            accessibilityLabel={hasAudio ? 'Remove attached audio' : 'Remove attached image'}
+            accessibilityLabel={hasAudio ? 'Remove attached audio' : hasVideo ? 'Remove attached video' : 'Remove attached image'}
             hitSlop={Spacing.sm}
           >
             <X size={16} color={Colors.textMuted} />
@@ -266,18 +325,18 @@ export function UnifiedIntakeComposer({
         <Pressable
           style={({ pressed }) => [
             styles.attachButton,
-            hasImage && styles.attachButtonSelected,
+            (hasImage || hasVideo) && styles.attachButtonSelected,
             isSubmitting && styles.disabled,
             pressed && !isSubmitting && styles.pressed,
           ]}
-          onPress={pickImage}
+          onPress={pickMedia}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel={hasImage ? 'Change attached image' : 'Attach image or screenshot'}
-          accessibilityState={{ disabled: isSubmitting, selected: hasImage }}
+          accessibilityLabel={hasImage || hasVideo ? 'Change attached photo or video' : 'Attach photo or video'}
+          accessibilityState={{ disabled: isSubmitting, selected: hasImage || hasVideo }}
         >
-          <Paperclip size={18} color={hasImage ? Colors.primary : Colors.textSecondary} />
-          <Text style={[styles.attachText, hasImage && styles.attachTextSelected]}>Photo</Text>
+          <Paperclip size={18} color={hasImage || hasVideo ? Colors.primary : Colors.textSecondary} />
+          <Text style={[styles.attachText, (hasImage || hasVideo) && styles.attachTextSelected]}>Media</Text>
         </Pressable>
 
         <Pressable

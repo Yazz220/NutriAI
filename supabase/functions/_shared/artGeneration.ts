@@ -1,4 +1,5 @@
 import { COOKBOOK_GEOMETRY } from '../../../constants/cookbookGeometry.ts';
+import { cookbookRecipeDescription, cookbookRecipeNotes } from './canonicalRecipe.ts';
 import { RECIPE_PAGE_GENERATION_STAGE_VERSION } from './captureStages.ts';
 
 export interface RecipePageIngredient {
@@ -244,7 +245,7 @@ export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCop
 
   return {
     title: graph.title.trim(),
-    description: clean(graph.description),
+    description: cookbookRecipeDescription(graph.description),
     metadata,
     ingredientGroups: (graph.ingredientGroups ?? []).map((group) => ({
       label: clean(group.label),
@@ -258,7 +259,7 @@ export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCop
         .map(stepLine)
         .filter((value): value is string => Boolean(value)),
     })).filter((group) => group.steps.length > 0),
-    notes: (graph.notes ?? []).map((note) => note.trim()).filter(Boolean).slice(0, 4),
+    notes: cookbookRecipeNotes(graph.notes),
   };
 }
 
@@ -311,6 +312,7 @@ export function buildRecipePagePrompt(
     'Do not place a smaller page inside the canvas, leave blank outer padding, add a drop shadow, or show a surrounding background.',
     'Typeset every supplied line exactly once. Preserve all quantities, units, times, and temperatures.',
     'Do not invent, omit, paraphrase, duplicate, or reorder recipe content.',
+    'Never print extraction analysis, confidence, provenance, source limitations, missing-information commentary, or comments about how Nosh understood the recipe.',
     'Use a clear hierarchy and text large enough to read on an iPhone.',
     'Keep all text and important artwork inside a generous safe margin.',
     'Include an appetizing illustration or editorial food image of the finished dish as part of the page composition.',

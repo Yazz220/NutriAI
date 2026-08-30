@@ -1,31 +1,37 @@
 import type { RecipeEvidenceFailureCode } from './recipeEvidence.ts';
+import {
+  classifyVideoSourceUrl,
+  type SocialVideoPlatform,
+} from './videoSource.ts';
+import {
+  inspectUploadedVideoRecipeSource,
+  MAX_DIRECT_VIDEO_BYTES,
+  MIN_VIDEO_BYTES,
+  type VideoRecipeMimeType,
+} from './videoUploadContract.ts';
+
+export {
+  inspectUploadedVideoRecipeSource,
+  MAX_DIRECT_VIDEO_BYTES,
+  MIN_VIDEO_BYTES,
+} from './videoUploadContract.ts';
 
 const MAX_REDIRECTS = 5;
 const VIDEO_FETCH_TIMEOUT_MS = 25_000;
-export const MAX_DIRECT_VIDEO_BYTES = 20_000_000;
-
-const UNSUPPORTED_SOCIAL_HOSTS = [
-  'facebook.com',
-  'fb.watch',
-  'instagram.com',
-  'pinterest.com',
-  'tiktok.com',
-] as const;
-
 type VideoFailureCode = Extract<
   RecipeEvidenceFailureCode,
-  'video_source_unsupported' | 'video_unavailable' | 'video_too_large'
+  'video_source_unsupported' | 'video_permission_required' | 'video_unavailable' | 'video_too_large'
 >;
 
 export type ResolvedVideoRecipeEvidence = {
   ready: true;
-  kind: 'youtube' | 'direct_file';
-  canonicalUrl: string;
+  kind: 'direct_file' | 'owned_upload';
+  canonicalUrl?: string;
   videoUrl: string;
-  mimeType?: 'video/mp4' | 'video/mpeg' | 'video/mov' | 'video/webm';
+  mimeType?: VideoRecipeMimeType;
   byteSize?: number;
   transcriptStatus: 'not_supplied';
-  adapterVersion: 'video-source-v1';
+  adapterVersion: 'video-source-v2';
 };
 
 export type RejectedVideoRecipeEvidence = {
@@ -40,32 +46,6 @@ export type VideoRecipeEvidenceResolution =
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 type PublicUrlCheck = (url: URL) => Promise<void>;
-
-function normalizedHost(hostname: string): string {
-  return hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '');
-}
-
-function hostMatches(hostname: string, expected: string): boolean {
-  return hostname === expected || hostname.endsWith(`.${expected}`);
-}
-
-function youtubeVideoId(url: URL): string | null {
-  const host = normalizedHost(url.hostname);
-  let candidate: string | null = null;
-  if (host === 'youtu.be') {
-    candidate = url.pathname.split('/').filter(Boolean)[0] ?? null;
-  } else if (hostMatches(host, 'youtube.com')) {
-    candidate = url.pathname === '/watch'
-      ? url.searchParams.get('v')
-      : url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1] ?? null;
-  }
-  return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
-}
-
-function isUnsupportedSocialHost(hostname: string): boolean {
-  const host = normalizedHost(hostname);
-  return UNSUPPORTED_SOCIAL_HOSTS.some((expected) => hostMatches(host, expected));
-}
 
 function mimeTypeFromResponse(contentType: string | null, url: URL): ResolvedVideoRecipeEvidence['mimeType'] | null {
   const normalized = contentType?.split(';')[0]?.trim().toLowerCase();
@@ -82,6 +62,14 @@ function mimeTypeFromResponse(contentType: string | null, url: URL): ResolvedVid
   if (extension === 'mpeg' || extension === 'mpg') return 'video/mpeg';
   if (extension === 'webm') return 'video/webm';
   return null;
+}
+
+function platformLabel(platform: SocialVideoPlatform): string {
+  if (platform === 'youtube') return 'YouTube';
+  if (platform === 'tiktok') return 'TikTok';
+  if (platform === 'instagram') return 'Instagram';
+  if (platform === 'facebook') return 'Facebook';
+  return 'Pinterest';
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -147,6 +135,14 @@ async function acquireDirectVideo(
 ): Promise<VideoRecipeEvidenceResolution> {
   if (redirectCount > MAX_REDIRECTS) {
     return { ready: false, reasonCode: 'video_unavailable', diagnostic: 'The video redirected too many times.' };
+  }
+  const classification = classifyVideoSourceUrl(initialUrl.toString());
+  if (classification?.kind === 'platform_link') {
+    return {
+      ready: false,
+      reasonCode: 'video_source_unsupported',
+      diagnostic: `${platformLabel(classification.platform)} media links are retained as source bookmarks and are not downloaded or processed at launch.`,
+    };
   }
   await options.checkPublicUrl(initialUrl);
 
@@ -217,15 +213,24 @@ async function acquireDirectVideo(
       throw error;
     }
 
+    const inspection = inspectUploadedVideoRecipeSource({
+      byteSize: bytes.byteLength,
+      mimeType,
+      fileName: initialUrl.pathname,
+      rightsConfirmed: true,
+      headerBytes: bytes.subarray(0, 64),
+    });
+    if (!inspection.ready) return inspection;
+
     return {
       ready: true,
       kind: 'direct_file',
       canonicalUrl: initialUrl.toString(),
-      videoUrl: `data:${mimeType};base64,${toBase64(bytes)}`,
-      mimeType,
-      byteSize: bytes.byteLength,
+      videoUrl: `data:${inspection.mimeType};base64,${toBase64(bytes)}`,
+      mimeType: inspection.mimeType,
+      byteSize: inspection.byteSize,
       transcriptStatus: 'not_supplied',
-      adapterVersion: 'video-source-v1',
+      adapterVersion: 'video-source-v2',
     };
   } finally {
     clearTimeout(timeout);
@@ -237,28 +242,24 @@ export async function resolveVideoRecipeEvidence(
   dependencies: {
     fetchImpl?: FetchLike;
     checkPublicUrl: PublicUrlCheck;
+    rightsConfirmed?: boolean;
   },
 ): Promise<VideoRecipeEvidenceResolution> {
   const parsed = parseHttpUrl(value);
-  const videoId = youtubeVideoId(parsed);
-  if (videoId) {
-    await dependencies.checkPublicUrl(parsed);
-    const canonicalUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    return {
-      ready: true,
-      kind: 'youtube',
-      canonicalUrl,
-      videoUrl: canonicalUrl,
-      transcriptStatus: 'not_supplied',
-      adapterVersion: 'video-source-v1',
-    };
-  }
-
-  if (isUnsupportedSocialHost(parsed.hostname)) {
+  const classification = classifyVideoSourceUrl(parsed.toString());
+  if (classification?.kind === 'platform_link') {
     return {
       ready: false,
       reasonCode: 'video_source_unsupported',
-      diagnostic: `A ${normalizedHost(parsed.hostname)} page is not a directly retrievable video source.`,
+      diagnostic: `${platformLabel(classification.platform)} links are retained as source bookmarks and are not downloaded or processed at launch.`,
+    };
+  }
+
+  if (dependencies.rightsConfirmed !== true) {
+    return {
+      ready: false,
+      reasonCode: 'video_permission_required',
+      diagnostic: 'Direct video processing requires the user to confirm ownership or permission.',
     };
   }
 
@@ -268,15 +269,81 @@ export async function resolveVideoRecipeEvidence(
   });
 }
 
-export function buildVideoRecipeEvidencePrompt(evidence: ResolvedVideoRecipeEvidence): string {
-  const sourceDescription = evidence.kind === 'youtube'
-    ? 'a public YouTube video'
+export function resolveUploadedVideoRecipeEvidence(input: {
+  bytes: Uint8Array;
+  mimeType?: string | null;
+  fileName?: string | null;
+  rightsConfirmed?: boolean;
+}): VideoRecipeEvidenceResolution {
+  const inspection = inspectUploadedVideoRecipeSource({
+    byteSize: input.bytes.byteLength,
+    mimeType: input.mimeType,
+    fileName: input.fileName,
+    rightsConfirmed: input.rightsConfirmed,
+    headerBytes: input.bytes.subarray(0, 64),
+  });
+  if (!inspection.ready) return inspection;
+  return {
+    ready: true,
+    kind: 'owned_upload',
+    videoUrl: `data:${inspection.mimeType};base64,${toBase64(input.bytes)}`,
+    mimeType: inspection.mimeType,
+    byteSize: inspection.byteSize,
+    transcriptStatus: 'not_supplied',
+    adapterVersion: 'video-source-v2',
+  };
+}
+
+export function resolveUploadedVideoBase64RecipeEvidence(input: {
+  base64: string;
+  mimeType?: string | null;
+  fileName?: string | null;
+  rightsConfirmed?: boolean;
+}): VideoRecipeEvidenceResolution {
+  const paddingBytes = input.base64.endsWith('==') ? 2 : input.base64.endsWith('=') ? 1 : 0;
+  const byteSize = Math.floor((input.base64.length * 3) / 4) - paddingBytes;
+  let headerBytes: Uint8Array;
+  try {
+    const headerBinary = atob(input.base64.slice(0, 88));
+    headerBytes = Uint8Array.from(headerBinary, (character) => character.charCodeAt(0));
+  } catch {
+    headerBytes = new Uint8Array();
+  }
+  const inspection = inspectUploadedVideoRecipeSource({
+    byteSize,
+    mimeType: input.mimeType,
+    fileName: input.fileName,
+    rightsConfirmed: input.rightsConfirmed,
+    headerBytes,
+  });
+  if (!inspection.ready) return inspection;
+  return {
+    ready: true,
+    kind: 'owned_upload',
+    videoUrl: `data:${inspection.mimeType};base64,${input.base64}`,
+    mimeType: inspection.mimeType,
+    byteSize: inspection.byteSize,
+    transcriptStatus: 'not_supplied',
+    adapterVersion: 'video-source-v2',
+  };
+}
+
+export function buildVideoRecipeEvidencePrompt(
+  evidence: ResolvedVideoRecipeEvidence,
+  notes?: string,
+): string {
+  const sourceDescription = evidence.kind === 'owned_upload'
+    ? `a user-supplied ${evidence.mimeType ?? 'video'} file`
     : `a directly retrieved ${evidence.mimeType ?? 'video'} file`;
+  const normalizedNotes = notes?.trim().slice(0, 2_000);
   return [
     `Extract the complete recipe from ${sourceDescription}.`,
+    normalizedNotes
+      ? `The user included this untrusted recipe context:\n<UNTRUSTED_USER_NOTES>\n${normalizedNotes}\n</UNTRUSTED_USER_NOTES>`
+      : null,
     'No separate transcript was supplied. Read narration, visible captions, on-screen text, ingredients, quantities, and cooking actions from the video itself.',
     'If narration or captions are inaccessible and the remaining evidence does not contain both a usable ingredient list and method, return insufficient_evidence instead of inventing details.',
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
 }
 
 export function classifyVideoModelFailure(message: string): 'video_unavailable' | null {

@@ -105,7 +105,25 @@ describe('capture presentation', () => {
       status: 'needs_attention',
       failureCode: 'video_source_unsupported',
     }))).toMatchObject({
-      title: "This video source isn't supported yet",
+      title: 'Add the recipe another way',
+      action: 'replace_source',
+      actionLabel: 'Choose another source',
+    });
+
+    expect(getCapturePresentation(capture({
+      status: 'needs_attention',
+      failureCode: 'url_unavailable',
+    }))).toMatchObject({
+      title: 'Nosh could not open this recipe page',
+      action: 'retry',
+      actionLabel: 'Try link again',
+    });
+
+    expect(getCapturePresentation(capture({
+      status: 'needs_attention',
+      failureCode: 'url_access_restricted',
+    }))).toMatchObject({
+      title: 'This site blocked recipe access',
       action: 'replace_source',
       actionLabel: 'Choose another source',
     });

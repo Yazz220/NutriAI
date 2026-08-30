@@ -86,14 +86,14 @@ begin
 
   perform nutriai.fail_recipe_capture_publication(
     '55555555-5555-4555-8555-555555555555', page_id,
-    'Publication proof failure', 'complete-recipe-page-4x5-v2'
+    'Publication proof failure', 'complete-recipe-page-4x5-v3'
   );
 
   select * into capture from nutriai.recipe_captures where id = capture_id;
   if capture.status <> 'needs_attention'
     or capture.failed_stage <> 'publication'
     or capture.art_status <> 'ready'
-    or capture.stage_checkpoints #>> '{page_generation,version}' <> 'complete-recipe-page-4x5-v2' then
+    or capture.stage_checkpoints #>> '{page_generation,version}' <> 'complete-recipe-page-4x5-v3' then
     raise exception 'Publication failure discarded the ready page checkpoint';
   end if;
 
@@ -102,7 +102,7 @@ begin
   ) into claim;
   perform nutriai.finalize_recipe_capture_page(
     '55555555-5555-4555-8555-555555555555', page_id,
-    'complete-recipe-page-4x5-v2', 'recipe-capture-publication-v1'
+    'complete-recipe-page-4x5-v3', 'recipe-capture-publication-v1'
   );
 
   select * into capture from nutriai.recipe_captures where id = capture_id;

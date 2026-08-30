@@ -5,6 +5,7 @@ import {
   LEGACY_CAPTURE_STAGE_VERSION,
   normalizedGraphCanResume,
   recipeQualityStageVersion,
+  RECIPE_EXTRACTION_STAGE_VERSION,
   RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION,
   sourceStageVersion,
 } from '@/supabase/functions/_shared/captureStages';
@@ -22,7 +23,9 @@ describe('recipe capture stage checkpoints', () => {
 
   it('separates provider-independent contracts from model metadata', () => {
     expect(sourceStageVersion('audio')).toBe('audio-source-v1');
+    expect(sourceStageVersion('video')).toBe('video-source-v2');
     expect(AUDIO_TRANSCRIPTION_STAGE_VERSION).toBe('audio-transcription-v1');
+    expect(RECIPE_EXTRACTION_STAGE_VERSION).toBe('recipe-extraction-v2');
     expect(recipeQualityStageVersion(3)).toBe('recipe-quality-v3');
   });
 

@@ -128,7 +128,7 @@ describe('recipe quality assessment', () => {
     ]));
   });
 
-  it('requires correction for critical fields marked as inferred', () => {
+  it('records inferred cooking details internally without blocking the cookbook page', () => {
     const assessment = assessRecipeQuality(recipe({
       provenance: {
         sourceType: 'image',
@@ -137,9 +137,9 @@ describe('recipe quality assessment', () => {
       },
     }));
 
-    expect(assessment.decision).toBe('needs_correction');
+    expect(assessment.decision).toBe('publish_with_note');
     expect(assessment.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'critical_field_inferred', severity: 'blocking' }),
+      expect.objectContaining({ code: 'critical_field_inferred', severity: 'warning' }),
     ]));
   });
 
@@ -159,7 +159,7 @@ describe('recipe quality assessment', () => {
     ]));
   });
 
-  it('publishes after the user confirms the exact blocking issues they reviewed', () => {
+  it('can retain an explicit review internally without turning it into page commentary', () => {
     const candidate = recipe({
       provenance: {
         sourceType: 'image',
@@ -171,7 +171,7 @@ describe('recipe quality assessment', () => {
     const assessed = withRecipeQualityAssessment(candidate, firstAssessment);
     const confirmed = confirmRecipeQualityIssues(
       assessed,
-      firstAssessment.issues.filter((issue) => issue.severity === 'blocking').map((issue) => issue.key),
+      firstAssessment.issues.map((issue) => issue.key),
     );
     const reassessment = assessRecipeQuality(confirmed);
 

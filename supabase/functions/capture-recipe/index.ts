@@ -27,6 +27,7 @@ import {
 import { selectRecipeLayoutStrategy } from '../_shared/recipeLayout.ts';
 import { resolveAudioRecipeEvidence } from '../_shared/audioRecipeEvidence.ts';
 import { transcribeAudioRecipeEvidence } from '../_shared/audioTranscription.ts';
+import { inspectUploadedVideoRecipeSource } from '../_shared/videoRecipeEvidence.ts';
 import {
   recipeEvidenceFeedback,
   type RecipeEvidenceFailureCode,
@@ -44,6 +45,7 @@ import {
   type CaptureCheckpointName,
 } from '../_shared/captureStages.ts';
 import { isCanonicalCookbookPageGenerationPayload } from '../_shared/cookbookPageGeometry.ts';
+import { toCanonicalCookbookRecipe } from '../_shared/canonicalRecipe.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
@@ -159,7 +161,9 @@ type PreparedExtractionSource =
 async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<PreparedExtractionSource> {
   const sourceType = String(capture.source_type);
   const payload = isRecord(capture.source_payload) ? capture.source_payload : {};
-  if (sourceType === 'url' || sourceType === 'text' || sourceType === 'video') {
+  const storagePath = capture.source_storage_path;
+  const isStoredVideo = sourceType === 'video' && typeof storagePath === 'string';
+  if (sourceType === 'url' || sourceType === 'text' || (sourceType === 'video' && !isStoredVideo)) {
     const input = payload.input;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new CaptureProcessingError('source', 'The saved recipe source is empty');
@@ -170,17 +174,26 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       String(capture.id),
       'source',
       sourceStageVersion(sourceType),
-      { sourceType },
+      sourceType === 'video'
+        ? {
+            sourceType,
+            sourceKind: 'url',
+            rightsConfirmed: payload.rightsConfirmed === true,
+          }
+        : { sourceType },
     );
     return {
       ready: true,
       payload: sourceType === 'video'
-        ? { type: 'video', videoUrl: input }
+        ? {
+            type: 'video',
+            videoUrl: input,
+            videoRightsConfirmed: payload.rightsConfirmed === true,
+          }
         : { type: sourceType, input },
     };
   }
 
-  const storagePath = capture.source_storage_path;
   if (typeof storagePath !== 'string') {
     throw new CaptureProcessingError('source', 'The saved recipe attachment is missing');
   }
@@ -209,6 +222,42 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
         imageBase64: toBase64(bytes),
         imageMimeType: typeof payload.mimeType === 'string' ? payload.mimeType : 'image/jpeg',
         input: typeof payload.notes === 'string' ? payload.notes : undefined,
+      },
+    };
+  }
+
+  if (sourceType === 'video') {
+    const inspection = inspectUploadedVideoRecipeSource({
+      byteSize: bytes.byteLength,
+      mimeType: typeof payload.mimeType === 'string' ? payload.mimeType : data.type,
+      fileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
+      rightsConfirmed: payload.rightsConfirmed === true,
+      headerBytes: bytes.subarray(0, 64),
+    });
+    if (!inspection.ready) return { ...inspection, failedStage: 'source' };
+
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'source',
+      inspection.adapterVersion,
+      {
+        sourceType,
+        sourceKind: 'owned_upload',
+        byteSize: inspection.byteSize,
+        mimeType: inspection.mimeType,
+      },
+    );
+    return {
+      ready: true,
+      payload: {
+        type: 'video',
+        videoBase64: toBase64(bytes),
+        videoMimeType: inspection.mimeType,
+        videoFileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
+        videoRightsConfirmed: true,
+        notes: typeof payload.notes === 'string' ? payload.notes : undefined,
       },
     };
   }
@@ -595,14 +644,15 @@ async function processCapture(
       const styleReferences = Array.isArray(cookbook.page_style_references)
         ? cookbook.page_style_references.filter((value: unknown): value is string => typeof value === 'string')
         : [];
-      const templateId = selectRecipeLayoutStrategy(recipeGraph);
+      const canonicalRecipe = toCanonicalCookbookRecipe(recipeGraph);
+      const templateId = selectRecipeLayoutStrategy(canonicalRecipe);
       activeStage = 'page_generation';
       const { data: pageId, error: pageError } = await admin.schema('nutriai').rpc(
         'create_capture_page',
         {
           p_user_id: userId,
           p_capture_id: captureId,
-          p_recipe_graph: recipeGraph,
+          p_recipe_graph: canonicalRecipe,
           p_style_id: styleId,
           p_style_revision: styleRevision,
           p_template_id: templateId,
@@ -627,7 +677,7 @@ async function processCapture(
         const pageGeneration = await callFunction('generate-page-art', authHeader, {
           cookbookId: destinationCookbookId,
           pageId,
-          recipeGraph,
+          recipeGraph: canonicalRecipe,
           styleId,
           styleRevision,
           styleReferences,
@@ -721,14 +771,15 @@ async function prepareCaptureDestination(
     const styleReferences = Array.isArray(cookbook.page_style_references)
       ? cookbook.page_style_references.filter((value: unknown): value is string => typeof value === 'string')
       : [];
-    const templateId = selectRecipeLayoutStrategy(capture.recipe_graph);
+    const canonicalRecipe = toCanonicalCookbookRecipe(capture.recipe_graph);
+    const templateId = selectRecipeLayoutStrategy(canonicalRecipe);
     activeStage = 'page_generation';
     const { data: pageId, error: pageError } = await admin.schema('nutriai').rpc(
       'create_capture_page',
       {
         p_user_id: userId,
         p_capture_id: captureId,
-        p_recipe_graph: capture.recipe_graph,
+        p_recipe_graph: canonicalRecipe,
         p_style_id: styleId,
         p_style_revision: styleRevision,
         p_template_id: templateId,
@@ -747,7 +798,7 @@ async function prepareCaptureDestination(
       const pageGeneration = await callFunction('generate-page-art', authHeader, {
         cookbookId: destinationCookbookId,
         pageId,
-        recipeGraph: capture.recipe_graph,
+        recipeGraph: canonicalRecipe,
         styleId,
         styleRevision,
         styleReferences,
@@ -914,6 +965,15 @@ serve(async (req: Request) => {
       if (!['url', 'text', 'image', 'video', 'audio'].includes(String(sourceType))) return jsonError('Invalid source type', 400, req);
       const sourcePayload = sourceType === 'image'
         ? { mimeType: body.source.mimeType, notes: body.source.notes }
+        : sourceType === 'video'
+          ? {
+              input: body.source.input,
+              mimeType: body.source.mimeType,
+              fileName: body.source.fileName,
+              byteSize: body.source.byteSize,
+              rightsConfirmed: body.source.rightsConfirmed === true,
+              notes: body.source.notes,
+            }
         : sourceType === 'audio'
           ? {
               mimeType: body.source.mimeType,
@@ -922,8 +982,8 @@ serve(async (req: Request) => {
               notes: body.source.notes,
             }
           : { input: body.source.input };
-      const storagePath = sourceType === 'image' || sourceType === 'audio'
-        ? body.source.storagePath
+      const storagePath = sourceType === 'image' || sourceType === 'audio' || sourceType === 'video'
+        ? typeof body.source.storagePath === 'string' ? body.source.storagePath : null
         : null;
       const { data, error } = await userClient.schema('nutriai').rpc('begin_recipe_capture', {
         p_source_type: sourceType,

@@ -68,14 +68,14 @@
     {
       "id": "url-microdata-recipe-known-gap",
       "sourceType": "url",
-      "gate": "diagnostic",
-      "tags": ["microdata", "known-gap", "structured-data"],
+      "gate": "release",
+      "tags": ["microdata", "structured-data", "deterministic-parser"],
       "sourceSummary": "Complete Schema.org Recipe expressed only as Microdata.",
-      "verification": { "status": "human_verified", "note": "This fixture records the launch audit's remaining non-JSON-LD parser gap." },
+      "verification": { "status": "human_verified", "note": "Expected facts were transcribed directly from the local Microdata fixture." },
       "execution": {
-        "mode": "manual",
-        "assetPath": "supabase/functions/extract-recipe/evals/fixtures/url/microdata-known-gap.html",
-        "description": "Promote to an automated release case when the URL adapter supports Microdata."
+        "mode": "deterministic_url_fixture",
+        "sourceUrl": "https://fixtures.nosh.test/apple-crumble",
+        "assetPath": "supabase/functions/extract-recipe/evals/fixtures/url/microdata-known-gap.html"
       },
       "expected": {
         "outcome": "recipe",
@@ -86,6 +86,37 @@
           "minimumStepCount": 1,
           "yieldText": "Serves 6",
           "servings": 6
+        },
+        "qualityDecisions": ["auto_publish", "publish_with_note"]
+      }
+    },
+    {
+      "id": "url-jsonld-common-publisher-wrappers",
+      "sourceType": "url",
+      "gate": "release",
+      "tags": ["structured-data", "json-ld", "publisher-wrapper", "deterministic-parser"],
+      "sourceSummary": "A complete JSON-LD recipe wrapped in common legacy comment and CDATA markers.",
+      "verification": { "status": "human_verified", "note": "Expected facts were transcribed directly from the local HTML fixture." },
+      "execution": {
+        "mode": "deterministic_url_fixture",
+        "sourceUrl": "https://fixtures.nosh.test/brown-butter-cookies",
+        "assetPath": "supabase/functions/extract-recipe/evals/fixtures/url/wrapped-jsonld-cookies.html"
+      },
+      "expected": {
+        "outcome": "recipe",
+        "reasonCodes": ["none"],
+        "graph": {
+          "titleIncludes": ["brown", "butter", "cookies"],
+          "minimumIngredientCount": 4,
+          "minimumStepCount": 3,
+          "ingredients": [
+            { "nameIncludes": ["butter"], "quantity": "120", "unit": "g" },
+            { "nameIncludes": ["brown sugar"], "quantity": "150", "unit": "g" },
+            { "nameIncludes": ["flour"], "quantity": "180", "unit": "g" }
+          ],
+          "stepsInOrder": ["brown the butter", "sugar and egg", "180°C", "12 minutes"],
+          "yieldText": "Makes 12 cookies",
+          "servings": null
         },
         "qualityDecisions": ["auto_publish", "publish_with_note"]
       }
@@ -308,13 +339,26 @@
       "expected": { "outcome": "insufficient_evidence", "reasonCodes": ["video_source_unsupported"] }
     },
     {
-      "id": "video-youtube-narration-only",
+      "id": "video-direct-file-permission-required",
+      "sourceType": "video",
+      "gate": "release",
+      "tags": ["permission", "direct-file", "adapter", "honest-contract"],
+      "sourceSummary": "A direct video URL submitted without an ownership or permission confirmation.",
+      "verification": { "status": "human_verified", "note": "The adapter must reject before fetching or invoking a model." },
+      "execution": {
+        "mode": "live_endpoint",
+        "request": { "type": "video", "videoUrl": "https://cdn.example.com/recipe.mp4", "videoRightsConfirmed": false }
+      },
+      "expected": { "outcome": "insufficient_evidence", "reasonCodes": ["video_permission_required"] }
+    },
+    {
+      "id": "video-owned-upload-narration-only",
       "sourceType": "video",
       "gate": "diagnostic",
-      "tags": ["youtube", "narration", "manual-media"],
-      "sourceSummary": "A public YouTube recipe whose critical quantities are spoken but not shown.",
-      "verification": { "status": "fixture_required", "note": "A stable owned video URL is required before this becomes a release gate." },
-      "execution": { "mode": "manual", "description": "Evaluate against an owned, stable YouTube fixture and record quantities, unit accuracy, latency, and provider." },
+      "tags": ["owned-upload", "narration", "manual-media"],
+      "sourceSummary": "A permissioned video upload whose critical quantities are spoken but not shown.",
+      "verification": { "status": "fixture_required", "note": "A stable owned video file is required before this becomes a release gate." },
+      "execution": { "mode": "manual", "description": "Upload a private owned fixture through capture-recipe and record quantities, unit accuracy, latency, and provider." },
       "expected": { "outcome": "recipe", "reasonCodes": ["none"], "qualityDecisions": ["auto_publish", "publish_with_note"] }
     },
     {
