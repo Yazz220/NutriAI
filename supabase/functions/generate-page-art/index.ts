@@ -43,6 +43,10 @@ import {
   buildOpenRouterImageRequest,
   isRecipePageStyleId,
 } from '../_shared/artGeneration.ts';
+import {
+  RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
+  RECIPE_PAGE_GENERATION_STAGE_VERSION,
+} from '../_shared/captureStages.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -279,14 +283,30 @@ async function finalizeCapturePage(
   admin: SupabaseAdmin,
   userId: string,
   pageId: string,
-): Promise<void> {
+): Promise<boolean> {
   const { error } = await admin.schema('nutriai').rpc('finalize_recipe_capture_page', {
     p_user_id: userId,
     p_page_id: pageId,
+    p_page_generation_version: RECIPE_PAGE_GENERATION_STAGE_VERSION,
+    p_publication_version: RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
   });
   if (error) {
     logError('Recipe capture page could not be published', { pageId, error: error.message });
+    const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture_publication', {
+      p_user_id: userId,
+      p_page_id: pageId,
+      p_failure_message: 'Nosh finished the page, but could not add it to the cookbook. Try again.',
+      p_page_generation_version: RECIPE_PAGE_GENERATION_STAGE_VERSION,
+    });
+    if (failureError) {
+      logError('Recipe capture publication failure could not be recorded', {
+        pageId,
+        error: failureError.message,
+      });
+    }
+    return false;
   }
+  return true;
 }
 
 async function failCapturePage(

@@ -60,7 +60,7 @@ export function RecipeRevisionSheet({
     if (!visible || !page?.recipeGraph) return;
     const graph = cloneGraph(page.recipeGraph);
     setDraft(graph);
-    setServings(String(graph.servings));
+    setServings(graph.servings ? String(graph.servings) : '');
     setPrepTime(graph.prepTimeMinutes ? String(graph.prepTimeMinutes) : '');
     setCookTime(graph.cookTimeMinutes ? String(graph.cookTimeMinutes) : '');
     setInstruction('');
@@ -92,7 +92,14 @@ export function RecipeRevisionSheet({
     const next = cloneGraph(activeDraft);
     next.title = next.title.trim();
     next.description = next.description?.trim() || undefined;
-    next.servings = parseRequiredPositiveNumber(servings, 'Servings');
+    const parsedServings = parseOptionalPositiveNumber(servings, 'Servings');
+    if (parsedServings) {
+      next.servings = parsedServings;
+      next.yieldText = `${parsedServings} servings`;
+    } else {
+      delete next.servings;
+      if (activeDraft.servings) delete next.yieldText;
+    }
     next.prepTimeMinutes = parseOptionalMinutes(prepTime, 'Prep time');
     next.cookTimeMinutes = parseOptionalMinutes(cookTime, 'Cook time');
     next.updatedAt = new Date().toISOString();
@@ -467,7 +474,8 @@ function IconButton({ label, icon, onPress }: { label: string; icon: 'minus'; on
   );
 }
 
-function parseRequiredPositiveNumber(value: string, label: string): number {
+function parseOptionalPositiveNumber(value: string, label: string): number | undefined {
+  if (!value.trim()) return undefined;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) throw new Error(`${label} must be between 1 and 100.`);
   return parsed;

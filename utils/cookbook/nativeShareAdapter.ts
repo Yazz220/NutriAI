@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ShareIntent } from 'expo-share-intent';
+import { RECIPE_CAPTURE_IMAGE_SOURCE_MAX_BYTES } from '@/utils/cookbook/recipeCaptureImageContract';
 
 const DELIVERY_KEY = 'nosh:native-share:last-delivery';
 const DUPLICATE_WINDOW_MS = 10 * 60_000;
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export type NormalizedNativeShare =
   | { type: 'url'; input: string; title?: string }
@@ -30,8 +30,8 @@ export function normalizeNativeShareIntent(intent: ShareIntent): NormalizedNativ
   const image = intent.files?.find((file) => file.mimeType.startsWith('image/'));
 
   if (image) {
-    if (image.size != null && image.size > MAX_IMAGE_BYTES) {
-      throw new Error('This image is larger than 15 MB. Save a smaller copy and share it again.');
+    if (image.size != null && image.size > RECIPE_CAPTURE_IMAGE_SOURCE_MAX_BYTES) {
+      throw new Error('This image is larger than 15 MB. Choose a smaller image and try again.');
     }
     return {
       type: 'image',

@@ -38,6 +38,20 @@ describe('native share adapter', () => {
       .toEqual({ type: 'url', input: 'https://example.com/cake', title: undefined });
   });
 
+  it('uses the canonical image source limit for native shares', () => {
+    expect(() => normalizeNativeShareIntent(intent({
+      files: [{
+        fileName: 'large.png',
+        mimeType: 'image/png',
+        path: 'file:///private/large.png',
+        size: 15 * 1024 * 1024 + 1,
+        width: 5000,
+        height: 5000,
+        duration: null,
+      }],
+    }))).toThrow('larger than 15 MB');
+  });
+
   it('uses the same request key for a duplicate OS delivery', async () => {
     const share = { type: 'url', input: 'https://example.com/cake' } as const;
     const first = await getNativeShareRequestKey(share, 1_000);

@@ -1,7 +1,9 @@
 import { COOKBOOK_GEOMETRY } from '../../../constants/cookbookGeometry.ts';
+import { RECIPE_PAGE_GENERATION_STAGE_VERSION } from './captureStages.ts';
 
 export interface RecipePageIngredient {
   name?: string;
+  rawText?: string;
   quantity?: string;
   unit?: string;
   preparation?: string;
@@ -30,6 +32,7 @@ export interface RecipePageRecipeInput {
   cuisine?: string;
   description?: string;
   servings?: number;
+  yieldText?: string;
   prepTimeMinutes?: number;
   cookTimeMinutes?: number;
   totalTimeMinutes?: number;
@@ -49,6 +52,7 @@ export interface RecipePageCopy {
 
 export interface RecipePagePromptPayload {
   kind: 'complete-recipe-page';
+  generationContractVersion: typeof RECIPE_PAGE_GENERATION_STAGE_VERSION;
   geometryId: typeof COOKBOOK_GEOMETRY.id;
   geometryRevision: typeof COOKBOOK_GEOMETRY.revision;
   styleId: string;
@@ -232,7 +236,7 @@ function stepLine(step: RecipePageStep, index: number): string | undefined {
 
 export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCopy {
   const metadata = [
-    graph.servings ? `Serves ${graph.servings}` : undefined,
+    clean(graph.yieldText) ?? (graph.servings ? `Serves ${graph.servings}` : undefined),
     graph.prepTimeMinutes ? `Prep ${graph.prepTimeMinutes} min` : undefined,
     graph.cookTimeMinutes ? `Cook ${graph.cookTimeMinutes} min` : undefined,
     graph.totalTimeMinutes ? `Total ${graph.totalTimeMinutes} min` : undefined,
@@ -331,6 +335,7 @@ export function buildRecipePagePrompt(
     prompt,
     payload: {
       kind: 'complete-recipe-page',
+      generationContractVersion: RECIPE_PAGE_GENERATION_STAGE_VERSION,
       geometryId: COOKBOOK_GEOMETRY.id,
       geometryRevision: COOKBOOK_GEOMETRY.revision,
       styleId,

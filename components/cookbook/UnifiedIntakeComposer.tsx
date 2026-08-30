@@ -4,30 +4,37 @@
  * Replaces the legacy AddPageComposer (which required a sourceHint prop
  * and had different UI per source type). This component has:
  *   - One TextInput (always same size, same placeholder)
- *   - One composer-native image attachment control
+ *   - Composer-native photo and audio-file attachment controls
  *   - Auto-detection of source type on submit
  *
  * The user can paste a URL, paste text, paste a video link, attach an
- * image, or attach an image + add notes. The submit handler builds the
- * extract-recipe payload from what's present — the Edge Function handles
- * all source types in a single call.
+ * image, attach an existing audio recording, or add notes. The submit handler builds the
+ * canonical capture source from what's present. Every source then enters
+ * the same durable capture-recipe pipeline.
  */
 
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Link, Paperclip, Send, Video, X } from 'lucide-react-native';
+import { Camera, FileAudio, Link, Paperclip, Send, Video, X } from 'lucide-react-native';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudio';
 
 export type UnifiedIntakePayload =
   | { type: 'url'; input: string }
   | { type: 'text'; input: string }
   | { type: 'video'; input: string }
+  | {
+      type: 'audio';
+      audio: RecipeCaptureAudioAsset;
+      input?: string;
+    }
   | {
       type: 'image';
       imageUri?: string;
@@ -42,10 +49,12 @@ interface UnifiedIntakeComposerProps {
   imageBase64: string | null;
   imageUri?: string | null;
   imageMimeType?: string | null;
+  audioAttachment?: RecipeCaptureAudioAsset | null;
   error?: string | null;
   onInputChange: (value: string) => void;
   onImageBase64Change: (value: string | null) => void;
   onImageUriChange?: (uri: string | null, mimeType: string | null) => void;
+  onAudioAttachmentChange?: (audio: RecipeCaptureAudioAsset | null) => void;
   onRetry?: () => Promise<void> | void;
   onSubmit: (payload: UnifiedIntakePayload) => Promise<void> | void;
 }
@@ -63,6 +72,7 @@ function looksLikeVideoUrl(value: string) {
 /**
  * Build the extract-recipe payload from what the user provided.
  * Auto-detects the source type:
+ *   - Audio attached → audio transcription (text becomes optional notes)
  *   - Image attached → image extraction (text becomes optional notes)
  *   - Video URL → video extraction
  *   - HTTP(S) URL → URL extraction
@@ -73,8 +83,17 @@ export function buildIntakePayload(
   imageBase64: string | null,
   imageUri: string | null = null,
   imageMimeType: string | null = null,
+  audioAttachment: RecipeCaptureAudioAsset | null = null,
 ): UnifiedIntakePayload | null {
   const trimmed = input.trim();
+
+  if (audioAttachment) {
+    return {
+      type: 'audio',
+      audio: audioAttachment,
+      input: trimmed || undefined,
+    };
+  }
 
   if (imageUri) {
     return {
@@ -108,10 +127,12 @@ export function UnifiedIntakeComposer({
   imageBase64,
   imageUri = null,
   imageMimeType = null,
+  audioAttachment = null,
   error = null,
   onInputChange,
   onImageBase64Change,
   onImageUriChange,
+  onAudioAttachmentChange,
   onRetry,
   onSubmit,
 }: UnifiedIntakeComposerProps) {
@@ -128,24 +149,52 @@ export function UnifiedIntakeComposer({
 
     const asset = result.canceled ? null : result.assets?.[0] ?? null;
     if (asset?.uri) {
+      onAudioAttachmentChange?.(null);
       onImageBase64Change(null);
       onImageUriChange?.(asset.uri, asset.mimeType ?? null);
     }
   }
 
+  async function pickAudio() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'audio/*',
+      multiple: false,
+      copyToCacheDirectory: true,
+    });
+    const asset = result.canceled ? null : result.assets[0] ?? null;
+    if (!asset) return;
+    onImageBase64Change(null);
+    onImageUriChange?.(null, null);
+    onAudioAttachmentChange?.({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType,
+      size: asset.size,
+    });
+  }
+
   async function submit() {
     if (isSubmitting) return;
-    const payload = buildIntakePayload(input, imageBase64, imageUri, imageMimeType);
+    const payload = buildIntakePayload(
+      input,
+      imageBase64,
+      imageUri,
+      imageMimeType,
+      audioAttachment,
+    );
     if (payload) await onSubmit(payload);
   }
 
   const hasImage = Boolean(imageUri || imageBase64);
-  const canSubmit = Boolean(hasImage || input.trim()) && !isSubmitting;
+  const hasAudio = Boolean(audioAttachment);
+  const canSubmit = Boolean(hasImage || hasAudio || input.trim()) && !isSubmitting;
 
   const submitIcon = isSubmitting ? (
     <ActivityIndicator size="small" color={Colors.onPrimary} />
   ) : hasImage ? (
     <Camera size={18} color={Colors.onPrimary} />
+  ) : hasAudio ? (
+    <FileAudio size={18} color={Colors.onPrimary} />
   ) : looksLikeVideoUrl(input) ? (
     <Video size={18} color={Colors.onPrimary} />
   ) : looksLikeUrl(input) ? (
@@ -175,16 +224,21 @@ export function UnifiedIntakeComposer({
         />
       </View>
 
-      {hasImage ? (
+      {hasImage || hasAudio ? (
         <View style={styles.attachmentChip}>
-          <Text style={styles.attachmentText}>Photo attached{input.trim() ? ' with notes' : ''}</Text>
+          <Text style={styles.attachmentText} numberOfLines={1}>
+            {hasAudio
+              ? `${audioAttachment?.name ?? 'Audio'} attached${input.trim() ? ' with notes' : ''}`
+              : `Photo attached${input.trim() ? ' with notes' : ''}`}
+          </Text>
           <Pressable
             onPress={() => {
               onImageBase64Change(null);
               onImageUriChange?.(null, null);
+              onAudioAttachmentChange?.(null);
             }}
             accessibilityRole="button"
-            accessibilityLabel="Remove attached image"
+            accessibilityLabel={hasAudio ? 'Remove attached audio' : 'Remove attached image'}
             hitSlop={Spacing.sm}
           >
             <X size={16} color={Colors.textMuted} />
@@ -224,6 +278,23 @@ export function UnifiedIntakeComposer({
         >
           <Paperclip size={18} color={hasImage ? Colors.primary : Colors.textSecondary} />
           <Text style={[styles.attachText, hasImage && styles.attachTextSelected]}>Photo</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.attachButton,
+            hasAudio && styles.attachButtonSelected,
+            isSubmitting && styles.disabled,
+            pressed && !isSubmitting && styles.pressed,
+          ]}
+          onPress={pickAudio}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel={hasAudio ? 'Change attached audio file' : 'Attach audio file'}
+          accessibilityState={{ disabled: isSubmitting, selected: hasAudio }}
+        >
+          <FileAudio size={18} color={hasAudio ? Colors.primary : Colors.textSecondary} />
+          <Text style={[styles.attachText, hasAudio && styles.attachTextSelected]}>Audio</Text>
         </Pressable>
 
         <Pressable
@@ -285,7 +356,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
   },
   attachButtonSelected: {
     backgroundColor: Colors.book.accentSoft,
@@ -293,7 +364,7 @@ const styles = StyleSheet.create({
   attachText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.sm,
   },
   attachTextSelected: {
     color: Colors.primary,
@@ -320,14 +391,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   primaryButton: {
-    minWidth: 154,
+    minWidth: 128,
     minHeight: 44,
     borderRadius: Radii.full,
     backgroundColor: Colors.primary,
@@ -335,11 +406,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
   primaryText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
   },
   errorNotice: {
     gap: Spacing.sm,

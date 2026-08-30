@@ -1,5 +1,5 @@
 const mockUpload = jest.fn();
-const mockBytes = jest.fn();
+const mockPrepareRecipeCaptureImage = jest.fn();
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
@@ -9,11 +9,10 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
-jest.mock('expo-file-system', () => ({
-  File: jest.fn().mockImplementation(() => ({ bytes: mockBytes })),
+jest.mock('@/utils/cookbook/recipeCaptureImage', () => ({
+  prepareRecipeCaptureImage: (...args: unknown[]) => mockPrepareRecipeCaptureImage(...args),
 }));
 
-import { File } from 'expo-file-system';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 
 describe('uploadRecipeCaptureImage', () => {
@@ -21,9 +20,14 @@ describe('uploadRecipeCaptureImage', () => {
     jest.clearAllMocks();
   });
 
-  it('uploads native file bytes without converting the photo to base64', async () => {
+  it('uploads the canonical normalized image instead of the source file', async () => {
     const bytes = Uint8Array.from([1, 2, 3]);
-    mockBytes.mockResolvedValueOnce(bytes);
+    mockPrepareRecipeCaptureImage.mockResolvedValueOnce({
+      bytes,
+      mimeType: 'image/jpeg',
+      width: 1800,
+      height: 2400,
+    });
     mockUpload.mockResolvedValueOnce({ error: null });
 
     await expect(uploadRecipeCaptureImage({
@@ -36,12 +40,31 @@ describe('uploadRecipeCaptureImage', () => {
       mimeType: 'image/jpeg',
     });
 
-    expect(File).toHaveBeenCalledWith('file:///recipe.jpg');
-    expect(mockBytes).toHaveBeenCalledTimes(1);
+    expect(mockPrepareRecipeCaptureImage).toHaveBeenCalledWith({
+      userId: 'user-1',
+      imageUri: 'file:///recipe.jpg',
+      mimeType: 'image/jpeg',
+      requestKey: 'request-1',
+    });
     expect(mockUpload).toHaveBeenCalledWith(
       'user-1/request-1.jpg',
       bytes,
       { contentType: 'image/jpeg', upsert: false },
     );
+  });
+
+  it('does not upload when the source cannot be normalized safely', async () => {
+    mockPrepareRecipeCaptureImage.mockRejectedValueOnce(
+      new Error('This image is larger than 15 MB. Choose a smaller image and try again.'),
+    );
+
+    await expect(uploadRecipeCaptureImage({
+      userId: 'user-1',
+      imageUri: 'file:///large.png',
+      mimeType: 'image/png',
+      requestKey: 'request-2',
+    })).rejects.toThrow('larger than 15 MB');
+
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 });

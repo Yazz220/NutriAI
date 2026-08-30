@@ -32,6 +32,32 @@ export type RecipeDifficulty = 'easy' | 'medium' | 'hard';
 
 export type RecipeSourceType = 'url' | 'text' | 'image' | 'video' | 'audio' | 'manual';
 
+export type RecipeQualityDecision = 'auto_publish' | 'publish_with_note' | 'needs_correction';
+export type RecipeQualitySeverity = 'warning' | 'blocking';
+
+export interface RecipeQualityIssue {
+  key: string;
+  code: string;
+  severity: RecipeQualitySeverity;
+  message: string;
+  fieldPaths: string[];
+  confirmed: boolean;
+}
+
+export interface RecipeQualityAssessment {
+  version: number;
+  decision: RecipeQualityDecision;
+  issues: RecipeQualityIssue[];
+  metrics: {
+    ingredientCount: number;
+    quantifiedIngredientCount: number;
+    stepCount: number;
+    hasYield: boolean;
+    hasCookingTemperature: boolean;
+    hasCookingDuration: boolean;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Ingredients
 // ---------------------------------------------------------------------------
@@ -44,6 +70,8 @@ export type RecipeSourceType = 'url' | 'text' | 'image' | 'video' | 'audio' | 'm
 export interface RecipeIngredient {
   /** Display name, e.g., "all-purpose flour" */
   name: string;
+  /** Exact ingredient line observed in the source before conservative parsing. */
+  rawText?: string;
   /** Amount as a string, e.g., "1", "1/2", "2-3". Omitted if none specified. */
   quantity?: string;
   /** Unit, e.g., "cup", "tbsp", "g", "oz", "clove". */
@@ -119,6 +147,18 @@ export interface StepGroup {
 export interface RecipeProvenance {
   sourceType: RecipeSourceType;
   sourceUrl?: string;
+  /** Publisher-declared canonical URL, kept separately from the URL the user submitted. */
+  canonicalUrl?: string;
+  sourceTitle?: string;
+  sourceLanguage?: string;
+  fetchedAt?: string;
+  sourceContentHash?: string;
+  parserId?: string;
+  parserVersion?: number;
+  confidenceMethod?: string;
+  structuredDataId?: string;
+  structuredRecipeCandidateCount?: number;
+  structuredRecipeSelectionReason?: string;
   /** Original source attribution: blog name, channel name, cookbook title. */
   sourceAttribution?: string;
   /** Fields the model inferred rather than read directly, e.g., ["ovenTemperature", "servings"]. */
@@ -127,6 +167,12 @@ export interface RecipeProvenance {
   extractionNotes?: string[];
   /** Overall extraction confidence, 0–1. */
   confidence: number;
+  /** Deterministic semantic checks run after extraction and before page generation. */
+  qualityAssessment?: RecipeQualityAssessment;
+  /** First blocking assessment, retained after correction for debugging and ingestion evals. */
+  qualityInitialAssessment?: RecipeQualityAssessment;
+  /** Exact issue keys the user reviewed and accepted in the correction surface. */
+  qualityConfirmedIssueKeys?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -144,11 +190,16 @@ export interface RecipeGraph {
   description?: string;
 
   // --- Core culinary data ---
-  servings: number;
+  /** Numeric people-servings only. Omitted when the source yield is not a serving count. */
+  servings?: number;
+  /** Exact source yield, e.g., "Serves 6", "1 loaf", or "Makes 24 cookies". */
+  yieldText?: string;
   prepTimeMinutes?: number;
   cookTimeMinutes?: number;
   totalTimeMinutes?: number;
   cuisine?: string;
+  sourceCuisine?: string[];
+  sourceCategory?: string[];
   category: RecipeCategory;
   difficulty?: RecipeDifficulty;
 

@@ -47,23 +47,59 @@ _Avoid_: Draft page
 ## Recipe capture
 
 **Recipe source**:
-A URL, pasted recipe, photo, or video link that the user gives to Nosh.
+A URL, pasted recipe, photo, video link, or existing audio recording that the user gives to Nosh.
 _Avoid_: Upload job
+
+**Video source**:
+A public video that Nosh can retrieve or that its configured video reader explicitly supports. A social post page is not video evidence merely because it contains a video.
+_Avoid_: Any social link, reel page
+
+**Audio source**:
+An existing audio recording selected by the user as recipe evidence. It is not a live recording made inside Nosh.
+_Avoid_: Voice mode, microphone input
+
+**Audio transcript**:
+The written evidence derived from an audio source before recipe interpretation. It is evidence about a recipe, not a recipe by itself.
+_Avoid_: Recipe Graph, voice recipe
+
+**Recipe evidence**:
+The source-derived facts Nosh uses to decide whether one complete recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions.
+_Avoid_: Model guess, generated recipe
+
+**Insufficient recipe evidence**:
+A source that is not a recipe, is blank or unreadable, lacks core ingredients or instructions, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
+_Avoid_: Failed page, low-quality recipe
 
 **Recipe capture**:
 The durable work of turning one recipe source into one recipe page. A capture survives navigation and can be retried without creating duplicate pages.
 _Avoid_: Import chat, review flow, approval flow
 
+**Capture checkpoint**:
+A versioned record that a recipe capture completed one trustworthy stage. Retry resumes after the latest compatible checkpoint and keeps the source, transcript, Recipe Graph, or generated page already produced.
+_Avoid_: Screen progress, temporary loader state, processing attempt
+
 **Recipe Graph**:
 The canonical structured recipe Nosh uses to answer questions, scale servings, substitute ingredients, and prepare page revisions.
 _Avoid_: OCR text, generated page text
+
+**Recipe quality assessment**:
+Nosh's check that an understood recipe has consistent, usable cooking details before it becomes a page. Missing optional metadata never blocks the recipe.
+_Avoid_: Model confidence, approval step, style review
+
+**Recipe correction**:
+A focused check of specific cooking details that are missing, contradictory, or inferred. It resumes the same capture and does not create a second recipe or page.
+_Avoid_: Full review flow, new import, page edit
+
+**Recipe yield**:
+The amount a recipe produces in the source's own words, such as "Serves 6," "1 loaf," or "24 cookies." A numeric serving count exists only when the source describes servings.
+_Avoid_: Servings when the source describes items, batches, loaves, or pans
 
 **Needs destination**:
 A capture whose recipe is understood but has no cookbook to inherit a style from.
 _Avoid_: Pending review
 
 **Needs attention**:
-A capture that stopped because extraction or page generation failed and can be retried.
+A capture that stopped because the source needs to be replaced or a technical stage can be retried. The failure code determines the recovery action.
 _Avoid_: Needs help, rejected
 
 **Recipe activity**:

@@ -2,7 +2,7 @@
 
 > Your recipes. Your book. Your AI chef.
 
-Nosh is a book-first Expo app for personal digital cookbooks. Users create styled cookbooks and capture recipes from links, pasted text, screenshots, or video links. Nosh extracts the structured recipe for reasoning, generates the complete designed recipe page, and places it directly into the appropriate book. The embedded AI chef answers questions from the active page and the user’s wider recipe collection.
+Nosh is a book-first Expo app for personal digital cookbooks. Users create styled cookbooks and capture recipes from links, pasted text, screenshots, public YouTube links, or direct video files. Nosh extracts the structured recipe for reasoning, generates the complete designed recipe page, and places it directly into the appropriate book. The embedded AI chef answers questions from the active page and the user's wider recipe collection.
 
 The product is the cookbook. The AI is the chef inside it.
 
@@ -11,7 +11,7 @@ The product is the cookbook. The AI is the chef inside it.
 - **My Cookbooks shelf**: the authenticated home screen for a user's cookbook collection.
 - **Book Library**: style presets for creating a new cookbook.
 - **Book reader**: a swipeable reader with a physical cover, recipe pages, add-page controls, and the Nosh assistant.
-- **Recipe import**: one durable multimodal pipeline accepts URL, text, image, or video sources and resolves the explicit, default, or sole destination book automatically.
+- **Recipe import**: one durable multimodal pipeline accepts URL, text, image, public YouTube, or direct supported video sources and resolves the explicit, default, or sole destination book automatically.
 - **Page generation**: Qwen Image creates the complete portrait recipe page, including dish imagery, title, ingredients, instructions, typography, and composition, using the destination book's versioned visual identity.
 - **Nosh assistant**: an assistant-ui powered chat with tool-calling that can scale servings, substitute ingredients, start timers, guide steps, and patch the recipe graph live.
 
@@ -31,7 +31,7 @@ Out of scope for this app: legacy non-cookbook product surfaces and persistent b
 
 One durable pipeline coordinates four responsibilities:
 
-- `extract-recipe`: multimodal extraction (URL, text, image, video) → RecipeGraphDraft. Uses Qwen3.6-35B-A3B via OpenRouter.
+- `extract-recipe`: provider-neutral recipe evidence and multimodal extraction for URL, text, image, resolved video sources, and transcripts from uploaded audio. The default model is Qwen3.6-35B-A3B via OpenRouter, with independent video and speech-to-text model overrides.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (scale, substitute, timer, guide, update). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `capture-recipe`: durable orchestration from saved source through extraction, destination resolution, full-page generation, and publication.
 - `generate-page-art`: style-conditioned complete recipe-page generation, including the visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
@@ -125,6 +125,9 @@ Supabase Edge Function secrets:
 
 ```text
 AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
+VIDEO_MODEL                               optional extract-recipe video override
+AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
+AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
 ART_MODEL                                 generate-page-art
 ```
 

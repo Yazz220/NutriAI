@@ -49,7 +49,7 @@ export function buildRecipePageAccessibilityLabel(page: CookbookPage): string {
   const details = [
     `${graph.title}.`,
     graph.description,
-    graph.servings ? `Serves ${graph.servings}.` : null,
+    graph.yieldText ? `${graph.yieldText}.` : graph.servings ? `Serves ${graph.servings}.` : null,
     formatRecipeTime(graph.prepTimeMinutes)
       ? `Prep time ${formatRecipeTime(graph.prepTimeMinutes)}.`
       : null,

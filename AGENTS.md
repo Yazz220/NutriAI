@@ -130,11 +130,14 @@ Current provider/hook reality:
 There is exactly one recipe-capture pipeline. Every recipe source, including a Nosh conversation handoff, must enter `capture-recipe`. Do not call extraction and page creation directly from a screen or assistant tool.
 
 ```text
-User shares or submits a link, text, photo, or video
+User shares or submits a link, text, photo, video, or existing audio file
   -> capture-recipe durably saves the source
   -> extract-recipe produces a RecipeGraph
      -> URL with schema.org Recipe JSON-LD: deterministic normalization
-     -> unstructured text/image/video: Qwen3.6-35B-A3B with strict schema output
+     -> image: normalized bounded image evidence
+     -> video: canonical public YouTube URL or bounded direct-video evidence
+     -> audio: private bounded file -> replaceable speech-to-text adapter -> transcript evidence
+     -> unstructured text/image/video/audio transcript: replaceable strict-schema multimodal model
   -> destination resolves from the active, explicit, default, or sole cookbook
   -> only an unresolved destination pauses for a simple book picker
   -> one processing CookbookPage stores the RecipeGraph as JSONB
@@ -146,7 +149,7 @@ User shares or submits a link, text, photo, or video
 
 Active functions:
 
-- `extract-recipe`: URL, text, image, and video → RecipeGraphDraft. Uses deterministic Recipe JSON-LD when available and Qwen3.6-35B-A3B via OpenRouter for unstructured sources. Audio intake is not implemented.
+- `extract-recipe`: URL, text, image, resolved video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic Recipe JSON-LD when available and a replaceable strict-schema model for unstructured sources. Public YouTube and direct MP4, MOV, MPEG, or WebM URLs are supported; social post pages are rejected before model extraction. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
@@ -160,6 +163,9 @@ Pipeline invariants:
 - `generate-page-art` is a legacy route name for complete-page generation. Its output includes the visible recipe text and imagery.
 - `recipe_graph` is the canonical reasoning record. The selected `page_versions` image is the reading artifact.
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
+- `recipe_captures.stage_checkpoints` versions source, optional transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
+- `recipe_captures.failed_stage` identifies where work stopped. `failure_code` decides the user recovery action; provider and database diagnostics stay in server logs.
+- Ingestion model, provider, prompt, parser, transcription, or normalization changes must run the versioned corpus in `supabase/functions/extract-recipe/evals/`; release cases fail closed and diagnostic cases record hard-source coverage still awaiting stable fixtures.
 - The cookbook row owns an independent physical `cover_style` and generated-page `page_style_id`; page style revision and visual references belong to `page_style_id`. Never accept a caller-defined per-recipe style as canonical.
 - The typesetter is a compatibility renderer for old pages only. It is not a second generation pipeline.
 - Internal generation credits are suspended. New generations use `credit_cost = 0` and must not call `reserve_generation_credit`; see ADR 0003 before changing this policy.
@@ -185,6 +191,9 @@ Edge Function secrets in Supabase:
 
 ```text
 AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
+VIDEO_MODEL                               optional extract-recipe video override
+AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
+AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
 ART_MODEL                                 generate-page-art
 ```
 

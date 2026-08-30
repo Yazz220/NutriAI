@@ -14,6 +14,7 @@ const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockCaptures: RecipeCapture[] = [];
 let mockPageSlots: CookbookPage[] = [];
 const mockRetryCapture = jest.fn();
+const mockCorrectCapture = jest.fn();
 const mockStartCapture = jest.fn();
 const mockUploadRecipeCaptureImage = jest.fn();
 const mockTrackEvent = jest.fn();
@@ -53,12 +54,38 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
     refresh: jest.fn(),
     startCapture: (...args: unknown[]) => mockStartCapture(...args),
     retryCapture: mockRetryCapture,
+    correctCapture: mockCorrectCapture,
     prepareDestination: jest.fn(),
     isStarting: false,
     isRetrying: false,
+    isCorrecting: false,
     isPreparingDestination: false,
   }),
 }));
+jest.mock('@/components/nosh/capture/RecipeCorrectionSheet', () => {
+  const mockReact = require('react');
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    RecipeCorrectionSheet: ({ visible, recipeGraph, onSubmit }: {
+      visible: boolean;
+      recipeGraph: RecipeCapture['recipeGraph'];
+      onSubmit: (recipeGraph: RecipeCapture['recipeGraph']) => Promise<void>;
+    }) => visible ? mockReact.createElement(
+      View,
+      null,
+      mockReact.createElement(Text, null, 'Recipe correction sheet'),
+      mockReact.createElement(
+        Pressable,
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: 'Save corrected recipe',
+          onPress: () => onSubmit(recipeGraph),
+        },
+        mockReact.createElement(Text, null, 'Save corrected recipe'),
+      ),
+    ) : null,
+  };
+});
 jest.mock('@/hooks/useCookbook', () => ({
   useCookbook: () => ({
     cookbook: { id: 'book-1', title: 'Family Table' },
@@ -147,6 +174,7 @@ function capture(overrides: Partial<RecipeCapture> = {}): RecipeCapture {
     extractionNotes: [],
     inferredFields: [],
     pageStatus: 'not_started',
+    stageCheckpoints: {},
     idempotencyKey: 'capture-request-123456',
     processingAttempt: 1,
     createdAt: '2026-08-23T10:00:00.000Z',
@@ -267,13 +295,82 @@ describe('NoshCaptureWorkspace', () => {
     })];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    expect(screen.getByText('This page needs another try')).toBeTruthy();
+    expect(screen.getByText('This recipe needs another try')).toBeTruthy();
     expect(screen.getByText('The video could not be opened.')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => {
       expect(mockRequestConsent).toHaveBeenCalledTimes(1);
       expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
     });
+  });
+
+  it('returns evidence failures to the composer instead of retrying the bad source', async () => {
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureCode: 'blank_or_empty_source',
+      failureMessage: 'This source appears blank.',
+    })];
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
+
+    expect(screen.getByText('This does not look like a recipe')).toBeTruthy();
+    expect(screen.getByText(
+      'This source appears blank or contains too little visible information. Choose a clearer source.',
+    )).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Choose another source' }));
+
+    await waitFor(() => expect(screen.getByText('Recipe composer')).toBeTruthy());
+    expect(mockRetryCapture).not.toHaveBeenCalled();
+  });
+
+  it('opens a focused correction surface for semantic quality issues', async () => {
+    const recipeGraph = {
+      title: 'Sheet Pan Chicken',
+      ingredientGroups: [{ id: 'default', ingredients: [{ name: 'chicken', quantity: '1' }] }],
+      stepGroups: [{ id: 'default', steps: [{ id: 'step-1', text: 'Bake for 25 minutes.' }] }],
+      category: 'dinner',
+      tags: [],
+      provenance: {
+        sourceType: 'text',
+        confidence: 0.8,
+        qualityAssessment: {
+          version: 1,
+          decision: 'needs_correction',
+          issues: [{
+            key: 'missing_baking_temperature:stepGroups.0.steps.0.text',
+            code: 'missing_baking_temperature',
+            severity: 'blocking',
+            message: 'The method uses an oven but does not include an oven temperature.',
+            fieldPaths: ['stepGroups.0.steps.0.text'],
+            confirmed: false,
+          }],
+          metrics: {
+            ingredientCount: 1,
+            quantifiedIngredientCount: 1,
+            stepCount: 1,
+            hasYield: false,
+            hasCookingTemperature: false,
+            hasCookingDuration: true,
+          },
+        },
+      },
+    } as RecipeCapture['recipeGraph'];
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureCode: 'needs_recipe_correction',
+      recipeGraph,
+    })];
+    mockCorrectCapture.mockResolvedValueOnce({ capture: capture({ status: 'processing' }) });
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
+
+    expect(screen.getByText('Check Sheet Pan Chicken')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Review recipe' }));
+    expect(screen.getByText('Recipe correction sheet')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Save corrected recipe' }));
+
+    await waitFor(() => expect(mockCorrectCapture).toHaveBeenCalledWith({
+      captureId: 'capture-1',
+      recipeGraph,
+    }));
   });
 
   it('replaces completion cards with the finished page in the grid', async () => {

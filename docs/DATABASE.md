@@ -43,7 +43,7 @@ Structured recipe data extracted from a source. One recipe per imported page.
 | `servings`, `prep_time`, `cook_time` | integer | |
 | `ingredients` | jsonb | `[{name, quantity, unit, isOptional?}]` |
 | `steps` | jsonb | `string[]` |
-| `source_type` | text CHECK ∈ {`url`, `text`, `image`, `video`} | |
+| `source_type` | text CHECK ∈ {`url`, `text`, `image`, `video`, `audio`} | |
 | `source_url` | text | |
 | `tags` | jsonb | `string[]` |
 | `category` | text | Section bucket (breakfast / dinner / desserts / more) |
@@ -77,7 +77,11 @@ Search indexes:
 
 ### `nutriai.recipe_captures`
 
-Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. Images live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths. Different capture rows can be claimed and processed independently. The claim lease blocks only duplicate work for the same capture.
+Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. `stage_checkpoints` is a JSON object keyed by `source`, `transcription`, `extraction`, `normalization`, `quality`, `page_generation`, and `publication`; each completed entry records a contract version, completion time, and bounded stage metadata. `failed_stage` records where work stopped. Images and audio recordings live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths. After successful speech-to-text, an audio capture's `source_payload` retains the bounded transcript and transcription model/adapter metadata so extraction retries reuse the same evidence. Different capture rows can be claimed and processed independently. The claim lease blocks only duplicate work for the same capture.
+
+`failure_code` is also the durable recovery contract. Recipe-evidence failures use `not_a_recipe`, `blank_or_empty_source`, `unreadable_source`, `blurry_or_low_resolution_image`, `cropped_recipe_image`, `video_source_unsupported`, `video_unavailable`, `video_too_large`, `audio_source_unsupported`, `audio_too_large`, `audio_no_speech`, `audio_transcription_failed`, `missing_ingredients`, `missing_instructions`, or `multiple_recipes`. These codes stop before Recipe Graph or page creation. Most replace the saved source; `video_unavailable` and `audio_transcription_failed` may retry the same durable source. `needs_recipe_correction` means a Recipe Graph was saved but deterministic semantic checks stopped the capture before page creation; the app edits that graph and resumes the same row. Retryable technical codes are `source_read_failed`, `extraction_failed`, `quality_assessment_failed`, `destination_unavailable`, `page_generation_failed`, and `publication_failed`. `publication_failed` keeps `art_status = ready` because the selected page image already exists. `failure_message` stores deterministic Nosh copy, never raw model prose; raw provider or database diagnostics remain in server logs.
+
+The Recipe Graph may omit numeric `servings`. `yieldText` preserves source values such as "1 loaf" or "Makes 24 cookies" without assigning them people-serving semantics. Structured URL graphs also retain raw ingredient lines and versioned source provenance inside JSONB. Provenance stores the latest versioned quality assessment, the first blocking assessment after correction, issue paths, measured coverage, and exact inferred-field issue keys the user confirmed. The compatibility `recipes.servings` column remains nullable. Page revision accepts a missing serving count and writes null to that compatibility column.
 
 The database transition trigger permits `processing -> needs_destination | ready | needs_attention`, plus `needs_destination -> processing` and `needs_attention -> processing`. Repeating the current state is idempotent. Client roles can read only their own rows. Authenticated creation and destination choice use guarded RPCs; extraction, page creation, failure, and finalization RPCs are restricted to `service_role`. The client treats a 10-minute-old `processing_started_at` as an abandoned lease. If the worker stopped before claiming the row, it falls back to `updated_at`. Each new `processing_attempt` gets one automatic reclaim, so a second worker failure can recover without another cold launch.
 
@@ -164,6 +168,9 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260823041346_add_cookbook_page_styles.sql` | Separates physical `cover_style` from book-owned `page_style_id` and preserves existing books' page identities |
 | `supabase/migrations/20260829183126_separate_cover_finish_and_color.sql` | Separates the canonical cover's surface finish from its curated color while preserving `cover_style` compatibility |
 | `supabase/migrations/20260829183847_sync_legacy_cover_style_and_color.sql` | Keeps legacy `cover_style` writes synchronized with `cover_color_id` across app versions |
+| `supabase/migrations/20260830051728_allow_unknown_recipe_servings.sql` | Lets canonical recipes and atomic page revisions preserve non-serving yields without inventing a numeric serving count |
+| `supabase/migrations/20260830162003_add_audio_recipe_captures.sql` | Adds private existing-audio capture, bounded transcription evidence, and audio source constraints |
+| `supabase/migrations/20260830174134_version_recipe_capture_stages.sql` | Adds versioned capture checkpoints, stage-specific failures, and publication-only retry for already-generated pages |
 | `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |
 
 ## RLS posture

@@ -1,5 +1,9 @@
 import type { CookbookPage, RecipeSourceType } from '@/types/cookbook';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
+import type {
+  CaptureCheckpointName,
+  CaptureStageCheckpoints,
+} from '@/supabase/functions/_shared/captureStages';
 
 export type RecipeCaptureStatus =
   | 'processing'
@@ -8,6 +12,7 @@ export type RecipeCaptureStatus =
   | 'needs_attention';
 
 export type RecipeCapturePageStatus = 'not_started' | 'generating' | 'ready' | 'failed';
+export type RecipeCaptureFailedStage = CaptureCheckpointName | 'destination';
 
 const DATABASE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,6 +33,8 @@ export interface RecipeCapture {
   pageWarning?: string;
   failureCode?: string;
   failureMessage?: string;
+  failedStage?: RecipeCaptureFailedStage;
+  stageCheckpoints: CaptureStageCheckpoints;
   idempotencyKey: string;
   processingAttempt: number;
   processingStartedAt?: string;
@@ -37,7 +44,15 @@ export interface RecipeCapture {
 
 export type RecipeCaptureSource =
   | { type: 'url' | 'text' | 'video'; input: string }
-  | { type: 'image'; storagePath: string; mimeType: string; notes?: string };
+  | { type: 'image'; storagePath: string; mimeType: string; notes?: string }
+  | {
+      type: 'audio';
+      storagePath: string;
+      mimeType: string;
+      fileName: string;
+      byteSize: number;
+      notes?: string;
+    };
 
 const NEXT_STATES: Record<RecipeCaptureStatus, readonly RecipeCaptureStatus[]> = {
   processing: ['needs_destination', 'ready', 'needs_attention'],

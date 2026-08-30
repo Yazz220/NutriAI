@@ -32,7 +32,7 @@ The same flow starts from the shelf's Save a recipe action, a cookbook's Add pag
 | Send a recipe source to Nosh | Depends on active context | Nosh asks before switching to capture, then hands the source to the same capture workspace. |
 | Retry from Save a recipe activity | Preserved | The existing capture resumes. It does not create a second capture or page. |
 
-Supported sources are a URL, pasted text, one image, or a video link. Audio and multi-file share are not implemented.
+Supported sources are a URL, pasted text, one image, one existing audio recording, a public YouTube link, or a direct MP4, MOV, MPEG, or WebM file URL up to 20 MB. Before an image is saved, the client applies its orientation, fits it within the canonical 2400-pixel reading boundary, and encodes it as a JPEG below the extractor's 8 MB limit. Audio uses the system file picker and accepts MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC files up to 6 MB; Nosh does not record from the microphone. User notes attached to an image or audio file remain part of its recipe evidence. Social post pages such as TikTok and Instagram are not treated as video files; the capture explains how to replace them with screenshots or pasted text. Uploaded video files and multi-file share are not implemented.
 
 ## Destination rules
 
@@ -58,10 +58,24 @@ processing
 |---|---|---|
 | `processing` | Nosh is extracting the recipe or generating its page. | The user may leave. Work continues and the app polls for updates. |
 | `needs_destination` | The Recipe Graph exists, but no cookbook can supply a visual identity. | Choose or create a cookbook. |
-| `needs_attention` | Extraction or page generation failed. | Retry the same capture. |
+| `needs_attention` | The source lacks usable recipe evidence, a critical recipe detail needs correction, or a technical stage failed. | Replace an unusable source, correct the flagged details, or retry a technical failure. |
 | `ready` | The complete page is published in its cookbook. | Open the recipe or continue browsing. |
 
-There is no review, approval, or provisional-page state in the current product.
+There is no general review, approval, or provisional-page state. A focused recipe correction appears only when deterministic checks find an actionable cooking-critical problem.
+
+Retry resumes from the last compatible capture checkpoint. It reuses a saved transcript after transcription, a saved Recipe Graph after normalization and quality checks, and a ready selected page image after generation. A publication retry adds that existing image to the reader; it does not generate another page. The provider or model may change without changing this flow because checkpoint compatibility follows Nosh's versioned stage contracts, not a provider name.
+
+Before a Recipe Graph or cookbook page can be created, extraction returns one provider-neutral evidence decision:
+
+| Outcome | Meaning | Result |
+|---|---|---|
+| `recipe` | One usable ingredient list and cooking method are supported by the source. | Continue with the canonical Recipe Graph. |
+| `not_recipe` | The source is unrelated to recipes or blank/empty. | Stop in `needs_attention`; ask for another source. |
+| `insufficient_evidence` | The source may concern a recipe but is unreadable, incomplete, or contains multiple inseparable recipes. | Stop in `needs_attention`; explain what is missing and ask for another source. |
+
+The model supplies the classification and an internal diagnostic. Nosh owns the reason codes, user-facing copy, and recovery action. Rejected evidence never reaches page creation, and provider wording is never shown directly to the user.
+
+Accepted evidence then receives a versioned recipe quality assessment. It checks observable facts such as ingredient amount coverage, oven temperature, serving-yield agreement, valid time values, and critical fields marked as inferred. The result is `auto_publish`, `publish_with_note`, or `needs_correction`. The first two continue automatically. `needs_correction` saves the Recipe Graph on the capture, stops before page creation, and opens a compact editor for the flagged recipe. Saving valid corrections resumes the same capture. Only an explicitly reviewed inferred critical field can be confirmed without changing its value; missing or contradictory facts must be fixed.
 
 ## What Nosh stores
 
@@ -69,10 +83,12 @@ Each completed recipe page has two related forms:
 
 | Form | Used by | Contains |
 |---|---|---|
-| Recipe Graph | Nosh and collection search | Structured title, servings, ingredients, steps, notes, provenance, and other recipe facts. |
+| Recipe Graph | Nosh and collection search | Structured title, source yield, optional numeric servings, ingredients with retained source lines, grouped steps, notes, provenance, and the latest quality assessment. |
 | Selected generated page image | Reader | The complete designed page with imagery and all visible recipe text. |
 
 The generated page is not a standalone food illustration. It is the full page the user reads.
+
+For structured website imports, Nosh keeps the URL the user submitted and the publisher's canonical URL separately. It records the parser version, fetched time, content hash, language, page title, structured-data identity, candidate count, and selection reason. Ingredient lines remain available as `rawText` after conservative quantity and unit parsing. Schema.org `HowToSection` names become canonical step-group labels. If a source says "1 loaf" or "Makes 24 cookies," the graph preserves that yield without inventing a people-serving count.
 
 When a saved recipe changes, Nosh first generates a replacement page from the proposed Recipe Graph. The app switches the canonical graph and selected page version together after generation succeeds. A failed generation leaves the current recipe and page unchanged.
 
@@ -117,11 +133,16 @@ See [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) for th
 |---|---|
 | Native share does not reach Nosh | `components/nosh/capture/NativeShareIngestion.tsx`, `utils/cookbook/nativeShareAdapter.ts`, then the `/share` receipt route |
 | Capture is missing or duplicated | `supabase/functions/capture-recipe/index.ts`, `captureLifecycle.ts`, capture idempotency keys, and `recipe_captures` |
+| Retry repeats expensive work | Capture `stage_checkpoints`, the saved artifact for the last completed stage, and `_shared/captureStages.ts` |
+| Valid source is classified incorrectly | `supabase/functions/_shared/recipeEvidence.ts`, `extract-recipe` evidence diagnostics, and the capture `failure_code` |
+| Recipe image is oversized, blurry, or incomplete | `recipeCaptureImage.ts`, `recipeCaptureImageContract.ts`, `imageRecipeEvidence.ts`, and image-specific evidence failure codes |
+| Video link is unavailable or unsupported | `_shared/videoRecipeEvidence.ts`, `VIDEO_MODEL`, `extract-recipe` video-resolution logs, and video-specific failure codes |
+| Audio cannot be read | `_shared/audioRecipeEvidence.ts`, `_shared/audioTranscription.ts`, `AUDIO_TRANSCRIPTION_MODEL`, and audio-specific failure codes |
 | Recipe extraction is wrong | `supabase/functions/extract-recipe/index.ts`, URL evidence helpers, and the stored Recipe Graph |
 | Wrong cookbook selected | `begin_recipe_capture`, the cookbook `is_default` field, and the explicit destination passed by the entry point |
 | Page style does not match the book | Cookbook `page_style_id`, `style_revision`, `page_style_references`, then `_shared/artGeneration.ts` |
-| Page generation is stuck | `generation_requests`, `page_versions`, `generate-page-art` logs, OpenRouter availability, then capture `pageStatus` |
-| Finished page is absent from the reader | Capture `status`, page `lifecycle_status`, `selected_version_id`, and `useRecipeCaptures` reconciliation |
+| Page generation is stuck | `generation_requests`, `page_versions`, `generate-page-art` logs, OpenRouter availability, then capture `failed_stage = page_generation` |
+| Finished page is absent from the reader | Capture `failed_stage = publication`, `status`, page `lifecycle_status`, `selected_version_id`, and `useRecipeCaptures` reconciliation |
 | Nosh answers from the wrong recipe | `NoshConversationContext`, interaction focus, `noshChatAdapter.ts`, and collection retrieval tools |
 
 ## Compatibility code

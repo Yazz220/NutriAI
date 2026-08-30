@@ -32,6 +32,7 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-v1');
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',
@@ -75,6 +76,17 @@ describe('complete recipe page generation contract', () => {
     expect(payload.geometryId).toBe('nosh-cookbook-4x5-v1');
     expect(payload.geometryRevision).toBe(1);
     expect(payload.output.aspectRatio).toBe('4:5');
+  });
+
+  it('prints the source yield without relabeling it as people-servings', () => {
+    const { payload } = buildRecipePagePrompt({
+      ...recipe,
+      servings: undefined,
+      yieldText: 'Makes 1 loaf',
+    }, 'illustrated');
+
+    expect(payload.recipe.metadata).toContain('Makes 1 loaf');
+    expect(payload.recipe.metadata).not.toContain('Serves 1');
   });
 
   it('supports a stable seed for tests without forcing one in production', () => {

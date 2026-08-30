@@ -1,5 +1,9 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { RecipeGraph, RecipeCategory } from '@/types/recipeGraph';
+import type {
+  RecipeGraph,
+  RecipeCategory,
+  RecipeSourceType as CanonicalRecipeSourceType,
+} from '@/types/recipeGraph';
 
 export type CookbookSection =
   | 'breakfast'
@@ -10,7 +14,7 @@ export type CookbookSection =
   | 'sides'
   | 'favorites';
 
-export type RecipeSourceType = 'url' | 'text' | 'image' | 'video';
+export type RecipeSourceType = CanonicalRecipeSourceType;
 
 export type PageVersionStatus = 'pending' | 'generating' | 'ready' | 'failed';
 

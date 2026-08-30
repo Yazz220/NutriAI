@@ -132,7 +132,10 @@ export const TextLayer = memo(function TextLayer({
   );
 
   const metaLabel = [
-    `${recipeGraph.servings} serving${recipeGraph.servings === 1 ? '' : 's'}`,
+    recipeGraph.yieldText
+      ?? (recipeGraph.servings
+        ? `${recipeGraph.servings} serving${recipeGraph.servings === 1 ? '' : 's'}`
+        : null),
     recipeGraph.prepTimeMinutes != null && recipeGraph.prepTimeMinutes > 0
       ? `Prep ${recipeGraph.prepTimeMinutes}m`
       : null,

@@ -16,6 +16,7 @@ import {
   type UnifiedIntakePayload,
 } from '@/components/cookbook/UnifiedIntakeComposer';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
+import { RecipeCorrectionSheet } from '@/components/nosh/capture/RecipeCorrectionSheet';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -29,7 +30,7 @@ import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
-import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
+import { uploadRecipeCaptureAudio, uploadRecipeCaptureImage } from '@/utils/cookbook/api';
 import {
   createCaptureRequestKey,
   normalizeCaptureDestinationCookbookId,
@@ -42,6 +43,7 @@ import {
   type CapturePresentationPhase,
 } from '@/utils/cookbook/capturePresentation';
 import { Fonts } from '@/utils/fonts';
+import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudio';
 import { trackEvent } from '@/utils/analytics';
 import {
   defaultFirstRunOnboardingState,
@@ -88,8 +90,10 @@ export function NoshCaptureWorkspace({
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string | null>(null);
+  const [audioAttachment, setAudioAttachment] = useState<RecipeCaptureAudioAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [correctionVisible, setCorrectionVisible] = useState(false);
   const [activityLimit, setActivityLimit] = useState(INITIAL_ACTIVITY_LIMIT);
   const [selectedDestinationCookbookId, setSelectedDestinationCookbookId] = useState(
     destinationCookbookId,
@@ -211,6 +215,13 @@ export function NoshCaptureWorkspace({
           requestKey,
         });
         source = { type: 'image', ...upload, notes: payload.input };
+      } else if (payload.type === 'audio') {
+        const upload = await uploadRecipeCaptureAudio({
+          userId: user.id,
+          audio: payload.audio,
+          requestKey,
+        });
+        source = { type: 'audio', ...upload, notes: payload.input };
       } else {
         source = { type: payload.type, input: payload.input };
       }
@@ -242,6 +253,7 @@ export function NoshCaptureWorkspace({
       setImageBase64(null);
       setImageUri(null);
       setImageMimeType(null);
+      setAudioAttachment(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
     } finally {
@@ -285,6 +297,17 @@ export function NoshCaptureWorkspace({
     await captureState.retryCapture(capture.id);
   }
 
+  async function correctCapture(recipeGraph: NonNullable<RecipeCapture['recipeGraph']>) {
+    if (!capture || !await requestConsent()) return;
+    setError(null);
+    try {
+      await captureState.correctCapture({ captureId: capture.id, recipeGraph });
+      setCorrectionVisible(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not save the recipe corrections.');
+    }
+  }
+
   function showComposer() {
     setCaptureId(undefined);
     setError(null);
@@ -321,19 +344,32 @@ export function NoshCaptureWorkspace({
 
   if (capture?.status === 'needs_destination' || capture?.status === 'needs_attention') {
     return (
-      <CaptureDetail
-        capture={capture}
-        destination={destination}
-        availableCookbooks={availableCookbooks}
-        error={error}
-        isPreparingDestination={captureState.isPreparingDestination}
-        isRetrying={captureState.isRetrying}
-        backLabel={activityVisible ? 'Recipe activity' : 'Save another recipe'}
-        onBack={showComposer}
-        onChooseDestination={chooseDestination}
-        onRetry={() => { void retryCapture(); }}
-        onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
-      />
+      <>
+        <CaptureDetail
+          capture={capture}
+          destination={destination}
+          availableCookbooks={availableCookbooks}
+          error={error}
+          isPreparingDestination={captureState.isPreparingDestination}
+          isRetrying={captureState.isRetrying}
+          isCorrecting={captureState.isCorrecting}
+          backLabel={activityVisible ? 'Recipe activity' : 'Save another recipe'}
+          onBack={showComposer}
+          onReplaceSource={showComposer}
+          onCorrect={() => { setError(null); setCorrectionVisible(true); }}
+          onChooseDestination={chooseDestination}
+          onRetry={() => { void retryCapture(); }}
+          onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
+        />
+        <RecipeCorrectionSheet
+          visible={correctionVisible}
+          recipeGraph={capture.recipeGraph ?? null}
+          saving={captureState.isCorrecting}
+          error={error}
+          onClose={() => { setCorrectionVisible(false); setError(null); }}
+          onSubmit={correctCapture}
+        />
+      </>
     );
   }
 
@@ -379,6 +415,7 @@ export function NoshCaptureWorkspace({
         imageBase64={imageBase64}
         imageUri={imageUri}
         imageMimeType={imageMimeType}
+        audioAttachment={audioAttachment}
         error={error}
         onInputChange={(value) => { setInput(value); setError(null); }}
         onImageBase64Change={setImageBase64}
@@ -386,6 +423,7 @@ export function NoshCaptureWorkspace({
           setImageUri(uri);
           setImageMimeType(mimeType);
         }}
+        onAudioAttachmentChange={setAudioAttachment}
         onSubmit={submit}
       />
 
@@ -520,8 +558,11 @@ function CaptureDetail({
   error,
   isPreparingDestination,
   isRetrying,
+  isCorrecting,
   backLabel,
   onBack,
+  onReplaceSource,
+  onCorrect,
   onChooseDestination,
   onRetry,
   onCreateCookbook,
@@ -532,8 +573,11 @@ function CaptureDetail({
   error: string | null;
   isPreparingDestination: boolean;
   isRetrying: boolean;
+  isCorrecting: boolean;
   backLabel: string;
   onBack: () => void;
+  onReplaceSource: () => void;
+  onCorrect: () => void;
   onChooseDestination: (cookbookId: string) => Promise<void>;
   onRetry: () => void;
   onCreateCookbook: () => void;
@@ -568,15 +612,24 @@ function CaptureDetail({
   }
 
   if (capture.status === 'needs_attention') {
+    const shouldReplaceSource = presentation.action === 'replace_source';
+    const shouldCorrectRecipe = presentation.action === 'correct_recipe';
     return (
       <View style={styles.detailStack}>
         <DetailBackButton onPress={onBack} label={backLabel} />
         <StateCard
           icon={<AlertTriangle size={21} color={Colors.error} />}
           iconTone="error"
-          title="This page needs another try"
+          title={shouldReplaceSource || shouldCorrectRecipe ? presentation.title : 'This recipe needs another try'}
           copy={presentation.detail}
-          action={<Button title="Try again" onPress={onRetry} loading={isRetrying} fullWidth />}
+          action={(
+            <Button
+              title={presentation.actionLabel ?? 'Try again'}
+              onPress={shouldReplaceSource ? onReplaceSource : shouldCorrectRecipe ? onCorrect : onRetry}
+              loading={shouldCorrectRecipe ? isCorrecting : !shouldReplaceSource && isRetrying}
+              fullWidth
+            />
+          )}
         />
       </View>
     );
@@ -750,6 +803,8 @@ function CaptureActivityRow({
     ? 'Photo'
     : capture.sourceType === 'video'
       ? 'Video'
+      : capture.sourceType === 'audio'
+        ? 'Audio'
       : capture.sourceType === 'url'
         ? 'Link'
         : 'Text';
