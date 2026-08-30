@@ -14,6 +14,7 @@ import {
   resolveShelfGesturePitch,
   type ShelfGeometry,
 } from '@/utils/cookbook/physicalShelf';
+import type { ContextActionGroup, ContextActionId } from '@/utils/cookbook/contextActions';
 
 /**
  * The spine-packed 3D shelf carousel. One shared value (`shelfOffset`, in
@@ -41,10 +42,15 @@ interface ShelfCarouselProps<T> {
   items: T[];
   keyExtractor: (item: T) => string;
   renderCover: (item: T, width: number) => React.ReactNode;
+  renderCoverAction?: (item: T) => React.ReactNode;
   renderSpine: (item: T, spineWidth: number, height: number) => React.ReactNode;
   spineWidthFor?: (item: T, bookWidth: number) => number;
   accessibilityLabelFor: (item: T) => string;
   onActivateItem: (item: T) => void;
+  contextActionsFor?: (item: T) => ContextActionGroup[];
+  onContextAction?: (item: T, actionId: ContextActionId) => void;
+  onOpenContextActions?: (item: T) => void;
+  activeIndex?: number;
   trailingSlot?: ShelfCarouselTrailingSlot;
   onActiveIndexChange: (index: number) => void;
   /** Distance from the stage's bottom edge to the top of the shelf board. */
@@ -55,10 +61,15 @@ export function ShelfCarousel<T>({
   items,
   keyExtractor,
   renderCover,
+  renderCoverAction,
   renderSpine,
   spineWidthFor,
   accessibilityLabelFor,
   onActivateItem,
+  contextActionsFor,
+  onContextAction,
+  onOpenContextActions,
+  activeIndex,
   trailingSlot,
   onActiveIndexChange,
   boardClearance,
@@ -187,7 +198,11 @@ export function ShelfCarousel<T>({
                     item ? accessibilityLabelFor(item) : (trailingSlot?.accessibilityLabel ?? 'Create')
                   }
                   onPress={(liveOffset) => handleSlotPress(index, liveOffset)}
+                  contextActions={item ? contextActionsFor?.(item) : undefined}
+                  onContextAction={item && onContextAction ? (actionId) => onContextAction(item, actionId) : undefined}
+                  onOpenContextActions={item && onOpenContextActions ? () => onOpenContextActions(item) : undefined}
                   cover={item ? renderCover(item, bookWidth) : trailingSlot?.renderCover(bookWidth)}
+                  coverAction={item && index === activeIndex ? renderCoverAction?.(item) : undefined}
                   spine={
                     item ? renderSpine(item, spineWidth, bookHeight) : trailingSlot?.renderSpine(spineWidth, bookHeight)
                   }

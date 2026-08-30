@@ -12,24 +12,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, Ellipsis, Sparkles } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
-import Sortable, {
-  type SortableGridDragEndParams,
-  type SortableGridRenderItem,
-} from 'react-native-sortables';
+import Sortable, { type SortableGridDragEndParams, type SortableGridRenderItem } from 'react-native-sortables';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
+import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import type { CookbookPage } from '@/types/cookbook';
 import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
-import {
-  buildCookbookPageGridItems,
-  type CookbookPageGridItem,
-} from '@/utils/cookbook/pageGrid';
+import { buildCookbookPageGridItems, type CookbookPageGridItem } from '@/utils/cookbook/pageGrid';
 import { getBeforePageId } from '@/utils/cookbook/pageOrder';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import { Fonts } from '@/utils/fonts';
+import { flattenContextActions, type ContextActionGroup, type ContextActionId } from '@/utils/cookbook/contextActions';
 
 interface CookbookPageGridProps {
   cookbookId: string;
@@ -37,6 +33,8 @@ interface CookbookPageGridProps {
   captures?: RecipeCapture[];
   onOpenPage?: (page: CookbookPage) => void;
   onPageActions?: (page: CookbookPage) => void;
+  contextActionsFor?: (page: CookbookPage) => ContextActionGroup[];
+  onContextAction?: (page: CookbookPage, actionId: ContextActionId) => void;
   onMovePage?: (input: { pageId: string; beforePageId: string | null }) => Promise<unknown> | void;
   scrollableRef?: AnimatedRef<Animated.ScrollView>;
   emptyTitle?: string;
@@ -67,9 +65,11 @@ function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
   const needsAttention = item.phase === 'attention';
   return (
     <LinearGradient
-      colors={needsAttention
-        ? [Colors.errorDark, Colors.warmUmber]
-        : [Colors.burnishedBronze, Colors.warmUmber, Colors.carbon]}
+      colors={
+        needsAttention
+          ? [Colors.errorDark, Colors.warmUmber]
+          : [Colors.burnishedBronze, Colors.warmUmber, Colors.carbon]
+      }
       style={styles.processingPage}
     >
       <View style={styles.processingGlow} />
@@ -114,6 +114,8 @@ export function CookbookPageGrid({
   captures,
   onOpenPage,
   onPageActions,
+  contextActionsFor,
+  onContextAction,
   onMovePage,
   scrollableRef,
   emptyTitle = 'Your cookbook pages will appear here.',
@@ -133,114 +135,153 @@ export function CookbookPageGrid({
     setOrderedItems(items);
   }, [items]);
 
-  const commitOrder = useCallback((nextItems: CookbookPageGridItem[], movedKey: string) => {
-    setOrderedItems(nextItems);
-    const movedItem = nextItems.find((item) => item.key === movedKey);
-    if (!movedItem?.page || !movedItem.isDraggable || !onMovePage) return;
-    const orderedPageIds = nextItems.flatMap((item) => item.page ? [item.page.id] : []);
-    void onMovePage({
-      pageId: movedItem.page.id,
-      beforePageId: getBeforePageId(orderedPageIds, movedItem.page.id),
-    });
-  }, [onMovePage]);
+  const commitOrder = useCallback(
+    (nextItems: CookbookPageGridItem[], movedKey: string) => {
+      setOrderedItems(nextItems);
+      const movedItem = nextItems.find((item) => item.key === movedKey);
+      if (!movedItem?.page || !movedItem.isDraggable || !onMovePage) return;
+      const orderedPageIds = nextItems.flatMap((item) => (item.page ? [item.page.id] : []));
+      void onMovePage({
+        pageId: movedItem.page.id,
+        beforePageId: getBeforePageId(orderedPageIds, movedItem.page.id),
+      });
+    },
+    [onMovePage],
+  );
 
-  const moveAccessibly = useCallback((item: CookbookPageGridItem, direction: -1 | 1) => {
-    if (!item.page || !item.isDraggable || !onMovePage) return;
-    const fromIndex = orderedItems.findIndex((candidate) => candidate.key === item.key);
-    const toIndex = fromIndex + direction;
-    if (fromIndex < 0 || toIndex < 0 || toIndex >= orderedItems.length) return;
-    if (!orderedItems[toIndex].isDraggable) return;
-    const nextItems = [...orderedItems];
-    nextItems.splice(fromIndex, 1);
-    nextItems.splice(toIndex, 0, item);
-    commitOrder(nextItems, item.key);
-  }, [commitOrder, onMovePage, orderedItems]);
+  const moveAccessibly = useCallback(
+    (item: CookbookPageGridItem, direction: -1 | 1) => {
+      if (!item.page || !item.isDraggable || !onMovePage) return;
+      const fromIndex = orderedItems.findIndex((candidate) => candidate.key === item.key);
+      const toIndex = fromIndex + direction;
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= orderedItems.length) return;
+      if (!orderedItems[toIndex].isDraggable) return;
+      const nextItems = [...orderedItems];
+      nextItems.splice(fromIndex, 1);
+      nextItems.splice(toIndex, 0, item);
+      commitOrder(nextItems, item.key);
+    },
+    [commitOrder, onMovePage, orderedItems],
+  );
 
-  const renderItem = useCallback<SortableGridRenderItem<CookbookPageGridItem>>(({ item, index }) => {
-    const canOpen = Boolean(item.page && item.phase === 'ready');
-    const canMoveEarlier = Boolean(onMovePage && item.isDraggable && index > 0 && orderedItems[index - 1]?.isDraggable);
-    const canMoveLater = Boolean(
-      onMovePage
-      && item.isDraggable
-      && index < orderedItems.length - 1
-      && orderedItems[index + 1]?.isDraggable,
-    );
-    const actions = [
-      { name: 'activate' as const, label: canOpen ? `Open ${item.title}` : `View status for ${item.title}` },
-      ...(canMoveEarlier ? [{ name: CUSTOM_ACTIONS.earlier, label: 'Move page earlier' }] : []),
-      ...(canMoveLater ? [{ name: CUSTOM_ACTIONS.later, label: 'Move page later' }] : []),
-      ...(item.page && onPageActions ? [{ name: CUSTOM_ACTIONS.actions, label: 'Show page actions' }] : []),
-    ];
+  const renderItem = useCallback<SortableGridRenderItem<CookbookPageGridItem>>(
+    ({ item, index }) => {
+      const canOpen = Boolean(item.page && item.phase === 'ready');
+      const contextActions = item.page ? (contextActionsFor?.(item.page) ?? []) : [];
+      const flatContextActions = flattenContextActions(contextActions);
+      const canMoveEarlier = Boolean(
+        onMovePage && item.isDraggable && index > 0 && orderedItems[index - 1]?.isDraggable,
+      );
+      const canMoveLater = Boolean(
+        onMovePage && item.isDraggable && index < orderedItems.length - 1 && orderedItems[index + 1]?.isDraggable,
+      );
+      const actions = [
+        { name: 'activate' as const, label: canOpen ? `Open ${item.title}` : `View status for ${item.title}` },
+        ...(canMoveEarlier ? [{ name: CUSTOM_ACTIONS.earlier, label: 'Move page earlier' }] : []),
+        ...(canMoveLater ? [{ name: CUSTOM_ACTIONS.later, label: 'Move page later' }] : []),
+        ...flatContextActions.map((action) => ({ name: action.id, label: action.title })),
+        ...(item.page && !contextActionsFor && flatContextActions.length === 0 && onPageActions
+          ? [{ name: CUSTOM_ACTIONS.actions, label: 'Show page actions' }]
+          : []),
+      ];
 
-    function handleAccessibilityAction(event: AccessibilityActionEvent) {
-      const action = event.nativeEvent.actionName;
-      if (action === 'activate' && canOpen && item.page) onOpenPage?.(item.page);
-      if (action === CUSTOM_ACTIONS.earlier) moveAccessibly(item, -1);
-      if (action === CUSTOM_ACTIONS.later) moveAccessibly(item, 1);
-      if (action === CUSTOM_ACTIONS.actions && item.page) onPageActions?.(item.page);
-    }
+      function handleAccessibilityAction(event: AccessibilityActionEvent) {
+        const action = event.nativeEvent.actionName;
+        if (action === 'activate' && canOpen && item.page) onOpenPage?.(item.page);
+        if (action === CUSTOM_ACTIONS.earlier) moveAccessibly(item, -1);
+        if (action === CUSTOM_ACTIONS.later) moveAccessibly(item, 1);
+        if (action === CUSTOM_ACTIONS.actions && item.page) onPageActions?.(item.page);
+        if (item.page && flatContextActions.some((contextAction) => contextAction.id === action)) {
+          onContextAction?.(item.page, action as ContextActionId);
+        }
+      }
 
-    return (
-      <Sortable.Handle
-        mode={onMovePage ? (item.isDraggable ? 'draggable' : 'fixed-order') : 'non-draggable'}
-        style={styles.sortableHandle}
-      >
-        <View style={styles.tile}>
-          <Pressable
-            style={({ pressed }) => [styles.pagePressable, pressed && canOpen && styles.pagePressed]}
-            onPress={() => {
-              if (canOpen && item.page) onOpenPage?.(item.page);
-            }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={`${item.title}. ${item.statusLabel ?? `Page ${index + 1}`}.`}
-            accessibilityHint={canOpen ? 'Double tap to open. Long press and drag to reorder.' : undefined}
-            accessibilityActions={actions}
-            onAccessibilityAction={handleAccessibilityAction}
-          >
-            <View style={styles.pageFrame}>
-              {canOpen && item.page ? (
-                <Animated.View
-                  key={`ready:${item.key}`}
-                  entering={reduceMotion ? undefined : FadeIn.duration(180)}
-                  exiting={reduceMotion ? undefined : FadeOut.duration(120)}
-                  style={StyleSheet.absoluteFill}
+      return (
+        <Sortable.Handle
+          mode={onMovePage ? (item.isDraggable ? 'draggable' : 'fixed-order') : 'non-draggable'}
+          style={styles.sortableHandle}
+        >
+          <View style={styles.tile}>
+            <Pressable
+              style={({ pressed }) => [styles.pagePressable, pressed && canOpen && styles.pagePressed]}
+              onPress={() => {
+                if (canOpen && item.page) onOpenPage?.(item.page);
+              }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}. ${item.statusLabel ?? `Page ${index + 1}`}.`}
+              accessibilityHint={canOpen ? 'Double tap to open. Long press and drag to reorder.' : undefined}
+              accessibilityActions={actions}
+              onAccessibilityAction={handleAccessibilityAction}
+            >
+              <View style={styles.pageFrame}>
+                {canOpen && item.page ? (
+                  <Animated.View
+                    key={`ready:${item.key}`}
+                    entering={reduceMotion ? undefined : FadeIn.duration(180)}
+                    exiting={reduceMotion ? undefined : FadeOut.duration(120)}
+                    style={StyleSheet.absoluteFill}
+                  >
+                    <PageThumbnail page={item.page} />
+                  </Animated.View>
+                ) : (
+                  <ProcessingPage item={item} />
+                )}
+              </View>
+            </Pressable>
+
+            <View style={styles.tileFooter}>
+              <Text style={styles.pageNumber} maxFontSizeMultiplier={1.2}>
+                {index + 1}
+              </Text>
+              <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                {item.title}
+              </Text>
+              {item.page && contextActions.length > 0 && onContextAction ? (
+                <ContextActionMenu
+                  actions={contextActions}
+                  onSelect={(actionId) => onContextAction(item.page!, actionId)}
+                  fallbackOnPress={onPageActions ? () => onPageActions(item.page!) : undefined}
+                  title={item.title}
+                  testID={`page-context-menu-${item.page.id}`}
                 >
-                  <PageThumbnail page={item.page} />
-                </Animated.View>
+                  <View
+                    style={styles.moreButton}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={`Actions for ${item.title}`}
+                  >
+                    <Ellipsis size={18} color={Colors.textSecondary} />
+                  </View>
+                </ContextActionMenu>
+              ) : item.page && !contextActionsFor && onPageActions ? (
+                <Pressable
+                  style={({ pressed }) => [styles.moreButton, pressed && styles.moreButtonPressed]}
+                  onPress={() => onPageActions(item.page!)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Actions for ${item.title}`}
+                >
+                  <Ellipsis size={18} color={Colors.textSecondary} />
+                </Pressable>
               ) : (
-                <ProcessingPage item={item} />
+                <View style={styles.moreButton} />
               )}
             </View>
-          </Pressable>
-
-          <View style={styles.tileFooter}>
-            <Text style={styles.pageNumber} maxFontSizeMultiplier={1.2}>
-              {index + 1}
-            </Text>
-            <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-              {item.title}
-            </Text>
-            {item.page && onPageActions ? (
-              <Pressable
-                style={({ pressed }) => [styles.moreButton, pressed && styles.moreButtonPressed]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  onPageActions(item.page!);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Actions for ${item.title}`}
-              >
-                <Ellipsis size={17} color={Colors.textSecondary} />
-              </Pressable>
-            ) : (
-              <View style={styles.moreButton} />
-            )}
           </View>
-        </View>
-      </Sortable.Handle>
-    );
-  }, [moveAccessibly, onMovePage, onOpenPage, onPageActions, orderedItems, reduceMotion]);
+        </Sortable.Handle>
+      );
+    },
+    [
+      contextActionsFor,
+      moveAccessibly,
+      onContextAction,
+      onMovePage,
+      onOpenPage,
+      onPageActions,
+      orderedItems,
+      reduceMotion,
+    ],
+  );
 
   if (orderedItems.length === 0) {
     return (
@@ -362,8 +403,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
   },
   moreButton: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',

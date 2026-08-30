@@ -1,10 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { BookOpen, ChevronLeft, Download, ExternalLink, FileDown, Pencil, RefreshCw, Share2, Trash2 } from 'lucide-react-native';
+import {
+  BookOpen,
+  ChevronLeft,
+  Download,
+  ExternalLink,
+  FileDown,
+  Pencil,
+  RefreshCw,
+  Share2,
+  Trash2,
+} from 'lucide-react-native';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
@@ -16,14 +26,15 @@ interface RecipeActionsSheetProps {
   cookbookId: string;
   cookbooks: Cookbook[];
   onClose: () => void;
-  onVisitSource: (page: CookbookPage) => Promise<void> | void;
-  onShare: (page: CookbookPage) => Promise<void> | void;
-  onExport: (page: CookbookPage) => Promise<void> | void;
+  onVisitSource?: (page: CookbookPage) => Promise<void> | void;
+  onShare?: (page: CookbookPage) => Promise<void> | void;
+  onExport?: (page: CookbookPage) => Promise<void> | void;
   onEdit?: (page: CookbookPage) => void;
   onRedesign?: (page: CookbookPage) => void;
   onMove?: (page: CookbookPage, destination: Cookbook) => Promise<void> | void;
   onRemove?: (page: CookbookPage) => Promise<void> | void;
   readOnly?: boolean;
+  initialView?: 'actions' | 'move';
 }
 
 export function RecipeActionsSheet({
@@ -40,23 +51,26 @@ export function RecipeActionsSheet({
   onMove,
   onRemove,
   readOnly = false,
+  initialView = 'actions',
 }: RecipeActionsSheetProps) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'actions' | 'move'>('actions');
+  const [view, setView] = useState<'actions' | 'move'>(initialView);
   const sourceUrl = page ? getRecipeSourceUrl(page) : null;
   const hasPageImage = getCookbookPageImageSource(page) !== null;
   const destinations = cookbooks.filter((cookbook) => cookbook.id !== cookbookId);
   const canRevise = Boolean(!readOnly && page?.recipeGraph && (onEdit || onRedesign));
   const canMove = Boolean(!readOnly && onMove && destinations.length > 0);
-  const hasStandardActions = Boolean(canRevise || sourceUrl || hasPageImage || canMove);
+  const hasStandardActions = Boolean(
+    canRevise || (sourceUrl && onVisitSource) || (hasPageImage && (onExport || onShare)) || canMove,
+  );
 
   useEffect(() => {
     if (!visible) return;
     setPendingAction(null);
     setError(null);
-    setView('actions');
-  }, [visible]);
+    setView(initialView);
+  }, [initialView, visible]);
 
   if (!page) return null;
 
@@ -109,71 +123,77 @@ export function RecipeActionsSheet({
     >
       {view === 'actions' ? (
         <>
-          {hasStandardActions ? <View style={styles.actionGroup}>
-            {!readOnly && page.recipeGraph && onEdit ? (
-              <ActionRow
-                icon={<Pencil size={19} color={Colors.text} />}
-                title="Edit recipe"
-                pending={false}
-                disabled={Boolean(pendingAction)}
-                onPress={() => {
-                  onClose();
-                  onEdit(page);
-                }}
-              />
-            ) : null}
-            {!readOnly && page.recipeGraph && onRedesign ? (
-              <ActionRow
-                icon={<RefreshCw size={19} color={Colors.text} />}
-                title="Try another design"
-                pending={false}
-                disabled={Boolean(pendingAction)}
-                onPress={() => {
-                  onClose();
-                  onRedesign(page);
-                }}
-              />
-            ) : null}
-            {sourceUrl ? (
-              <ActionRow
-                icon={<ExternalLink size={19} color={Colors.text} />}
-                title="Visit original source"
-                pending={pendingAction === 'source'}
-                disabled={Boolean(pendingAction)}
-                onPress={() => void runAction('source', () => onVisitSource(page))}
-              />
-            ) : null}
-            {hasPageImage ? (
-              <>
+          {hasStandardActions ? (
+            <View style={styles.actionGroup}>
+              {!readOnly && page.recipeGraph && onEdit ? (
                 <ActionRow
-                  icon={<Download size={19} color={Colors.text} />}
-                  title="Save page image"
-                  pending={pendingAction === 'export'}
+                  icon={<Pencil size={19} color={Colors.text} />}
+                  title="Edit recipe"
+                  pending={false}
                   disabled={Boolean(pendingAction)}
-                  onPress={() => void runAction('export', () => onExport(page))}
+                  onPress={() => {
+                    onClose();
+                    onEdit(page);
+                  }}
                 />
+              ) : null}
+              {!readOnly && page.recipeGraph && onRedesign ? (
                 <ActionRow
-                  icon={<Share2 size={19} color={Colors.text} />}
-                  title="Share recipe"
-                  pending={pendingAction === 'share'}
+                  icon={<RefreshCw size={19} color={Colors.text} />}
+                  title="Try another design"
+                  pending={false}
                   disabled={Boolean(pendingAction)}
-                  onPress={() => void runAction('share', () => onShare(page))}
+                  onPress={() => {
+                    onClose();
+                    onRedesign(page);
+                  }}
                 />
-              </>
-            ) : null}
-            {canMove ? (
-              <ActionRow
-                icon={<BookOpen size={19} color={Colors.text} />}
-                title="Move to another cookbook"
-                pending={false}
-                disabled={Boolean(pendingAction)}
-                onPress={() => {
-                  setError(null);
-                  setView('move');
-                }}
-              />
-            ) : null}
-          </View> : null}
+              ) : null}
+              {sourceUrl && onVisitSource ? (
+                <ActionRow
+                  icon={<ExternalLink size={19} color={Colors.text} />}
+                  title="Visit original source"
+                  pending={pendingAction === 'source'}
+                  disabled={Boolean(pendingAction)}
+                  onPress={() => void runAction('source', () => onVisitSource(page))}
+                />
+              ) : null}
+              {hasPageImage ? (
+                <>
+                  {onExport ? (
+                    <ActionRow
+                      icon={<Download size={19} color={Colors.text} />}
+                      title="Save page image"
+                      pending={pendingAction === 'export'}
+                      disabled={Boolean(pendingAction)}
+                      onPress={() => void runAction('export', () => onExport(page))}
+                    />
+                  ) : null}
+                  {onShare ? (
+                    <ActionRow
+                      icon={<Share2 size={19} color={Colors.text} />}
+                      title="Share recipe"
+                      pending={pendingAction === 'share'}
+                      disabled={Boolean(pendingAction)}
+                      onPress={() => void runAction('share', () => onShare(page))}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+              {canMove ? (
+                <ActionRow
+                  icon={<BookOpen size={19} color={Colors.text} />}
+                  title="Move to another cookbook"
+                  pending={false}
+                  disabled={Boolean(pendingAction)}
+                  onPress={() => {
+                    setError(null);
+                    setView('move');
+                  }}
+                />
+              ) : null}
+            </View>
+          ) : null}
           {!readOnly && onRemove ? (
             <View style={styles.recipeDangerSection}>
               <Pressable
@@ -193,7 +213,9 @@ export function RecipeActionsSheet({
         </>
       ) : (
         <ScrollView contentContainerStyle={styles.destinationList} showsVerticalScrollIndicator={false}>
-          <Text style={styles.destinationIntro} numberOfLines={2}>{page.title}</Text>
+          <Text style={styles.destinationIntro} numberOfLines={2}>
+            {page.title}
+          </Text>
           <View style={styles.actionGroup}>
             {destinations.map((destination) => {
               const actionKey = `move:${destination.id}`;
@@ -211,7 +233,11 @@ export function RecipeActionsSheet({
           </View>
         </ScrollView>
       )}
-      {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+      {error ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </Sheet>
   );
 }
@@ -288,7 +314,9 @@ export function CookbookSettingsSheet({
       closeButtonStyle={styles.closeButton}
       header={
         <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow} maxFontSizeMultiplier={1.15}>COOKBOOK</Text>
+          <Text style={styles.eyebrow} maxFontSizeMultiplier={1.15}>
+            COOKBOOK
+          </Text>
           <Text style={styles.sheetTitle}>Cookbook settings</Text>
         </View>
       }
@@ -306,7 +334,11 @@ export function CookbookSettingsSheet({
           style={styles.input}
         />
       </View>
-      {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+      {error ? (
+        <Text style={styles.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
       <Pressable
         style={({ pressed }) => [
           styles.saveButton,

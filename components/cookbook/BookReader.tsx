@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert, BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,23 +20,18 @@ import Animated, {
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
 import type { CookbookTurnRequest } from '@/components/cookbook/Cookbook3DScene.types';
-import {
-  CookbookSettingsSheet,
-  RecipeActionsSheet,
-} from '@/components/cookbook/ReaderActionSheets';
-import {
-  RecipeRevisionSheet,
-  type RecipeRevisionMode,
-} from '@/components/cookbook/RecipeRevisionSheet';
+import { CookbookSettingsSheet, RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
+import { RecipeRevisionSheet, type RecipeRevisionMode } from '@/components/cookbook/RecipeRevisionSheet';
 import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
+import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
   buildRecipeLeaves,
@@ -53,6 +48,11 @@ import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbo
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import { trackEvent } from '@/utils/analytics';
+import {
+  buildCookbookContextActions,
+  buildRecipeContextActions,
+  type ContextActionId,
+} from '@/utils/cookbook/contextActions';
 import {
   defaultFirstRunOnboardingState,
   loadFirstRunOnboardingState,
@@ -83,11 +83,7 @@ interface BookReaderProps {
     instruction: string | undefined,
     idempotencyKey: string,
   ) => Promise<GeneratedRecipePage>;
-  onUsePageCandidate?: (
-    page: CookbookPage,
-    candidate: GeneratedRecipePage,
-    recipeGraph?: RecipeGraph,
-  ) => Promise<void>;
+  onUsePageCandidate?: (page: CookbookPage, candidate: GeneratedRecipePage, recipeGraph?: RecipeGraph) => Promise<void>;
   onRenameCookbook?: (title: string) => Promise<void> | void;
   onExportCookbook?: () => Promise<void> | void;
   onDeleteCookbook?: () => Promise<void> | void;
@@ -176,11 +172,10 @@ export function BookReader({
   const [leafIndex, setLeafIndex] = useState(initialLeafIndex);
   const [focusedPage, setFocusedPage] = useState<CookbookPage | null>(null);
   const [activeSheet, setActiveSheet] = useState<'recipe' | 'cookbook' | null>(null);
+  const [recipeSheetInitialView, setRecipeSheetInitialView] = useState<'actions' | 'move'>('actions');
   const [overviewActionPage, setOverviewActionPage] = useState<CookbookPage | null>(null);
   const [revisionMode, setRevisionMode] = useState<RecipeRevisionMode | null>(null);
-  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
-    defaultFirstRunOnboardingState,
-  );
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(defaultFirstRunOnboardingState);
   const [firstRunReady, setFirstRunReady] = useState(false);
   const [firstPageCueDismissedThisSession, setFirstPageCueDismissedThisSession] = useState(false);
   const renderedFocusedPage =
@@ -248,28 +243,56 @@ export function BookReader({
   const selectedPage = isCompactReading ? readingPage : preferredSpreadPage;
   const actionPage = overviewActionPage ?? focusedPage ?? selectedPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
-  const counterCurrent =
-    isCompactReading && readingPageIndex >= 0 ? readingPageIndex + 1 : spreadIndex + 1;
+  const counterCurrent = isCompactReading && readingPageIndex >= 0 ? readingPageIndex + 1 : spreadIndex + 1;
   const counterTotal = isCompactReading ? pages.length : spreads.length;
-  const canOpenRecipeActions = Boolean(
-    isCompactReading &&
-    selectedPage &&
-    ((!readOnly && (onRemoveRecipe ||
-      onMoveRecipe ||
-      (onGeneratePageCandidate && onUsePageCandidate && selectedPage.recipeGraph))) ||
-      (onExportPage &&
-        onVisitSource &&
-        (getCookbookPageImageSource(selectedPage) !== null || getRecipeSourceUrl(selectedPage)))),
+  const recipeContextActionsFor = useCallback(
+    (page: CookbookPage) => {
+      const hasPageImage = getCookbookPageImageSource(page) !== null;
+      const canRevise = Boolean(!readOnly && page.recipeGraph && onGeneratePageCandidate && onUsePageCandidate);
+      const hasMoveDestination = availableCookbooks.some((destination) => destination.id !== cookbookId);
+
+      return buildRecipeContextActions({
+        canEdit: canRevise,
+        canRedesign: canRevise,
+        canVisitSource: Boolean(onVisitSource && getRecipeSourceUrl(page)),
+        canSaveImage: Boolean(onExportPage && hasPageImage),
+        canShare: hasPageImage,
+        canMove: Boolean(!readOnly && onMoveRecipe && hasMoveDestination),
+        canRemove: Boolean(!readOnly && onRemoveRecipe),
+      });
+    },
+    [
+      availableCookbooks,
+      cookbookId,
+      onExportPage,
+      onGeneratePageCandidate,
+      onMoveRecipe,
+      onRemoveRecipe,
+      onUsePageCandidate,
+      onVisitSource,
+      readOnly,
+    ],
   );
-  const canOpenCookbookSettings = Boolean(
-    !isCompactReading && !readOnly && cookbook && onRenameCookbook && onDeleteCookbook,
+  const selectedRecipeActions = selectedPage ? recipeContextActionsFor(selectedPage) : [];
+  const cookbookContextActions = useMemo(
+    () =>
+      buildCookbookContextActions({
+        canAddRecipe: Boolean(!readOnly && cookbookId),
+        canRename: Boolean(!readOnly && cookbook && onRenameCookbook),
+        canExport: Boolean(!readOnly && onExportCookbook),
+        canDelete: Boolean(!readOnly && cookbook && onDeleteCookbook),
+      }),
+    [cookbook, cookbookId, onDeleteCookbook, onExportCookbook, onRenameCookbook, readOnly],
   );
-  const firstPageCue = firstRunReady
-    && firstRunState.status === 'completed'
-    && firstRunState.firstCookbookId === cookbookId
-    && !firstRunState.readerCueSeen
-    ? pages.find((page) => page.id === firstRunState.firstPageId) ?? null
-    : null;
+  const canOpenRecipeActions = Boolean(isCompactReading && selectedRecipeActions.length > 0);
+  const canOpenCookbookSettings = Boolean(!isCompactReading && cookbookContextActions.length > 0);
+  const firstPageCue =
+    firstRunReady &&
+    firstRunState.status === 'completed' &&
+    firstRunState.firstCookbookId === cookbookId &&
+    !firstRunState.readerCueSeen
+      ? (pages.find((page) => page.id === firstRunState.firstPageId) ?? null)
+      : null;
   const showFirstNoshTip = Boolean(
     firstRunReady &&
     firstRunState.status === 'completed' &&
@@ -294,11 +317,7 @@ export function BookReader({
     void loadFirstRunOnboardingState(user.id)
       .then(async (state) => {
         let nextState = state;
-        if (
-          firstAvailablePageId &&
-          state.status === 'started' &&
-          state.firstCookbookId === cookbookId
-        ) {
+        if (firstAvailablePageId && state.status === 'started' && state.firstCookbookId === cookbookId) {
           const activation = await recordFirstReadyRecipeOpened(user.id, cookbookId, firstAvailablePageId);
           nextState = activation.state;
           if (activation.didActivate) {
@@ -540,19 +559,22 @@ export function BookReader({
     pokeChrome();
   }
 
-  const goToSpread = useCallback((index: number) => {
-    const nextIndex = Math.max(0, Math.min(spreads.length - 1, index));
-    if (nextIndex === spreadIndex) return;
-    setSpreadIndex(nextIndex);
-    pokeChrome();
+  const goToSpread = useCallback(
+    (index: number) => {
+      const nextIndex = Math.max(0, Math.min(spreads.length - 1, index));
+      if (nextIndex === spreadIndex) return;
+      setSpreadIndex(nextIndex);
+      pokeChrome();
 
-    const next = spreads[nextIndex];
-    const page = getPreferredRecipe(next.left, next.right, pages);
-    if (page) {
-      setReadingPageId(page.id);
-      onSelectPage(page.id);
-    }
-  }, [onSelectPage, pages, pokeChrome, spreadIndex, spreads]);
+      const next = spreads[nextIndex];
+      const page = getPreferredRecipe(next.left, next.right, pages);
+      if (page) {
+        setReadingPageId(page.id);
+        onSelectPage(page.id);
+      }
+    },
+    [onSelectPage, pages, pokeChrome, spreadIndex, spreads],
+  );
 
   function goToLeaf(offset: -1 | 1) {
     if (recipeLeaves.length === 0) return;
@@ -581,19 +603,22 @@ export function BookReader({
     pokeChrome();
   }
 
-  const goToFocusedPage = useCallback((offset: -1 | 1) => {
-    if (focusedPageIndex < 0) return;
-    const nextIndex = Math.max(0, Math.min(pages.length - 1, focusedPageIndex + offset));
-    if (nextIndex === focusedPageIndex) return;
-    const nextPage = pages[nextIndex];
-    setFocusedPage(nextPage);
-    setReadingPageId(nextPage.id);
-    setLeafIndex(getLeafIndexForPage(recipeLeaves, nextPage.id));
-    const targetSpread = getSpreadIndexForPage(spreads, nextPage.id);
-    if (targetSpread !== null) setSpreadIndex(targetSpread);
-    onSelectPage(nextPage.id);
-    pokeChrome();
-  }, [focusedPageIndex, onSelectPage, pages, pokeChrome, recipeLeaves, spreads]);
+  const goToFocusedPage = useCallback(
+    (offset: -1 | 1) => {
+      if (focusedPageIndex < 0) return;
+      const nextIndex = Math.max(0, Math.min(pages.length - 1, focusedPageIndex + offset));
+      if (nextIndex === focusedPageIndex) return;
+      const nextPage = pages[nextIndex];
+      setFocusedPage(nextPage);
+      setReadingPageId(nextPage.id);
+      setLeafIndex(getLeafIndexForPage(recipeLeaves, nextPage.id));
+      const targetSpread = getSpreadIndexForPage(spreads, nextPage.id);
+      if (targetSpread !== null) setSpreadIndex(targetSpread);
+      onSelectPage(nextPage.id);
+      pokeChrome();
+    },
+    [focusedPageIndex, onSelectPage, pages, pokeChrome, recipeLeaves, spreads],
+  );
 
   function openAddPage() {
     if (!cookbook) return;
@@ -693,8 +718,62 @@ export function BookReader({
     setReadingPageId(page.id);
     onSelectPage(page.id);
     setOverviewActionPage(page);
+    setRecipeSheetInitialView('actions');
     setActiveSheet('recipe');
     pokeChrome();
+  }
+
+  function runRecipeContextAction(page: CookbookPage, actionId: ContextActionId) {
+    setReadingPageId(page.id);
+    onSelectPage(page.id);
+
+    if (actionId === 'edit_recipe' || actionId === 'redesign_recipe') {
+      setOverviewActionPage(page);
+      setRevisionMode(actionId === 'edit_recipe' ? 'edit' : 'design');
+      return;
+    }
+    if (actionId === 'visit_source') {
+      void onVisitSource?.(page);
+      return;
+    }
+    if (actionId === 'save_page_image') {
+      void onExportPage?.(page);
+      return;
+    }
+    if (actionId === 'share_recipe') {
+      onShare(page);
+      return;
+    }
+    if (actionId === 'move_recipe') {
+      setOverviewActionPage(page);
+      setRecipeSheetInitialView('move');
+      setActiveSheet('recipe');
+      return;
+    }
+    if (actionId === 'remove_recipe') {
+      void onRemoveRecipe?.(page);
+    }
+  }
+
+  function runCookbookContextAction(actionId: ContextActionId) {
+    if (actionId === 'add_recipe') {
+      openAddPage();
+      return;
+    }
+    if (actionId === 'rename_cookbook') {
+      setActiveSheet('cookbook');
+      return;
+    }
+    if (actionId === 'export_cookbook') {
+      void Promise.resolve(onExportCookbook?.()).catch((error) => {
+        const message = error instanceof Error ? error.message : 'The cookbook could not be exported.';
+        Alert.alert('Export unavailable', message);
+      });
+      return;
+    }
+    if (actionId === 'delete_cookbook') {
+      void onDeleteCookbook?.();
+    }
   }
 
   function handleOpenRecipe(page: CookbookPage) {
@@ -748,7 +827,17 @@ export function BookReader({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeSheet, focusedPage, goToFocusedPage, goToSpread, isOpen, isOverview, pokeChrome, revisionMode, spreadIndex]);
+  }, [
+    activeSheet,
+    focusedPage,
+    goToFocusedPage,
+    goToSpread,
+    isOpen,
+    isOverview,
+    pokeChrome,
+    revisionMode,
+    spreadIndex,
+  ]);
 
   return (
     <LinearGradient colors={Colors.book.readerGradient} style={styles.container}>
@@ -759,19 +848,13 @@ export function BookReader({
         style={[styles.topBar, { paddingTop: insets.top + Spacing.xs }, topBarStyle]}
       >
         <Pressable
-          style={({ pressed }) => [
-            styles.backButton,
-            { width: topSideWidth },
-            pressed && styles.actionPressed,
-          ]}
-          onPress={() => (isOverview ? closeOverview() : isCompactReading ? exitReadingView() : router.dismissTo('/(book)'))}
+          style={({ pressed }) => [styles.backButton, { width: topSideWidth }, pressed && styles.actionPressed]}
+          onPress={() =>
+            isOverview ? closeOverview() : isCompactReading ? exitReadingView() : router.dismissTo('/(book)')
+          }
           accessibilityRole="button"
           accessibilityLabel={
-            isOverview
-              ? 'Back to cookbook'
-              : isCompactReading
-                ? 'Back to open cookbook'
-                : 'Back to my collection'
+            isOverview ? 'Back to cookbook' : isCompactReading ? 'Back to open cookbook' : 'Back to my collection'
           }
         >
           <ChevronLeft size={19} color={Colors.primary} />
@@ -782,21 +865,39 @@ export function BookReader({
           </Text>
         </View>
         {isOpen && (canOpenRecipeActions || canOpenCookbookSettings) ? (
-          <Pressable
-            style={({ pressed }) => [styles.iconButton, pressed && styles.actionPressed]}
-            onPress={() => {
+          <ContextActionMenu
+            actions={isCompactReading ? selectedRecipeActions : cookbookContextActions}
+            onSelect={(actionId) => {
               pokeChrome();
-              setActiveSheet(isCompactReading ? 'recipe' : 'cookbook');
+              if (isCompactReading && selectedPage) runRecipeContextAction(selectedPage, actionId);
+              else runCookbookContextAction(actionId);
             }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isCompactReading && selectedPage
-                ? `Recipe actions for ${selectedPage.title}`
-                : `Cookbook settings for ${cookbookTitle}`
-            }
+            fallbackOnPress={() => {
+              pokeChrome();
+              if (isCompactReading && selectedPage) {
+                setOverviewActionPage(selectedPage);
+                setRecipeSheetInitialView('actions');
+                setActiveSheet('recipe');
+              } else {
+                setActiveSheet('cookbook');
+              }
+            }}
+            title={isCompactReading ? selectedPage?.title : cookbookTitle}
+            testID={isCompactReading ? 'recipe-context-menu' : 'cookbook-context-menu'}
           >
-            <Ellipsis size={20} color={Colors.primary} />
-          </Pressable>
+            <View
+              style={styles.iconButton}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={
+                isCompactReading && selectedPage
+                  ? `Recipe actions for ${selectedPage.title}`
+                  : `Cookbook actions for ${cookbookTitle}`
+              }
+            >
+              <Ellipsis size={20} color={Colors.primary} />
+            </View>
+          </ContextActionMenu>
         ) : (
           <View style={{ width: topSideWidth }} />
         )}
@@ -821,8 +922,12 @@ export function BookReader({
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.overviewHeader}>
-              <Text style={styles.overviewEyebrow} maxFontSizeMultiplier={1.2}>YOUR COOKBOOK</Text>
-              <Text style={styles.overviewTitle} maxFontSizeMultiplier={1.25}>{cookbookTitle}</Text>
+              <Text style={styles.overviewEyebrow} maxFontSizeMultiplier={1.2}>
+                YOUR COOKBOOK
+              </Text>
+              <Text style={styles.overviewTitle} maxFontSizeMultiplier={1.25}>
+                {cookbookTitle}
+              </Text>
               <Text style={styles.overviewCopy} maxFontSizeMultiplier={1.35}>
                 Tap a page to read it. Long-press and drag to change the book order.
               </Text>
@@ -837,7 +942,9 @@ export function BookReader({
               pageSlots={pageSlots}
               captures={captures}
               onOpenPage={openPageFromOverview}
-              onPageActions={onExportPage && onVisitSource ? openOverviewPageActions : undefined}
+              onPageActions={openOverviewPageActions}
+              contextActionsFor={recipeContextActionsFor}
+              onContextAction={runRecipeContextAction}
               onMovePage={readOnly ? undefined : onReorderPage}
               scrollableRef={overviewScrollRef}
               emptyTitle="No recipe pages yet."
@@ -865,16 +972,15 @@ export function BookReader({
               onCloseBack={closeBackBook}
               onOpenBack={openBackBook}
               onNext={() => (usesTouchPaging && readingView === 'page' ? goToLeaf(1) : goToSpread(spreadIndex + 1))}
-              onPrevious={() => (usesTouchPaging && readingView === 'page' ? goToLeaf(-1) : goToSpread(spreadIndex - 1))}
+              onPrevious={() =>
+                usesTouchPaging && readingView === 'page' ? goToLeaf(-1) : goToSpread(spreadIndex - 1)
+              }
               onStageTap={pokeChrome}
               onEnterReadingView={enterReadingView}
               onOpenRecipe={handleOpenRecipe}
             />
             {!readOnly && isOpen && pages.length === 0 ? (
-              <View
-                style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}
-                accessibilityLiveRegion="polite"
-              >
+              <View style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]} accessibilityLiveRegion="polite">
                 <Text style={styles.emptyBookTitle} maxFontSizeMultiplier={1.35}>
                   Turn a recipe you love into its first page.
                 </Text>
@@ -885,15 +991,14 @@ export function BookReader({
                   accessibilityLabel={`Add the first recipe to ${cookbookTitle}`}
                 >
                   <Plus size={18} color={Colors.onPrimary} />
-                  <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Add my first recipe</Text>
+                  <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>
+                    Add my first recipe
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
             {!readOnly && isOpen && firstPageCue ? (
-              <View
-                style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]}
-                accessibilityLiveRegion="polite"
-              >
+              <View style={[styles.firstPageMoment, { bottom: insets.bottom + 82 }]} accessibilityLiveRegion="polite">
                 <Text style={styles.firstPageTitle} numberOfLines={2} maxFontSizeMultiplier={1.35}>
                   {firstPageCue.title}
                 </Text>
@@ -907,7 +1012,9 @@ export function BookReader({
                   accessibilityLabel={`Read my first recipe, ${firstPageCue.title}`}
                 >
                   <BookOpen size={18} color={Colors.onPrimary} />
-                  <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>Read my recipe</Text>
+                  <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>
+                    Read my recipe
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.firstPageDismiss}
@@ -915,7 +1022,9 @@ export function BookReader({
                   accessibilityRole="button"
                   accessibilityLabel="Dismiss first page introduction"
                 >
-                  <Text style={styles.firstPageDismissText} maxFontSizeMultiplier={1.35}>Keep browsing</Text>
+                  <Text style={styles.firstPageDismissText} maxFontSizeMultiplier={1.35}>
+                    Keep browsing
+                  </Text>
                 </Pressable>
               </View>
             ) : null}
@@ -923,33 +1032,35 @@ export function BookReader({
         )}
       </View>
 
-      {!isOverview ? <Animated.View
-        pointerEvents={isOpen && chromeVisible ? 'auto' : 'none'}
-        accessibilityElementsHidden={!isOpen || !chromeVisible}
-        importantForAccessibility={isOpen && chromeVisible ? 'auto' : 'no-hide-descendants'}
-        style={[styles.readerControls, { paddingBottom: insets.bottom + 10 }, chromeStyle]}
-      >
-        {(() => {
-          const atStart = isCompactReading ? leafIndex === 0 : spreadIndex === 0;
-          const atEnd = isCompactReading ? leafIndex === recipeLeaves.length - 1 : spreadIndex === spreads.length - 1;
-          const prevLabel = isCompactReading ? 'Previous recipe' : 'Previous spread';
-          const nextLabel = isCompactReading ? 'Next recipe' : 'Next spread';
-          return (
-            <ReaderNavigationRail
-              current={counterCurrent}
-              total={counterTotal}
-              previousLabel={prevLabel}
-              nextLabel={nextLabel}
-              previousDisabled={atStart}
-              nextDisabled={atEnd}
-              onPrevious={() => requestReaderTurn(-1)}
-              onNext={() => requestReaderTurn(1)}
-              onStatusPress={openOverview}
-              statusLabel="Open page overview"
-            />
-          );
-        })()}
-      </Animated.View> : null}
+      {!isOverview ? (
+        <Animated.View
+          pointerEvents={isOpen && chromeVisible ? 'auto' : 'none'}
+          accessibilityElementsHidden={!isOpen || !chromeVisible}
+          importantForAccessibility={isOpen && chromeVisible ? 'auto' : 'no-hide-descendants'}
+          style={[styles.readerControls, { paddingBottom: insets.bottom + 10 }, chromeStyle]}
+        >
+          {(() => {
+            const atStart = isCompactReading ? leafIndex === 0 : spreadIndex === 0;
+            const atEnd = isCompactReading ? leafIndex === recipeLeaves.length - 1 : spreadIndex === spreads.length - 1;
+            const prevLabel = isCompactReading ? 'Previous recipe' : 'Previous spread';
+            const nextLabel = isCompactReading ? 'Next recipe' : 'Next spread';
+            return (
+              <ReaderNavigationRail
+                current={counterCurrent}
+                total={counterTotal}
+                previousLabel={prevLabel}
+                nextLabel={nextLabel}
+                previousDisabled={atStart}
+                nextDisabled={atEnd}
+                onPrevious={() => requestReaderTurn(-1)}
+                onNext={() => requestReaderTurn(1)}
+                onStatusPress={openOverview}
+                statusLabel="Open page overview"
+              />
+            );
+          })()}
+        </Animated.View>
+      ) : null}
 
       {!isOverview && pages.length > 0 && isOpen && (selectedPage || (!readOnly && cookbookId)) ? (
         <Animated.View
@@ -981,10 +1092,7 @@ export function BookReader({
 
       {!isOverview && !readOnly && isOpen && showFirstNoshTip && selectedPage && isCompactReading ? (
         <Animated.View
-          style={[
-            styles.firstNoshTip,
-            { top: insets.top + 112, width: Math.min(width - Spacing.xl * 2, 310) },
-          ]}
+          style={[styles.firstNoshTip, { top: insets.top + 112, width: Math.min(width - Spacing.xl * 2, 310) }]}
           accessibilityLiveRegion="polite"
         >
           <View style={styles.firstNoshTipHeader}>
@@ -1014,15 +1122,17 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
-      {actionPage && onExportPage && onVisitSource ? (
+      {actionPage && recipeContextActionsFor(actionPage).length > 0 ? (
         <RecipeActionsSheet
           visible={activeSheet === 'recipe'}
           page={actionPage}
           cookbookId={cookbookId ?? ''}
           cookbooks={availableCookbooks}
+          initialView={recipeSheetInitialView}
           onClose={() => {
             setActiveSheet(null);
             setOverviewActionPage(null);
+            setRecipeSheetInitialView('actions');
             pokeChrome();
           }}
           onVisitSource={onVisitSource}
@@ -1043,6 +1153,7 @@ export function BookReader({
           page={actionPage}
           onClose={() => {
             setRevisionMode(null);
+            setOverviewActionPage(null);
             pokeChrome();
           }}
           onGenerate={onGeneratePageCandidate}
@@ -1074,10 +1185,7 @@ export function BookReader({
             <View style={[styles.focusedTopBar, { paddingTop: insets.top + Spacing.sm }]}>
               <View style={[styles.focusedHeaderSide, width < 720 && styles.focusedHeaderSideCompact]}>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.focusedAction,
-                    pressed && styles.actionPressed,
-                  ]}
+                  style={({ pressed }) => [styles.focusedAction, pressed && styles.actionPressed]}
                   onPress={() => setFocusedPage(null)}
                   accessibilityRole="button"
                   accessibilityLabel="Return to open cookbook"
@@ -1088,11 +1196,13 @@ export function BookReader({
               <Text style={styles.focusedTitle} numberOfLines={1} maxFontSizeMultiplier={1.35}>
                 {focusedPage.title}
               </Text>
-              <View style={[
-                styles.focusedHeaderSide,
-                styles.focusedHeaderRight,
-                width < 720 && styles.focusedHeaderSideCompact,
-              ]}>
+              <View
+                style={[
+                  styles.focusedHeaderSide,
+                  styles.focusedHeaderRight,
+                  width < 720 && styles.focusedHeaderSideCompact,
+                ]}
+              >
                 {cookbook ? (
                   <NoshAssistantChatButton
                     page={focusedPage}
@@ -1102,14 +1212,26 @@ export function BookReader({
                     onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
                   />
                 ) : null}
-                <Pressable
-                  style={({ pressed }) => [styles.focusedIcon, pressed && styles.actionPressed]}
-                  onPress={() => setActiveSheet('recipe')}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
+                <ContextActionMenu
+                  actions={recipeContextActionsFor(focusedPage)}
+                  onSelect={(actionId) => runRecipeContextAction(focusedPage, actionId)}
+                  fallbackOnPress={() => {
+                    setOverviewActionPage(focusedPage);
+                    setRecipeSheetInitialView('actions');
+                    setActiveSheet('recipe');
+                  }}
+                  title={focusedPage.title}
+                  testID="focused-recipe-context-menu"
                 >
-                  <Ellipsis size={18} color={Colors.primary} />
-                </Pressable>
+                  <View
+                    style={styles.focusedIcon}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
+                  >
+                    <Ellipsis size={18} color={Colors.primary} />
+                  </View>
+                </ContextActionMenu>
               </View>
             </View>
             <View style={[styles.focusedPage, { paddingBottom: insets.bottom + 72 }]}>

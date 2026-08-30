@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
+import { Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
 import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
 import { SpineFace } from '@/components/physical-book/SpineFace';
@@ -10,12 +10,15 @@ import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBook
 import { ShelfBoard, SHELF_LIP_HEIGHT } from '@/components/shelf/ShelfBoard';
 import { ShelfCarousel } from '@/components/shelf/ShelfCarousel';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
+import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { resolveCookbookBinding } from '@/constants/cookbookBindings';
-import { Radii, Spacing , Typography} from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
+import type { ContextActionGroup, ContextActionId } from '@/utils/cookbook/contextActions';
+import { presentContextActions } from '@/utils/cookbook/contextActionPresenter';
 
 /**
  * The spine-packed 3D library shelf: cookbooks stand tightly packed with
@@ -35,6 +38,9 @@ interface ShelfSceneProps {
   onSelectCookbook: (cookbook: Cookbook) => void;
   onAddCookbook: () => void;
   onOpenSettings?: () => void;
+  contextActionsFor?: (cookbook: Cookbook) => ContextActionGroup[];
+  onContextAction?: (cookbook: Cookbook, actionId: ContextActionId) => void;
+  onOpenCookbookActions?: (cookbook: Cookbook) => void;
   bottomInset?: number;
   isStale?: boolean;
   onRefresh?: () => void;
@@ -45,6 +51,9 @@ export function ShelfScene({
   onSelectCookbook,
   onAddCookbook,
   onOpenSettings,
+  contextActionsFor,
+  onContextAction,
+  onOpenCookbookActions,
   bottomInset = 0,
   isStale = false,
   onRefresh,
@@ -52,7 +61,6 @@ export function ShelfScene({
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
   const shelfTextMultiplier = fontScale >= 2 ? 1.35 : undefined;
-  const [menuOpen, setMenuOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const activeBook = activeIndex < cookbooks.length ? cookbooks[activeIndex] : undefined;
@@ -65,16 +73,18 @@ export function ShelfScene({
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
-            onPress={() => setMenuOpen(true)}
-            accessibilityLabel="Open library menu"
+            onPress={onOpenSettings}
+            accessibilityLabel="Open settings"
           >
-            <Ellipsis size={24} color={Colors.text} strokeWidth={1.8} />
+            <SettingsIcon size={21} color={Colors.text} strokeWidth={1.8} />
           </Pressable>
         ) : null}
       </View>
 
       <View style={styles.heading}>
-        <Text variant="h1" style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>My Cookbooks</Text>
+        <Text variant="h1" style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>
+          My Cookbooks
+        </Text>
         {isStale && onRefresh ? (
           <View style={styles.staleNotice}>
             <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} />
@@ -104,7 +114,19 @@ export function ShelfScene({
           items={cookbooks}
           keyExtractor={(book) => book.id}
           onActiveIndexChange={setActiveIndex}
+          activeIndex={activeIndex}
           onActivateItem={onSelectCookbook}
+          contextActionsFor={contextActionsFor}
+          onContextAction={onContextAction}
+          onOpenContextActions={(book) => {
+            const actions = contextActionsFor?.(book) ?? [];
+            presentContextActions({
+              actions,
+              title: book.title,
+              onSelect: (actionId) => onContextAction?.(book, actionId),
+              fallback: onOpenCookbookActions ? () => onOpenCookbookActions(book) : undefined,
+            });
+          }}
           accessibilityLabelFor={(book) => `Open ${book.title}`}
           spineWidthFor={(book, width) => resolveSpineWidth(width, book.pageCount ?? 12)}
           renderCover={(book, width) => (
@@ -119,6 +141,36 @@ export function ShelfScene({
               showShadow={false}
             />
           )}
+          renderCoverAction={(book) => {
+            const actions = contextActionsFor?.(book) ?? [];
+            const binding = resolveCookbookBinding({
+              finishId: book.coverFinishId,
+              colorId: book.coverColorId,
+              legacyStyleId: book.coverStyle,
+            });
+            const iconColor = ['midnight', 'charcoal', 'umber'].includes(binding.colorId)
+              ? Colors.alabaster
+              : Colors.text;
+
+            return actions.length > 0 && onContextAction ? (
+              <ContextActionMenu
+                actions={actions}
+                onSelect={(actionId) => onContextAction(book, actionId)}
+                fallbackOnPress={onOpenCookbookActions ? () => onOpenCookbookActions(book) : undefined}
+                title={book.title}
+                testID={`cookbook-actions-${book.id}`}
+              >
+                <View
+                  style={styles.coverMenuButton}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={`Actions for ${book.title}`}
+                >
+                  <Ellipsis size={23} color={iconColor} strokeWidth={2} />
+                </View>
+              </ContextActionMenu>
+            ) : null;
+          }}
           renderSpine={(book, spineWidth, height) => (
             <SpineFace
               title={book.title}
@@ -160,63 +212,14 @@ export function ShelfScene({
           </>
         ) : (
           <>
-            <Text variant="h3" style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>New cookbook</Text>
-            <Text variant="bodySmall" style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}>
+            <Text variant="h3" style={styles.metaTitle} maxFontSizeMultiplier={shelfTextMultiplier}>
+              New cookbook
             </Text>
+            <Text variant="bodySmall" style={styles.metaSub} maxFontSizeMultiplier={shelfTextMultiplier}></Text>
           </>
         )}
       </View>
-
-      <Modal
-        visible={menuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuOpen(false)}
-      >
-        <View style={styles.menuLayer}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setMenuOpen(false)}
-            accessibilityLabel="Close library menu"
-          />
-          <View style={[styles.menuPanel, { top: insets.top + 58 }]}>
-            {onOpenSettings ? (
-              <MenuItem
-                icon={<SettingsIcon size={19} color={Colors.text} strokeWidth={1.7} />}
-                title="Settings"
-                onPress={() => {
-                  setMenuOpen(false);
-                  onOpenSettings();
-                }}
-              />
-            ) : null}
-          </View>
-        </View>
-      </Modal>
     </LinearGradient>
-  );
-}
-
-function MenuItem({
-  icon,
-  title,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-    >
-      <View style={styles.menuItemIcon}>{icon}</View>
-      <Text style={styles.menuItemTitle}>{title}</Text>
-      <ChevronRight size={18} color={Colors.textMuted} />
-    </Pressable>
   );
 }
 
@@ -304,64 +307,10 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
   },
-  menuLayer: {
-    flex: 1,
-    backgroundColor: Colors.legacySurface.v56,
-  },
-  menuPanel: {
-    position: 'absolute',
-    right: Spacing.xl,
-    width: 292,
-    padding: Spacing.sm,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.alabaster,
-    boxShadow: Colors.book.liftedShadow,
-  },
-  menuEyebrow: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-    letterSpacing: Typography.metrics.letterSpacing12,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-  },
-  menuItem: {
-    minHeight: 64,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: Radii.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  menuItemPressed: {
-    backgroundColor: Colors.parchment,
-  },
-  menuItemIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radii.numeric[19],
+  coverMenuButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-  },
-  menuItemCopy: {
-    flex: 1,
-    gap: Spacing.values[2],
-  },
-  menuItemTitle: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-  },
-  menuItemSubtitle: {
-    color: Colors.textMuted,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight15,
   },
 });

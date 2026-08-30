@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { ShelfScene } from '@/components/shelf/ShelfScene';
 import { NoshShelfChatButton } from '@/components/cookbook/NoshAssistantChat';
+import { CookbookSettingsSheet } from '@/components/cookbook/ReaderActionSheets';
 import { FirstRunWelcome } from '@/components/onboarding/FirstRunWelcome';
 import { LoadErrorState } from '@/components/ui/LoadErrorState';
 import { Colors } from '@/constants/colors';
@@ -21,19 +22,21 @@ import {
   type FirstRunOnboardingState,
 } from '@/utils/cookbook/firstRunOnboarding';
 import { isSampleCookbookId, SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
+import { buildCookbookContextActions, type ContextActionId } from '@/utils/cookbook/contextActions';
 
 export default function MyCookbooksScreen() {
-  const { cookbooks, isLoading, isShelfStale, shelfError, refresh } = useCookbooks();
+  const { cookbooks, isLoading, isShelfStale, shelfError, refresh, deleteCookbook, updateCookbookTitle } =
+    useCookbooks();
   const { user } = useAuth();
   const { receipt } = useNoshNativeShare();
-  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(
-    defaultFirstRunOnboardingState,
-  );
+  const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(defaultFirstRunOnboardingState);
   const [firstRunReady, setFirstRunReady] = useState(false);
-  const realCookbooks = useMemo(
-    () => cookbooks.filter((cookbook) => !isSampleCookbookId(cookbook.id)),
-    [cookbooks],
+  const [managedCookbook, setManagedCookbook] = useState<Cookbook | null>(null);
+  const cookbookActions = useMemo(
+    () => buildCookbookContextActions({ canAddRecipe: true, canRename: true, canDelete: true }),
+    [],
   );
+  const realCookbooks = useMemo(() => cookbooks.filter((cookbook) => !isSampleCookbookId(cookbook.id)), [cookbooks]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -80,13 +83,46 @@ export default function MyCookbooksScreen() {
     router.push(`/(book)/${cookbook.id}`);
   }
 
+  function confirmDeleteCookbook(cookbook: Cookbook) {
+    Alert.alert('Delete cookbook?', `This permanently deletes ${cookbook.title} and all of its recipe pages.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete cookbook',
+        style: 'destructive',
+        onPress: () => {
+          void deleteCookbook(cookbook.id).catch((error) => {
+            const message = error instanceof Error ? error.message : 'The cookbook could not be deleted.';
+            Alert.alert('Delete failed', message);
+          });
+        },
+      },
+    ]);
+  }
+
+  function handleCookbookAction(cookbook: Cookbook, actionId: ContextActionId) {
+    if (isSampleCookbookId(cookbook.id)) return;
+    if (actionId === 'add_recipe') {
+      router.push(`/(book)/${cookbook.id}/add`);
+      return;
+    }
+    if (actionId === 'rename_cookbook') {
+      setManagedCookbook(cookbook);
+      return;
+    }
+    if (actionId === 'delete_cookbook') {
+      confirmDeleteCookbook(cookbook);
+    }
+  }
+
   async function beginFirstCookbook() {
     if (user?.id) {
-      setFirstRunState(await saveFirstRunOnboardingStatus(user.id, 'started').catch(() => ({
-        ...defaultFirstRunOnboardingState(),
-        status: 'started' as const,
-        updatedAt: new Date().toISOString(),
-      })));
+      setFirstRunState(
+        await saveFirstRunOnboardingStatus(user.id, 'started').catch(() => ({
+          ...defaultFirstRunOnboardingState(),
+          status: 'started' as const,
+          updatedAt: new Date().toISOString(),
+        })),
+      );
     }
     router.push('/(book)/library?firstRun=1');
   }
@@ -97,11 +133,13 @@ export default function MyCookbooksScreen() {
 
   async function skipFirstRun() {
     if (user?.id) {
-      setFirstRunState(await saveFirstRunOnboardingStatus(user.id, 'skipped').catch(() => ({
-        ...defaultFirstRunOnboardingState(),
-        status: 'skipped' as const,
-        updatedAt: new Date().toISOString(),
-      })));
+      setFirstRunState(
+        await saveFirstRunOnboardingStatus(user.id, 'skipped').catch(() => ({
+          ...defaultFirstRunOnboardingState(),
+          status: 'skipped' as const,
+          updatedAt: new Date().toISOString(),
+        })),
+      );
     } else {
       setFirstRunState({
         ...defaultFirstRunOnboardingState(),
@@ -145,6 +183,9 @@ export default function MyCookbooksScreen() {
           onSelectCookbook={openCookbook}
           onAddCookbook={openLibrary}
           onOpenSettings={openSettings}
+          contextActionsFor={(cookbook) => (isSampleCookbookId(cookbook.id) ? [] : cookbookActions)}
+          onContextAction={handleCookbookAction}
+          onOpenCookbookActions={setManagedCookbook}
           isStale={isShelfStale}
           onRefresh={() => {
             void refresh();
@@ -171,6 +212,18 @@ export default function MyCookbooksScreen() {
           }}
         />
       ) : null}
+      <CookbookSettingsSheet
+        visible={managedCookbook !== null}
+        cookbook={managedCookbook}
+        onClose={() => setManagedCookbook(null)}
+        onSaveTitle={async (title) => {
+          if (!managedCookbook) return;
+          await updateCookbookTitle({ cookbookId: managedCookbook.id, title });
+        }}
+        onDelete={() => {
+          if (managedCookbook) confirmDeleteCookbook(managedCookbook);
+        }}
+      />
     </View>
   );
 }
