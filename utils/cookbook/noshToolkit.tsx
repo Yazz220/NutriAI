@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { defineToolkit } from '@assistant-ui/react-native';
 import { z } from 'zod';
 import { BookOpen, ChefHat, Clock, ScanSearch } from 'lucide-react-native';
@@ -19,6 +19,8 @@ import { Text } from '@/components/ui/Text';
 import { RecipeActionPreviewCard } from '@/components/nosh/recipe/RecipeActionPreviewCard';
 import { ArtworkActionCard } from '@/components/nosh/recipe/ArtworkActionCard';
 import { CollectionActionCard } from '@/components/nosh/collection/CollectionActionCard';
+import { NoshToolActivity } from '@/components/nosh/conversation/NoshToolActivity';
+import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
@@ -33,8 +35,11 @@ import {
 } from '@/utils/cookbook/recipeActions';
 import type {
   LoadedCollectionRecipe,
+  RecipeCollectionBrowseInput,
+  RecipeCollectionBrowseResult,
   RecipeCollectionSearchOutcome,
 } from '@/utils/cookbook/recipeCollection';
+import type { CookingPreferenceKey } from '@/utils/cookbook/cookingPreferences';
 import type {
   CollectionActionKind,
   CollectionActionPreview,
@@ -45,68 +50,53 @@ import type {
 // Tool UI components — inline cards shown when tools execute
 // ---------------------------------------------------------------------------
 
-function ToolCard({
-  icon,
-  label,
-  detail,
-  running,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  detail?: string;
-  running?: boolean;
-}) {
-  return (
-    <View style={styles.toolCard}>
-      <View style={styles.toolIcon}>{icon}</View>
-      <View style={styles.toolText}>
-        <Text style={styles.toolLabel}>{label}</Text>
-        {detail ? <Text style={styles.toolDetail}>{detail}</Text> : null}
-      </View>
-      {running ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
-    </View>
-  );
-}
-
-function StartTimerToolUI({ args, status }: {
+function StartTimerToolUI({ args, status, isError }: {
   args: { durationMinutes: number; label?: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  isError?: boolean;
 }) {
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<Clock size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Starting timer' : 'Timer started'}
+      label={isError ? 'Timer not started' : status.type === 'running' ? 'Starting timer' : 'Timer started'}
       detail={`${args.durationMinutes} min${args.label ? ` — ${args.label}` : ''}`}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
 
-function GuideNextStepToolUI({ status }: {
+function GuideNextStepToolUI({ status, isError }: {
   args: { stepId: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  isError?: boolean;
 }) {
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<ChefHat size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Finding step' : 'Guiding to step'}
+      label={isError ? 'Could not open that step' : status.type === 'running' ? 'Finding step' : 'Guiding to step'}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
 
-function WalkthroughStateToolUI({ args, status }: {
+function WalkthroughStateToolUI({ args, status, isError }: {
   args: { active: boolean };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  isError?: boolean;
 }) {
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<ChefHat size={16} color={Colors.primary} />}
-      label={status.type === 'running'
+      label={isError
+        ? 'Could not change walkthrough'
+        : status.type === 'running'
         ? args.active ? 'Starting walkthrough' : 'Ending walkthrough'
         : args.active ? 'Walkthrough started' : 'Walkthrough ended'}
       detail={args.active ? 'Progress stays in this cooking session' : 'Back to open conversation'}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
@@ -116,50 +106,137 @@ interface NoshCookbookChoice {
   title: string;
 }
 
-function SearchRecipeCollectionToolUI({ args, status, result }: {
+function SearchRecipeCollectionToolUI({ args, status, result, isError }: {
   args: { query: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
   result?: RecipeCollectionSearchOutcome;
+  isError?: boolean;
 }) {
+  if (status.type !== 'running' && !isError) return null;
   const count = result?.status === 'resolved'
     ? result.candidates.length
     : result?.candidates.length;
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<ScanSearch size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Searching your cookbooks' : 'Searched your cookbooks'}
+      label={isError ? 'Could not search your cookbooks' : 'Searching your cookbooks'}
       detail={count == null ? args.query : `${count} match${count === 1 ? '' : 'es'}`}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
 
-function LoadRecipeToolUI({ status, result }: {
+function BrowseRecipeCollectionToolUI({ args, status, result, isError }: {
+  args: RecipeCollectionBrowseInput;
+  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
+  result?: RecipeCollectionBrowseResult;
+  isError?: boolean;
+}) {
+  if (status.type !== 'running' && !isError) return null;
+  return (
+    <NoshToolActivity
+      icon={<ScanSearch size={16} color={Colors.primary} />}
+      label={isError ? 'Could not browse your cookbooks' : 'Checking your cookbooks'}
+      detail={result
+        ? `${result.totalCount} matching recipe${result.totalCount === 1 ? '' : 's'}`
+        : args.text ?? args.ingredientsAny?.join(', ') ?? 'Your saved recipes'}
+      running={status.type === 'running'}
+      error={isError}
+    />
+  );
+}
+
+function CookingPreferenceCard({
+  args,
+  onSave,
+  onResult,
+}: {
+  args: { key: CookingPreferenceKey; value: string; action: 'save' | 'remove' };
+  onSave: (input: typeof args) => Promise<unknown>;
+  onResult: (result: unknown) => void;
+}) {
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const verb = args.action === 'save' ? 'Remember' : 'Forget';
+
+  const commit = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      onResult(await onSave(args));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update that preference');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.handoffCard}>
+      <View style={styles.handoffHeader}>
+        <ChefHat size={18} color={Colors.primary} />
+        <Text style={styles.handoffTitle}>{verb} this preference?</Text>
+      </View>
+      <Text style={styles.handoffCopy}>{args.value}</Text>
+      {error ? <Text style={styles.preferenceError}>{error}</Text> : null}
+      <Pressable
+        style={({ pressed }) => [styles.handoffPrimary, saving && styles.disabled, pressed && styles.pressed]}
+        disabled={saving}
+        accessibilityRole="button"
+        accessibilityLabel={`${verb} ${args.value}`}
+        accessibilityState={{ disabled: saving }}
+        onPress={commit}
+      >
+        {saving
+          ? <NoshActivityDots size={5} color={Colors.onPrimary} />
+          : <Text style={styles.handoffPrimaryText}>{verb}</Text>}
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [styles.handoffSecondary, saving && styles.disabled, pressed && styles.pressed]}
+        disabled={saving}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel preference change"
+        accessibilityState={{ disabled: saving }}
+        onPress={() => onResult({ accepted: false })}
+      >
+        <Text style={styles.handoffSecondaryText}>Cancel</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function LoadRecipeToolUI({ status, result, isError }: {
   args: { pageId: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
   result?: LoadedCollectionRecipe;
+  isError?: boolean;
 }) {
+  if (status.type !== 'running' && !isError) return null;
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<BookOpen size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Opening saved recipe' : 'Recipe loaded'}
+      label={isError ? 'Could not load that recipe' : 'Loading saved recipe'}
       detail={result?.recipeGraph.title}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
 
-function OpenRecipeToolUI({ status, result }: {
+function OpenRecipeToolUI({ status, result, isError }: {
   args: { pageId: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
   result?: { title?: string };
+  isError?: boolean;
 }) {
   return (
-    <ToolCard
+    <NoshToolActivity
       icon={<BookOpen size={16} color={Colors.primary} />}
-      label={status.type === 'running' ? 'Opening recipe' : 'Recipe opened'}
+      label={isError ? 'Could not open that recipe' : status.type === 'running' ? 'Opening recipe' : 'Recipe opened'}
       detail={result?.title}
       running={status.type === 'running'}
+      error={isError}
     />
   );
 }
@@ -198,6 +275,8 @@ export interface NoshToolkitContext {
     recentFirst?: boolean;
     limit?: number;
   }) => Promise<RecipeCollectionSearchOutcome>;
+  /** Browse or filter the collection without loading full recipe graphs. */
+  onBrowseRecipeCollection?: (input: RecipeCollectionBrowseInput) => Promise<RecipeCollectionBrowseResult>;
   /** Load the canonical graph after a collection candidate is selected. */
   onLoadRecipe?: (pageId: string) => Promise<LoadedCollectionRecipe>;
   /** Navigate only after the user explicitly asks to open or show a recipe. */
@@ -225,6 +304,12 @@ export interface NoshToolkitContext {
     sourceType: 'url' | 'text' | 'image' | 'video';
     input?: string;
   }) => void;
+  /** Persist or remove a cooking preference only after the user confirms. */
+  onSaveCookingPreference?: (input: {
+    key: CookingPreferenceKey;
+    value: string;
+    action: 'save' | 'remove';
+  }) => Promise<unknown>;
 }
 
 export function useNoshToolkit(ctx: NoshToolkitContext) {
@@ -239,11 +324,13 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
     onGuideStep,
     onSetWalkthrough,
     onSearchRecipeCollection,
+    onBrowseRecipeCollection,
     onLoadRecipe,
     onOpenRecipe,
     onLoadCollectionActionPreview,
     onCommitCollectionAction,
     onStartRecipeCapture,
+    onSaveCookingPreference,
   } = ctx;
 
   return React.useMemo(() => {
@@ -265,7 +352,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               Nosh will read this source and create a complete page in the right cookbook.
             </Text>
             <Pressable
-              style={styles.handoffPrimary}
+              style={({ pressed }) => [styles.handoffPrimary, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Start recipe capture"
               onPress={() => {
@@ -276,7 +363,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               <Text style={styles.handoffPrimaryText}>Start capture</Text>
             </Pressable>
             <Pressable
-              style={styles.handoffSecondary}
+              style={({ pressed }) => [styles.handoffSecondary, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Keep talking without capturing"
               onPress={() => addResult({ accepted: false })}
@@ -301,6 +388,30 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           return onSearchRecipeCollection(args);
         },
         render: SearchRecipeCollectionToolUI,
+      },
+
+      browse_recipe_collection: {
+        type: 'frontend',
+        description: 'Browse or filter saved recipes using compact metadata without loading every full recipe',
+        parameters: z.object({
+          cookbookIds: z.array(z.string()).max(10).optional(),
+          text: z.string().max(120).optional(),
+          ingredientsAll: z.array(z.string()).max(10).optional(),
+          ingredientsAny: z.array(z.string()).max(10).optional(),
+          excludeIngredients: z.array(z.string()).max(10).optional(),
+          tags: z.array(z.string()).max(10).optional(),
+          category: z.string().max(80).optional(),
+          cuisine: z.string().max(80).optional(),
+          maxTotalMinutes: z.number().int().min(1).max(1440).optional(),
+          sort: z.enum(['relevance', 'recent', 'title', 'time']).optional(),
+          cursor: z.string().optional(),
+          limit: z.number().int().min(1).max(20).optional(),
+        }),
+        execute: async (args) => {
+          if (!onBrowseRecipeCollection) throw new Error('Recipe collection browsing is unavailable');
+          return onBrowseRecipeCollection(args);
+        },
+        render: BrowseRecipeCollectionToolUI,
       },
 
       load_recipe: {
@@ -330,14 +441,18 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
         description: 'Return the signed-in user\'s compact cookbook list for destination resolution',
         parameters: z.object({}),
         execute: async () => ({ cookbooks: availableCookbooks ?? [] }),
-        render: ({ status, result }) => (
-          <ToolCard
-            icon={<BookOpen size={16} color={Colors.primary} />}
-            label={status.type === 'running' ? 'Checking your cookbooks' : 'Cookbooks checked'}
-            detail={result ? `${result.cookbooks.length} cookbook${result.cookbooks.length === 1 ? '' : 's'}` : undefined}
-            running={status.type === 'running'}
-          />
-        ),
+        render: ({ status, result, isError }) => {
+          if (status.type !== 'running' && !isError) return null;
+          return (
+            <NoshToolActivity
+              icon={<BookOpen size={16} color={Colors.primary} />}
+              label={isError ? 'Could not check your cookbooks' : 'Checking your cookbooks'}
+              detail={result ? `${result.cookbooks.length} cookbook${result.cookbooks.length === 1 ? '' : 's'}` : undefined}
+              running={status.type === 'running'}
+              error={isError}
+            />
+          );
+        },
       },
 
       organize_recipe: {
@@ -350,13 +465,43 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
         }),
         render: ({ args, addResult }) => {
           if (!onLoadCollectionActionPreview || !onCommitCollectionAction) {
-            return <ToolCard icon={<BookOpen size={16} color={Colors.primary} />} label="Collection changes are unavailable" />;
+            return <NoshToolActivity icon={<BookOpen size={16} color={Colors.primary} />} label="Collection changes are unavailable" error />;
           }
           return (
             <CollectionActionCard
               {...args}
               onPreview={onLoadCollectionActionPreview}
               onCommit={onCommitCollectionAction}
+              onResult={addResult}
+            />
+          );
+        },
+      },
+
+      save_cooking_preference: {
+        type: 'human',
+        description: 'Show a confirmation before remembering or forgetting a durable cooking preference',
+        parameters: z.object({
+          key: z.enum([
+            'allergy',
+            'dietary_restriction',
+            'disliked_ingredient',
+            'measurement_system',
+            'default_servings',
+            'appliance',
+            'cooking_goal',
+          ]),
+          value: z.string().min(1).max(200),
+          action: z.enum(['save', 'remove']),
+        }),
+        render: ({ args, addResult }) => {
+          if (!onSaveCookingPreference) {
+            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Cooking preferences are unavailable" error />;
+          }
+          return (
+            <CookingPreferenceCard
+              args={args}
+              onSave={onSaveCookingPreference}
               onResult={addResult}
             />
           );
@@ -370,7 +515,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           targetServings: z.number().int().min(1).max(100),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -380,7 +525,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
           }
         },
       },
@@ -396,7 +541,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           reason: z.string().optional(),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -406,7 +551,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
           }
         },
       },
@@ -461,7 +606,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           ),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" />;
+          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -471,7 +616,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <ToolCard icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} />;
+            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
           }
         },
       },
@@ -510,11 +655,13 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
     onGuideStep,
     onSetWalkthrough,
     onSearchRecipeCollection,
+    onBrowseRecipeCollection,
     onLoadRecipe,
     onOpenRecipe,
     onLoadCollectionActionPreview,
     onCommitCollectionAction,
     onStartRecipeCapture,
+    onSaveCookingPreference,
   ]);
 }
 
@@ -527,14 +674,15 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: Colors.charcoal,
+    borderColor: Colors.borderLight,
     backgroundColor: Colors.white,
     padding: Spacing.md,
     marginVertical: 4,
   },
   handoffHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   handoffTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16 },
-  handoffCopy: { color: Colors.slate, fontSize: 12, lineHeight: 18 },
+  handoffCopy: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  preferenceError: { color: Colors.error, fontSize: 12, lineHeight: 18 },
   handoffPrimary: {
     minHeight: 44,
     alignItems: 'center',
@@ -549,42 +697,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
+    backgroundColor: Colors.alpha.primary[5],
     paddingHorizontal: Spacing.md,
   },
   handoffSecondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  toolCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.md,
-    backgroundColor: Colors.parchment,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    marginVertical: 4,
-  },
-  toolIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.white,
-  },
-  toolText: {
-    flex: 1,
-  },
-  toolLabel: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-  },
-  toolDetail: {
-    color: Colors.slate,
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  disabled: { opacity: 0.55 },
+  pressed: { opacity: 0.7 },
 });

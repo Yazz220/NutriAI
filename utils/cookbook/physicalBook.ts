@@ -1,3 +1,5 @@
+import { resolveCookbookPageHeight } from '@/constants/cookbookGeometry';
+
 export type PageTurnDirection = -1 | 0 | 1;
 
 export interface PageCurlPoint {
@@ -25,12 +27,10 @@ export interface NativeReadingPageGeometry {
   bindingWidth: number;
 }
 
-const NATIVE_PAGE_ASPECT = 1.38;
 const NATIVE_FRAME_INSET = 10;
 const NATIVE_COMPACT_MARGIN = 8;
 const NATIVE_REGULAR_MARGIN = 16;
 const NATIVE_READING_PAGE_MARGIN = 16;
-const NATIVE_READING_PAGE_RATIO = 1.35;
 const NATIVE_READING_STAGE_GUTTER = 18;
 const NATIVE_READING_BINDING_WIDTH = 14;
 
@@ -46,9 +46,9 @@ export function resolveNativeBookGeometry(
 ): NativeBookGeometry {
   const horizontalMargin = compact ? NATIVE_COMPACT_MARGIN : NATIVE_REGULAR_MARGIN;
   const widthBound = (viewportWidth - horizontalMargin * 2 - NATIVE_FRAME_INSET * 2) / 2;
-  const heightBound = (viewportHeight - 210) / NATIVE_PAGE_ASPECT;
+  const heightBound = (viewportHeight - 210) / resolveCookbookPageHeight(1);
   const pageWidth = Math.max(120, Math.min(340, widthBound, heightBound));
-  const pageHeight = pageWidth * NATIVE_PAGE_ASPECT;
+  const pageHeight = resolveCookbookPageHeight(pageWidth);
   const stageWidth = pageWidth * 2 + NATIVE_FRAME_INSET * 2;
 
   return {
@@ -82,9 +82,9 @@ export function resolveNativeReadingPageGeometry(
 ): NativeReadingPageGeometry {
   const pageWidth = Math.min(
     viewportWidth - NATIVE_READING_PAGE_MARGIN * 2,
-    (viewportHeight - 190) / NATIVE_READING_PAGE_RATIO,
+    (viewportHeight - 190) / resolveCookbookPageHeight(1),
   );
-  const pageHeight = pageWidth * NATIVE_READING_PAGE_RATIO;
+  const pageHeight = resolveCookbookPageHeight(pageWidth);
   const stageWidth = Math.min(viewportWidth, pageWidth + NATIVE_READING_STAGE_GUTTER);
   const pageOffsetX = (stageWidth - pageWidth) / 2;
 

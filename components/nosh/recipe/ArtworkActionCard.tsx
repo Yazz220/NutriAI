@@ -3,10 +3,12 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-nat
 import { ImageIcon, RotateCcw } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { GeneratedRecipePage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
+import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
 
 export function ArtworkActionCard({
   instruction,
@@ -57,7 +59,6 @@ export function ArtworkActionCard({
   if (candidate) {
     return (
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>New page ready</Text>
         {candidate.imageUrl ? (
           <Image
             source={{ uri: candidate.imageUrl }}
@@ -66,10 +67,9 @@ export function ArtworkActionCard({
             accessibilityLabel="New recipe page candidate"
           />
         ) : null}
-        <Text style={styles.copy}>Your current page is still in place.</Text>
         {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [styles.primaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
           disabled={busy !== null}
           accessibilityRole="button"
           accessibilityLabel="Use new recipe page"
@@ -80,7 +80,7 @@ export function ArtworkActionCard({
           <Text style={styles.primaryText}>Use new page</Text>
         </Pressable>
         <Pressable
-          style={styles.secondaryButton}
+          style={({ pressed }) => [styles.secondaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
           disabled={busy !== null}
           accessibilityRole="button"
           accessibilityLabel="Keep current recipe page"
@@ -96,37 +96,33 @@ export function ArtworkActionCard({
   return (
     <View style={styles.card}>
       <View style={styles.heading}>
-        <View style={styles.icon}>
-          {hasCurrentArtwork
-            ? <RotateCcw size={17} color={Colors.onPrimary} />
-            : <ImageIcon size={17} color={Colors.onPrimary} />}
-        </View>
+        {hasCurrentArtwork
+          ? <RotateCcw size={18} color={Colors.primary} />
+          : <ImageIcon size={18} color={Colors.primary} />}
         <View style={styles.headingCopy}>
-          <Text style={styles.eyebrow}>{hasCurrentArtwork ? 'Page edit' : 'New page'}</Text>
           <Text style={styles.title}>{hasCurrentArtwork ? 'Create a replacement?' : 'Create this page?'}</Text>
         </View>
       </View>
       {instruction ? <Text style={styles.copy}>{instruction}</Text> : null}
-      <Text style={styles.cost}>Cost: 1 generation credit</Text>
-      <Text style={styles.copy}>
-        {hasCurrentArtwork
-          ? 'The current page stays selected while Nosh makes a candidate.'
-          : 'Nosh will show the complete page before using it.'}
-      </Text>
       {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+      {busy === 'generate' ? (
+        <View style={styles.generating} accessibilityRole="progressbar" accessibilityLabel="Creating recipe page">
+          <NoshActivityDots size={5} />
+          <Text style={styles.generatingText}>Creating page</Text>
+        </View>
+      ) : null}
       <Pressable
-        style={styles.primaryButton}
+        style={({ pressed }) => [styles.primaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
         disabled={busy !== null}
         accessibilityRole="button"
-        accessibilityLabel="Generate recipe page for one credit"
+        accessibilityLabel="Generate recipe page"
         accessibilityState={{ disabled: busy !== null, busy: busy === 'generate' }}
         onPress={() => void generate()}
       >
-        {busy === 'generate' ? <ActivityIndicator size="small" color={Colors.onPrimary} /> : null}
-        <Text style={styles.primaryText}>{busy === 'generate' ? 'Creating page' : 'Generate for 1 credit'}</Text>
+        <Text style={styles.primaryText}>{busy === 'generate' ? 'Creating page' : 'Generate page'}</Text>
       </Pressable>
       <Pressable
-        style={styles.secondaryButton}
+        style={({ pressed }) => [styles.secondaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
         disabled={busy !== null}
         accessibilityRole="button"
         accessibilityLabel="Cancel page generation"
@@ -141,46 +137,34 @@ export function ArtworkActionCard({
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.md,
+    gap: Spacing.sm,
     padding: Spacing.md,
-    marginVertical: 4,
+    marginVertical: Spacing.values[4],
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
     borderRadius: Radii.lg,
     backgroundColor: Colors.white,
   },
   heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  headingCopy: { flex: 1, gap: 2 },
-  eyebrow: {
-    color: Colors.primary,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: 11,
-    letterSpacing: 0.7,
-    textTransform: 'uppercase',
-  },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 18 },
-  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 13, lineHeight: 18 },
-  cost: { color: Colors.text, fontFamily: Fonts.ui.semibold, fontSize: 13 },
-  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: 12 },
-  preview: { width: '100%', aspectRatio: 3 / 4, borderRadius: Radii.md, backgroundColor: Colors.background },
+  headingCopy: { flex: 1, gap: Spacing.values[2] },
+  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.lgMd },
+  copy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight20 },
+  error: { color: Colors.error, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
+  preview: { width: '100%', aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio, borderRadius: Radii.md, backgroundColor: Colors.background },
+  generating: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  generatingText: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.sm },
   primaryButton: {
-    minHeight: 46,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    borderRadius: Radii.md,
+    borderRadius: Radii.full,
     backgroundColor: Colors.primary,
   },
-  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: 14 },
+  primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
   secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: Colors.textMuted, fontFamily: Fonts.ui.semibold, fontSize: 13 },
+  secondaryText: { color: Colors.textMuted, fontFamily: Fonts.ui.semibold, fontSize: Typography.sizes.md, },
+  disabled: { opacity: 0.55 },
+  pressed: { opacity: 0.7 },
 });

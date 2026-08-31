@@ -1,19 +1,27 @@
 import type { ReactNode } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  type ImageSourcePropType,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
-
-const noshReading = require('../../assets/illustrations/nosh-reading-cookbook.png');
+import { Spacing } from '@/constants/spacing';
 
 interface AuthScaffoldProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
-  showIllustration?: boolean;
+  compactHeader?: boolean;
+  backgroundImage?: ImageSourcePropType;
 }
 
 export function AuthScaffold({
@@ -21,15 +29,27 @@ export function AuthScaffold({
   subtitle,
   children,
   footer,
-  showIllustration = true,
+  compactHeader = false,
+  backgroundImage,
 }: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
+  const preservePortraitArtwork = width / Math.max(height, 1) < 0.64;
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      {backgroundImage ? (
+        <Image
+          source={backgroundImage}
+          style={styles.backgroundImage}
+          resizeMode={preservePortraitArtwork ? 'stretch' : 'cover'}
+          accessible={false}
+          testID="auth-background-pattern"
+        />
+      ) : null}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -39,12 +59,10 @@ export function AuthScaffold({
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.wordmark}>Nosh</Text>
-          {showIllustration ? (
-            <Image source={noshReading} style={styles.illustration} resizeMode="contain" />
-          ) : null}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <NoshHorizontalLockup width={148} />
+          {!compactHeader ? <View style={styles.brandSpacing} /> : null}
+          <Text variant="h1" style={styles.title}>{title}</Text>
+          {subtitle ? <Text variant="body" style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
 
         <View style={styles.card}>{children}</View>
@@ -59,50 +77,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: '100%',
+    width: '100%',
+    opacity: 0.72,
+  },
   content: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.xl,
+    gap: Spacing.xxl,
   },
   header: {
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  wordmark: {
-    fontFamily: Fonts.display.bold,
-    fontSize: 34,
-    lineHeight: 40,
-    color: Colors.text,
-    letterSpacing: 0,
-  },
-  illustration: {
-    width: '100%',
-    maxWidth: 340,
-    height: 188,
+  brandSpacing: {
+    height: Spacing.sm,
   },
   title: {
-    fontFamily: Fonts.display.bold,
     color: Colors.text,
-    fontSize: 28,
-    lineHeight: 34,
     textAlign: 'center',
-    letterSpacing: 0,
   },
   subtitle: {
     color: Colors.slate,
-    fontSize: 14,
-    lineHeight: 24,
     textAlign: 'center',
     maxWidth: 360,
   },
   card: {
     gap: Spacing.md,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    padding: Spacing.xl,
-    boxShadow: Colors.book.cardShadow,
   },
   footer: {
     alignItems: 'center',

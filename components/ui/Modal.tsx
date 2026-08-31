@@ -152,9 +152,9 @@ const styles = StyleSheet.create({
   full: {
     width: '100%',
     height: '100%',
-    borderRadius: 0,
+    borderRadius: Radii.numeric[0],
     maxHeight: '100%',
-    ...Platform.select({ android: { paddingTop: 0 } }),
+    ...Platform.select({ android: { paddingTop: Spacing.values[0] } }),
   },
   header: {
     flexDirection: 'row',
@@ -172,7 +172,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   closeButton: {
-    padding: Spacing.xs,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: Spacing.md,
   },
   scrollView: {
@@ -183,6 +186,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   fullContentPadding: {
-    padding: 0,
+    padding: Spacing.values[0],
   },
 });

@@ -27,13 +27,15 @@ const interaction: NoshInteractionSession = {
 
 describe('NoshInteractionStateSync', () => {
   it('waits to persist interaction metadata while a local thread is new', () => {
+    const onRestoreInteraction = jest.fn();
     expect(() => render(
       <NoshInteractionStateSync
         interaction={interaction}
-        onRestoreInteraction={jest.fn()}
+        onRestoreInteraction={onRestoreInteraction}
         onThreadChanged={jest.fn()}
       />,
     )).not.toThrow();
     expect(mockUpdateCustom).not.toHaveBeenCalled();
+    expect(onRestoreInteraction).not.toHaveBeenCalled();
   });
 });

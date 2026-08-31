@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { LockKeyhole, Mail } from 'lucide-react-native';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { requestFirstRunOnboardingReset } from '@/utils/cookbook/firstRunOnboarding';
 
-export default function SignInScreen() {
+export function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -91,7 +90,7 @@ export default function SignInScreen() {
   return (
     <AuthScaffold
       title="Return to your cookbook shelf"
-      subtitle="Sign in to keep reading, adding pages, and asking Nosh inside your recipes."
+      backgroundImage={require('../../assets/brand/patterns/auth-organic-botanical-concept-a-v2.png')}
       footer={
         <View style={styles.footer}>
           <Text style={styles.footerText}>New to Nosh?</Text>
@@ -112,7 +111,10 @@ export default function SignInScreen() {
       <Input
         label="Email"
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
+        textContentType="emailAddress"
+        spellCheck={false}
         value={email}
         onChangeText={setEmail}
         placeholder="you@example.com"
@@ -121,6 +123,8 @@ export default function SignInScreen() {
       <Input
         label="Password"
         secureTextEntry
+        autoComplete="current-password"
+        textContentType="password"
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
@@ -141,13 +145,18 @@ export default function SignInScreen() {
         loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={8}
-            style={styles.appleButton}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Apple"
             onPress={onAppleSignIn}
-          />
+            style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
+          >
+            <Image
+              source={require('../../assets/auth/apple-sign-in-logo-black.png')}
+              style={styles.appleButtonImage}
+              accessible={false}
+            />
+          </Pressable>
         )
       ) : null}
 
@@ -167,15 +176,27 @@ export default function SignInScreen() {
   );
 }
 
+export default SignInScreen;
+
 const styles = StyleSheet.create({
   forgotPassword: {
     alignSelf: 'flex-end',
     paddingVertical: Spacing.xs,
   },
   appleButton: {
+    alignSelf: 'center',
     height: 44,
-    width: '100%',
-    borderRadius: Radii.sm,
+    width: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  appleButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }],
+  },
+  appleButtonImage: {
+    height: 44,
+    width: 44,
   },
   footer: {
     flexDirection: 'row',
@@ -191,11 +212,9 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
   shareNotice: { gap: Spacing.xs, borderRadius: Radii.sm, backgroundColor: Colors.parchment, padding: Spacing.md },
   shareNoticeTitle: { color: Colors.text, fontWeight: '600' },
-  shareNoticeCopy: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  shareNoticeCopy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
 });

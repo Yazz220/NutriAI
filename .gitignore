@@ -29,6 +29,7 @@ android/
 Thumbs.db
 
 # EAS
+credentials.json
 *.jks
 *.p8
 *.p12
@@ -38,6 +39,7 @@ Thumbs.db
 
 # Testing
 coverage/
+output/ingestion-evals/
 
 # Supabase local
 supabase/.temp/

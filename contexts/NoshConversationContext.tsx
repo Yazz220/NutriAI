@@ -2,7 +2,6 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import {
-  isSameNoshFocus,
   taskForEntryPoint,
   type NoshEntryPoint,
   type NoshFocus,
@@ -20,15 +19,12 @@ export interface NoshVisibleBookContext {
 interface NoshConversationValue {
   visible: boolean;
   interaction: NoshInteractionEnvelope;
-  requestedFocus: NoshFocus | null;
   visibleBookContext: NoshVisibleBookContext;
   pendingImageBase64: string | null;
   pendingImageMimeType: string | null;
   recipePreview: { pageId: string; graph: RecipeGraph } | null;
   open: (entryPoint: NoshEntryPoint, focus?: NoshFocus) => void;
   requestFocus: (focus: NoshFocus) => void;
-  acceptRequestedFocus: () => void;
-  dismissRequestedFocus: () => void;
   restoreInteraction: (session: NoshInteractionSession) => void;
   close: () => void;
   setVisibleBookContext: (context: NoshVisibleBookContext) => void;
@@ -70,7 +66,6 @@ const NoshConversationContext = createContext<NoshConversationValue | null>(null
 export function NoshConversationProvider({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [session, setSession] = useState<NoshInteractionSession>(DEFAULT_SESSION);
-  const [requestedFocus, setRequestedFocus] = useState<NoshFocus | null>(null);
   const [visibleBookContext, setVisibleBookContextState] = useState<NoshVisibleBookContext>(
     EMPTY_VISIBLE_BOOK_CONTEXT,
   );
@@ -81,23 +76,12 @@ export function NoshConversationProvider({ children }: { children: React.ReactNo
   const open = useCallback((entryPoint: NoshEntryPoint, focus?: NoshFocus) => {
     setSession((current) => {
       const nextFocus = focus ?? current.focus;
-      if (
-        focus
-        && current.focus.kind === 'recipe'
-        && focus.kind === 'recipe'
-        && !isSameNoshFocus(current.focus, focus)
-      ) {
-        setRequestedFocus(focus);
-        return current;
-      }
-      setRequestedFocus(null);
       return { entryPoint, task: taskForEntryPoint(entryPoint), focus: nextFocus };
     });
     setVisible(true);
   }, []);
 
   const requestFocus = useCallback((focus: NoshFocus) => {
-    setRequestedFocus(null);
     setSession((current) => ({
       ...current,
       task: focus.kind === 'recipe' ? 'recipe-help' : focus.kind === 'capture' ? 'capture' : 'collection',
@@ -105,14 +89,7 @@ export function NoshConversationProvider({ children }: { children: React.ReactNo
     }));
   }, []);
 
-  const acceptRequestedFocus = useCallback(() => {
-    if (requestedFocus) requestFocus(requestedFocus);
-  }, [requestFocus, requestedFocus]);
-
-  const dismissRequestedFocus = useCallback(() => setRequestedFocus(null), []);
-
   const restoreInteraction = useCallback((next: NoshInteractionSession) => {
-    setRequestedFocus(null);
     setSession(next);
   }, []);
 
@@ -144,15 +121,12 @@ export function NoshConversationProvider({ children }: { children: React.ReactNo
   const value = useMemo<NoshConversationValue>(() => ({
     visible,
     interaction,
-    requestedFocus,
     visibleBookContext,
     pendingImageBase64,
     pendingImageMimeType,
     recipePreview,
     open,
     requestFocus,
-    acceptRequestedFocus,
-    dismissRequestedFocus,
     restoreInteraction,
     close,
     setVisibleBookContext,
@@ -163,15 +137,12 @@ export function NoshConversationProvider({ children }: { children: React.ReactNo
   }), [
     visible,
     interaction,
-    requestedFocus,
     visibleBookContext,
     pendingImageBase64,
     pendingImageMimeType,
     recipePreview,
     open,
     requestFocus,
-    acceptRequestedFocus,
-    dismissRequestedFocus,
     restoreInteraction,
     close,
     setVisibleBookContext,

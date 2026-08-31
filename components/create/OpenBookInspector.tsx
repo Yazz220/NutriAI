@@ -1,3 +1,4 @@
+import { Radii, Typography , Spacing, Shadows} from '@/constants/spacing';
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -21,6 +22,7 @@ import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookPageHeight } from '@/constants/cookbookGeometry';
 import type { CookbookStylePreset } from '@/constants/cookbookStyles';
 import { withAlpha } from '@/utils/cookbook/coverArt';
 import { Fonts } from '@/utils/fonts';
@@ -51,7 +53,7 @@ export function OpenBookInspector({
 }: OpenBookInspectorProps) {
   const binding = getCookbookBindingForStyle(preset.id);
   const pageWidth = Math.min((width - 20) / 2, 164);
-  const pageHeight = pageWidth * 1.38;
+  const pageHeight = resolveCookbookPageHeight(pageWidth);
   const spreadWidth = pageWidth * 2;
   const [isOpen, setIsOpen] = useState(false);
 
@@ -155,7 +157,7 @@ export function OpenBookInspector({
           </View>
 
           <LinearGradient
-            colors={['rgba(23,22,20,0)', 'rgba(23,22,20,0.15)', 'rgba(255,255,255,0.18)', 'rgba(23,22,20,0)']}
+            colors={[Colors.legacySurface.v61, Colors.legacySurface.v59, Colors.legacySurface.v78, Colors.legacySurface.v61]}
             locations={[0, 0.4, 0.58, 1]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -256,8 +258,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -4,
     top: -4,
-    borderRadius: 11,
-    boxShadow: '0 14px 28px rgba(35,33,28,0.18)',
+    borderRadius: Radii.numeric[11],
+    boxShadow: Shadows.custom.openBook,
   },
   leftPaper: {
     position: 'absolute',
@@ -298,14 +300,14 @@ const styles = StyleSheet.create({
   quotePageContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    gap: Spacing.values[14],
+    paddingHorizontal: Spacing.values[16],
+    paddingVertical: Spacing.values[20],
   },
   ornamentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.values[8],
   },
   ornamentRule: {
     width: 28,
@@ -321,13 +323,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display.semibold,
     color: Colors.book.ink,
     textAlign: 'center',
-    letterSpacing: 0.2,
-    lineHeight: 24,
+    letterSpacing: Typography.metrics.letterSpacing02,
+    lineHeight: Typography.metrics.lineHeight24,
   },
   eyebrow: {
     fontFamily: Fonts.ui.medium,
     color: Colors.book.caption,
-    letterSpacing: 2.4,
+    letterSpacing: Typography.metrics.letterSpacing24,
     textAlign: 'center',
   },
   previewNavigation: {
@@ -336,12 +338,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
-    gap: 7,
+    gap: Spacing.values[7],
   },
   previewLabel: {
     color: Colors.textSecondary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
   },
 });

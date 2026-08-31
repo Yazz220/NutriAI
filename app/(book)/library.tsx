@@ -3,18 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { CreationStudio } from '@/components/create/CreationStudio';
-import { Text } from '@/components/ui/Text';
-import type { CreationPageStyleId } from '@/constants/cookbookCustomization';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { CreationStudio, type CreateCookbookDetails } from '@/components/create/CreationStudio';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
+import { Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
+import { useShelfAppearance } from '@/hooks/useShelfAppearance';
 import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
 import { trackEvent } from '@/utils/analytics';
-import type { CookbookStyleId } from '@/types/cookbook';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
@@ -28,13 +26,10 @@ export default function BookLibraryScreen() {
   const { user } = useAuth();
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
+  const { scene, setShelfStyleId, setWallpaperStyleId } = useShelfAppearance();
 
-  async function handleCreate(
-    title: string,
-    coverStyle: CookbookStyleId,
-    pageStyleId: CreationPageStyleId,
-  ) {
-    const cookbook = await createCookbook({ title, coverStyle, pageStyleId });
+  async function handleCreate({ title, coverFinishId, coverColorId, pageStyleId }: CreateCookbookDetails) {
+    const cookbook = await createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
     if (captureId) {
       try {
         await prepareDestination({ captureId, destinationCookbookId: cookbook.id });
@@ -48,7 +43,12 @@ export default function BookLibraryScreen() {
       await recordFirstCookbookCreated(user.id, cookbook.id).catch(() => undefined);
       trackEvent({
         type: 'first_cookbook_created',
-        data: { cookbookId: cookbook.id, coverStyle, pageStyleId },
+        data: {
+          cookbookId: cookbook.id,
+          coverFinishId,
+          coverColorId,
+          pageStyleId,
+        },
       });
     }
     router.replace(`/(book)/${cookbook.id}`);
@@ -61,11 +61,16 @@ export default function BookLibraryScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityLabel="Back to my cookbooks">
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to my cookbooks"
+        >
           <ChevronLeft size={20} color={Colors.text} />
         </Pressable>
         <View style={styles.heading}>
-          <Text style={styles.wordmark}>Nosh</Text>
+          <NoshHorizontalLockup width={88} />
         </View>
         <View style={styles.topSpacer} />
       </View>
@@ -74,7 +79,11 @@ export default function BookLibraryScreen() {
         bottomInset={insets.bottom}
         canCreate={!!user}
         mode={isFirstRun ? 'first-run' : 'standard'}
+        shelfStyleId={scene.shelfStyleId}
+        wallpaperStyleId={scene.wallpaperStyleId}
         onCreateBook={handleCreate}
+        onShelfStyleChange={setShelfStyleId}
+        onWallpaperStyleChange={setWallpaperStyleId}
         onSignIn={openSignIn}
       />
     </View>
@@ -95,28 +104,17 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: Radii.full,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.alabaster,
-    borderWidth: 1,
-    borderColor: Colors.ash,
   },
   heading: {
     flex: 1,
     alignItems: 'center',
   },
   topSpacer: {
-    width: 42,
-    height: 42,
-  },
-  wordmark: {
-    fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    color: Colors.text,
-    letterSpacing: 0,
+    width: 44,
+    height: 44,
   },
 });

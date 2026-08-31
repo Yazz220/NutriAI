@@ -1,3 +1,4 @@
+import { Typography , Spacing} from '@/constants/spacing';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BookOpen, Leaf } from 'lucide-react-native';
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   recipePageNumber: {
     color: Colors.book.caption,
     fontFamily: Fonts.ui.medium,
-    fontSize: 9,
+    fontSize: Typography.sizes.md,
     fontVariant: ['tabular-nums'],
   },
   bookplate: {
@@ -162,22 +163,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: Spacing.values[9],
     borderWidth: 1,
     opacity: 0.92,
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.values[12],
   },
   kicker: {
     color: Colors.book.caption,
     fontFamily: Fonts.ui.medium,
-    fontSize: 8,
-    letterSpacing: 1.4,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing14,
     textAlign: 'center',
   },
   bookplateTitle: {
     fontFamily: Fonts.display.bold,
-    fontSize: 20,
-    lineHeight: 23,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight23,
     textAlign: 'center',
   },
   rule: {
@@ -188,8 +189,8 @@ const styles = StyleSheet.create({
   bookplateMeta: {
     color: Colors.book.caption,
     fontFamily: Fonts.ui.medium,
-    fontSize: 8,
-    letterSpacing: 1.1,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing11,
   },
   blank: {
     flex: 1,

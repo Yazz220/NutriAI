@@ -62,6 +62,10 @@ export function buildCookbookLeaves(pageIds: string[]): CookbookLeaf[] {
   return leaves;
 }
 
+export function buildRecipeLeaves(pageIds: string[]): CookbookLeaf[] {
+  return pageIds.map<CookbookLeaf>((id, pageIndex) => ({ type: 'recipe', id, pageIndex }));
+}
+
 export function buildCookbookSpreads(pageIds: string[]): CookbookSpread[] {
   const leaves = buildCookbookLeaves(pageIds);
 

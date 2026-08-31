@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { Check, Loader2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 
 const STAGE_LABELS = [
@@ -69,9 +69,7 @@ export function ExtractingRecipeStages({ running }: ExtractingRecipeStagesProps)
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>Just a moment</Text>
         <Text style={styles.title}>Extracting Recipe</Text>
-        <Text style={styles.subtitle}>Nosh is reading your source and turning it into structured recipe data.</Text>
       </View>
 
       <View style={styles.stages}>
@@ -87,9 +85,6 @@ export function ExtractingRecipeStages({ running }: ExtractingRecipeStagesProps)
         })}
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>This usually takes a few seconds.</Text>
-      </View>
     </View>
   );
 }
@@ -105,25 +100,25 @@ const styles = StyleSheet.create({
     boxShadow: Colors.book.cardShadow,
   },
   header: {
-    gap: 4,
+    gap: Spacing.values[4],
   },
   eyebrow: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.slate,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
   },
   stages: {
     gap: Spacing.md,
@@ -137,7 +132,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: Radii.numeric[12],
     borderWidth: 1.5,
     borderColor: Colors.duskGrey,
     alignItems: 'center',
@@ -150,7 +145,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
   },
   rowLabelPending: {
@@ -164,8 +159,8 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: Colors.text,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight17,
     textAlign: 'center',
     fontStyle: 'italic',
   },

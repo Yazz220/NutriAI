@@ -19,6 +19,9 @@ export function proposeServingScale(
   if (!Number.isInteger(targetServings) || targetServings < 1 || targetServings > 100) {
     throw new Error('Serving count must be between 1 and 100');
   }
+  if (!graph.servings || graph.servings < 1) {
+    throw new Error('This recipe does not have a numeric serving count to scale from');
+  }
 
   const ratio = targetServings / graph.servings;
   const ingredientGroups: IngredientGroup[] = graph.ingredientGroups.map((group) => ({
@@ -47,7 +50,12 @@ export function proposeServingScale(
       'Artwork stays unchanged',
     ],
     original: graph,
-    proposed: { ...graph, servings: targetServings, ingredientGroups },
+    proposed: {
+      ...graph,
+      servings: targetServings,
+      yieldText: `${targetServings} servings`,
+      ingredientGroups,
+    },
   };
 }
 

@@ -262,7 +262,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'cookbook-pages',
   'cookbook-pages',
-  true,
+  false,
   10485760,
   array['image/png', 'image/webp', 'image/jpeg']
 )
@@ -270,3 +270,11 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists cookbook_pages_owner_select on storage.objects;
+create policy cookbook_pages_owner_select on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'cookbook-pages'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );

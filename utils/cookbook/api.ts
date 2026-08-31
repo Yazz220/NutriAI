@@ -3,6 +3,11 @@ import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
 import { COOKBOOK_STYLE_PRESETS, getCookbookStyle } from '@/constants/cookbookStyles';
 import {
+  getLegacyCoverStyleForColor,
+  normalizeCoverColorId,
+  normalizeCoverFinishId,
+} from '@/constants/cookbookBindings';
+import {
   getCookbookPageStyleModelDescription,
   getCookbookPageStyleName,
   getCookbookPageStyleReferences,
@@ -12,6 +17,8 @@ import {
 import { DEFAULT_RECIPE_TEMPLATE_ID, getRecipeTemplate, isRecipeTemplateId } from '@/constants/recipeTemplates';
 import type {
   Cookbook,
+  CookbookCoverColorId,
+  CookbookCoverFinishId,
   CookbookPage,
   CookbookPageStyleId,
   CookbookSectionEntry,
@@ -30,6 +37,17 @@ import {
   type RecipeCapture,
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
+import { signStoredPageImages } from '@/utils/cookbook/privatePageUrls';
+import { prepareRecipeCaptureImage } from '@/utils/cookbook/recipeCaptureImage';
+import {
+  prepareRecipeCaptureAudio,
+  type RecipeCaptureAudioAsset,
+} from '@/utils/cookbook/recipeCaptureAudio';
+import {
+  prepareRecipeCaptureVideo,
+  type RecipeCaptureVideoAsset,
+} from '@/utils/cookbook/recipeCaptureVideo';
+import { captureStageCheckpoints } from '@/supabase/functions/_shared/captureStages';
 
 type CookbookInsertPayload = {
   user_id: string;
@@ -37,6 +55,8 @@ type CookbookInsertPayload = {
   theme_name: string;
   theme_prompt: string;
   cover_style?: CookbookStyleId;
+  cover_finish_id?: CookbookCoverFinishId;
+  cover_color_id?: CookbookCoverColorId;
   page_style_id?: CookbookPageStyleId;
   page_template_id?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -53,6 +73,8 @@ interface CookbookRow {
   theme_prompt: string;
   section_order?: unknown;
   cover_style?: string | null;
+  cover_finish_id?: string | null;
+  cover_color_id?: string | null;
   page_style_id?: string | null;
   page_template_id?: string | null;
   sections?: unknown;
@@ -127,6 +149,8 @@ interface RecipeCaptureRow {
   art_warning?: string | null;
   failure_code?: string | null;
   failure_message?: string | null;
+  failed_stage?: string | null;
+  stage_checkpoints?: unknown;
   idempotency_key: string;
   processing_attempt: number;
   processing_started_at?: string | null;
@@ -159,11 +183,14 @@ function normalizeSectionOrder(value: unknown): Cookbook['sectionOrder'] {
 }
 
 function normalizeCoverStyle(value?: string | null, themeName?: string | null): CookbookStyleId {
+  if (value && getCookbookStyle(value).id === value) {
+    return value as CookbookStyleId;
+  }
   const matchingTheme = themeName
     ? Object.values(COOKBOOK_STYLE_PRESETS).find((preset) => preset.theme.name === themeName)
     : undefined;
   if (matchingTheme) return matchingTheme.id;
-  return getCookbookStyle(value).id;
+  return getCookbookStyle().id;
 }
 
 function normalizePageTemplateId(value?: string | null): RecipeTemplateId {
@@ -178,6 +205,8 @@ function getEmbeddedVersion(row: CookbookPageRow): PageVersionRow | undefined {
 
 export function mapCookbook(row: CookbookRow): Cookbook {
   const coverStyle = normalizeCoverStyle(row.cover_style, row.theme_name);
+  const coverFinishId = normalizeCoverFinishId(row.cover_finish_id);
+  const coverColorId = normalizeCoverColorId(row.cover_color_id, coverStyle);
   const pageStyleId = normalizeCookbookPageStyleId(row.page_style_id, coverStyle);
   const pageTemplateId = normalizePageTemplateId(row.page_template_id);
   const sections = normalizeSections(row.sections);
@@ -188,6 +217,8 @@ export function mapCookbook(row: CookbookRow): Cookbook {
     theme: { name: row.theme_name, prompt: row.theme_prompt },
     sectionOrder: normalizeSectionOrder(row.section_order),
     coverStyle,
+    coverFinishId,
+    coverColorId,
     pageStyleId,
     styleRevision: row.style_revision ?? getCookbookPageStyleRevision(pageStyleId),
     pageStyleReferences: asStringArray(row.page_style_references),
@@ -323,6 +354,17 @@ export function mapRecipeCapture(row: RecipeCaptureRow): RecipeCapture {
     pageWarning: row.art_warning ?? undefined,
     failureCode: row.failure_code ?? undefined,
     failureMessage: row.failure_message ?? undefined,
+    failedStage: row.failed_stage === 'source'
+      || row.failed_stage === 'transcription'
+      || row.failed_stage === 'extraction'
+      || row.failed_stage === 'normalization'
+      || row.failed_stage === 'quality'
+      || row.failed_stage === 'destination'
+      || row.failed_stage === 'page_generation'
+      || row.failed_stage === 'publication'
+      ? row.failed_stage
+      : undefined,
+    stageCheckpoints: captureStageCheckpoints(row.stage_checkpoints),
     idempotencyKey: row.idempotency_key,
     processingAttempt: row.processing_attempt,
     processingStartedAt: row.processing_started_at ?? undefined,
@@ -382,7 +424,8 @@ export async function getCookbook(cookbookId: string): Promise<Cookbook | null> 
 export interface CreateCookbookInput {
   userId: string;
   title: string;
-  coverStyle: CookbookStyleId;
+  coverFinishId: CookbookCoverFinishId;
+  coverColorId: CookbookCoverColorId;
   pageStyleId: CookbookPageStyleId;
   pageTemplateId?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -398,6 +441,13 @@ function isMissingCookbookColumnError(error: unknown): boolean {
     message.includes("Could not find the 'page_style_id' column") ||
     message.includes("Could not find the 'sections' column")
   );
+}
+
+function isMissingCoverAppearanceColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = (error as { message?: string }).message ?? '';
+  return message.includes("Could not find the 'cover_finish_id' column")
+    || message.includes("Could not find the 'cover_color_id' column");
 }
 
 function isCoverStyleConstraintError(error: unknown): boolean {
@@ -420,7 +470,7 @@ async function insertCookbook(payload: CookbookInsertPayload): Promise<CookbookR
 }
 
 export async function createCookbook(input: CreateCookbookInput): Promise<Cookbook> {
-  const coverPreset = getCookbookStyle(input.coverStyle);
+  const coverPreset = getCookbookStyle(getLegacyCoverStyleForColor(input.coverColorId));
   const pageStyleId = normalizeCookbookPageStyleId(input.pageStyleId, coverPreset.id);
   const templateId = getRecipeTemplate(input.pageTemplateId).id;
   const title = input.title.trim() || 'My Cookbook';
@@ -435,6 +485,8 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     const row = await insertCookbook({
       ...basePayload,
       cover_style: coverPreset.id,
+      cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+      cover_color_id: normalizeCoverColorId(input.coverColorId),
       page_style_id: pageStyleId,
       style_revision: getCookbookPageStyleRevision(pageStyleId),
       page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -443,10 +495,39 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     });
     return { ...mapCookbook(row), pageCount: 0 };
   } catch (error) {
+    if (isMissingCoverAppearanceColumnError(error)) {
+      try {
+        const row = await insertCookbook({
+          ...basePayload,
+          cover_style: coverPreset.id,
+          page_style_id: pageStyleId,
+          style_revision: getCookbookPageStyleRevision(pageStyleId),
+          page_style_references: getCookbookPageStyleReferences(pageStyleId),
+          page_template_id: templateId,
+          sections: input.sections ?? [],
+        });
+        return { ...mapCookbook(row), pageCount: 0 };
+      } catch (legacyError) {
+        if (!isCoverStyleConstraintError(legacyError)) throw legacyError;
+        const row = await insertCookbook({
+          ...basePayload,
+          cover_style: 'handwritten',
+          page_style_id: pageStyleId,
+          style_revision: getCookbookPageStyleRevision(pageStyleId),
+          page_style_references: getCookbookPageStyleReferences(pageStyleId),
+          page_template_id: templateId,
+          sections: input.sections ?? [],
+        });
+        return { ...mapCookbook(row), pageCount: 0 };
+      }
+    }
+
     if (isCoverStyleConstraintError(error)) {
       const row = await insertCookbook({
         ...basePayload,
         cover_style: 'handwritten',
+        cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+        cover_color_id: normalizeCoverColorId(input.coverColorId),
         page_style_id: pageStyleId,
         style_revision: getCookbookPageStyleRevision(pageStyleId),
         page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -466,10 +547,24 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
 }
 
 export async function deleteCookbook(cookbookId: string): Promise<void> {
+  await callAuthenticatedFunction('delete-reader-content', {
+    action: 'deleteCookbook',
+    cookbookId,
+  });
+}
+
+export async function retryReaderStorageCleanup(): Promise<void> {
+  await callAuthenticatedFunction('delete-reader-content', { action: 'drain' });
+}
+
+export async function updateCookbookTitle(cookbookId: string, title: string): Promise<void> {
+  const trimmedTitle = title.trim();
+  if (!trimmedTitle) throw new Error('Cookbook name cannot be empty.');
+
   const { error } = await supabase
     .schema('nutriai')
     .from('cookbooks')
-    .delete()
+    .update({ title: trimmedTitle })
     .eq('id', cookbookId);
   if (error) throw error;
 }
@@ -524,13 +619,13 @@ export async function fetchCookbookPages(cookbookId: string): Promise<CookbookPa
       .in('id', selectedVersionIds);
 
     if (versionsError) throw versionsError;
+    const signedVersions = await signStoredPageImages((versions ?? []) as PageVersionRow[]);
     selectedVersions = Object.fromEntries(
-      ((versions ?? []) as PageVersionRow[]).map((version) => [version.page_id, version]),
+      signedVersions.map((version) => [version.page_id, version]),
     );
   }
 
   return rows
-    .filter((row) => row.lifecycle_status === 'approved')
     .map((row) => mapPage(row, selectedVersions))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
@@ -562,6 +657,21 @@ export async function retryRecipeCapture(captureId: string): Promise<{
   return callAuthenticatedFunction('capture-recipe', { captureId }, { timeoutMs: 20_000 });
 }
 
+export async function correctRecipeCapture(
+  captureId: string,
+  correctedRecipeGraph: RecipeGraphDraft,
+): Promise<{
+  capture: RecipeCapture;
+  pendingPage?: CookbookPage;
+  status: 'processing';
+}> {
+  return callAuthenticatedFunction(
+    'capture-recipe',
+    { captureId, correctedRecipeGraph },
+    { timeoutMs: 20_000 },
+  );
+}
+
 export async function prepareRecipeCaptureDestination(
   captureId: string,
   destinationCookbookId: string,
@@ -573,39 +683,68 @@ export async function prepareRecipeCaptureDestination(
   );
 }
 
-function decodeBase64(value: string): Uint8Array {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const clean = value.replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '').replace(/=+$/, '');
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-  for (const character of clean) {
-    const index = alphabet.indexOf(character);
-    if (index < 0) throw new Error('The selected image could not be read');
-    buffer = (buffer << 6) | index;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-  return Uint8Array.from(bytes);
-}
-
 export async function uploadRecipeCaptureImage(input: {
   userId: string;
-  imageBase64: string;
+  imageUri?: string;
+  imageBase64?: string;
   mimeType?: string;
   requestKey: string;
 }): Promise<{ storagePath: string; mimeType: string }> {
-  const mimeType = input.mimeType ?? 'image/jpeg';
-  const extension = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
-  const storagePath = `${input.userId}/${input.requestKey}.${extension}`;
+  const prepared = await prepareRecipeCaptureImage(input);
+  const storagePath = `${input.userId}/${input.requestKey}.jpg`;
   const { error } = await supabase.storage
     .from('recipe-captures')
-    .upload(storagePath, decodeBase64(input.imageBase64), { contentType: mimeType, upsert: false });
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) throw error;
-  return { storagePath, mimeType };
+  return { storagePath, mimeType: prepared.mimeType };
+}
+
+export async function uploadRecipeCaptureAudio(input: {
+  userId: string;
+  audio: RecipeCaptureAudioAsset;
+  requestKey: string;
+}): Promise<{
+  storagePath: string;
+  mimeType: string;
+  fileName: string;
+  byteSize: number;
+}> {
+  const prepared = await prepareRecipeCaptureAudio(input.audio);
+  const storagePath = `${input.userId}/${input.requestKey}.${prepared.format}`;
+  const { error } = await supabase.storage
+    .from('recipe-captures')
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+  if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+  return {
+    storagePath,
+    mimeType: prepared.mimeType,
+    fileName: prepared.fileName,
+    byteSize: prepared.byteSize,
+  };
+}
+
+export async function uploadRecipeCaptureVideo(input: {
+  userId: string;
+  video: RecipeCaptureVideoAsset;
+  requestKey: string;
+}): Promise<{
+  storagePath: string;
+  mimeType: string;
+  fileName: string;
+  byteSize: number;
+}> {
+  const prepared = await prepareRecipeCaptureVideo(input.video);
+  const storagePath = `${input.userId}/${input.requestKey}.${prepared.fileExtension}`;
+  const { error } = await supabase.storage
+    .from('recipe-captures')
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+  if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+  return {
+    storagePath,
+    mimeType: prepared.mimeType,
+    fileName: prepared.fileName,
+    byteSize: prepared.byteSize,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -651,11 +790,11 @@ export async function createRecipePageWithGraph(input: {
       cook_time: recipeGraph.cookTimeMinutes ?? null,
       ingredients: flatIngredients,
       steps: flatSteps,
-      source_type: recipeGraph.provenance.sourceType,
-      source_url: recipeGraph.provenance.sourceUrl ?? null,
+      source_type: recipeGraph.provenance?.sourceType ?? 'manual',
+      source_url: recipeGraph.provenance?.sourceUrl ?? null,
       tags: recipeGraph.tags,
       category: recipeGraph.category,
-      confidence: recipeGraph.provenance.confidence,
+      confidence: recipeGraph.provenance?.confidence ?? 1,
     })
     .select('id')
     .single();
@@ -714,7 +853,21 @@ export async function generateRecipePageImage(payload: {
   referenceArtUrl?: string;
   selectOnComplete?: boolean;
 }): Promise<{ pageImage: GeneratedRecipePage } | { status: 'processing'; requestId: string }> {
-  return callAuthenticatedFunction('generate-page-art', payload, { timeoutMs: 20_000 });
+  const result = await callAuthenticatedFunction<
+    { pageImage: GeneratedRecipePage } | { status: 'processing'; requestId: string }
+  >('generate-page-art', payload, { timeoutMs: 20_000 });
+  if (!('pageImage' in result) || !result.pageImage.storagePath) return result;
+
+  const [signedPage] = await signStoredPageImages([{
+    image_url: result.pageImage.imageUrl,
+    storage_path: result.pageImage.storagePath,
+  }]);
+  return {
+    pageImage: {
+      ...result.pageImage,
+      imageUrl: signedPage.image_url ?? undefined,
+    },
+  };
 }
 
 /**
@@ -764,7 +917,8 @@ export async function fetchPageById(pageId: string): Promise<CookbookPage | null
       .maybeSingle();
 
     if (!versionError && version) {
-      selectedVersions[row.id] = version as PageVersionRow;
+      const [signedVersion] = await signStoredPageImages([version as PageVersionRow]);
+      selectedVersions[row.id] = signedVersion;
     }
   }
 
@@ -787,4 +941,25 @@ export async function updatePageRecipeGraph(
     .eq('id', pageId);
 
   if (error) throw error;
+}
+
+/**
+ * Apply corrected recipe data and its generated page version together.
+ * The database function validates page ownership and candidate membership.
+ */
+export async function applyRecipePageRevision(
+  pageId: string,
+  recipeGraph: RecipeGraph,
+  versionId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .rpc('apply_recipe_page_revision', {
+      p_page_id: pageId,
+      p_recipe_graph: recipeGraph as unknown as Record<string, unknown>,
+      p_version_id: versionId,
+    });
+
+  if (error) throw error;
+  if (data !== true) throw new Error('Recipe page revision could not be applied');
 }

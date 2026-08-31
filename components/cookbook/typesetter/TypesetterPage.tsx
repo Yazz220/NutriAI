@@ -4,7 +4,7 @@
  *
  * Architecture (hybrid approach):
  *   ┌─────────────────────────────────┐
- *   │  TypesetterPage (View)          │  ← Fixed 2:3 aspect ratio
+ *   │  TypesetterPage (View)          │  ← Canonical 4:5 aspect ratio
  *   │  ┌───────────────────────────┐  │
  *   │  │  ArtLayer (Skia Canvas)   │  │  ← z-index 0, absolute fill
  *   │  │  Art PNG + decorative     │  │     No text, purely visual
@@ -28,6 +28,7 @@ import { ArtLayer } from '@/components/cookbook/typesetter/ArtLayer';
 import { TextLayer } from '@/components/cookbook/typesetter/TextLayer';
 import { getTypesetterStyleConfig } from '@/constants/typesetterStyles';
 import { getTypesetterLayoutConfig } from '@/constants/typesetterLayouts';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Spacing } from '@/constants/spacing';
 import type { CookbookStyleId, RecipeTemplateId, PageArtAsset } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -50,9 +51,6 @@ export interface TypesetterPageProps {
   /** Called after base layout, and again when the current art asset finishes loading. */
   onRenderReady?: () => void;
 }
-
-/** Standard cookbook page aspect ratio (portrait). */
-const PAGE_ASPECT_RATIO = 2 / 3;
 
 export const TypesetterPage = memo(function TypesetterPage({
   recipeGraph,
@@ -84,7 +82,7 @@ export const TypesetterPage = memo(function TypesetterPage({
   const pageHeight = useMemo(() => {
     if (fixedHeight) return fixedHeight;
     if (bookMode) return bookSize.height;
-    return Math.max(500, Math.min(pageWidth / PAGE_ASPECT_RATIO, windowHeight - 220));
+    return Math.max(500, Math.min(pageWidth / COOKBOOK_GEOMETRY.page.aspectRatio, windowHeight - 220));
   }, [fixedHeight, bookMode, bookSize.height, pageWidth, windowHeight]);
 
   const styleConfig = useMemo(() => getTypesetterStyleConfig(styleId), [styleId]);
@@ -159,7 +157,7 @@ export const TypesetterPage = memo(function TypesetterPage({
 
 const styles = StyleSheet.create({
   page: {
-    aspectRatio: PAGE_ASPECT_RATIO,
+    aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio,
     overflow: 'hidden',
     backgroundColor: 'transparent',
   },

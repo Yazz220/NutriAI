@@ -3,10 +3,10 @@ import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { DEFAULT_COOKBOOK_STYLE } from '@/constants/cookbookStyles';
-import { isCreationPageStyleId } from '@/constants/cookbookCustomization';
+import { getCookbookStyle } from '@/constants/cookbookStyles';
+import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -21,7 +21,6 @@ function PageSkeleton({ page }: { page: CookbookPage }) {
   return (
     <View style={styles.skeleton}>
       <View style={styles.skeletonInner}>
-        <Text style={styles.skeletonEyebrow}>Cookbook page</Text>
         <Text style={styles.skeletonTitle} numberOfLines={2} adjustsFontSizeToFit>
           {page.title}
         </Text>
@@ -49,7 +48,7 @@ export function buildRecipePageAccessibilityLabel(page: CookbookPage): string {
   const details = [
     `${graph.title}.`,
     graph.description,
-    graph.servings ? `Serves ${graph.servings}.` : null,
+    graph.yieldText ? `${graph.yieldText}.` : graph.servings ? `Serves ${graph.servings}.` : null,
     formatRecipeTime(graph.prepTimeMinutes)
       ? `Prep time ${formatRecipeTime(graph.prepTimeMinutes)}.`
       : null,
@@ -77,11 +76,17 @@ export function buildRecipePageAccessibilityLabel(page: CookbookPage): string {
   return details.filter((detail): detail is string => Boolean(detail)).join(' ');
 }
 
+export function resolveFocusedPageWidth(viewportWidth: number, viewportHeight: number): number {
+  const horizontalInset = viewportWidth < 390 ? Spacing.md : Spacing.xl;
+  const availableWidth = viewportWidth - horizontalInset * 2;
+  const availableHeight = Math.max(240, viewportHeight - 210);
+  return Math.min(availableWidth, availableHeight * COOKBOOK_GEOMETRY.page.aspectRatio, 560);
+}
+
 export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
-  const horizontalInset = width < 390 ? Spacing.md : Spacing.xl;
-  const pageWidth = bookMode ? '100%' : Math.min(width - horizontalInset * 2, 430);
-  const maxHeight = bookMode ? undefined : Math.max(500, height - 220);
+  const pageWidth = bookMode ? '100%' : resolveFocusedPageWidth(width, height);
+  const maxHeight = bookMode ? undefined : Math.max(240, height - 210);
 
   const completePageSource = page.pageImage?.imageUrl
     ? { uri: page.pageImage.imageUrl }
@@ -95,7 +100,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
         <Image
           source={completePageSource}
           style={styles.image}
-          resizeMode="cover"
+          resizeMode="contain"
           onLoad={onRenderReady}
           accessible
           accessibilityRole="image"
@@ -112,11 +117,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
         <TypesetterPage
           recipeGraph={page.recipeGraph}
           artAsset={page.artAsset ?? null}
-          styleId={
-            page.styleId && !isCreationPageStyleId(page.styleId)
-              ? page.styleId
-              : DEFAULT_COOKBOOK_STYLE
-          }
+          styleId={getCookbookStyle(page.styleId).id}
           templateId={page.templateId ?? DEFAULT_RECIPE_TEMPLATE_ID}
           bookMode={bookMode}
           onRenderReady={onRenderReady}
@@ -134,7 +135,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
 
 const styles = StyleSheet.create({
   frame: {
-    aspectRatio: 3 / 4,
+    aspectRatio: COOKBOOK_GEOMETRY.page.aspectRatio,
     borderRadius: Radii.md,
     backgroundColor: Colors.parchment,
     borderWidth: 1,
@@ -145,9 +146,9 @@ const styles = StyleSheet.create({
   bookFrame: {
     height: '100%',
     aspectRatio: undefined,
-    borderRadius: 0,
+    borderRadius: Radii.numeric[0],
     borderWidth: 0,
-    boxShadow: 'none',
+    boxShadow: Shadows.level0.boxShadow,
   },
   image: {
     width: '100%',
@@ -167,16 +168,16 @@ const styles = StyleSheet.create({
   },
   skeletonEyebrow: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontFamily: Fonts.ui.medium,
-    letterSpacing: 0,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   skeletonTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
+    letterSpacing: Typography.metrics.letterSpacing0,
     textAlign: 'center',
   },
   skeletonRule: {
@@ -186,8 +187,8 @@ const styles = StyleSheet.create({
   },
   skeletonHint: {
     color: Colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight18,
     textAlign: 'center',
     fontStyle: 'italic',
   },

@@ -34,11 +34,9 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   const [isSecure, setIsSecure] = useState(secureTextEntry);
-  const [isFocused, setIsFocused] = useState(false);
 
   const inputContainerStyle = [
     styles.inputContainer,
-    ...(isFocused ? [styles.inputContainerFocused] : []),
     ...(error ? [styles.inputContainerError] : []),
   ];
 
@@ -64,9 +62,8 @@ export const Input: React.FC<InputProps> = ({
         <TextInput
           style={inputStyle}
           secureTextEntry={isSecure}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
           placeholderTextColor={Colors.lightText}
+          accessibilityLabel={props.accessibilityLabel ?? label}
           {...props}
         />
         
@@ -74,6 +71,7 @@ export const Input: React.FC<InputProps> = ({
           <TouchableOpacity
             style={styles.rightIcon}
             onPress={() => setIsSecure(!isSecure)}
+            accessibilityRole="button"
             accessibilityLabel={isSecure ? 'Show password' : 'Hide password'}
           >
             {isSecure ? (
@@ -124,9 +122,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     minHeight: 48,
   },
-  inputContainerFocused: {
-    borderColor: Colors.charcoal,
-  },
   inputContainerError: {
     borderColor: Colors.error,
   },
@@ -147,7 +142,10 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.lg,
   },
   rightIcon: {
-    paddingRight: Spacing.lg,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorContainer: {
     flexDirection: 'row',

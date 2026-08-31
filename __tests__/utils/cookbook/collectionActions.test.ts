@@ -3,16 +3,21 @@ import { getCookbook } from '@/utils/cookbook/api';
 import {
   loadCollectionActionPreview,
   organizeRecipePage,
+  reorderCookbookPage,
+  removeRecipePage,
 } from '@/utils/cookbook/collectionActions';
 import { loadRecipeFromCollection } from '@/utils/cookbook/recipeCollection';
+import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 
 jest.mock('@/lib/supabase', () => ({ supabase: { schema: jest.fn() } }));
 jest.mock('@/utils/cookbook/api', () => ({ getCookbook: jest.fn() }));
 jest.mock('@/utils/cookbook/recipeCollection', () => ({ loadRecipeFromCollection: jest.fn() }));
+jest.mock('@/utils/supabaseEdge', () => ({ callAuthenticatedFunction: jest.fn() }));
 
 const mockedSchema = jest.mocked(supabase.schema);
 const mockedGetCookbook = jest.mocked(getCookbook);
 const mockedLoadRecipe = jest.mocked(loadRecipeFromCollection);
+const mockedCallAuthenticatedFunction = jest.mocked(callAuthenticatedFunction);
 
 describe('collection organization actions', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -80,5 +85,46 @@ describe('collection organization actions', () => {
       p_idempotency_key: 'collection:stable-request',
     });
   });
-});
 
+  it('removes a recipe page through the ownership-checked RPC', async () => {
+    const result = {
+      pageId: 'page-cheesecake',
+      cookbookId: 'book-desserts',
+      cookbookTitle: 'Desserts',
+      captureId: 'capture-cheesecake',
+      recipeId: 'recipe-cheesecake',
+    };
+    mockedCallAuthenticatedFunction.mockResolvedValue({ result, cleanup: { removed: 1, pending: 0 } });
+
+    await expect(removeRecipePage('page-cheesecake')).resolves.toEqual(result);
+    expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
+      action: 'removeRecipe',
+      pageId: 'page-cheesecake',
+    });
+  });
+
+  it('moves a page relative to a stable page id through the private-schema RPC', async () => {
+    const result = {
+      cookbookId: 'book-desserts',
+      pageId: 'page-cheesecake',
+      beforePageId: 'page-pie',
+      orderedPageIds: ['page-cheesecake', 'page-pie'],
+      changed: true,
+    };
+    const rpc = jest.fn().mockResolvedValue({ data: result, error: null });
+    mockedSchema.mockReturnValue({ rpc } as never);
+
+    await expect(reorderCookbookPage({
+      cookbookId: 'book-desserts',
+      pageId: 'page-cheesecake',
+      beforePageId: 'page-pie',
+      idempotencyKey: 'page-order:stable-request',
+    })).resolves.toEqual(result);
+    expect(rpc).toHaveBeenCalledWith('reorder_cookbook_page', {
+      p_cookbook_id: 'book-desserts',
+      p_page_id: 'page-cheesecake',
+      p_before_page_id: 'page-pie',
+      p_idempotency_key: 'page-order:stable-request',
+    });
+  });
+});

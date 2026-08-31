@@ -1,0 +1,3 @@
+# Resume recipe captures from versioned checkpoints
+
+Recipe capture stores a versioned checkpoint after source reading, optional transcription, extraction, normalization, quality assessment, page generation, and publication. Retry resumes from the latest compatible artifact rather than replaying the whole pipeline. Contract versions decide compatibility; provider and model names remain diagnostic metadata so Nosh can switch vendors without changing the workflow. A generated page and its publication are separate checkpoints because publication failure must reuse the ready page image instead of generating another one.

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing, Typography } from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordScreen() {
@@ -47,7 +47,7 @@ export default function ForgotPasswordScreen() {
           ? 'Use the reset link to choose a new password, then return to your cookbook shelf.'
           : "Enter your email and we'll send you a reset link."
       }
-      showIllustration={!sent}
+      compactHeader={sent}
     >
       {sent ? (
         <View style={styles.sentContainer}>
@@ -68,7 +68,10 @@ export default function ForgotPasswordScreen() {
           <Input
             label="Email"
             autoCapitalize="none"
+            autoComplete="email"
             keyboardType="email-address"
+            textContentType="emailAddress"
+            spellCheck={false}
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
@@ -99,9 +102,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   sentText: {
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     color: Colors.slate,
-    lineHeight: 24,
+    lineHeight: Typography.metrics.lineHeight24,
   },
   sentEmail: {
     color: Colors.text,
@@ -117,8 +120,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
 });

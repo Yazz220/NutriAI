@@ -6,10 +6,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChefHat } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -18,7 +19,7 @@ import {
   useRemoteThreadListRuntime,
 } from '@assistant-ui/react-native';
 import { Sheet } from '@/components/ui/Sheet';
-import { NoshFocusChangePrompt } from '@/components/nosh/conversation/NoshFocusChangePrompt';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { NoshHeaderActions, NoshHeaderIdentity } from '@/components/nosh/conversation/NoshConversationHeader';
 import { NoshThreadHistory } from '@/components/nosh/conversation/NoshThreadHistory';
 import { NoshInteractionStateSync } from '@/components/nosh/conversation/NoshInteractionStateSync';
@@ -26,15 +27,13 @@ import {
   NoshCaptureWorkspace,
   type NoshCaptureHandoffSource,
 } from '@/components/nosh/capture/NoshCaptureWorkspace';
-import {
-  NoshConversationDisplay,
-  type NoshActiveTask,
-} from '@/components/nosh/conversation/NoshConversationDisplay';
+import { NoshConversationDisplay } from '@/components/nosh/conversation/NoshConversationDisplay';
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
-import { Radii, Spacing, Typography } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import { SHELF_QUERY_KEY, useCookbooks } from '@/hooks/useCookbooks';
@@ -69,13 +68,14 @@ import type {
   RecipeActionProposal,
 } from '@/utils/cookbook/recipeActions';
 import {
+  browseRecipeCollection,
   loadRecipeFromCollection,
   searchRecipeCollection,
   type LoadedCollectionRecipe,
 } from '@/utils/cookbook/recipeCollection';
+import { saveCookingPreference } from '@/utils/cookbook/cookingPreferences';
 import { SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
 import { normalizeCaptureDestinationCookbookId } from '@/utils/cookbook/captureLifecycle';
-import { Fonts } from '@/utils/fonts';
 
 const COLLECTION_SESSION: NoshInteractionSession = {
   entryPoint: 'shelf-nosh',
@@ -86,7 +86,7 @@ const COLLECTION_SESSION: NoshInteractionSession = {
 function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
   const references = cookbook.pageStyleReferences?.length
     ? cookbook.pageStyleReferences
-    : getCookbookPageStyleReferences(cookbook.pageStyleId);
+    : getCookbookPageStyleReferences(cookbook.pageStyleId, cookbook.styleRevision);
   return references?.length ? [...references] : undefined;
 }
 
@@ -98,18 +98,17 @@ export function NoshConversationHost() {
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const conversation = useNoshConversation();
+  const { requestConsent } = useAiDataConsent();
+  const captureScrollRef = useAnimatedRef<Animated.ScrollView>();
   const {
     visible,
     interaction,
-    requestedFocus,
     visibleBookContext,
     pendingImageBase64,
     recipePreview,
     open,
     close,
     requestFocus,
-    acceptRequestedFocus,
-    dismissRequestedFocus,
     restoreInteraction,
     updateVisiblePage,
     setPendingImageBase64,
@@ -119,7 +118,7 @@ export function NoshConversationHost() {
   } = conversation;
 
   const [loadedFocus, setLoadedFocus] = useState<LoadedCollectionRecipe | null>(null);
-  const [focusStatus, setFocusStatus] = useState<'ready' | 'loading' | 'missing'>('ready');
+  const [focusStatus, setFocusStatus] = useState<'ready' | 'loading' | 'missing' | 'stale'>('ready');
   const recipeFocus = interaction.focus.kind === 'recipe' ? interaction.focus : null;
   const visibleFocusedPage = recipeFocus
     ? visibleBookContext.pages.find((page) => page.id === recipeFocus.pageId) ?? null
@@ -187,7 +186,6 @@ export function NoshConversationHost() {
   imageRef.current = pendingImageBase64;
   const cookbooksRef = useRef(cookbooks);
   cookbooksRef.current = cookbooks;
-  const [activeTask, setActiveTask] = useState<NoshActiveTask | null>(null);
   const [showingHistory, setShowingHistory] = useState(false);
   const [captureHandoffSource, setCaptureHandoffSource] = useState<NoshCaptureHandoffSource | null>(null);
 
@@ -206,6 +204,35 @@ export function NoshConversationHost() {
     setRecipePreview(null);
   }, [setPendingImageBase64, setPendingImageMimeType, setRecipePreview]);
 
+  const resolveFocusedRecipeGraph = useCallback(async (): Promise<RecipeGraph | null> => {
+    const currentInteraction = interactionRef.current;
+    if (currentInteraction.focus.kind !== 'recipe') return null;
+
+    const preview = recipePreview?.pageId === currentInteraction.focus.pageId
+      ? recipePreview.graph
+      : null;
+    if (preview) return preview;
+
+    const currentGraph = focusedRecipeGraphRef.current;
+    if (currentGraph) return currentGraph;
+
+    setFocusStatus('loading');
+    try {
+      const loaded = await loadRecipeFromCollection(currentInteraction.focus.pageId);
+      if (interactionRef.current.focus.kind !== 'recipe'
+        || interactionRef.current.focus.pageId !== loaded.pageId) {
+        return null;
+      }
+      setLoadedFocus(loaded);
+      setFocusStatus('ready');
+      return loaded.recipeGraph;
+    } catch (error) {
+      setLoadedFocus(null);
+      setFocusStatus('missing');
+      throw error;
+    }
+  }, [recipePreview]);
+
   const persistFocusedGraph = useCallback(async (graph: RecipeGraph) => {
     const focus = interactionRef.current.focus;
     if (focus.kind !== 'recipe') throw new Error('No focused recipe to update');
@@ -213,9 +240,7 @@ export function NoshConversationHost() {
       ?? await getCookbook(focus.cookbookId);
     if (!cookbook) throw new Error('Cookbook not found');
     const savedGraph = { ...graph, updatedAt: new Date().toISOString() };
-    setActiveTask({ kind: 'create', cookbookTitle: cookbook.title });
-    try {
-      const candidate = await finishRecipePageCandidate({
+    const candidate = await finishRecipePageCandidate({
         cookbookId: cookbook.id,
         pageId: focus.pageId,
         recipeGraph: savedGraph,
@@ -223,12 +248,9 @@ export function NoshConversationHost() {
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
         idempotencyKey: createGenerationRequestKey(),
-      });
-      await updatePageRecipeGraph(focus.pageId, savedGraph);
-      await updatePageSelectedVersion(focus.pageId, candidate.id);
-    } finally {
-      setActiveTask(null);
-    }
+    });
+    await updatePageRecipeGraph(focus.pageId, savedGraph);
+    await updatePageSelectedVersion(focus.pageId, candidate.id);
     const savedPage = await fetchPageById(focus.pageId);
     if (!savedPage) throw new Error('Recipe page not found after saving the update');
     updateVisiblePage(savedPage);
@@ -265,13 +287,10 @@ export function NoshConversationHost() {
       ...proposal.proposed,
       provenance: {
         ...proposal.proposed.provenance,
-        extractionNotes: [
-          ...(proposal.proposed.provenance.extractionNotes ?? []),
-          `Saved as a copy of ${proposal.original.title}.`,
-        ],
+        sourceType: proposal.proposed.provenance?.sourceType ?? 'manual',
+        confidence: proposal.proposed.provenance?.confidence ?? 1,
       },
     };
-    setActiveTask({ kind: 'create', cookbookTitle: cookbook.title });
     let copiedPage = await createRecipePageWithGraph({
       cookbookId: cookbook.id,
       userId: user.id,
@@ -279,8 +298,7 @@ export function NoshConversationHost() {
       styleId: cookbook.pageStyleId,
       templateId: cookbook.pageTemplateId,
     });
-    try {
-      copiedPage = await finishRecipePageImage({
+    copiedPage = await finishRecipePageImage({
         cookbookId: cookbook.id,
         pageId: copiedPage.id,
         recipeGraph: copiedGraph,
@@ -288,10 +306,7 @@ export function NoshConversationHost() {
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
         idempotencyKey: createGenerationRequestKey(),
-      });
-    } finally {
-      setActiveTask(null);
-    }
+    });
     queryClient.setQueryData<CookbookPage[]>(
       COOKBOOK_PAGES_QUERY_KEY(cookbook.id),
       (pages = []) => [...pages, copiedPage],
@@ -342,17 +357,10 @@ export function NoshConversationHost() {
   }, [queryClient, updateVisiblePage]);
 
   const handleLoadRecipe = useCallback(async (pageId: string) => {
-    const loaded = await loadRecipeFromCollection(pageId);
-    requestFocus({
-      kind: 'recipe',
-      cookbookId: loaded.cookbookId,
-      pageId: loaded.pageId,
-      title: loaded.recipeGraph.title,
-    });
-    setLoadedFocus(loaded);
-    setFocusStatus('ready');
-    return loaded;
-  }, [requestFocus]);
+    // Loading a background recipe for reasoning must not navigate the reader or
+    // replace what "this recipe" means. open_recipe owns those visible changes.
+    return loadRecipeFromCollection(pageId);
+  }, []);
 
   const handleOpenRecipe = useCallback(async (pageId: string) => {
     const loaded = await loadRecipeFromCollection(pageId);
@@ -433,10 +441,15 @@ export function NoshConversationHost() {
     hasCurrentArtwork: Boolean(visibleFocusedPage?.pageImage ?? visibleFocusedPage?.artAsset),
     availableCookbooks: realCookbooks.map((book) => ({ id: book.id, title: book.title })),
     onSearchRecipeCollection: searchRecipeCollection,
+    onBrowseRecipeCollection: browseRecipeCollection,
     onLoadRecipe: handleLoadRecipe,
     onOpenRecipe: handleOpenRecipe,
     onLoadCollectionActionPreview: loadCollectionActionPreview,
     onCommitCollectionAction: handleCommitCollectionAction,
+    onSaveCookingPreference: async (input) => {
+      if (!user) throw new Error('Sign in to save cooking preferences.');
+      return saveCookingPreference({ userId: user.id, ...input });
+    },
     onStartRecipeCapture: (source) => {
       const destination = visibleBookContextRef.current.cookbook;
       const persistedDestination = normalizeCaptureDestinationCookbookId(destination?.id)
@@ -483,6 +496,11 @@ export function NoshConversationHost() {
       : focusedCookbookRef.current;
     return {
       recipeGraph: focusedRecipeGraphRef.current,
+      resolveRecipeGraph: resolveFocusedRecipeGraph,
+      recipeGraphSource: currentInteraction.focus.kind === 'recipe'
+        && recipePreview?.pageId === currentInteraction.focus.pageId
+          ? 'session-preview'
+          : 'canonical',
       cookbookTitle: currentBook?.title,
       activeCookbookId: currentBook?.id,
       styleId: currentBook?.pageStyleId,
@@ -495,7 +513,7 @@ export function NoshConversationHost() {
       },
       hasAttachedImage: Boolean(imageRef.current),
     };
-  }), []);
+  }, requestConsent), [recipePreview, requestConsent, resolveFocusedRecipeGraph]);
 
   const threadListAdapter = useMemo(
     () => createNoshThreadListAdapter(user?.id),
@@ -511,6 +529,7 @@ export function NoshConversationHost() {
         'update_page_data',
         'regenerate_recipe_page',
         'organize_recipe',
+        'save_cooking_preference',
       ],
     });
   }, [adapter]);
@@ -576,9 +595,20 @@ export function NoshConversationHost() {
         closeAccessibilityLabel="Close Nosh conversation"
         header={
           <>
-            <View style={styles.iconBadge}>
-              <ChefHat size={20} color={Colors.onPrimary} />
-            </View>
+            {showingHistory ? (
+              <Pressable
+                onPress={() => setShowingHistory(false)}
+                style={({ pressed }) => [styles.leadingAction, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Back to current conversation"
+              >
+                <ArrowLeft size={21} color={Colors.text} strokeWidth={1.8} />
+              </Pressable>
+            ) : (
+              <View style={styles.brandMark} accessibilityElementsHidden>
+                <NoshSymbol size={30} />
+              </View>
+            )}
             <NoshHeaderIdentity contextLabel={contextLabel} showingHistory={showingHistory} />
             {interaction.task !== 'capture' ? (
               <NoshHeaderActions
@@ -592,7 +622,6 @@ export function NoshConversationHost() {
       >
         {showingHistory ? (
           <NoshThreadHistory
-            onNewConversation={() => void startNewConversation()}
             onOpenConversation={() => {
               clearSessionScratch();
               setShowingHistory(false);
@@ -601,19 +630,9 @@ export function NoshConversationHost() {
           />
         ) : (
           <>
-            {requestedFocus ? (
-              <NoshFocusChangePrompt
-                requestedFocus={requestedFocus}
-                currentLabel={contextLabel}
-                onAccept={acceptRequestedFocus}
-                onStartNew={() => {
-                  dismissRequestedFocus();
-                  void startNewConversation(requestedFocus);
-                }}
-              />
-            ) : null}
             {interaction.task === 'capture' ? (
-              <ScrollView
+              <Animated.ScrollView
+                ref={captureScrollRef}
                 style={styles.captureScroll}
                 contentContainerStyle={styles.captureScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -627,13 +646,14 @@ export function NoshConversationHost() {
                   captureId={interaction.focus.kind === 'capture'
                     ? interaction.focus.captureId
                     : undefined}
+                  scrollableRef={captureScrollRef}
                 />
-              </ScrollView>
+              </Animated.ScrollView>
             ) : (
               <NoshConversationDisplay
                 interaction={interaction}
-                activeTask={activeTask}
                 contextModelEnabled={contextModelEnabled}
+                sendDisabled={interaction.focus.kind === 'recipe' && focusStatus === 'loading'}
               />
             )}
           </>
@@ -655,396 +675,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   handle: { backgroundColor: Colors.duskGrey },
-  closeButton: { backgroundColor: Colors.white },
+  closeButton: { backgroundColor: 'transparent', borderWidth: 0 },
   captureScroll: { flex: 1 },
   captureScrollContent: { paddingBottom: Spacing.lg },
-  iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  headerText: { flex: 1 },
-  eyebrow: { color: Colors.textMuted, fontSize: 11, fontFamily: Fonts.ui.medium },
-  title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.xl },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  headerAction: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  headerActionDisabled: { opacity: 0.4 },
-  threadContainer: { flex: 1, gap: Spacing.sm },
-  messagesList: { flex: 1, minHeight: 220 },
-  messagesContent: { gap: Spacing.sm, paddingVertical: Spacing.sm, paddingHorizontal: 2 },
-  userRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-  userBubble: {
-    maxWidth: '86%',
-    borderRadius: Radii.lg,
-    borderBottomRightRadius: Radii.sm,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-  },
-  userText: { color: Colors.onPrimary, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
-  assistantRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
-  assistantAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    marginTop: 2,
-  },
-  assistantBubble: {
-    flex: 1,
-    maxWidth: '88%',
-    borderRadius: Radii.lg,
-    borderBottomLeftRadius: Radii.sm,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-  },
-  assistantText: { color: Colors.text, fontSize: 14, lineHeight: 20, fontFamily: Fonts.ui.regular },
-  suggestionsContainer: { gap: Spacing.xs, paddingVertical: Spacing.sm },
-  welcomeTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 20 },
-  welcomeCopy: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19, maxWidth: 390 },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    paddingTop: Spacing.xs,
-  },
-  chip: {
-    borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  chipText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  composerArea: { gap: Spacing.xs },
-  attachmentChip: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-  },
-  attachmentText: { color: Colors.text, fontSize: 12, fontFamily: Fonts.ui.medium },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.xs,
-    padding: 4,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  attachButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  composerInput: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 110,
-    color: Colors.text,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 9,
-    fontSize: 14,
-    fontFamily: Fonts.ui.regular,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-  },
-  sendDisabled: { opacity: 0.35 },
-  cancelButton: {
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.ash,
-    paddingHorizontal: Spacing.sm,
-  },
-  cancelText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 12 },
-  button: {
-    minWidth: 126,
+  brandMark: {
+    width: 44,
     height: 44,
-    borderRadius: Radii.full,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    boxShadow: Colors.book.cardShadow,
-  },
-  buttonLabel: { color: Colors.text, fontFamily: Fonts.ui.medium },
-  shelfButton: {
-    position: 'absolute',
-    right: Spacing.md,
-    top: 132,
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.primary,
-    boxShadow: Colors.book.liftedShadow,
-  },
-  shelfEntry: {
-    position: 'absolute',
-    right: Spacing.md,
-    top: 132,
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    boxShadow: Colors.book.liftedShadow,
-  },
-  shelfEntryText: { gap: 1, paddingRight: Spacing.xs },
-  shelfEntryTitle: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 14 },
-  shelfEntryCopy: { color: Colors.onPrimary, fontFamily: Fonts.ui.regular, fontSize: 11, opacity: 0.82 },
-  progressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.md,
-    marginHorizontal: 2,
-  },
-  progressGlyph: {
-    width: 42,
-    height: 42,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 21,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-  },
-  progressScanLine: {
-    position: 'absolute',
-    left: 7,
-    right: 7,
-    top: 20,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: Colors.primary,
-  },
-  progressText: { flex: 1, gap: 2 },
-  progressLabel: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-  },
-  progressDetail: {
-    color: Colors.slate,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  progressTrail: {
-    flexDirection: 'row',
-    gap: 5,
-    marginTop: 5,
-  },
-  progressDot: {
-    width: 18,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: Colors.ash,
-  },
-  progressDotActive: { backgroundColor: Colors.primary },
-  historyPanel: { flex: 1, minHeight: 260, gap: Spacing.md },
-  historyIntro: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.ash,
-    paddingBottom: Spacing.md,
-  },
-  historyHeading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 19 },
-  historyCopy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 12, marginTop: 2 },
-  newConversationButton: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-  },
-  newConversationText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  historyListRoot: { flex: 1 },
-  historyListContent: { gap: Spacing.sm, paddingBottom: Spacing.md },
-  historyItem: {
-    minHeight: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.white,
-    padding: Spacing.xs,
-  },
-  historyItemActive: { borderColor: Colors.charcoal, backgroundColor: Colors.parchment },
-  historyItemMain: {
-    flex: 1,
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-  },
-  historyMark: {
-    width: 8,
-    height: 28,
-    borderRadius: 4,
-    backgroundColor: Colors.ash,
-  },
-  historyMarkActive: { backgroundColor: Colors.butterscotch },
-  historyItemText: { flex: 1, gap: 3 },
-  historyTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 14 },
-  historyMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: 11 },
-  historySmallAction: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  renameEditor: {
-    flex: 1,
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingLeft: Spacing.sm,
-  },
-  renameInput: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.white,
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: 13,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 7,
-  },
-  historyDelete: {
-    width: 40,
-    height: 40,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 },
-  deleteCancel: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 7 },
-  deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: 11 },
-  deleteConfirmButton: {
-    minHeight: 36,
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.error,
-    paddingHorizontal: Spacing.sm,
-  },
-  deleteConfirmText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: 11 },
-  historyEmpty: {
-    flex: 1,
-    minHeight: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.ash,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.xl,
-  },
-  historyEmptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16, textAlign: 'center' },
-  historyEmptyCopy: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  focusPrompt: {
-    gap: Spacing.sm,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.md,
-  },
-  focusPromptTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: 16 },
-  focusPromptCopy: { color: Colors.textSecondary, fontSize: 12, lineHeight: 18 },
-  focusPrimaryButton: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-  },
-  focusPrimaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: 13 },
-  focusSecondaryButton: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    borderColor: Colors.charcoal,
-    backgroundColor: Colors.white,
-    paddingHorizontal: Spacing.md,
-  },
-  focusSecondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: 13 },
+  leadingAction: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  pressed: { opacity: 0.55, transform: [{ scale: 0.97 }] },
 });

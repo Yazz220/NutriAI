@@ -1,3 +1,4 @@
+import { Typography , Spacing} from '@/constants/spacing';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
@@ -35,15 +36,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingBottom: 8,
+    gap: Spacing.values[6],
+    paddingBottom: Spacing.values[8],
     backgroundColor: Colors.parchment,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.ash,
   },
   text: {
     color: Colors.text,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
     fontWeight: '500',
   },
 });

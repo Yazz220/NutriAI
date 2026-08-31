@@ -1,3 +1,5 @@
+import { Shadows } from '@/constants/spacing';
+import { Radii } from '@/constants/spacing';
 import React from 'react';
 import { View } from 'react-native';
 import { Colors } from '@/constants/colors';
@@ -22,8 +24,8 @@ export const ContactShadow = React.memo(function ContactShadow({ width, opacity 
         left: 6,
         width: width - 12,
         height: 10,
-        borderRadius: 999,
-        boxShadow: `0 5px 12px rgba(23, 22, 20, ${opacity})`,
+        borderRadius: Radii.numeric[999],
+        boxShadow: Shadows.custom.contact(opacity),
         backgroundColor: Colors.charcoal,
         opacity: 0.001, // the boxShadow carries the visual; the fill just anchors it
       }}

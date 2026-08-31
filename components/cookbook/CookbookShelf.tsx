@@ -14,7 +14,7 @@ import { BookCover } from '@/components/cookbook/BookCover';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 
@@ -74,7 +74,6 @@ export function CookbookShelf({
         <View style={styles.headingRow}>
           <View style={styles.heading}>
             <Text style={styles.title}>My Cookbooks</Text>
-            <Text style={styles.subtitle}>Your collection of recipes and memories.</Text>
           </View>
           <Pressable
             style={({ pressed }) => [
@@ -125,9 +124,6 @@ export function CookbookShelf({
           <View style={styles.emptyState}>
             <View style={styles.emptyRule} />
             <Text style={styles.emptyTitle}>A shelf waiting to be filled</Text>
-            <Text style={styles.emptyCopy}>
-              Create your first cookbook, choose its cover, then bring recipes in one page at a time.
-            </Text>
           </View>
         )}
       </ScrollView>
@@ -145,12 +141,10 @@ export function CookbookShelf({
             accessibilityLabel="Close library menu"
           />
           <View style={[styles.menuPanel, { top: insets.top + 58 }]}>
-            <Text style={styles.menuEyebrow}>LIBRARY</Text>
             {onOpenTemplates ? (
               <MenuItem
                 icon={<LayoutTemplate size={19} color={Colors.text} strokeWidth={1.7} />}
                 title="Page templates"
-                subtitle="Styles for new recipe pages"
                 onPress={() => {
                   setMenuOpen(false);
                   onOpenTemplates();
@@ -161,7 +155,6 @@ export function CookbookShelf({
               <MenuItem
                 icon={<SettingsIcon size={19} color={Colors.text} strokeWidth={1.7} />}
                 title="Settings"
-                subtitle="Account and library details"
                 onPress={() => {
                   setMenuOpen(false);
                   onOpenSettings();
@@ -178,12 +171,10 @@ export function CookbookShelf({
 function MenuItem({
   icon,
   title,
-  subtitle,
   onPress,
 }: {
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
   onPress: () => void;
 }) {
   return (
@@ -194,10 +185,7 @@ function MenuItem({
       accessibilityLabel={title}
     >
       <View style={styles.menuItemIcon}>{icon}</View>
-      <View style={styles.menuItemCopy}>
-        <Text style={styles.menuItemTitle}>{title}</Text>
-        <Text style={styles.menuItemSubtitle}>{subtitle}</Text>
-      </View>
+      <Text style={styles.menuItemTitle}>{title}</Text>
       <ChevronRight size={18} color={Colors.textMuted} />
     </Pressable>
   );
@@ -223,19 +211,19 @@ const styles = StyleSheet.create({
   logo: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.ash,
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: Colors.legacySurface.v81,
   },
   buttonPressed: {
     backgroundColor: Colors.parchment,
@@ -259,14 +247,14 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight38,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
   subtitle: {
     color: Colors.slate,
-    fontSize: 14,
-    lineHeight: 24,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
     fontFamily: Fonts.ui.regular,
   },
   addButton: {
@@ -283,7 +271,7 @@ const styles = StyleSheet.create({
   addIconButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: Radii.numeric[24],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
@@ -292,7 +280,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 13,
+    fontSize: Typography.sizes.md,
   },
   primaryButtonPressed: {
     opacity: 0.82,
@@ -322,39 +310,39 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: Colors.text,
     fontFamily: Fonts.display.semibold,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight30,
     textAlign: 'center',
   },
   emptyCopy: {
     color: Colors.slate,
     fontFamily: Fonts.ui.regular,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight22,
     textAlign: 'center',
   },
   bookCard: {
     gap: Spacing.md,
   },
   bookMeta: {
-    gap: 3,
-    paddingHorizontal: 2,
+    gap: Spacing.values[3],
+    paddingHorizontal: Spacing.values[2],
   },
   bookTitle: {
     color: Colors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
     fontFamily: Fonts.display.semibold,
   },
   bookSub: {
     color: Colors.textMuted,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
     fontFamily: Fonts.ui.medium,
   },
   menuLayer: {
     flex: 1,
-    backgroundColor: 'rgba(23,22,20,0.12)',
+    backgroundColor: Colors.legacySurface.v56,
   },
   menuPanel: {
     position: 'absolute',
@@ -370,8 +358,8 @@ const styles = StyleSheet.create({
   menuEyebrow: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.medium,
-    fontSize: 9,
-    letterSpacing: 1.2,
+    fontSize: Typography.sizes.md,
+    letterSpacing: Typography.metrics.letterSpacing12,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
@@ -390,7 +378,7 @@ const styles = StyleSheet.create({
   menuItemIcon: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: Radii.numeric[19],
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.white,
@@ -399,17 +387,17 @@ const styles = StyleSheet.create({
   },
   menuItemCopy: {
     flex: 1,
-    gap: 2,
+    gap: Spacing.values[2],
   },
   menuItemTitle: {
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
   },
   menuItemSubtitle: {
     color: Colors.textMuted,
     fontFamily: Fonts.ui.regular,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight15,
   },
 });

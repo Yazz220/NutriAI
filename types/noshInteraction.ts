@@ -26,7 +26,7 @@ export interface NoshInteractionSession {
 
 export interface NoshInteractionEnvelope extends NoshInteractionSession {
   visibleContext: NoshVisibleContext;
-  focusStatus?: 'ready' | 'loading' | 'missing';
+  focusStatus?: 'ready' | 'loading' | 'missing' | 'stale';
 }
 
 export function taskForEntryPoint(entryPoint: NoshEntryPoint): NoshTask {
@@ -73,4 +73,3 @@ export function isNoshInteractionSession(value: unknown): value is NoshInteracti
   }
   return focus.kind === 'capture' && typeof focus.captureId === 'string';
 }
-

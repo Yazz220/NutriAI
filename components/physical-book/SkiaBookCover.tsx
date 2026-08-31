@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/colors';
 import React, { useMemo } from 'react';
 import {
   Canvas,
@@ -12,12 +13,13 @@ import {
   type SkRuntimeEffect,
 } from '@shopify/react-native-skia';
 import type { CookbookBinding } from '@/constants/cookbookBindings';
+import { NOSH_BOOK_MATERIAL, resolveNoshBookMaterialGeometry } from '@/constants/cookbookMaterial';
 import { shiftColor, withAlpha } from '@/utils/cookbook/coverArt';
 
 /**
  * Skia-drawn front cover for a physically bound cookbook: cloth gradient,
- * material weave, procedural grain, a curved spine face with headbands and
- * hub bands, foil border/corner rules, and a board edge. Static per
+ * material weave, procedural grain, a soft hinge, and a restrained board
+ * edge. Static per
  * (binding, size) — the canvas only re-renders when the binding or
  * dimensions change, so carousel motion never touches it.
  *
@@ -25,13 +27,12 @@ import { shiftColor, withAlpha } from '@/utils/cookbook/coverArt';
  * use the app's display serif and update live while typing.
  */
 
-export const COVER_CORNER_RADIUS = 10;
-
 interface SkiaBookCoverProps {
   binding: CookbookBinding;
   width: number;
   height: number;
   spineWidth: number;
+  presentation?: 'book' | 'swatch';
 }
 
 // Luminance grain: 0.5-centered noise drawn in overlay blend mode modulates
@@ -68,60 +69,50 @@ function getGrainEffect(): SkRuntimeEffect | null {
   return grainEffect ?? null;
 }
 
-/** Diagonal crosshatch for linen; fine vertical/horizontal threads for cloth. */
-function buildWeavePath(material: CookbookBinding['material'], width: number, height: number) {
+/** Material weave comes from the finish; geometry remains unchanged. */
+function buildWeavePath(binding: CookbookBinding, width: number, height: number) {
   const path = Skia.Path.Make();
-  if (material === 'linen') {
-    const spacing = 7;
-    const run = height * 0.9; // tan(~42deg)
-    for (let x = -height; x < width + height; x += spacing) {
-      path.moveTo(x, -10);
-      path.lineTo(x + run, height + 10);
-      path.moveTo(x, -10);
-      path.lineTo(x - run, height + 10);
-    }
-  } else if (material === 'cloth') {
-    for (let x = 0; x <= width; x += 4) {
-      path.moveTo(x, 0);
+  const pattern = binding.weavePattern;
+  const verticalGap = Math.max(pattern.verticalGapMin, width / pattern.verticalGapRatio);
+  const horizontalGap = Math.max(pattern.horizontalGapMin, width / pattern.horizontalGapRatio);
+  const isLinen = binding.material === 'linen';
+  const spacing = [0.76, 1.22, 0.9, 1.34, 0.84, 1.08];
+
+  for (let x = 0, index = 0; x <= width; index += 1, x += verticalGap * (isLinen ? spacing[index % spacing.length] : 1)) {
+    path.moveTo(x, 0);
+    if (isLinen) {
+      for (let y = 6; y <= height; y += 6) {
+        path.lineTo(x + Math.sin(index * 1.7 + y * 0.095) * 0.7, y);
+      }
+    } else {
       path.lineTo(x, height);
     }
-    for (let y = 0; y <= height; y += 7) {
-      path.moveTo(0, y);
+  }
+
+  for (let y = 0, index = 0; y <= height; index += 1, y += horizontalGap * (isLinen ? spacing[(index + 2) % spacing.length] : 1)) {
+    path.moveTo(0, y);
+    if (isLinen) {
+      for (let x = 6; x <= width; x += 6) {
+        path.lineTo(x, y + Math.cos(index * 1.35 + x * 0.08) * 0.55);
+      }
+    } else {
       path.lineTo(width, y);
     }
   }
   return path;
 }
 
-/** Four L-shaped corner ticks around the foil border. */
-function buildCornerTicks(x: number, y: number, w: number, h: number, leg: number) {
+function buildLinenSlubPath(binding: CookbookBinding, width: number, height: number) {
   const path = Skia.Path.Make();
-  const corners = [
-    { cx: x, cy: y, dx: 1, dy: 1 },
-    { cx: x + w, cy: y, dx: -1, dy: 1 },
-    { cx: x, cy: y + h, dx: 1, dy: -1 },
-    { cx: x + w, cy: y + h, dx: -1, dy: -1 },
-  ];
-  for (const { cx, cy, dx, dy } of corners) {
-    path.moveTo(cx + leg * dx, cy);
-    path.lineTo(cx, cy);
-    path.lineTo(cx, cy + leg * dy);
-  }
-  return path;
-}
+  if (binding.material !== 'linen') return path;
 
-/** Small diamond emblem flanked by two rules, stamped above the title zone. */
-function buildEmblemPath(cx: number, cy: number, radius: number, rule: number, gap: number) {
-  const path = Skia.Path.Make();
-  path.moveTo(cx, cy - radius);
-  path.lineTo(cx + radius, cy);
-  path.lineTo(cx, cy + radius);
-  path.lineTo(cx - radius, cy);
-  path.close();
-  path.moveTo(cx - radius - gap - rule, cy);
-  path.lineTo(cx - radius - gap, cy);
-  path.moveTo(cx + radius + gap, cy);
-  path.lineTo(cx + radius + gap + rule, cy);
+  const gap = Math.max(binding.weavePattern.verticalGapMin, width / binding.weavePattern.verticalGapRatio);
+  for (let x = gap * 2.4, index = 0; x < width; index += 1, x += gap * (3.6 + (index % 3) * 0.55)) {
+    path.moveTo(x, 0);
+    for (let y = 8; y <= height; y += 8) {
+      path.lineTo(x + Math.sin(index * 2.1 + y * 0.07) * 1.05, y);
+    }
+  }
   return path;
 }
 
@@ -130,41 +121,55 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
   width,
   height,
   spineWidth,
+  presentation = 'book',
 }: SkiaBookCoverProps) {
-  const { cloth, weave, foil, band, material, grain } = binding;
+  const { cloth, weave, grain } = binding;
   const effect = getGrainEffect();
+  const materialGeometry = resolveNoshBookMaterialGeometry(width);
+  const isSwatch = presentation === 'swatch';
+  const boardRadius = isSwatch ? Math.min(10, width * 0.16) : materialGeometry.boardCornerRadius;
 
-  const weavePath = useMemo(() => buildWeavePath(material, width, height), [material, width, height]);
-  const borderX = spineWidth + 12;
-  const borderY = 12;
-  const borderW = width - borderX - 12;
-  const borderH = height - borderY * 2;
-  const cornerTicks = useMemo(
-    () => buildCornerTicks(borderX, borderY, borderW, borderH, 13),
-    [borderX, borderY, borderW, borderH],
+  const weavePath = useMemo(
+    () => buildWeavePath(binding, width, height),
+    [binding, width, height],
   );
-  const emblemCx = spineWidth + (width - spineWidth) / 2;
-  const emblemCy = height * 0.3;
-  const emblem = useMemo(() => buildEmblemPath(emblemCx, emblemCy, 7, 26, 9), [emblemCx, emblemCy]);
-
-  const hubY = [height * 0.16, height * 0.84];
-  const weaveOpacity = material === 'linen' ? 0.16 : 0.1;
+  const linenSlubPath = useMemo(
+    () => buildLinenSlubPath(binding, width, height),
+    [binding, width, height],
+  );
+  const boardClip = useMemo(() => {
+    const path = Skia.Path.Make();
+    path.addRRect(Skia.RRectXY(Skia.XYWHRect(0, 0, width, height), boardRadius, boardRadius));
+    return path;
+  }, [boardRadius, height, width]);
 
   return (
     <Canvas style={{ width, height }}>
       {/* Cloth base */}
-      <RoundedRect x={0} y={0} width={width} height={height} r={COVER_CORNER_RADIUS}>
+      <RoundedRect x={0} y={0} width={width} height={height} r={boardRadius}>
         <LinearGradient
           start={vec(0, 0)}
-          end={vec(0, height)}
-          colors={[shiftColor(cloth, 12), cloth, shiftColor(cloth, -16)]}
+          end={vec(width, height)}
+          colors={[shiftColor(cloth, 11), cloth, shiftColor(cloth, -15)]}
+          positions={[0, 0.56, 1]}
         />
       </RoundedRect>
 
       {/* Material weave, clipped to the board shape by the group clip */}
-      <Group clip={Skia.Path.Make().addRRect(Skia.RRectXY(Skia.XYWHRect(0, 0, width, height), COVER_CORNER_RADIUS, COVER_CORNER_RADIUS))}>
-        {material !== 'leather' ? (
-          <Path path={weavePath} style="stroke" strokeWidth={0.6} color={withAlpha(weave, weaveOpacity)} />
+      <Group clip={boardClip}>
+        <Path
+          path={weavePath}
+          style="stroke"
+          strokeWidth={binding.weavePattern.strokeWidth}
+          color={withAlpha(weave, binding.weavePattern.opacity)}
+        />
+        {binding.material === 'linen' ? (
+          <Path
+            path={linenSlubPath}
+            style="stroke"
+            strokeWidth={binding.weavePattern.strokeWidth * 1.75}
+            color={withAlpha(shiftColor(weave, 16), binding.weavePattern.opacity * 0.72)}
+          />
         ) : null}
 
         {/* Procedural grain */}
@@ -187,71 +192,64 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           <LinearGradient
             start={vec(0, 0)}
             end={vec(0, height * 0.42)}
-            colors={['rgba(255,255,255,0.13)', 'rgba(255,255,255,0)']}
+            colors={[NOSH_BOOK_MATERIAL.light.coverHighlight, Colors.legacySurface.v83]}
           />
         </Rect>
 
-        {/* Curved spine face: highlight sits off-center to fake the round */}
-        <Rect x={0} y={0} width={spineWidth} height={height}>
-          <LinearGradient
-            start={vec(0, 0)}
-            end={vec(spineWidth, 0)}
-            colors={[shiftColor(cloth, -28), shiftColor(cloth, 18), shiftColor(cloth, -22)]}
-            positions={[0, 0.38, 1]}
-          />
-        </Rect>
+        {!isSwatch ? (
+          <>
+            {/* Soft shoulder beside the fixed hinge. The physical shelf spine is
+                a separate plane, so page count never changes this composition. */}
+            <Rect x={0} y={0} width={spineWidth} height={height}>
+              <LinearGradient
+                start={vec(0, 0)}
+                end={vec(spineWidth, 0)}
+                colors={[shiftColor(cloth, -18), shiftColor(cloth, 10), cloth]}
+                positions={[0, 0.44, 1]}
+              />
+            </Rect>
 
-        {/* Headbands */}
-        <Rect x={1} y={4} width={spineWidth - 3} height={5} color={withAlpha(band, 0.95)} />
-        <Rect x={1} y={height - 9} width={spineWidth - 3} height={5} color={withAlpha(band, 0.95)} />
+            {/* Hinge groove and its board-side catchlight. */}
+            <Rect
+              x={spineWidth - 1.2}
+              y={boardRadius}
+              width={1.2}
+              height={height - boardRadius * 2}
+              color={withAlpha(shiftColor(cloth, -32), 0.58)}
+            />
+            <Rect
+              x={spineWidth + 0.7}
+              y={boardRadius}
+              width={0.8}
+              height={height - boardRadius * 2}
+              color={withAlpha(shiftColor(cloth, 24), 0.24)}
+            />
 
-        {/* Hub bands with their cast shadow */}
-        {hubY.map((y) => (
-          <React.Fragment key={y}>
-            <Rect x={0} y={y + 6} width={spineWidth} height={1.2} color={withAlpha(shiftColor(cloth, -34), 0.5)} />
-            <RoundedRect x={-1} y={y} width={spineWidth + 1} height={6} r={3} color={shiftColor(cloth, 8)} />
-          </React.Fragment>
-        ))}
-
-        {/* Hinge groove + bevel highlight */}
-        <Rect x={spineWidth - 1} y={6} width={1.2} height={height - 12} color={withAlpha(shiftColor(cloth, -34), 0.7)} />
-        <Rect x={spineWidth + 0.5} y={6} width={1} height={height - 12} color={withAlpha(shiftColor(cloth, 22), 0.35)} />
-
-        {/* Board bottom edge shade */}
-        <Rect x={0} y={height - 5} width={width} height={5}>
-          <LinearGradient
-            start={vec(0, height - 5)}
-            end={vec(0, height)}
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.18)']}
-          />
-        </Rect>
+            {/* Board bevels keep the cloth matte while making its thickness legible. */}
+            <Rect
+              x={0}
+              y={0}
+              width={width}
+              height={materialGeometry.boardDepth + 1}
+              color={withAlpha(shiftColor(cloth, 28), 0.22)}
+            />
+            <Rect
+              x={width - materialGeometry.boardDepth}
+              y={0}
+              width={materialGeometry.boardDepth}
+              height={height}
+              color={withAlpha(shiftColor(cloth, -24), 0.24)}
+            />
+            <Rect x={0} y={height - materialGeometry.boardDepth - 1} width={width} height={materialGeometry.boardDepth + 1}>
+              <LinearGradient
+                start={vec(0, height - materialGeometry.boardDepth - 1)}
+                end={vec(0, height)}
+                colors={[Colors.legacySurface.v45, NOSH_BOOK_MATERIAL.light.coverShade]}
+              />
+            </Rect>
+          </>
+        ) : null}
       </Group>
-
-      {/* Foil border, double-ruled on leather */}
-      <RoundedRect
-        x={borderX}
-        y={borderY}
-        width={borderW}
-        height={borderH}
-        r={6}
-        style="stroke"
-        strokeWidth={1}
-        color={withAlpha(foil[1], 0.8)}
-      />
-      {material === 'leather' ? (
-        <RoundedRect
-          x={borderX + 4}
-          y={borderY + 4}
-          width={borderW - 8}
-          height={borderH - 8}
-          r={4}
-          style="stroke"
-          strokeWidth={0.75}
-          color={withAlpha(foil[1], 0.45)}
-        />
-      ) : null}
-      <Path path={cornerTicks} style="stroke" strokeWidth={1.4} strokeCap="round" color={withAlpha(foil[1], 0.9)} />
-      <Path path={emblem} style="stroke" strokeWidth={1.1} strokeJoin="round" color={withAlpha(foil[1], 0.85)} />
 
       {/* Board edge */}
       <RoundedRect
@@ -259,10 +257,10 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         y={0.5}
         width={width - 1}
         height={height - 1}
-        r={COVER_CORNER_RADIUS}
+        r={boardRadius}
         style="stroke"
-        strokeWidth={1}
-        color={withAlpha(shiftColor(cloth, -24), 0.55)}
+        strokeWidth={0.9}
+        color={withAlpha(shiftColor(cloth, -26), isSwatch ? 0.3 : 0.46)}
       />
     </Canvas>
   );

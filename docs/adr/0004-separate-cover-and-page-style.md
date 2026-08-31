@@ -4,6 +4,8 @@ status: accepted
 
 # Separate physical cover finish from recipe-page style
 
+> The initial three-style catalog described here is superseded by ADR 0007. The cover/page separation remains in force.
+
 Nosh cookbook creation is a customization experience for one book, not a choice among products. A user names one cookbook, chooses how its physical cover looks, and separately chooses the visual language shared by the recipe pages inside it.
 
 `nutriai.cookbooks.cover_style` therefore owns only the physical binding, material, color, and foil treatment. `page_style_id` owns complete-page generation. `style_revision` and `page_style_references` version and anchor that page identity. The database remains authoritative during generation, so an individual recipe cannot silently select a different style.

@@ -4,7 +4,7 @@ import { ArrowRight, BookOpen, Plus } from 'lucide-react-native';
 import { BookCover } from '@/components/cookbook/BookCover';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 
@@ -44,7 +44,6 @@ export function BookCoverReaderPage({
           {title}
         </Text>
         <View style={styles.divider} />
-        <Text style={styles.subtitle}>Everyday favorites</Text>
         <Text style={styles.pageCount}>{canRead ? pageText : 'Ready for its first page'}</Text>
       </View>
 
@@ -88,9 +87,9 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontFamily: Fonts.display.bold,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight38,
+    letterSpacing: Typography.metrics.letterSpacing0,
     textAlign: 'center',
   },
   divider: {
@@ -101,16 +100,16 @@ const styles = StyleSheet.create({
   subtitle: {
     color: Colors.slate,
     fontFamily: Fonts.ui.medium,
-    fontSize: 14,
-    lineHeight: 24,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight24,
     textAlign: 'center',
   },
   pageCount: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: Typography.sizes.md,
     fontWeight: '700',
-    lineHeight: 15,
-    letterSpacing: 0,
+    lineHeight: Typography.metrics.lineHeight15,
+    letterSpacing: Typography.metrics.letterSpacing0,
     textTransform: 'uppercase',
   },
   primaryButton: {
@@ -131,8 +130,8 @@ const styles = StyleSheet.create({
   primaryText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.medium,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: 0,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight20,
+    letterSpacing: Typography.metrics.letterSpacing0,
   },
 });

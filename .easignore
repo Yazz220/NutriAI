@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Local agent tooling and generated output
+.agents/
+.claude/
+output/
+skills-lock.json
+
+# Local machine sync automation
+.sync/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Native builds
+ios/
+android/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# EAS and signing credentials
+credentials.json
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Testing
+coverage/
+
+# Supabase local
+supabase/.temp/
+
+# Misc
+*.tsbuildinfo
+*.log
+npm-debug.log*

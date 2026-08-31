@@ -1,4 +1,8 @@
-import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
+import { Image } from 'react-native';
+import {
+  getCookbookPageImageUri,
+  getCookbookPageTurnImageSource,
+} from '@/utils/cookbook/pageImage';
 import type { CookbookPage } from '@/types/cookbook';
 
 const basePage: CookbookPage = {
@@ -43,5 +47,18 @@ describe('getCookbookPageTurnImageSource', () => {
         imageUrl: 'https://example.com/legacy-full-page.png',
       }),
     ).toBe('https://example.com/legacy-full-page.png');
+  });
+});
+
+describe('getCookbookPageImageUri', () => {
+  it('resolves a bundled sample page into a shareable URI', () => {
+    jest.spyOn(Image, 'resolveAssetSource').mockReturnValue({
+      uri: 'file:///sample-page.png',
+      width: 612,
+      height: 816,
+      scale: 1,
+    });
+
+    expect(getCookbookPageImageUri({ ...basePage, imageAsset: 42 })).toBe('file:///sample-page.png');
   });
 });

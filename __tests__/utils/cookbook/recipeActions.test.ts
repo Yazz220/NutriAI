@@ -41,6 +41,14 @@ describe('recipe action proposals', () => {
     expect(original.ingredientGroups[0].ingredients[0].quantity).toBe('2');
   });
 
+  it('does not pretend a non-serving yield can be scaled by servings', () => {
+    const loaf = { ...recipe(), servings: undefined, yieldText: '1 loaf' };
+
+    expect(() => proposeServingScale(loaf, 2)).toThrow(
+      'This recipe does not have a numeric serving count to scale from',
+    );
+  });
+
   it('previews a substitution without changing the original ingredient', () => {
     const original = recipe();
     const proposal = proposeIngredientSubstitution(original, {

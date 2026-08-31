@@ -77,9 +77,6 @@ interface TurningLeafSkiaProps {
    * IN FROM the spine rather than folding right toward a right-side spine.
    */
   onePageMode?: boolean;
-  /** Disable a direction until its full-page textures are available. */
-  forwardEnabled?: boolean;
-  backwardEnabled?: boolean;
 }
 
 interface LeafMeshProps {
@@ -324,7 +321,7 @@ function DirectionalLeaf({
             <LinearGradient
               start={vec(0, 0)}
               end={vec(width * SHADOW_WIDTH_RATIO, 0)}
-              colors={[Skia.Color('rgba(28,24,18,0)'), Skia.Color('rgba(28,24,18,0.85)')]}
+              colors={[Skia.Color(Colors.legacySurface.v85), Skia.Color(Colors.legacySurface.v84)]}
             />
           </Rect>
         </Group>
@@ -333,7 +330,7 @@ function DirectionalLeaf({
             <LinearGradient
               start={vec(0, 0)}
               end={vec(width * CREST_WIDTH_RATIO, 0)}
-              colors={[Skia.Color('rgba(255,252,240,0)'), Skia.Color('rgba(255,252,240,0.7)'), Skia.Color('rgba(255,252,240,0)')]}
+              colors={[Skia.Color(Colors.legacySurface.v76), Skia.Color(Colors.legacySurface.v75), Skia.Color(Colors.legacySurface.v76)]}
             />
           </Rect>
         </Group>
@@ -369,8 +366,6 @@ export function TurningLeafSkia({
   direction,
   grabYRatio,
   onePageMode,
-  forwardEnabled = true,
-  backwardEnabled = true,
 }: TurningLeafSkiaProps) {
   const indices = useMemo(() => buildIndices(), []);
   const backOffset = backwardOffsetX ?? forwardOffsetX;
@@ -386,39 +381,35 @@ export function TurningLeafSkia({
 
   return (
     <>
-      {forwardEnabled ? (
-        <DirectionalLeaf
-          image={forwardImage}
-          backImage={forwardBackImage}
-          width={width}
-          height={height}
-          offsetX={forwardOffsetX}
-          offsetY={offsetY}
-          progress={progress}
-          direction={direction}
-          leafDirection={1}
-          targetDirection={1}
-          grabYRatio={grabYRatio}
-          indices={indices}
-        />
-      ) : null}
-      {backwardEnabled ? (
-        <DirectionalLeaf
-          image={backwardImage}
-          backImage={backwardBackImage}
-          width={width}
-          height={height}
-          offsetX={backwardOffset}
-          offsetY={offsetY}
-          progress={progress}
-          direction={direction}
-          leafDirection={backwardLeafDirection}
-          targetDirection={-1}
-          grabYRatio={grabYRatio}
-          invertProgress={onePageMode}
-          indices={indices}
-        />
-      ) : null}
+      <DirectionalLeaf
+        image={forwardImage}
+        backImage={forwardBackImage}
+        width={width}
+        height={height}
+        offsetX={forwardOffsetX}
+        offsetY={offsetY}
+        progress={progress}
+        direction={direction}
+        leafDirection={1}
+        targetDirection={1}
+        grabYRatio={grabYRatio}
+        indices={indices}
+      />
+      <DirectionalLeaf
+        image={backwardImage}
+        backImage={backwardBackImage}
+        width={width}
+        height={height}
+        offsetX={backwardOffset}
+        offsetY={offsetY}
+        progress={progress}
+        direction={direction}
+        leafDirection={backwardLeafDirection}
+        targetDirection={-1}
+        grabYRatio={grabYRatio}
+        invertProgress={onePageMode}
+        indices={indices}
+      />
     </>
   );
 }

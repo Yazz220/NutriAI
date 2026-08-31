@@ -4,12 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import type { CookbookPage } from '@/types/cookbook';
 import {
+  correctRecipeCapture,
   fetchPageById,
   listRecipeCaptures,
   prepareRecipeCaptureDestination,
   retryRecipeCapture,
   startRecipeCapture,
 } from '@/utils/cookbook/api';
+import type { RecipeGraphDraft } from '@/types/recipeGraph';
 import {
   loadCachedCaptures,
   saveCachedCaptures,
@@ -55,8 +57,8 @@ export function useRecipeCaptures() {
   }, [query.data, user?.id]);
 
   useEffect(() => {
-    const completed = (query.data ?? []).filter((capture) => capture.status === 'ready' && capture.pageId);
-    for (const capture of completed) {
+    const placedCaptures = (query.data ?? []).filter((capture) => capture.pageId);
+    for (const capture of placedCaptures) {
       void fetchPageById(capture.pageId!).then((page) => {
         if (!page) return;
         queryClient.setQueryData<CookbookPage[]>(
@@ -72,7 +74,7 @@ export function useRecipeCaptures() {
       result.capture,
       ...current.filter((capture) => capture.id !== result.capture.id),
     ]);
-    if (result.pendingPage?.lifecycleStatus === 'approved') {
+    if (result.pendingPage) {
       queryClient.setQueryData<CookbookPage[]>(
         COOKBOOK_PAGES_QUERY_KEY(result.pendingPage.cookbookId),
         (current = []) => reconcileCapturePage(current, result.pendingPage),
@@ -94,6 +96,12 @@ export function useRecipeCaptures() {
     onSuccess: mergeResult,
   });
 
+  const correctionMutation = useMutation({
+    mutationFn: (input: { captureId: string; recipeGraph: RecipeGraphDraft }) =>
+      correctRecipeCapture(input.captureId, input.recipeGraph),
+    onSuccess: mergeResult,
+  });
+
   const destinationMutation = useMutation({
     mutationFn: (input: { captureId: string; destinationCookbookId: string }) =>
       prepareRecipeCaptureDestination(input.captureId, input.destinationCookbookId),
@@ -108,9 +116,11 @@ export function useRecipeCaptures() {
     refresh: query.refetch,
     startCapture: startMutation.mutateAsync,
     retryCapture: retryMutation.mutateAsync,
+    correctCapture: correctionMutation.mutateAsync,
     prepareDestination: destinationMutation.mutateAsync,
     isStarting: startMutation.isPending,
     isRetrying: retryMutation.isPending,
+    isCorrecting: correctionMutation.isPending,
     isPreparingDestination: destinationMutation.isPending,
   };
 }

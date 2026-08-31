@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 42,
     height: 4,
-    borderRadius: 999,
+    borderRadius: Radii.numeric[999],
     backgroundColor: Tokens.component.sheet.handle,
   },
   header: {
@@ -117,8 +117,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',

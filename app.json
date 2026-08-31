@@ -6,21 +6,90 @@
     "orientation": "portrait",
     "scheme": "nosh",
     "userInterfaceStyle": "automatic",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/platform/icon.png",
+    "backgroundColor": "#F7F2EA",
+    "primaryColor": "#65436F",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/brand/platform/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F7F2"
+      "backgroundColor": "#F7F2EA"
     },
     "ios": {
+      "icon": {
+        "light": "./assets/brand/platform/icon.png",
+        "dark": "./assets/brand/platform/icon-dark.png",
+        "tinted": "./assets/brand/platform/icon-tinted.png"
+      },
       "supportsTablet": false,
       "bundleIdentifier": "com.yaz12.nosh",
-      "buildNumber": "9",
+      "buildNumber": "13",
       "infoPlist": {
         "NSCameraUsageDescription": "Nosh uses your camera to capture recipe images.",
         "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes.",
-        "NSMicrophoneUsageDescription": "Nosh may use the microphone for voice input features.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1",
+              "1C8F.1"
+            ]
+          }
+        ],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeProductPersonalization"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeProductPersonalization"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeProductPersonalization"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ],
+        "NSPrivacyTracking": false
       },
       "usesAppleSignIn": true,
       "config": {
@@ -30,17 +99,19 @@
     "android": {
       "package": "com.yaz12.nosh",
       "versionCode": 1,
+      "icon": "./assets/brand/platform/icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F5F7F2"
+        "foregroundImage": "./assets/brand/platform/adaptive-icon.png",
+        "backgroundImage": "./assets/brand/platform/adaptive-background.png",
+        "monochromeImage": "./assets/brand/platform/adaptive-monochrome.png",
+        "backgroundColor": "#F7F2EA"
       },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.VIBRATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.VIBRATE"
       ]
     },
     "plugins": [
@@ -48,21 +119,35 @@
         "expo-camera",
         {
           "cameraPermission": "Nosh uses your camera to capture recipe images.",
-          "microphonePermission": "Nosh may use the microphone for voice input."
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-font",
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nosh needs access to your photos to import images for recipes."
+          "photosPermission": "Nosh needs access to your photos to import images for recipes.",
+          "microphonePermission": false
         }
       ],
       "expo-apple-authentication",
       "expo-localization",
       "expo-router",
       "expo-asset",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7F2EA",
+          "image": "./assets/brand/platform/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "dark": {
+            "image": "./assets/brand/platform/splash-dark.png",
+            "backgroundColor": "#65436F"
+          }
+        }
+      ],
       [
         "expo-share-intent",
         {
@@ -75,13 +160,19 @@
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
             "NSExtensionActivationSupportsImageWithMaxCount": 1
           },
-          "androidIntentFilters": ["text/*", "image/*"],
+          "androidIntentFilters": [
+            "text/*",
+            "image/*"
+          ],
           "androidMultiIntentFilters": []
         }
       ]
     ],
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/brand/platform/favicon.png",
+      "name": "Nosh",
+      "shortName": "Nosh"
     },
     "extra": {
       "eas": {

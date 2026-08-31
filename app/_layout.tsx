@@ -1,3 +1,4 @@
+import { Spacing } from '@/constants/spacing';
 import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -19,16 +20,45 @@ import { NoshConversationProvider, useNoshConversation } from '@/contexts/NoshCo
 import { NoshConversationHost } from '@/components/cookbook/NoshAssistantChat';
 import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResume';
 import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { NoshNativeShareProvider } from '@/contexts/NoshNativeShareContext';
+import { AiDataConsentProvider } from '@/contexts/AiDataConsentContext';
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { LocalUserDataCleanupResume } from '@/components/account/LocalUserDataCleanupResume';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+const webInteractionStyles = `
+button,
+[role='button'],
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input:focus,
+textarea:focus,
+[contenteditable='true']:focus {
+  outline: none !important;
+}
+
+button:focus,
+[role='button']:focus {
+  outline: none;
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 1px solid rgba(101, 67, 111, 0.38);
+  outline-offset: 3px;
+}
+`;
 const shareIntentOptions = {
   scheme: 'nosh',
   resetOnBackground: false,
@@ -41,6 +71,24 @@ type TextWithDefaultProps = typeof RNText & {
     style?: StyleProp<TextStyle>;
   };
 };
+
+function WebInteractionStyles() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const existing = document.getElementById('nosh-interaction-reset');
+    if (existing) return;
+
+    const style = document.createElement('style');
+    style.id = 'nosh-interaction-reset';
+    style.textContent = webInteractionStyles;
+    document.head.appendChild(style);
+
+    return () => style.remove();
+  }, []);
+
+  return null;
+}
 
 function getAuthCallbackParams(url: string): URLSearchParams {
   const params = new URLSearchParams();
@@ -150,7 +198,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => undefined);
     }
   }, [fontsLoaded]);
 
@@ -210,33 +258,38 @@ function RootLayoutNav() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
         <StatusBar style="dark" />
+        <NoshHorizontalLockup width={164} />
+        <View style={{ height: Spacing.xl }} />
         <ActivityIndicator color={Colors.primary} />
-        <Text style={{ marginTop: 8, color: Colors.lightText }}>Opening your cookbook...</Text>
+        <Text style={{ marginTop: Spacing.values[8], color: Colors.lightText }}>Opening your cookbook…</Text>
       </View>
     );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <View
-          style={{ flex: 1 }}
-          pointerEvents={noshConversationVisible ? 'none' : 'auto'}
-          accessibilityElementsHidden={noshConversationVisible}
-          importantForAccessibility={noshConversationVisible ? 'no-hide-descendants' : 'auto'}
-        >
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(book)" options={{ headerShown: false }} />
-          </Stack>
-        </View>
-        <NoshConversationHost />
-        <RecipeCaptureResume />
-        <NativeShareIngestion />
-        <OfflineBanner />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AiDataConsentProvider>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
+        <SafeAreaProvider>
+          <StatusBar style="dark" />
+          <View
+            style={{ flex: 1 }}
+            pointerEvents={noshConversationVisible ? 'none' : 'auto'}
+            accessibilityElementsHidden={noshConversationVisible}
+            importantForAccessibility={noshConversationVisible ? 'no-hide-descendants' : 'auto'}
+          >
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(book)" options={{ headerShown: false }} />
+            </Stack>
+          </View>
+          <NoshConversationHost />
+          <RecipeCaptureResume />
+          <NativeShareIngestion />
+          <LocalUserDataCleanupResume />
+          <OfflineBanner />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AiDataConsentProvider>
   );
 }
 
@@ -249,7 +302,10 @@ export default function RootLayout() {
             <NoshConversationProvider>
               <ToastProvider>
                 <GlobalErrorBoundary>
-                  <RootLayoutNav />
+                  <>
+                    <WebInteractionStyles />
+                    <RootLayoutNav />
+                  </>
                 </GlobalErrorBoundary>
               </ToastProvider>
             </NoshConversationProvider>

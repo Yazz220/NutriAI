@@ -1,5 +1,6 @@
 import {
   classifyRecipeMatches,
+  browseRecipeCollection,
   loadRecipeFromCollection,
   searchRecipeCollection,
   type RecipeCollectionCandidate,
@@ -115,5 +116,52 @@ describe('recipe collection retrieval', () => {
     expect((await loadRecipeFromCollection('page-baked')).recipeGraph.ingredientGroups)
       .toEqual(graph.ingredientGroups);
     expect(select).toHaveBeenCalledWith('id, cookbook_id, recipe_graph');
+  });
+
+  it('browses compact recipe cards with deterministic filters and pagination', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: [{
+        page_id: 'page-soup',
+        cookbook_id: 'book-dinner',
+        cookbook_title: 'Dinner',
+        title: 'Tomato Soup',
+        description: 'Quick soup',
+        category: 'soup',
+        cuisine: null,
+        servings: 4,
+        total_time_minutes: 25,
+        tags: ['weeknight'],
+        dietary_tags: ['vegetarian'],
+        ingredient_preview: ['tomatoes', 'stock'],
+        updated_at: '2026-08-25T00:00:00.000Z',
+        score: 2.4,
+        match_reason: 'ingredients',
+        total_count: 3,
+      }],
+      error: null,
+    });
+    mockedSchema.mockReturnValue({ rpc } as never);
+
+    await expect(browseRecipeCollection({
+      ingredientsAny: ['tomatoes'],
+      maxTotalMinutes: 30,
+      limit: 1,
+    })).resolves.toEqual({
+      recipes: [expect.objectContaining({
+        pageId: 'page-soup',
+        totalTimeMinutes: 25,
+        dietaryTags: ['vegetarian'],
+        matchReason: 'ingredients',
+      })],
+      totalCount: 3,
+      nextCursor: '1',
+    });
+    expect(rpc).toHaveBeenCalledWith('browse_recipe_collection', expect.objectContaining({
+      ingredients_any: ['tomatoes'],
+      max_total_minutes: 30,
+      result_offset: 0,
+      result_limit: 1,
+      sort_mode: 'recent',
+    }));
   });
 });

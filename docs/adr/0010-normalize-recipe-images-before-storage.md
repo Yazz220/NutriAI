@@ -1,0 +1,3 @@
+# Normalize recipe images before storage
+
+Nosh accepts one recipe image up to 15 MB, but every intake surface must pass it through the same native preparation boundary before private Storage upload: apply decoded orientation, fit the longest edge within 2400 pixels, and use adaptive JPEG encoding until the artifact is below the extractor's 8 MB decoded limit. This keeps picker, assistant, and native-share images on one provider-independent capture path, preserves readable text without storing unnecessarily large originals, and prevents client, Storage, and multimodal-provider limits from drifting apart.

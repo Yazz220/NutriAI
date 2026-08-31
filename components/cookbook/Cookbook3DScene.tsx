@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Minimize2 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -16,15 +17,24 @@ import Animated, {
 import { useImage } from '@shopify/react-native-skia';
 import { releaseCapture } from 'react-native-view-shot';
 import { CookbookLeafPage } from '@/components/cookbook/CookbookLeafPage';
-import { BOOK_GUTTER_WIDTH, BookGutter, OpenBookSpread } from '@/components/cookbook/OpenBookSpread';
+import { Text } from '@/components/ui/Text';
+import {
+  BOOK_GUTTER_WIDTH,
+  BookBlockUnderlay,
+  BookGutter,
+  BookLeafShade,
+  OpenBookSpread,
+} from '@/components/cookbook/OpenBookSpread';
 import { TurningLeafSkia } from '@/components/cookbook/TurningLeafSkia';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
-import { getCookbookBindingForStyle } from '@/constants/cookbookBindings';
+import { resolveCookbookBinding } from '@/constants/cookbookBindings';
 import { Colors } from '@/constants/colors';
+import { Radii, Spacing, Typography, Shadows } from '@/constants/spacing';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
 import type { CookbookPage } from '@/types/cookbook';
 import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
 import { createLeafTexture } from '@/utils/cookbook/leafTexture';
+import { Fonts } from '@/utils/fonts';
 import {
   resolveBookStageTranslation,
   resolveNativeBookGeometry,
@@ -34,6 +44,13 @@ import {
   type PageTurnDirection,
 } from '@/utils/cookbook/physicalBook';
 import { TOUCH_PAGING_BREAKPOINT, type CookbookLeaf } from '@/utils/cookbook/reader';
+import {
+  clampReaderZoomScale,
+  clampReaderZoomTranslation,
+  nextDoubleTapZoomScale,
+  READER_MIN_ZOOM,
+  READER_ZOOMED_THRESHOLD,
+} from '@/utils/cookbook/readerZoom';
 
 // Skia Canvas renders the curling page leaf. Requires a dev client build
 // with the matching native Skia binary (2.3.0+ on Expo SDK 54).
@@ -43,6 +60,13 @@ const STACK_WIDTH = 4;
 const STACK_MIN_RATIO = 0.06;
 const STACK_MAX_RATIO = 0.42;
 const STACK_STRIATIONS = 5;
+const CORNER_LIFT_PROGRESS = 0.05;
+const TURN_COMMIT_SPRING = {
+  damping: 24,
+  stiffness: 175,
+  mass: 0.78,
+  overshootClamping: true,
+} as const;
 
 /**
  * Vertical page stack on the outer edge of the book. The height represents
@@ -153,6 +177,7 @@ export function Cookbook3DScene({
   readingPageId,
   leaves,
   leafIndex = 0,
+  turnRequest,
   onOpen,
   onClose,
   isBackClosed = false,
@@ -171,7 +196,12 @@ export function Cookbook3DScene({
   const readingPageGeometry = resolveNativeReadingPageGeometry(width, height);
   const leafWidth = bookGeometry.pageWidth;
   const bookHeight = bookGeometry.pageHeight;
-  const coverColor = getCookbookBindingForStyle(cookbook?.coverStyle).cloth;
+  const coverBinding = resolveCookbookBinding({
+    finishId: cookbook?.coverFinishId,
+    colorId: cookbook?.coverColorId,
+    legacyStyleId: cookbook?.coverStyle,
+  });
+  const coverColor = coverBinding.cloth;
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
   const requestedPageIndex = pages.findIndex((page) => page.id === readingPageId);
   const fallbackLeaf =
@@ -244,6 +274,46 @@ export function Cookbook3DScene({
   const isSettling = useSharedValue(0);
   const turnGrabX = useSharedValue(0);
   const grabYRatio = useSharedValue(0.5);
+  const lastHandledTurnRequestId = useRef<number | null>(null);
+  const pageZoomScale = useSharedValue(READER_MIN_ZOOM);
+  const pageZoomStartScale = useSharedValue(READER_MIN_ZOOM);
+  const pageZoomTranslateX = useSharedValue(0);
+  const pageZoomTranslateY = useSharedValue(0);
+  const pageZoomStartTranslateX = useSharedValue(0);
+  const pageZoomStartTranslateY = useSharedValue(0);
+  const pageZoomStartFocalX = useSharedValue(0);
+  const pageZoomStartFocalY = useSharedValue(0);
+  const [isPageZoomed, setIsPageZoomed] = useState(false);
+  const updatePageZoomedState = useCallback((zoomed: boolean) => {
+    setIsPageZoomed(zoomed);
+  }, []);
+
+  const setPageZoom = useCallback(
+    (targetScale: number) => {
+      const nextScale = clampReaderZoomScale(targetScale);
+      const zoomed = nextScale > READER_ZOOMED_THRESHOLD;
+      setIsPageZoomed(zoomed);
+      pageZoomScale.value = reduceMotion
+        ? nextScale
+        : withTiming(nextScale, { duration: 180, easing: Easing.out(Easing.cubic) });
+      if (!zoomed) {
+        pageZoomTranslateX.value = reduceMotion ? 0 : withTiming(0, { duration: 180 });
+        pageZoomTranslateY.value = reduceMotion ? 0 : withTiming(0, { duration: 180 });
+      }
+    },
+    [pageZoomScale, pageZoomTranslateX, pageZoomTranslateY, reduceMotion],
+  );
+
+  const resetPageZoom = useCallback(() => {
+    setPageZoom(READER_MIN_ZOOM);
+  }, [setPageZoom]);
+
+  useEffect(() => {
+    pageZoomScale.value = READER_MIN_ZOOM;
+    pageZoomTranslateX.value = 0;
+    pageZoomTranslateY.value = 0;
+    setIsPageZoomed(false);
+  }, [leafIndex, pageZoomScale, pageZoomTranslateX, pageZoomTranslateY, readingView]);
 
   // Book open/close: the cover is always mounted. It swings open around
   // the spine (gutter) and stays at -175° (face-down on the left) while
@@ -266,7 +336,9 @@ export function Cookbook3DScene({
   useEffect(() => {
     if (propOpening) return; // Parent owns the open/close animation.
     opening.value = reduceMotion
-      ? isOpen ? 1 : 0
+      ? isOpen
+        ? 1
+        : 0
       : withTiming(isOpen ? 1 : 0, {
           duration: isOpen ? 980 : 620,
           easing: isOpen ? Easing.bezier(0.22, 0.72, 0.24, 1) : Easing.bezier(0.5, 0, 0.75, 0.2),
@@ -282,7 +354,9 @@ export function Cookbook3DScene({
 
   useEffect(() => {
     backOpening.value = reduceMotion
-      ? isBackClosed ? 0 : 1
+      ? isBackClosed
+        ? 0
+        : 1
       : withTiming(isBackClosed ? 0 : 1, {
           duration: isBackClosed ? 620 : 760,
           easing: isBackClosed ? Easing.bezier(0.5, 0, 0.75, 0.2) : Easing.bezier(0.22, 0.72, 0.24, 1),
@@ -445,12 +519,6 @@ export function Cookbook3DScene({
   const backwardImage = backwardLeafTexture ?? backwardLeafImage;
   const forwardBackImage = forwardBackLeafTexture ?? forwardBackFaceImage;
   const backwardBackImage = backwardBackLeafTexture ?? backwardBackFaceImage;
-  const forwardSkiaEnabled =
-    (!forwardLeafPage?.recipeGraph || Boolean(forwardLeafTextureUri && forwardLeafImage)) &&
-    (!forwardBackFacePage?.recipeGraph || Boolean(forwardBackTextureUri && forwardBackFaceImage));
-  const backwardSkiaEnabled =
-    (!backwardLeafPage?.recipeGraph || Boolean(backwardLeafTextureUri && backwardLeafImage)) &&
-    (!backwardBackFacePage?.recipeGraph || Boolean(backwardBackTextureUri && backwardBackFaceImage));
 
   // While a turn runs, the Skia leaf draws the turning page (curl, back face,
   // fold shadow); the flat RN leaves underneath only gate their visibility so
@@ -460,8 +528,7 @@ export function Cookbook3DScene({
     const dir = turnDirection.value;
     const progress = turnProgress.value;
     if (dir === 0 || progress === 0) return { opacity: 1, transform: [{ rotateY: '0deg' }] };
-    const skiaTurnEnabled = dir === 1 ? forwardSkiaEnabled : backwardSkiaEnabled;
-    if (SKIA_ENABLED && skiaTurnEnabled) {
+    if (SKIA_ENABLED) {
       // In single-page backward turns, the previous page uncurls IN over the current page,
       // so the current page remains visible underneath.
       if (isPhysicalPageReading && dir === -1) {
@@ -479,7 +546,7 @@ export function Cookbook3DScene({
         { translateX: halfPageWidth },
       ],
     };
-  }, [backwardSkiaEnabled, forwardSkiaEnabled, isPhysicalPageReading, readingPageWidth]);
+  }, [isPhysicalPageReading, readingPageWidth]);
 
   const nextPageRevealStyle = useAnimatedStyle(() => ({
     opacity: turnDirection.value === 1 ? 1 : 0,
@@ -489,6 +556,14 @@ export function Cookbook3DScene({
   const prevPageRevealStyle = useAnimatedStyle(() => ({
     opacity: turnDirection.value === -1 ? 1 : 0,
     transform: [{ scale: 0.992 + turnProgress.value * 0.008 }],
+  }));
+
+  const pageZoomStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: pageZoomTranslateX.value },
+      { translateY: pageZoomTranslateY.value },
+      { scale: pageZoomScale.value },
+    ],
   }));
 
   // In spread mode, the underneath pages show the destination spread's pages
@@ -518,6 +593,62 @@ export function Cookbook3DScene({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const startCanonicalTurn = useCallback(
+    (direction: -1 | 1) => {
+      const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
+      if (!isOpen || isPageZoomed || !canTurn) return;
+      if (turnDirection.value !== 0 || isSettling.value !== 0) return;
+
+      if (isBackClosed) {
+        if (direction === -1 && onOpenBack) onOpenBack();
+        return;
+      }
+
+      onStageTap?.();
+      notifyTurnGrabbed();
+      cancelAnimation(turnProgress);
+      grabYRatio.value = 0.5;
+      turnDirection.value = direction;
+      turnProgress.value = CORNER_LIFT_PROGRESS;
+      isSettling.value = 1;
+
+      if (reduceMotion) {
+        turnProgress.value = 0;
+        turnDirection.value = 0;
+        isSettling.value = 0;
+        commitTurn(direction);
+        return;
+      }
+
+      turnProgress.value = withSpring(1, TURN_COMMIT_SPRING, (finished) => {
+        if (!finished) return;
+        runOnJS(commitTurn)(direction);
+      });
+    },
+    [
+      canTurnNext,
+      canTurnPrevious,
+      commitTurn,
+      grabYRatio,
+      isBackClosed,
+      isOpen,
+      isPageZoomed,
+      isSettling,
+      notifyTurnGrabbed,
+      onOpenBack,
+      onStageTap,
+      reduceMotion,
+      turnDirection,
+      turnProgress,
+    ],
+  );
+
+  useEffect(() => {
+    if (!turnRequest || lastHandledTurnRequestId.current === turnRequest.id) return;
+    lastHandledTurnRequestId.current = turnRequest.id;
+    startCanonicalTurn(turnRequest.direction);
+  }, [startCanonicalTurn, turnRequest]);
+
   // Layout effect: resets the turn values synchronously after the new leaves
   // commit but before paint, so the handoff frame never flashes stale content.
   // The display indices are updated here too, so the Skia/underneath images
@@ -525,13 +656,14 @@ export function Cookbook3DScene({
   // (making the curling leaf invisible). This prevents a 1-frame flash where
   // the new spreadIndex has propagated but turnDirection hasn't reset yet.
   useLayoutEffect(() => {
+    cancelAnimation(turnProgress);
     turnProgress.value = 0;
     turnDirection.value = 0;
     isSettling.value = 0;
     grabYRatio.value = 0.5;
     setDisplaySpreadIndex(spreadIndex);
     setDisplayLeafIndex(leafIndex);
-  }, [grabYRatio, isSettling, leafIndex, readingPageIndex, spreadIndex, turnDirection, turnProgress]);
+  }, [grabYRatio, isSettling, leafIndex, readingPageIndex, readingView, spreadIndex, turnDirection, turnProgress]);
 
   // Drag-to-turn: progress is driven by the pointer's position, not by
   // accumulated drag distance, so the leaf tracks the finger 1:1 and follows
@@ -543,8 +675,6 @@ export function Cookbook3DScene({
   // slightly in the turn direction implied by the touch position — right side
   // → forward, left side → backward. This makes the page feel alive under the
   // finger, matching the StPageFlip fold_corner behavior.
-  const CORNER_LIFT_PROGRESS = 0.05;
-
   // Swipe-to-open on the closed cover: a forward swipe (left) opens the
   // book. Only active when the book is closed — when open, the cover layer
   // has pointerEvents: 'none' so this gesture never receives touches.
@@ -565,7 +695,8 @@ export function Cookbook3DScene({
   const turnGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(isOpen)
+        .enabled(isOpen && !isPageZoomed)
+        .maxPointers(1)
         .activeOffsetX([-8, 8])
         .failOffsetY([-80, 80])
         .cancelsTouchesInView(true)
@@ -738,10 +869,7 @@ export function Cookbook3DScene({
           turnProgress.value = withSpring(
             1,
             {
-              damping: 24,
-              stiffness: 175,
-              mass: 0.78,
-              overshootClamping: true,
+              ...TURN_COMMIT_SPRING,
               velocity: release.settleVelocity,
             },
             (finished) => {
@@ -749,6 +877,11 @@ export function Cookbook3DScene({
               runOnJS(commitTurn)(direction);
             },
           );
+        })
+        .onFinalize((_event, success) => {
+          if (success || isSettling.value !== 0) return;
+          turnProgress.value = reduceMotion ? 0 : withTiming(0, { duration: 120 });
+          turnDirection.value = 0;
         }),
     [
       canTurnNext,
@@ -760,6 +893,7 @@ export function Cookbook3DScene({
       bookHeight,
       height,
       isBackClosed,
+      isPageZoomed,
       isPhysicalPageReading,
       isOpen,
       isSettling,
@@ -780,15 +914,139 @@ export function Cookbook3DScene({
     ],
   );
 
-  // Compose the cover swipe and page-turn gestures with Gesture.Exclusive.
-  // Only one can activate at a time. When !isOpen, coverSwipeGesture is
-  // enabled and turnGesture is disabled — so forward swipe opens the book.
-  // When isOpen, the reverse — turnGesture handles page turns and the
-  // close-by-swipe on spread 0. This avoids nested GestureDetectors, which
-  // are unreliable per react-native-gesture-handler docs.
+  const pinchZoomGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .enabled(isPhysicalPageReading)
+        .onBegin((event) => {
+          if (onStageTap) runOnJS(onStageTap)();
+          pageZoomStartScale.value = pageZoomScale.value;
+          pageZoomStartTranslateX.value = pageZoomTranslateX.value;
+          pageZoomStartTranslateY.value = pageZoomTranslateY.value;
+          pageZoomStartFocalX.value = event.focalX;
+          pageZoomStartFocalY.value = event.focalY;
+        })
+        .onUpdate((event) => {
+          const nextScale = clampReaderZoomScale(pageZoomStartScale.value * event.scale);
+          const scaleRatio = nextScale / Math.max(pageZoomStartScale.value, READER_MIN_ZOOM);
+          const focalX = pageZoomStartFocalX.value - width / 2;
+          const focalY = pageZoomStartFocalY.value - height / 2;
+          const nextTranslateX =
+            pageZoomStartTranslateX.value + (1 - scaleRatio) * (focalX - pageZoomStartTranslateX.value);
+          const nextTranslateY =
+            pageZoomStartTranslateY.value + (1 - scaleRatio) * (focalY - pageZoomStartTranslateY.value);
+          pageZoomScale.value = nextScale;
+          pageZoomTranslateX.value = clampReaderZoomTranslation(nextTranslateX, readingPageWidth, nextScale);
+          pageZoomTranslateY.value = clampReaderZoomTranslation(nextTranslateY, readingPageHeight, nextScale);
+        })
+        .onEnd(() => {
+          const zoomed = pageZoomScale.value > READER_ZOOMED_THRESHOLD;
+          if (!zoomed) {
+            pageZoomScale.value = reduceMotion ? READER_MIN_ZOOM : withTiming(READER_MIN_ZOOM, { duration: 160 });
+            pageZoomTranslateX.value = reduceMotion ? 0 : withTiming(0, { duration: 160 });
+            pageZoomTranslateY.value = reduceMotion ? 0 : withTiming(0, { duration: 160 });
+          }
+          runOnJS(updatePageZoomedState)(zoomed);
+        }),
+    [
+      height,
+      isPhysicalPageReading,
+      onStageTap,
+      pageZoomScale,
+      pageZoomStartFocalX,
+      pageZoomStartFocalY,
+      pageZoomStartScale,
+      pageZoomStartTranslateX,
+      pageZoomStartTranslateY,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+      reduceMotion,
+      updatePageZoomedState,
+      width,
+    ],
+  );
+
+  const zoomPanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(isPhysicalPageReading && isPageZoomed)
+        .minDistance(1)
+        .onBegin(() => {
+          pageZoomStartTranslateX.value = pageZoomTranslateX.value;
+          pageZoomStartTranslateY.value = pageZoomTranslateY.value;
+        })
+        .onUpdate((event) => {
+          pageZoomTranslateX.value = clampReaderZoomTranslation(
+            pageZoomStartTranslateX.value + event.translationX,
+            readingPageWidth,
+            pageZoomScale.value,
+          );
+          pageZoomTranslateY.value = clampReaderZoomTranslation(
+            pageZoomStartTranslateY.value + event.translationY,
+            readingPageHeight,
+            pageZoomScale.value,
+          );
+        }),
+    [
+      isPageZoomed,
+      isPhysicalPageReading,
+      pageZoomScale,
+      pageZoomStartTranslateX,
+      pageZoomStartTranslateY,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+    ],
+  );
+
+  const doubleTapZoomGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .enabled(isPhysicalPageReading)
+        .numberOfTaps(2)
+        .maxDuration(260)
+        .onEnd((event, success) => {
+          if (!success) return;
+          const nextScale = nextDoubleTapZoomScale(pageZoomScale.value);
+          const zoomed = nextScale > READER_ZOOMED_THRESHOLD;
+          const nextTranslateX = zoomed
+            ? clampReaderZoomTranslation((width / 2 - event.x) * (nextScale - 1), readingPageWidth, nextScale)
+            : 0;
+          const nextTranslateY = zoomed
+            ? clampReaderZoomTranslation((height / 2 - event.y) * (nextScale - 1), readingPageHeight, nextScale)
+            : 0;
+          pageZoomScale.value = reduceMotion ? nextScale : withTiming(nextScale, { duration: 180 });
+          pageZoomTranslateX.value = reduceMotion ? nextTranslateX : withTiming(nextTranslateX, { duration: 180 });
+          pageZoomTranslateY.value = reduceMotion ? nextTranslateY : withTiming(nextTranslateY, { duration: 180 });
+          runOnJS(updatePageZoomedState)(zoomed);
+        }),
+    [
+      height,
+      isPhysicalPageReading,
+      pageZoomScale,
+      pageZoomTranslateX,
+      pageZoomTranslateY,
+      readingPageHeight,
+      readingPageWidth,
+      reduceMotion,
+      updatePageZoomedState,
+      width,
+    ],
+  );
+
+  // Normal drags turn pages. Once zoomed, the same one-finger drag pans the
+  // page instead. Pinch and double-tap run alongside that exclusive choice.
   const composedGesture = useMemo(
-    () => Gesture.Exclusive(coverSwipeGesture, turnGesture),
-    [coverSwipeGesture, turnGesture],
+    () =>
+      Gesture.Simultaneous(
+        Gesture.Exclusive(coverSwipeGesture, zoomPanGesture, turnGesture),
+        pinchZoomGesture,
+        doubleTapZoomGesture,
+      ),
+    [coverSwipeGesture, doubleTapZoomGesture, pinchZoomGesture, turnGesture, zoomPanGesture],
   );
 
   return (
@@ -837,19 +1095,8 @@ export function Cookbook3DScene({
                     </>
                   );
                 })()}
-                <View pointerEvents="none" style={styles.physicalPageFallback}>
-                  <View
-                    style={[
-                      styles.physicalFallbackCover,
-                      { width: readingPageWidth + 10, height: readingPageHeight + 12, backgroundColor: coverColor },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.physicalFallbackEdges,
-                      { width: readingPageWidth + 4, height: readingPageHeight + 6 },
-                    ]}
-                  />
+                <Animated.View pointerEvents="none" style={[styles.physicalPageFallback, pageZoomStyle]}>
+                  <BookBlockUnderlay width={readingPageWidth} height={readingPageHeight} coverColor={coverColor} />
                   {displayCanGoNext ? (
                     <Animated.View
                       style={[
@@ -866,6 +1113,7 @@ export function Cookbook3DScene({
                         onOpenRecipe={onOpenRecipe}
                         onPageTextureReady={handlePageTextureReady}
                       />
+                      <BookLeafShade side="right" />
                     </Animated.View>
                   ) : null}
                   {displayCanGoPrevious ? (
@@ -884,6 +1132,7 @@ export function Cookbook3DScene({
                         onOpenRecipe={onOpenRecipe}
                         onPageTextureReady={handlePageTextureReady}
                       />
+                      <BookLeafShade side="right" />
                     </Animated.View>
                   ) : null}
                   <Animated.View
@@ -902,6 +1151,7 @@ export function Cookbook3DScene({
                       onOpenRecipe={onOpenRecipe}
                       onPageTextureReady={handlePageTextureReady}
                     />
+                    <BookLeafShade side="right" />
                   </Animated.View>
                   {SKIA_ENABLED ? (
                     <TurningLeafSkia
@@ -917,8 +1167,6 @@ export function Cookbook3DScene({
                       direction={turnDirection}
                       grabYRatio={grabYRatio}
                       onePageMode
-                      forwardEnabled={forwardSkiaEnabled}
-                      backwardEnabled={backwardSkiaEnabled}
                     />
                   ) : null}
                   <BookGutter
@@ -929,7 +1177,7 @@ export function Cookbook3DScene({
                       zIndex: 4,
                     }}
                   />
-                </View>
+                </Animated.View>
                 {currentLeaf?.type === 'recipe' ? (
                   <Pressable
                     style={StyleSheet.absoluteFill}
@@ -938,8 +1186,50 @@ export function Cookbook3DScene({
                       if (page) onOpenRecipe(page);
                     }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Open ${getLeafPage(currentLeaf, pages)?.title ?? 'recipe'} in reading view`}
+                    accessibilityLabel={`${getLeafPage(currentLeaf, pages)?.title ?? 'Recipe'} reading page`}
+                    accessibilityHint={
+                      isPageZoomed
+                        ? 'Drag to move around the page. Double tap to reset zoom.'
+                        : 'Double tap or pinch to zoom. Swipe horizontally to change recipes.'
+                    }
+                    accessibilityActions={[
+                      ...(!isPageZoomed && displayCanGoPrevious
+                        ? [{ name: 'decrement' as const, label: 'Previous recipe' }]
+                        : []),
+                      ...(!isPageZoomed && displayCanGoNext
+                        ? [{ name: 'increment' as const, label: 'Next recipe' }]
+                        : []),
+                      {
+                        name: isPageZoomed ? 'zoom-out' : 'zoom-in',
+                        label: isPageZoomed ? 'Reset zoom' : 'Zoom in',
+                      },
+                    ]}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'decrement' && displayCanGoPrevious) {
+                        startCanonicalTurn(-1);
+                      }
+                      if (event.nativeEvent.actionName === 'increment' && displayCanGoNext) {
+                        startCanonicalTurn(1);
+                      }
+                      if (event.nativeEvent.actionName === 'zoom-in') {
+                        setPageZoom(nextDoubleTapZoomScale(READER_MIN_ZOOM));
+                      }
+                      if (event.nativeEvent.actionName === 'zoom-out') {
+                        resetPageZoom();
+                      }
+                    }}
                   />
+                ) : null}
+                {isPageZoomed ? (
+                  <Pressable
+                    style={[styles.resetZoomButton, { right: readingPageGeometry.pageOffsetX + Spacing.sm }]}
+                    onPress={resetPageZoom}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset page zoom"
+                  >
+                    <Minimize2 size={16} color={Colors.text} />
+                    <Text style={styles.resetZoomText}>Reset</Text>
+                  </Pressable>
                 ) : null}
               </Animated.View>
             ) : (
@@ -1031,6 +1321,7 @@ export function Cookbook3DScene({
                           onOpenRecipe={onOpenRecipe}
                           onPageTextureReady={handlePageTextureReady}
                         />
+                        <BookLeafShade side="right" />
                       </Animated.View>
                     ) : null}
                     {prevSpread ? (
@@ -1049,6 +1340,7 @@ export function Cookbook3DScene({
                           onOpenRecipe={onOpenRecipe}
                           onPageTextureReady={handlePageTextureReady}
                         />
+                        <BookLeafShade side="left" />
                       </Animated.View>
                     ) : null}
                     {SKIA_ENABLED ? (
@@ -1065,8 +1357,6 @@ export function Cookbook3DScene({
                         progress={turnProgress}
                         direction={turnDirection}
                         grabYRatio={grabYRatio}
-                        forwardEnabled={forwardSkiaEnabled}
-                        backwardEnabled={backwardSkiaEnabled}
                       />
                     ) : null}
                     <BookGutter
@@ -1089,10 +1379,16 @@ export function Cookbook3DScene({
           intercepts touches. */}
           <View style={styles.coverLayer} pointerEvents={isOpen ? 'none' : 'box-none'}>
             <Animated.View style={[styles.coverPivot, coverOpenStyle]}>
-              <Pressable onPress={onOpen} accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}>
+              <Pressable
+                onPress={onOpen}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}
+              >
                 <PhysicalBook
                   title={cookbook?.title ?? 'My Cookbook'}
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  coverFinishId={cookbook?.coverFinishId}
+                  coverColorId={cookbook?.coverColorId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   width={leafWidth}
@@ -1109,10 +1405,16 @@ export function Cookbook3DScene({
           receives taps; 'none' when open. */}
           <View style={styles.coverLayer} pointerEvents={isBackClosed ? 'box-none' : 'none'}>
             <Animated.View style={[styles.backCoverPivot, backCoverOpenStyle]}>
-              <Pressable onPress={onOpenBack} accessibilityLabel="Open back cover">
+              <Pressable
+                onPress={onOpenBack}
+                accessibilityRole="button"
+                accessibilityLabel="Open back cover"
+              >
                 <PhysicalBook
                   title=""
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
+                  coverFinishId={cookbook?.coverFinishId}
+                  coverColorId={cookbook?.coverColorId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   face="back"
@@ -1163,7 +1465,7 @@ const styles = StyleSheet.create({
     // Clips the curling page so it tucks cleanly into the left binding edge
     // rather than projecting across the empty screen background.
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: Radii.numeric[18],
   },
   physicalPageFallback: {
     ...StyleSheet.absoluteFillObject,
@@ -1171,21 +1473,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  physicalFallbackCover: {
-    position: 'absolute',
-    borderRadius: 12,
-    transform: [{ translateY: 3 }],
-    boxShadow: '0 18px 38px rgba(35,33,28,0.2)',
-  },
-  physicalFallbackEdges: {
-    position: 'absolute',
-    borderRadius: 10,
-    backgroundColor: '#ded8c8',
-    transform: [{ translateY: 1 }],
-  },
   physicalFallbackLeaf: {
     overflow: 'hidden',
-    borderRadius: 9,
+    borderRadius: Radii.numeric[9],
     borderTopLeftRadius: 2,
     borderBottomLeftRadius: 2,
     backgroundColor: Colors.book.page,
@@ -1197,7 +1487,29 @@ const styles = StyleSheet.create({
   },
   currentNativePage: {
     zIndex: 2,
-    boxShadow: '3px 9px 18px rgba(35,33,28,0.1)',
+    boxShadow: Shadows.custom.sceneSoft,
+  },
+  resetZoomButton: {
+    position: 'absolute',
+    top: 23,
+    zIndex: 12,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.legacySurface.v69,
+    boxShadow: Colors.book.cardShadow,
+  },
+  resetZoomText: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.md,
+    lineHeight: Typography.metrics.lineHeight16,
   },
   spreadStage: {
     position: 'relative',

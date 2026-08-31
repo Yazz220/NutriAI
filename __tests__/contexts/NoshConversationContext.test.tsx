@@ -35,7 +35,7 @@ describe('NoshConversationProvider', () => {
     expect(result.current.interaction.visibleContext).toEqual(expect.objectContaining({ pageId: secondPage.id }));
   });
 
-  it('asks before rebinding an existing recipe conversation', () => {
+  it('makes the newly opened recipe authoritative immediately', () => {
     const { result } = renderHook(() => useNoshConversation(), { wrapper });
 
     act(() => {
@@ -49,10 +49,6 @@ describe('NoshConversationProvider', () => {
       });
     });
 
-    expect(result.current.interaction.focus).toEqual(expect.objectContaining({ pageId: 'page-a' }));
-    expect(result.current.requestedFocus).toEqual(expect.objectContaining({ pageId: 'page-b' }));
-
-    act(() => result.current.acceptRequestedFocus());
     expect(result.current.interaction.focus).toEqual(expect.objectContaining({ pageId: 'page-b' }));
   });
 

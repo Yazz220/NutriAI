@@ -20,12 +20,17 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   const containerStyle = [
     styles.container,
+    size === 'small' && styles.smallContainer,
     overlay && styles.overlay,
   ];
 
   return (
-    <View style={containerStyle}>
-      <ActivityIndicator size={size} color={color || Colors.charcoal} />
+    <View
+      style={containerStyle}
+      accessibilityRole="progressbar"
+      accessibilityLabel={text ?? 'Loading'}
+    >
+      <ActivityIndicator size={size} color={color || Colors.primary} />
       {text && <Text style={styles.text}>{text}</Text>}
     </View>
   );
@@ -38,6 +43,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.xl,
   },
+  smallContainer: {
+    padding: 0,
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.alpha.white[50],
@@ -46,7 +54,7 @@ const styles = StyleSheet.create({
   text: {
     marginTop: Spacing.md,
     fontSize: Typography.sizes.md,
-    color: Colors.lightText,
+    color: Colors.textMuted,
     textAlign: 'center',
     fontFamily: Fonts.ui.regular,
   },

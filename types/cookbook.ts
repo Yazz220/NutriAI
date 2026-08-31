@@ -1,5 +1,10 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { RecipeGraph, RecipeCategory } from '@/types/recipeGraph';
+import type {
+  RecipeGraph,
+  RecipeCategory,
+  RecipeSourceType as CanonicalRecipeSourceType,
+} from '@/types/recipeGraph';
+import type { RecipePageStyleId } from '@/constants/recipePageStyles';
 
 export type CookbookSection =
   | 'breakfast'
@@ -10,7 +15,7 @@ export type CookbookSection =
   | 'sides'
   | 'favorites';
 
-export type RecipeSourceType = 'url' | 'text' | 'image' | 'video';
+export type RecipeSourceType = CanonicalRecipeSourceType;
 
 export type PageVersionStatus = 'pending' | 'generating' | 'ready' | 'failed';
 
@@ -28,16 +33,20 @@ export type CookbookStyleId =
   | 'alabaster-linen'
   | 'umber-leather';
 
-/**
- * The book-owned visual language used by complete-page generation.
- * Legacy cover-linked ids remain valid so existing cookbooks preserve their
- * visual identity while new books use the three Studio page languages.
- */
-export type CookbookPageStyleId =
-  | CookbookStyleId
-  | 'illustrated'
-  | 'studio-editorial'
-  | 'heritage';
+/** Surface finish applied to the one canonical Nosh cover construction. */
+export type CookbookCoverFinishId = 'fine-cloth' | 'natural-linen';
+
+/** Curated cover color, independent from the surface finish. */
+export type CookbookCoverColorId =
+  | 'sage'
+  | 'clay'
+  | 'midnight'
+  | 'alabaster'
+  | 'charcoal'
+  | 'umber';
+
+/** The versioned, book-owned visual language used by complete-page generation. */
+export type CookbookPageStyleId = RecipePageStyleId;
 
 export type RecipeTemplateId =
   | 'clean-cream'
@@ -64,6 +73,10 @@ export interface Cookbook {
   sectionOrder: CookbookSection[];
   /** Physical binding/skin shown on the shelf and closed book. */
   coverStyle: CookbookStyleId;
+  /** Surface texture on the canonical cover construction. */
+  coverFinishId: CookbookCoverFinishId;
+  /** Curated color applied independently to the selected cover finish. */
+  coverColorId: CookbookCoverColorId;
   /** Book-owned recipe-page visual language, independent of its cover. */
   pageStyleId: CookbookPageStyleId;
   /** Immutable page-style revision used by every generated page in this book. */

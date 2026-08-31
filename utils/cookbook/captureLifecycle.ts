@@ -1,5 +1,9 @@
 import type { CookbookPage, RecipeSourceType } from '@/types/cookbook';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
+import type {
+  CaptureCheckpointName,
+  CaptureStageCheckpoints,
+} from '@/supabase/functions/_shared/captureStages';
 
 export type RecipeCaptureStatus =
   | 'processing'
@@ -8,6 +12,7 @@ export type RecipeCaptureStatus =
   | 'needs_attention';
 
 export type RecipeCapturePageStatus = 'not_started' | 'generating' | 'ready' | 'failed';
+export type RecipeCaptureFailedStage = CaptureCheckpointName | 'destination';
 
 const DATABASE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,6 +33,8 @@ export interface RecipeCapture {
   pageWarning?: string;
   failureCode?: string;
   failureMessage?: string;
+  failedStage?: RecipeCaptureFailedStage;
+  stageCheckpoints: CaptureStageCheckpoints;
   idempotencyKey: string;
   processingAttempt: number;
   processingStartedAt?: string;
@@ -36,8 +43,26 @@ export interface RecipeCapture {
 }
 
 export type RecipeCaptureSource =
-  | { type: 'url' | 'text' | 'video'; input: string }
-  | { type: 'image'; storagePath: string; mimeType: string; notes?: string };
+  | { type: 'url' | 'text'; input: string }
+  | { type: 'video'; input: string; rightsConfirmed: boolean }
+  | {
+      type: 'video';
+      storagePath: string;
+      mimeType: string;
+      fileName: string;
+      byteSize: number;
+      rightsConfirmed: boolean;
+      notes?: string;
+    }
+  | { type: 'image'; storagePath: string; mimeType: string; notes?: string }
+  | {
+      type: 'audio';
+      storagePath: string;
+      mimeType: string;
+      fileName: string;
+      byteSize: number;
+      notes?: string;
+    };
 
 const NEXT_STATES: Record<RecipeCaptureStatus, readonly RecipeCaptureStatus[]> = {
   processing: ['needs_destination', 'ready', 'needs_attention'],
@@ -121,12 +146,15 @@ export function isCaptureProcessing(status: RecipeCaptureStatus): boolean {
 }
 
 export function isCaptureStale(
-  capture: Pick<RecipeCapture, 'status' | 'processingStartedAt'>,
+  capture: Pick<RecipeCapture, 'status' | 'processingStartedAt'> & Partial<Pick<RecipeCapture, 'updatedAt'>>,
   now = Date.now(),
   timeoutMs = 10 * 60_000,
 ): boolean {
-  if (capture.status !== 'processing' || !capture.processingStartedAt) return false;
-  return now - new Date(capture.processingStartedAt).getTime() > timeoutMs;
+  if (capture.status !== 'processing') return false;
+  const leaseTimestamp = capture.processingStartedAt ?? capture.updatedAt;
+  if (!leaseTimestamp) return false;
+  const leaseStartedAt = new Date(leaseTimestamp).getTime();
+  return Number.isFinite(leaseStartedAt) && now - leaseStartedAt > timeoutMs;
 }
 
 export function reconcileCapturePage(

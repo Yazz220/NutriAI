@@ -4,7 +4,7 @@
 export const APP_NAME = 'Nosh';
 export const APP_SLUG = 'nosh';
 export const APP_SCHEME = 'nosh';
-export const APP_WEBSITE = 'https://nosh.app'; // placeholder domain
+export const APP_WEBSITE = 'https://yazz220.github.io/NutriAI';
 
 // Chat storage keys
 export const CHAT_STORAGE_KEY = 'nosh_chat_history';

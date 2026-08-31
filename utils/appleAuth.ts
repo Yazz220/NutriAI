@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 /**
  * Check if Apple Sign-In is available (iOS 13+ only).
@@ -44,11 +45,42 @@ export async function signInWithApple() {
   // Persist the user's name in Supabase metadata (Apple won't send it again)
   if (fullName && data.user) {
     await supabase.auth.updateUser({
-      data: { full_name: fullName },
+      data: { full_name: fullName, apple_user_id: credential.user },
     });
+  } else if (data.user) {
+    await supabase.auth.updateUser({ data: { apple_user_id: credential.user } });
   }
 
   return data;
+}
+
+export function isAppleUser(user: User): boolean {
+  const providers = user.app_metadata?.providers;
+  return user.app_metadata?.provider === 'apple'
+    || (Array.isArray(providers) && providers.includes('apple'))
+    || Boolean(user.identities?.some((identity) => identity.provider === 'apple'));
+}
+
+function appleUserIdentifier(user: User): string | null {
+  const metadataId = user.user_metadata?.apple_user_id;
+  if (typeof metadataId === 'string' && metadataId.length > 0) return metadataId;
+  const identity = user.identities?.find((candidate) => candidate.provider === 'apple');
+  const identitySubject = identity?.identity_data?.sub ?? identity?.id;
+  return typeof identitySubject === 'string' && identitySubject.length > 0
+    ? identitySubject
+    : null;
+}
+
+/** Gets a fresh, single-use code that the deletion function exchanges and revokes server-side. */
+export async function getAppleDeletionAuthorizationCode(user: User): Promise<string | undefined> {
+  if (!isAppleUser(user)) return undefined;
+  const appleUserId = appleUserIdentifier(user);
+  if (!appleUserId) throw new Error('Sign in with Apple must be refreshed before deleting this account.');
+  const credential = await AppleAuthentication.refreshAsync({ user: appleUserId });
+  if (!credential.authorizationCode) {
+    throw new Error('Apple did not return an account-deletion authorization code.');
+  }
+  return credential.authorizationCode;
 }
 
 /**

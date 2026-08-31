@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "brand": "Nosh",
+  "version": "1.0.0",
+  "status": "approved-production",
+  "suppliedAt": "2026-08-29",
+  "approvedAt": "2026-08-29",
+  "geometry": {
+    "symbol": {
+      "viewBox": [0, 0, 1017, 763],
+      "aspectRatio": 1.333,
+      "reference": "references/supplied/04-master-symbol-fine-paper-flat.png",
+      "sourceThreshold": 128,
+      "pixelOverlap": 0.9980195109
+    },
+    "wordmark": {
+      "viewBox": [0, 0, 1860, 585],
+      "aspectRatio": 3.1795,
+      "reference": "references/supplied/07-wordmark-production-reference.png",
+      "sourceThreshold": 128,
+      "pixelOverlap": 0.9949706823
+    }
+  },
+  "masters": {
+    "symbol": "masters/symbol/nosh-symbol-plum.svg",
+    "wordmark": "masters/wordmark/nosh-wordmark-plum.svg",
+    "horizontalLockup": "masters/lockups/nosh-lockup-horizontal-plum.svg",
+    "stackedLockup": "masters/lockups/nosh-lockup-stacked-plum.svg",
+    "appIconLight": "masters/app-icon/nosh-app-icon-light.svg",
+    "appIconDark": "masters/app-icon/nosh-app-icon-dark.svg",
+    "adaptiveForeground": "masters/app-icon/nosh-adaptive-foreground.svg",
+    "adaptiveBackground": "masters/app-icon/nosh-adaptive-background.svg",
+    "adaptiveMonochrome": "masters/app-icon/nosh-adaptive-monochrome.svg"
+  },
+  "characterStates": ["signature", "happy", "listening", "thinking", "confused", "oops", "idle", "welcoming"],
+  "canonicalColors": {
+    "plum": "#65436F",
+    "paperIvory": "#F7F2EA",
+    "sage": "#A8B89A",
+    "coral": "#FF8A5B",
+    "peach": "#FFB185",
+    "palePeach": "#FFD9C2",
+    "ink": "#2B2B2B"
+  },
+  "rules": {
+    "masterGeometryMayChange": false,
+    "textureMayBeBakedIntoFlatMaster": false,
+    "platformRoundedCornersMayBeBakedIntoSource": false,
+    "platformShadowsMayBeBakedIntoSource": false
+  }
+}

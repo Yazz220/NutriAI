@@ -120,6 +120,8 @@ export const Toast: React.FC<ToastProps> = ({
           {action && (
             <TouchableOpacity
               style={styles.actionButton}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
               onPress={() => {
                 action.onPress();
                 hideToast();
@@ -132,6 +134,7 @@ export const Toast: React.FC<ToastProps> = ({
           <TouchableOpacity
             style={styles.closeButton}
             onPress={hideToast}
+            accessibilityRole="button"
             accessibilityLabel="Close notification"
           >
             <X size={16} color={Colors.text} />
@@ -177,6 +180,8 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.md,
   },
   actionButton: {
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: Colors.parchment,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
@@ -189,6 +194,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.medium,
   },
   closeButton: {
-    padding: Spacing.xs,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
