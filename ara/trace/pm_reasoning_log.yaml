@@ -83,3 +83,10 @@ entries:
       - "Routed the official-docs research and local capability reconnaissance as experiment N33; no product files were changed."
       - "Staged O16-O18 because AXe selector discipline, simulator-versus-physical coverage, and source-fact oracles are proposed testing heuristics/constraints awaiting use or user confirmation."
       - "Noted the Node mismatch as setup context only; it was not routed as a research event because environment checks are skip-filter activity."
+  - turn: "2026-08-31_001#1"
+    notes:
+      - "Did not duplicate N32: the user's QA mission and PC-fix/Mac-retest ownership were already recorded as a resolved decision."
+      - "Routed the expanded live capability audit as N34 because it produced new evidence that Mobile MCP and XcodeBuildMCP are enabled despite all simulators being shut down."
+      - "Routed the resulting change from AXe-only primary control to a layered driver as pivot N35 and staged O19 as proposed QA architecture."
+      - "Left O16-O19 staged: the user has not yet affirmed or exercised the detailed tool allocation, and no real recipe run has empirically resolved it."
+      - "Recorded the project Node-version mismatch as setup context only under the taxonomy's environment-check skip filter."

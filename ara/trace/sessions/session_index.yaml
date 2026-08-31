@@ -20,3 +20,10 @@ sessions:
     events_count: 5
     claims_touched: []
     open_threads: 3
+  - id: "2026-08-31_001"
+    date: "2026-08-31"
+    summary: "Verified the layered native QA stack and recommended a commit-pinned, evidence-backed real-user testing loop; awaiting the PC commit."
+    turn_count: 1
+    events_count: 3
+    claims_touched: []
+    open_threads: 4

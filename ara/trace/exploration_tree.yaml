@@ -609,3 +609,36 @@ tree:
       - "xcrun simctl list devices available: iPhone 17 Pro, iOS 26.2 available"
       - "mcp__mobile_mcp__mobile_list_available_devices: devices=[]"
     status: resolved
+  - id: N34
+    type: experiment
+    title: "Re-audit the live simulator-control stack"
+    provenance: ai-executed
+    timestamp: "2026-08-31T03:35+03:00"
+    result: >-
+      The current Codex environment exposes Mobile MCP's structured device tools and has
+      XcodeBuildMCP 2.0.7 enabled with 91 CLI-addressable tools across simulator, UI,
+      logging, and debugging workflows. Mobile MCP returned no devices only because every
+      installed simulator was shut down. AXe 1.8.0, idb, ffmpeg, Xcode 26.3, and iOS
+      26.0-26.2 runtimes are also present; no product code was changed.
+    evidence:
+      - "codex mcp list: mobile-mcp and xcodebuildmcp enabled"
+      - "XcodeBuildMCP 2.0.7; 91 tools / 11 workflows"
+      - "Mobile MCP tools exposed: accessibility elements, tap/type/swipe, screenshots, recording, app lifecycle, crashes"
+      - "axe --version: 1.8.0"
+      - "xcrun simctl list devices available: all simulators Shutdown"
+    status: resolved
+  - id: N35
+    type: pivot
+    title: "Adopt a layered simulator driver instead of AXe alone"
+    provenance: ai-suggested
+    timestamp: "2026-08-31T03:35+03:00"
+    from: >-
+      Use AXe plus simctl as the primary local driver and treat Mobile MCP as unavailable.
+    to: >-
+      Use Mobile MCP for direct structured app interaction, XcodeBuildMCP for build/log/
+      debugger evidence, simctl for media and permission state, and AXe as the deterministic
+      fallback.
+    trigger: >-
+      N34 showed that both MCP layers are enabled and that the empty device list reflected
+      shutdown simulator state rather than missing capability.
+    status: resolved

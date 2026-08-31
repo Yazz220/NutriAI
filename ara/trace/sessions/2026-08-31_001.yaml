@@ -1,0 +1,61 @@
+session:
+  id: "2026-08-31_001"
+  date: "2026-08-31"
+  started: "2026-08-31T03:35+03:00"
+  last_turn: "2026-08-31T03:35+03:00"
+  turn_count: 1
+  summary: "Verified the layered native QA stack and recommended a commit-pinned, evidence-backed real-user testing loop; awaiting the PC commit."
+
+events_logged:
+  - turn: 1
+    type: experiment
+    id: N34
+    routing: direct
+    provenance: ai-executed
+    summary: "Verified enabled Mobile MCP and XcodeBuildMCP layers plus AXe/simctl fallbacks on the Mac."
+  - turn: 1
+    type: pivot
+    id: N35
+    routing: direct
+    provenance: ai-suggested
+    summary: "Changed the recommended driver from AXe-only to a layered MCP/Xcode/simctl stack."
+  - turn: 1
+    type: observation
+    id: O19
+    routing: staged
+    provenance: ai-suggested
+    summary: "Assign accessibility actions, build diagnostics, fixtures, and fallback control to separate tools."
+
+ai_actions:
+  - turn: 1
+    action: >-
+      Fetched current official Codex, Expo, Mobile MCP, XcodeBuildMCP, AXe, Apple,
+      and Supabase guidance relevant to interactive iOS testing and evidence capture.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 1
+    action: >-
+      Inspected the repository's composer/share contracts and audited the Mac's Git,
+      Xcode, simulator, Node, Mobile MCP, XcodeBuildMCP, AXe, idb, ffmpeg, and Supabase
+      CLI state without changing product code or booting a simulator.
+    provenance: ai-executed
+    files_changed: []
+
+claims_touched: []
+
+key_context:
+  - turn: 1
+    excerpt: >-
+      Keep this Mac task as the real-user testing side of a PC-fix/Mac-retest loop,
+      focused on recipe ingestion, generated-page correctness, and grounded Chat with Nosh.
+
+open_threads:
+  - "Receive the latest PC commit or branch, fetch it, preserve existing ARA changes, and synchronize without force-resetting."
+  - "Install or otherwise select the repository-required Node 20.19.4 for project commands while leaving the MCP runtime on Node 22."
+  - "Boot the fixed iPhone 17 Pro / iOS 26.2 simulator and confirm Mobile MCP, XcodeBuildMCP, and AXe can all inspect it."
+  - "Use the existing authenticated simulator state or obtain a dedicated QA login only if authentication blocks the first run."
+
+ai_suggestions_pending:
+  - "Use Mobile MCP for direct user actions, XcodeBuildMCP for build/log/debug evidence, simctl for fixtures, and AXe as fallback."
+  - "Score each source against source truth, RecipeGraph, generated page text, capture state, and Chat with Nosh answers."
+  - "Run simulator coverage continuously and add targeted physical-iPhone checks before launch for camera, social-app sharing, and device-only behavior."

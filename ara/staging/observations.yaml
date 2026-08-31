@@ -286,3 +286,20 @@ observations:
     promoted_to: null
     crystallized_via: null
     stale: false
+  - id: O19
+    timestamp: "2026-08-31T03:35+03:00"
+    provenance: ai-suggested
+    content: >-
+      Separate the QA toolchain by responsibility: Mobile MCP owns accessibility-first
+      user actions and screen evidence; XcodeBuildMCP owns build, launch, logs, crashes,
+      and LLDB; simctl owns deterministic media and permission fixtures; AXe is the direct
+      fallback when an MCP action cannot reach a dynamic system surface.
+    context: >-
+      A live Mac audit found both MCP servers enabled, direct Mobile MCP tools available,
+      XcodeBuildMCP's full CLI surface installed, and all simulators merely shut down.
+    potential_type: architecture
+    bound_to: [N34, N35]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
