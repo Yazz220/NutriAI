@@ -146,6 +146,19 @@ describe('capture processing policy', () => {
     });
   });
 
+  it('keeps a designed-page limit distinct from a technical generation failure', () => {
+    expect(captureFailure(
+      new Error('designed_page_limit_reached'),
+      'page_generation',
+    )).toEqual({
+      status: 'needs_attention',
+      failureCode: 'designed_page_limit_reached',
+      failureMessage: 'You have used all of your designed pages for now.',
+      failedStage: 'page_generation',
+      diagnostic: 'designed_page_limit_reached',
+    });
+  });
+
   it('reuses a saved RecipeGraph when retrying a downstream page failure', () => {
     expect(reusableCaptureExtraction({
       recipe_graph: { title: 'Tomato Toast' },

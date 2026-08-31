@@ -68,7 +68,7 @@ export interface CreateCookbookDetails {
 
 interface CreationStudioProps {
   canCreate: boolean;
-  onCreateBook: (details: CreateCookbookDetails) => Promise<void>;
+  onCreateBook: (details: CreateCookbookDetails) => Promise<void | boolean>;
   onSignIn: () => void;
   bottomInset?: number;
   mode?: 'standard' | 'first-run';
@@ -161,7 +161,11 @@ export function CreationStudio({
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook({ title: trimmed, coverFinishId, coverColorId, pageStyleId });
+      const created = await onCreateBook({ title: trimmed, coverFinishId, coverColorId, pageStyleId });
+      if (created === false) {
+        setSubmitting(false);
+        return;
+      }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (creationError) {
       setError(getErrorMessage(creationError));

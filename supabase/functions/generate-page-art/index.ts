@@ -99,6 +99,18 @@ interface GenerationRequestState {
   createdPage?: boolean;
 }
 
+interface DesignedPageReservationState {
+  allowed: boolean;
+  status: 'reserved' | 'settled' | 'released' | 'limit_reached';
+  reason?: string;
+  planId?: string;
+  allowance?: number;
+  used?: number;
+  reserved?: number;
+  remaining?: number;
+  periodEnd?: string | null;
+}
+
 type SupabaseAdmin = any;
 
 // ---------------------------------------------------------------------------
@@ -227,43 +239,70 @@ async function updateGenerationRequest(
   if (error || !data) throw new Error(error?.message ?? 'Generation request not found');
 }
 
-async function completeGenerationRequest(
+async function reserveDesignedPageGeneration(
+  admin: SupabaseAdmin,
+  userId: string,
+  generationRequestId: string,
+  pageId: string,
+  operationKind: 'capture' | 'initial' | 'revision' | 'regeneration',
+): Promise<DesignedPageReservationState> {
+  const { data, error } = await admin
+    .schema('nutriai')
+    .rpc('reserve_designed_page_generation', {
+      p_user_id: userId,
+      p_generation_request_id: generationRequestId,
+      p_page_id: pageId,
+      p_operation_kind: operationKind,
+    });
+
+  if (error) throw new Error(error.message);
+  if (!isRecord(data) || typeof data.allowed !== 'boolean' || typeof data.status !== 'string') {
+    throw new Error('Could not reserve designed-page capacity');
+  }
+  return data as unknown as DesignedPageReservationState;
+}
+
+async function settleDesignedPageGeneration(
   admin: SupabaseAdmin,
   userId: string,
   generationRequestId: string,
   versionId: string,
   responsePayload: JsonRecord,
   selectVersion: boolean,
+  providerCost?: number,
 ): Promise<void> {
   const { error } = await admin
     .schema('nutriai')
-    .rpc('complete_art_generation_request', {
+    .rpc('settle_designed_page_generation', {
       p_user_id: userId,
       p_generation_request_id: generationRequestId,
       p_version_id: versionId,
       p_response_payload: responsePayload,
       p_select_version: selectVersion,
+      p_provider_cost_usd: providerCost ?? null,
     });
 
   if (error) throw new Error(error.message);
 }
 
-async function failGenerationRequest(
+async function releaseDesignedPageGeneration(
   admin: SupabaseAdmin,
   userId: string,
   generationRequestId: string,
   message: string,
+  failureCode = 'generation_failed',
 ): Promise<boolean | null> {
   const { data, error } = await admin
     .schema('nutriai')
-    .rpc('fail_generation_request', {
+    .rpc('release_designed_page_generation', {
       p_user_id: userId,
       p_generation_request_id: generationRequestId,
       p_error_message: message,
+      p_failure_code: failureCode,
     });
 
   if (error) {
-    logError('Generation request failure cleanup could not be recorded', { error: error.message });
+    logError('Designed-page reservation cleanup could not be recorded', { error: error.message });
     return null;
   }
   return data === true;
@@ -431,7 +470,7 @@ serve(async (req: Request) => {
     const { data: pageRow, error: pageError } = await admin
       .schema('nutriai')
       .from('cookbook_pages')
-      .select('id')
+      .select('id, capture_id, selected_version_id')
       .eq('id', pageId)
       .eq('cookbook_id', cookbookId)
       .single();
@@ -469,8 +508,23 @@ serve(async (req: Request) => {
         return jsonResponse({ status: 'processing', requestId: generationRequest.id }, 202, req);
       }
       // Failed — clean up and return error
+      await releaseDesignedPageGeneration(
+        admin,
+        user!.id,
+        generationRequest.id,
+        generationRequest.error ?? 'Art generation failed',
+        generationRequest.error === 'designed_page_limit_reached'
+          ? 'designed_page_limit_reached'
+          : 'generation_failed',
+      );
       await removeStorageObject(admin, generationRequest.storagePath ?? undefined);
       await deleteGeneratedVersion(admin, generationRequest.versionId ?? undefined);
+      if (generationRequest.error === 'designed_page_limit_reached') {
+        return jsonResponse({
+          error: 'You have used all of your designed pages for now.',
+          code: 'designed_page_limit_reached',
+        }, 402, req);
+      }
       return jsonError(generationRequest.error ?? 'Art generation failed', 409, req);
     }
 
@@ -486,23 +540,77 @@ serve(async (req: Request) => {
       const message = requestError instanceof Error
         ? requestError.message
         : 'Could not attach art generation to the cookbook page';
-      await failGenerationRequest(admin, user!.id, generationRequestId, message);
+      await releaseDesignedPageGeneration(admin, user!.id, generationRequestId, message);
       return jsonError(message, 500, req);
     }
 
+    const operationKind = pageRow.selected_version_id
+      ? (typeof artDirection === 'string' || typeof referenceArtUrl === 'string'
+          ? 'regeneration'
+          : 'revision')
+      : pageRow.capture_id
+        ? 'capture'
+        : 'initial';
     const inputReferences = [
       ...(typeof referenceArtUrl === 'string' ? [referenceArtUrl] : []),
       ...cookbookStyleReferences,
     ].slice(0, MAX_STYLE_REFERENCES);
-    const { prompt, payload: pagePromptPayload } = buildRecipePagePrompt(
-      recipeGraph as RecipeGraphInput,
-      styleId,
-      {
-        styleRevision,
-        visualDirection: typeof artDirection === 'string' ? artDirection : undefined,
-        styleReferences: inputReferences,
-      },
-    );
+    let promptResult: ReturnType<typeof buildRecipePagePrompt>;
+    try {
+      promptResult = buildRecipePagePrompt(
+        recipeGraph as RecipeGraphInput,
+        styleId,
+        {
+          styleRevision,
+          visualDirection: typeof artDirection === 'string' ? artDirection : undefined,
+          styleReferences: inputReferences,
+        },
+      );
+    } catch (promptError) {
+      const message = promptError instanceof Error
+        ? promptError.message
+        : 'Could not prepare the recipe-page prompt';
+      await releaseDesignedPageGeneration(
+        admin,
+        user!.id,
+        generationRequestId,
+        message,
+        'prompt_failed',
+      );
+      return jsonError(message, 400, req);
+    }
+    const { prompt, payload: pagePromptPayload } = promptResult;
+
+    let reservation: DesignedPageReservationState;
+    try {
+      reservation = await reserveDesignedPageGeneration(
+        admin,
+        user!.id,
+        generationRequestId,
+        pageId,
+        operationKind,
+      );
+    } catch (reservationError) {
+      const message = reservationError instanceof Error
+        ? reservationError.message
+        : 'Could not reserve designed-page capacity';
+      await releaseDesignedPageGeneration(
+        admin,
+        user!.id,
+        generationRequestId,
+        message,
+        'reservation_failed',
+      );
+      return jsonError(message, 500, req);
+    }
+
+    if (!reservation.allowed) {
+      return jsonResponse({
+        error: 'You have used all of your designed pages for now.',
+        code: 'designed_page_limit_reached',
+        subscriptionAccess: reservation,
+      }, 402, req);
+    }
 
     // Run generation in the background
     const generationTask = (async () => {
@@ -564,13 +672,14 @@ serve(async (req: Request) => {
           },
         };
 
-        await completeGenerationRequest(
+        await settleDesignedPageGeneration(
           admin,
           user!.id,
           generationRequestId,
           versionId,
           responsePayload,
           selectOnComplete !== false,
+          cost,
         );
         await finalizeCapturePage(admin, user!.id, pageId);
 
@@ -596,7 +705,12 @@ serve(async (req: Request) => {
           message,
           { storagePath, versionId, pageId: undefined, recipeId: undefined },
           {
-            recordFailure: () => failGenerationRequest(admin, user!.id, generationRequestId, message),
+            recordFailure: () => releaseDesignedPageGeneration(
+              admin,
+              user!.id,
+              generationRequestId,
+              message,
+            ),
             recoverCompleted: async () => {
               try {
                 const recovered = await beginGenerationRequest(

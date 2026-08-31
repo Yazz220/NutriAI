@@ -40,14 +40,16 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
 EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
 EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
+EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 ```
 
 `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must not select a different capture, extraction, or page-generation implementation.
 
-Only `EXPO_PUBLIC_*` values are bundled into the app. Never put provider API keys or service-role keys in client env vars.
+Only `EXPO_PUBLIC_*` values are bundled into the app. The RevenueCat iOS value is a public SDK key. `EXPO_PUBLIC_SUPPORT_EMAIL` must be a monitored private inbox in release builds; Settings otherwise falls back to the public support page. Keep Android and web RevenueCat keys unset for the App Store launch; `docs/MONETIZATION.md` defines the store-mapping work required before enabling them. Never put secret provider keys or service-role keys in client env vars.
 
 Supabase Edge Function secrets:
 
@@ -65,6 +67,10 @@ Supabase Edge Function secrets:
 | `APPLE_TEAM_ID` | `delete-account` |
 | `APPLE_KEY_ID` | `delete-account` |
 | `APPLE_PRIVATE_KEY` | `delete-account` |
+| `REVENUECAT_SECRET_API_KEY` | `sync-subscription`, `revenuecat-webhook`, `delete-account` |
+| `REVENUECAT_WEBHOOK_AUTH_TOKEN` | `revenuecat-webhook`; configured bearer token without the `Bearer ` prefix |
+| `REVENUECAT_WEBHOOK_SIGNING_SECRET` | `revenuecat-webhook`; RevenueCat HMAC signing secret |
+| `REVENUECAT_ACCEPT_SANDBOX_EVENTS` | subscription functions; verified sandbox is accepted by default for TestFlight and App Review; set `false` only as an emergency kill switch |
 
 Supabase also provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to functions that need them.
 
@@ -95,11 +101,13 @@ Keep the root provider order in `app/_layout.tsx` aligned with the live tree:
 ShareIntentProvider
   NoshNativeShareProvider
     QueryClientProvider
-      CookbooksProvider
-        NoshConversationProvider
-          ToastProvider
-            GlobalErrorBoundary
-              RootLayoutNav
+      NoshSubscriptionProvider
+        SubscriptionUiProvider
+          CookbooksProvider
+            NoshConversationProvider
+              ToastProvider
+                GlobalErrorBoundary
+                  RootLayoutNav
 ```
 
 `RootLayoutNav` owns the auth redirect logic with `useAuth()` and renders the root Expo Router stack inside `GestureHandlerRootView` and `SafeAreaProvider`.
@@ -109,6 +117,7 @@ ShareIntentProvider
 - Shelf data comes from `useCookbooks`.
 - One-book reader state comes from `useCookbook(cookbookId)`.
 - Durable import state, polling, retry, and destination choice come from `useRecipeCaptures`.
+- Server-authoritative plan and usage plus StoreKit/RevenueCat state come from `useNoshSubscription`; feature surfaces request access through `useSubscriptionUi`.
 - Assistant chat uses `@assistant-ui/react-native` `LocalRuntime` bridging to `nosh-chat` via `utils/cookbook/noshChatAdapter.ts`.
 - Server state belongs in TanStack React Query.
 - Shelf and per-book page caches belong in `utils/cookbook/cache.ts`.
@@ -137,8 +146,12 @@ Live functions:
 - `credits` (legacy endpoint; not used by the active client or generation path)
 - `delete-account`
 - `delete-reader-content`
+- `sync-subscription`
+- `revenuecat-webhook` (`verify_jwt = false`; verifies RevenueCat Authorization and HMAC itself)
 
 Deploy migrations before deploying Edge Functions that depend on new columns, constraints, buckets, or RPCs. Apply `20260830174134_version_recipe_capture_stages.sql` before the matching capture workers, and apply `20260830210000_add_permissioned_video_captures.sql` before enabling video file selection in the mobile build.
+
+Apply `20260831011239_subscription_foundation.sql` before deploying subscription-aware `generate-page-art`, `capture-recipe`, `sync-subscription`, or `revenuecat-webhook`. Follow [MONETIZATION.md](./MONETIZATION.md) for App Store Connect, RevenueCat, webhook, EAS environment, and sandbox setup. Use TestFlight to exercise the real launch products. The `development` profile has bundle ID `com.yaz12.nosh.dev`; it needs its own matching RevenueCat app/Test Store configuration and profile-specific public key. Never put a test key in preview or production. Expo Go can preview only unavailable/loading presentation, not native purchasing.
 
 `APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 

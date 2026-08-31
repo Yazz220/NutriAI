@@ -22,7 +22,9 @@ import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResu
 import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
 import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { NoshNativeShareProvider } from '@/contexts/NoshNativeShareContext';
+import { NoshSubscriptionProvider } from '@/contexts/NoshSubscriptionContext';
 import { AiDataConsentProvider } from '@/contexts/AiDataConsentContext';
+import { SubscriptionHost, SubscriptionUiProvider } from '@/components/subscription/SubscriptionHost';
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
@@ -286,6 +288,7 @@ function RootLayoutNav() {
           <RecipeCaptureResume />
           <NativeShareIngestion />
           <LocalUserDataCleanupResume />
+          <SubscriptionHost />
           <OfflineBanner />
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -298,18 +301,22 @@ export default function RootLayout() {
     <ShareIntentProvider options={shareIntentOptions}>
       <NoshNativeShareProvider>
         <QueryClientProvider client={queryClient}>
-          <CookbooksProvider>
-            <NoshConversationProvider>
-              <ToastProvider>
-                <GlobalErrorBoundary>
-                  <>
-                    <WebInteractionStyles />
-                    <RootLayoutNav />
-                  </>
-                </GlobalErrorBoundary>
-              </ToastProvider>
-            </NoshConversationProvider>
-          </CookbooksProvider>
+          <NoshSubscriptionProvider>
+            <SubscriptionUiProvider>
+              <CookbooksProvider>
+                <NoshConversationProvider>
+                  <ToastProvider>
+                    <GlobalErrorBoundary>
+                      <>
+                        <WebInteractionStyles />
+                        <RootLayoutNav />
+                      </>
+                    </GlobalErrorBoundary>
+                  </ToastProvider>
+                </NoshConversationProvider>
+              </CookbooksProvider>
+            </SubscriptionUiProvider>
+          </NoshSubscriptionProvider>
         </QueryClientProvider>
       </NoshNativeShareProvider>
     </ShareIntentProvider>

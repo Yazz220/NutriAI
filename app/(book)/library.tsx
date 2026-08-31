@@ -11,8 +11,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { useShelfAppearance } from '@/hooks/useShelfAppearance';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { recordFirstCookbookCreated } from '@/utils/cookbook/firstRunOnboarding';
 import { trackEvent } from '@/utils/analytics';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
+import { CookbookLimitReachedError } from '@/utils/cookbook/api';
 
 export default function BookLibraryScreen() {
   const insets = useSafeAreaInsets();
@@ -27,9 +30,30 @@ export default function BookLibraryScreen() {
   const { createCookbook } = useCookbooks();
   const { prepareDestination } = useRecipeCaptures();
   const { scene, setShelfStyleId, setWallpaperStyleId } = useShelfAppearance();
+  const { requestCookbookAccess } = useSubscriptionUi();
+  const { refresh: refreshSubscription } = useNoshSubscription();
 
   async function handleCreate({ title, coverFinishId, coverColorId, pageStyleId }: CreateCookbookDetails) {
-    const cookbook = await createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
+    if (!await requestCookbookAccess()) return false;
+    const create = () => createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
+    let cookbook: Awaited<ReturnType<typeof create>>;
+    try {
+      cookbook = await create();
+    } catch (error) {
+      if (!(error instanceof CookbookLimitReachedError)) throw error;
+
+      // The server is authoritative. Another device may have used the last
+      // cookbook slot after this screen's preflight snapshot was loaded.
+      if (!await requestCookbookAccess({ refresh: true })) return false;
+      try {
+        cookbook = await create();
+      } catch (retryError) {
+        if (!(retryError instanceof CookbookLimitReachedError)) throw retryError;
+        await requestCookbookAccess({ refresh: true });
+        return false;
+      }
+    }
+    void refreshSubscription();
     if (captureId) {
       try {
         await prepareDestination({ captureId, destinationCookbookId: cookbook.id });

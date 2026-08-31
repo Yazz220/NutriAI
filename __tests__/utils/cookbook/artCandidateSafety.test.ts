@@ -7,7 +7,7 @@ describe('art candidate safety contract', () => {
   it('does not select a generated candidate unless the caller requests it', () => {
     const migration = fs.readFileSync(path.join(
       root,
-      'supabase/migrations/20260821003837_art_candidate_selection.sql',
+      'supabase/migrations/20260831011239_subscription_foundation.sql',
     ), 'utf8');
     const edgeFunction = fs.readFileSync(path.join(
       root,
@@ -16,7 +16,8 @@ describe('art candidate safety contract', () => {
 
     expect(migration).toContain('if p_select_version then');
     expect(migration).toContain('set selected_version_id = p_version_id');
-    expect(edgeFunction).toContain(".rpc('complete_art_generation_request'");
+    expect(edgeFunction).toContain(".rpc('settle_designed_page_generation'");
+    expect(edgeFunction).toContain('p_select_version: selectVersion');
     expect(edgeFunction).toContain('selectOnComplete !== false');
   });
 
@@ -61,5 +62,17 @@ describe('art candidate safety contract', () => {
     expect(edgeFunction).toContain('referenceArtUrl');
     expect(edgeFunction).toContain('inputReferences');
     expect(artGeneration).toContain('input_references');
+  });
+
+  it('discards a deleted copy shell before retrying after a page-limit upgrade', () => {
+    const assistant = fs.readFileSync(path.join(
+      root,
+      'components/cookbook/NoshAssistantChat.tsx',
+    ), 'utf8');
+
+    expect(assistant).toContain('if (isDesignedPageLimitReachedError(error))');
+    expect(assistant).toMatch(
+      /if \(isDesignedPageLimitReachedError\(error\)\) \{\s+pendingRecipeCopyRef\.current = null;/,
+    );
   });
 });

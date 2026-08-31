@@ -28,6 +28,7 @@ import {
   type NoshCaptureHandoffSource,
 } from '@/components/nosh/capture/NoshCaptureWorkspace';
 import { NoshConversationDisplay } from '@/components/nosh/conversation/NoshConversationDisplay';
+import { isDesignedPageLimitReachedError } from '@/components/subscription/subscriptionErrors';
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
@@ -58,7 +59,6 @@ import {
 import { createNoshChatAdapter } from '@/utils/cookbook/noshChatAdapter';
 import { createNoshThreadListAdapter } from '@/utils/cookbook/noshThreadStorage';
 import { useNoshToolkit } from '@/utils/cookbook/noshToolkit';
-import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
 import {
   finishRecipePageCandidate,
   finishRecipePageImage,
@@ -186,6 +186,11 @@ export function NoshConversationHost() {
   imageRef.current = pendingImageBase64;
   const cookbooksRef = useRef(cookbooks);
   cookbooksRef.current = cookbooks;
+  const pendingRecipeCopyRef = useRef<{
+    focusPageId: string;
+    proposal: RecipeActionProposal;
+    page: CookbookPage;
+  } | null>(null);
   const [showingHistory, setShowingHistory] = useState(false);
   const [captureHandoffSource, setCaptureHandoffSource] = useState<NoshCaptureHandoffSource | null>(null);
 
@@ -233,7 +238,7 @@ export function NoshConversationHost() {
     }
   }, [recipePreview]);
 
-  const persistFocusedGraph = useCallback(async (graph: RecipeGraph) => {
+  const persistFocusedGraph = useCallback(async (graph: RecipeGraph, idempotencyKey: string) => {
     const focus = interactionRef.current.focus;
     if (focus.kind !== 'recipe') throw new Error('No focused recipe to update');
     const cookbook = cookbooksRef.current.find((candidate) => candidate.id === focus.cookbookId)
@@ -247,7 +252,7 @@ export function NoshConversationHost() {
         styleId: cookbook.pageStyleId,
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
-        idempotencyKey: createGenerationRequestKey(),
+        idempotencyKey,
     });
     await updatePageRecipeGraph(focus.pageId, savedGraph);
     await updatePageSelectedVersion(focus.pageId, candidate.id);
@@ -264,6 +269,7 @@ export function NoshConversationHost() {
   const handleCommitRecipeAction = useCallback(async (
     proposal: RecipeActionProposal,
     mode: RecipeActionCommitMode,
+    idempotencyKey: string,
   ): Promise<{ pageId?: string }> => {
     const focus = interactionRef.current.focus;
     if (focus.kind !== 'recipe') throw new Error('No focused recipe to change');
@@ -274,7 +280,7 @@ export function NoshConversationHost() {
     }
 
     if (mode === 'update') {
-      await persistFocusedGraph(proposal.proposed);
+      await persistFocusedGraph(proposal.proposed, idempotencyKey);
       setRecipePreview(null);
       return { pageId: focus.pageId };
     }
@@ -291,22 +297,42 @@ export function NoshConversationHost() {
         confidence: proposal.proposed.provenance?.confidence ?? 1,
       },
     };
-    let copiedPage = await createRecipePageWithGraph({
-      cookbookId: cookbook.id,
-      userId: user.id,
-      recipeGraph: copiedGraph,
-      styleId: cookbook.pageStyleId,
-      templateId: cookbook.pageTemplateId,
-    });
-    copiedPage = await finishRecipePageImage({
+    const pendingCopy = pendingRecipeCopyRef.current;
+    let copiedPage = pendingCopy?.focusPageId === focus.pageId && pendingCopy.proposal === proposal
+      ? pendingCopy.page
+      : await createRecipePageWithGraph({
+          cookbookId: cookbook.id,
+          userId: user.id,
+          recipeGraph: copiedGraph,
+          styleId: cookbook.pageStyleId,
+          templateId: cookbook.pageTemplateId,
+        });
+    pendingRecipeCopyRef.current = {
+      focusPageId: focus.pageId,
+      proposal,
+      page: copiedPage,
+    };
+    try {
+      copiedPage = await finishRecipePageImage({
         cookbookId: cookbook.id,
         pageId: copiedPage.id,
         recipeGraph: copiedGraph,
         styleId: cookbook.pageStyleId,
         styleRevision: cookbook.styleRevision,
         styleReferences: pageStyleReferences(cookbook),
-        idempotencyKey: createGenerationRequestKey(),
-    });
+        idempotencyKey,
+      });
+    } catch (error) {
+      // The authoritative quota check deletes the unpublished page shell. A
+      // post-purchase retry must create a fresh page instead of reusing that
+      // now-invalid ID. Preserve the pending page for ambiguous failures,
+      // where retrying the same request remains the safe idempotent behavior.
+      if (isDesignedPageLimitReachedError(error)) {
+        pendingRecipeCopyRef.current = null;
+      }
+      throw error;
+    }
+    pendingRecipeCopyRef.current = null;
     queryClient.setQueryData<CookbookPage[]>(
       COOKBOOK_PAGES_QUERY_KEY(cookbook.id),
       (pages = []) => [...pages, copiedPage],

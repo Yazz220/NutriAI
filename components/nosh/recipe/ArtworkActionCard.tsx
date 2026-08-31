@@ -9,6 +9,10 @@ import type { GeneratedRecipePage } from '@/types/cookbook';
 import { Fonts } from '@/utils/fonts';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
 import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
+import { PageCreationDisclosure } from '@/components/subscription/PageCreationDisclosure';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
+import { isDesignedPageLimitReachedError } from '@/components/subscription/subscriptionErrors';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 
 export function ArtworkActionCard({
   instruction,
@@ -23,22 +27,43 @@ export function ArtworkActionCard({
   onSelect: (candidate: GeneratedRecipePage) => Promise<void>;
   onResult: (result: Record<string, unknown>) => void;
 }) {
+  const { requestPageAccess } = useSubscriptionUi();
+  const { refresh: refreshSubscription } = useNoshSubscription();
   const [candidate, setCandidate] = useState<GeneratedRecipePage | null>(null);
   const requestKeyRef = useRef(createGenerationRequestKey());
   const [busy, setBusy] = useState<'generate' | 'select' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function generate() {
+    if (!await requestPageAccess('agent_artwork')) return;
     setBusy('generate');
     setError(null);
     try {
-      setCandidate(await onGenerate(instruction, requestKeyRef.current));
-    } catch (generationError) {
-      // A failed request keeps its idempotency record so clients can inspect
-      // the failure. A human retry is a new attempt and needs a fresh key.
-      requestKeyRef.current = createGenerationRequestKey();
-      setError(generationError instanceof Error ? generationError.message : 'Could not generate the page');
+      try {
+        setCandidate(await onGenerate(instruction, requestKeyRef.current));
+      } catch (generationError) {
+        // Failed requests keep their idempotency record. Any retry, automatic
+        // or human, must start a fresh generation attempt.
+        requestKeyRef.current = createGenerationRequestKey();
+        if (!isDesignedPageLimitReachedError(generationError)) {
+          setError(generationError instanceof Error ? generationError.message : 'Could not generate the page');
+          return;
+        }
+
+        const canRetry = await requestPageAccess('agent_artwork', { refresh: true });
+        if (!canRetry) return;
+
+        try {
+          setCandidate(await onGenerate(instruction, requestKeyRef.current));
+        } catch (retryError) {
+          requestKeyRef.current = createGenerationRequestKey();
+          setError(isDesignedPageLimitReachedError(retryError)
+            ? 'Page creation is still unavailable. Your design direction is still here.'
+            : retryError instanceof Error ? retryError.message : 'Could not generate the page');
+        }
+      }
     } finally {
+      void refreshSubscription();
       setBusy(null);
     }
   }
@@ -111,6 +136,9 @@ export function ArtworkActionCard({
           <Text style={styles.generatingText}>Creating page</Text>
         </View>
       ) : null}
+      <PageCreationDisclosure>
+        Creating this preview uses one page creation
+      </PageCreationDisclosure>
       <Pressable
         style={({ pressed }) => [styles.primaryButton, busy !== null && styles.disabled, pressed && styles.pressed]}
         disabled={busy !== null}

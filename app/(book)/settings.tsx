@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   LogOut,
   Mail,
+  ScrollText,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -16,13 +17,15 @@ import {
 } from 'lucide-react-native';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { CookingPreferencesSheet } from '@/components/settings/CookingPreferencesSheet';
+import { SubscriptionPlanCard } from '@/components/subscription/SubscriptionPlanCard';
 import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { PRIVACY_POLICY_URL, SUPPORT_CONTACT_URL } from '@/constants/legal';
+import { PRIVACY_POLICY_URL, SUPPORT_CONTACT_URL, TERMS_OF_USE_URL } from '@/constants/legal';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { deleteAccount } from '@/utils/account';
@@ -33,6 +36,8 @@ import {
   type CookingPreference,
 } from '@/utils/cookbook/cookingPreferences';
 import { Fonts } from '@/utils/fonts';
+import { isEffectivePlusAccess } from '@/utils/subscriptions/access';
+import { trackEvent } from '@/utils/analytics';
 import {
   getAppleDeletionAuthorizationCode,
   isAppleCancellation,
@@ -49,6 +54,7 @@ export default function CookbookSettingsScreen() {
   const { cookbooks } = useCookbooks();
   const { isGranted, isReady, reviewConsent } = useAiDataConsent();
   const { open: openNosh } = useNoshConversation();
+  const subscription = useNoshSubscription();
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [preferencesVisible, setPreferencesVisible] = useState(false);
@@ -132,6 +138,54 @@ export default function CookbookSettingsScreen() {
 
   function confirmDeleteAccount() {
     if (deletingAccount) return;
+    const hasActivePlus = isEffectivePlusAccess(subscription.access);
+
+    if (hasActivePlus) {
+      const renewalCopy = subscription.access?.willRenew
+        ? 'Your Nosh Plus subscription is set to renew.'
+        : 'Your Nosh Plus access may remain active through the end of its current billing period.';
+      Alert.alert(
+        'Delete account',
+        `${renewalCopy} Deleting your Nosh account does not cancel or refund an App Store subscription. You can manage the subscription first, or delete your account immediately.\n\nThis permanently deletes your cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Manage subscription',
+            onPress: () => {
+              void subscription.manage().then((opened) => {
+                if (!opened) {
+                  trackEvent({
+                    type: 'manage_subscription_failed',
+                    data: { reason: 'account_deletion' },
+                  });
+                  Alert.alert('Could not open subscriptions', 'Please open App Store subscription settings and try again.');
+                } else {
+                  trackEvent({
+                    type: 'manage_subscription_opened',
+                    data: { reason: 'account_deletion' },
+                  });
+                }
+              }).catch(() => {
+                trackEvent({
+                  type: 'manage_subscription_failed',
+                  data: { reason: 'account_deletion' },
+                });
+                Alert.alert('Could not open subscriptions', 'Please open App Store subscription settings and try again.');
+              });
+            },
+          },
+          {
+            text: 'Delete account',
+            style: 'destructive',
+            onPress: () => {
+              void handleDeleteAccount();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     Alert.alert(
       'Delete account',
       'This permanently deletes your Nosh account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
@@ -215,6 +269,10 @@ export default function CookbookSettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <Section title="Your plan">
+          <SubscriptionPlanCard />
+        </Section>
+
         <Section title="Overview">
           <InfoRow
             icon={<Mail size={19} color={Colors.textSecondary} />}
@@ -235,6 +293,14 @@ export default function CookbookSettingsScreen() {
         </Section>
 
         <Section title="Privacy and support">
+          <ActionRow
+            icon={<ScrollText size={19} color={Colors.textSecondary} />}
+            label="Terms of use"
+            role="link"
+            onPress={() => {
+              void openLink(TERMS_OF_USE_URL);
+            }}
+          />
           <ActionRow
             icon={<ShieldCheck size={19} color={Colors.textSecondary} />}
             label="Privacy policy"

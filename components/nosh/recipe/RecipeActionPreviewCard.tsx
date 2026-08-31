@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Check, Copy, Sparkles } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
@@ -9,6 +9,11 @@ import type {
   RecipeActionProposal,
 } from '@/utils/cookbook/recipeActions';
 import { Fonts } from '@/utils/fonts';
+import { PageCreationDisclosure } from '@/components/subscription/PageCreationDisclosure';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
+import { isDesignedPageLimitReachedError } from '@/components/subscription/subscriptionErrors';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
+import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
 
 export function RecipeActionPreviewCard({
   proposal,
@@ -19,26 +24,55 @@ export function RecipeActionPreviewCard({
   onCommit: (
     proposal: RecipeActionProposal,
     mode: RecipeActionCommitMode,
+    idempotencyKey: string,
   ) => Promise<{ pageId?: string }>;
   onResult: (result: Record<string, unknown>) => void;
 }) {
+  const { requestPageAccess } = useSubscriptionUi();
+  const { refresh: refreshSubscription } = useNoshSubscription();
+  const requestKeyRef = useRef(createGenerationRequestKey());
   const [saving, setSaving] = useState<RecipeActionCommitMode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function commit(mode: RecipeActionCommitMode) {
+    if (mode !== 'session' && !await requestPageAccess('agent_recipe_save')) return;
     setSaving(mode);
     setError(null);
     try {
-      const result = await onCommit(proposal, mode);
-      onResult({
-        accepted: true,
-        mode,
-        servings: proposal.proposed.servings,
-        ...result,
-      });
-    } catch (commitError) {
-      setError(commitError instanceof Error ? commitError.message : 'Could not apply this change');
+      const complete = async () => {
+        const result = await onCommit(proposal, mode, requestKeyRef.current);
+        onResult({
+          accepted: true,
+          mode,
+          servings: proposal.proposed.servings,
+          ...result,
+        });
+      };
+
+      try {
+        await complete();
+      } catch (commitError) {
+        requestKeyRef.current = createGenerationRequestKey();
+        if (mode === 'session' || !isDesignedPageLimitReachedError(commitError)) {
+          setError(commitError instanceof Error ? commitError.message : 'Could not apply this change');
+          return;
+        }
+
+        const canRetry = await requestPageAccess('agent_recipe_save', { refresh: true });
+        if (!canRetry) return;
+
+        try {
+          await complete();
+        } catch (retryError) {
+          requestKeyRef.current = createGenerationRequestKey();
+          setError(isDesignedPageLimitReachedError(retryError)
+            ? 'Page creation is still unavailable. Your proposed changes are still here.'
+            : retryError instanceof Error ? retryError.message : 'Could not apply this change');
+        }
+      }
+    } finally {
       setSaving(null);
+      if (mode !== 'session') void refreshSubscription();
     }
   }
 
@@ -74,6 +108,10 @@ export function RecipeActionPreviewCard({
         {saving === 'session' ? <ActivityIndicator size="small" color={Colors.onPrimary} /> : null}
         <Text style={styles.primaryText}>Use for this session</Text>
       </Pressable>
+
+      <PageCreationDisclosure>
+        Session use is free. Saving an update or copy uses one page creation
+      </PageCreationDisclosure>
 
       <View style={styles.secondaryActions}>
         <Pressable

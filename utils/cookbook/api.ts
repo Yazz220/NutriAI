@@ -49,22 +49,6 @@ import {
 } from '@/utils/cookbook/recipeCaptureVideo';
 import { captureStageCheckpoints } from '@/supabase/functions/_shared/captureStages';
 
-type CookbookInsertPayload = {
-  user_id: string;
-  title: string;
-  theme_name: string;
-  theme_prompt: string;
-  cover_style?: CookbookStyleId;
-  cover_finish_id?: CookbookCoverFinishId;
-  cover_color_id?: CookbookCoverColorId;
-  page_style_id?: CookbookPageStyleId;
-  page_template_id?: RecipeTemplateId;
-  sections?: CookbookSectionEntry[];
-  style_revision?: number;
-  page_style_references?: string[];
-  is_default?: boolean;
-};
-
 interface CookbookRow {
   id: string;
   user_id: string;
@@ -431,42 +415,22 @@ export interface CreateCookbookInput {
   sections?: CookbookSectionEntry[];
 }
 
-function isMissingCookbookColumnError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const record = error as { code?: string; message?: string };
-  const message = record.message ?? '';
-  return (
-    record.code === 'PGRST204' ||
-    message.includes("Could not find the 'cover_style' column") ||
-    message.includes("Could not find the 'page_style_id' column") ||
-    message.includes("Could not find the 'sections' column")
-  );
+export const COOKBOOK_LIMIT_REACHED_CODE = 'cookbook_limit_reached' as const;
+
+export class CookbookLimitReachedError extends Error {
+  readonly code = COOKBOOK_LIMIT_REACHED_CODE;
+
+  constructor() {
+    super('You have reached the cookbook limit for your plan.');
+    this.name = 'CookbookLimitReachedError';
+  }
 }
 
-function isMissingCoverAppearanceColumnError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const message = (error as { message?: string }).message ?? '';
-  return message.includes("Could not find the 'cover_finish_id' column")
-    || message.includes("Could not find the 'cover_color_id' column");
-}
-
-function isCoverStyleConstraintError(error: unknown): boolean {
+function isCookbookLimitReachedError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const record = error as { code?: string; message?: string; details?: string };
-  const text = `${record.message ?? ''} ${record.details ?? ''}`;
-  return record.code === '23514' && text.includes('cookbooks_cover_style_check');
-}
-
-async function insertCookbook(payload: CookbookInsertPayload): Promise<CookbookRow> {
-  const { data, error } = await supabase
-    .schema('nutriai')
-    .from('cookbooks')
-    .insert(payload)
-    .select('*')
-    .single();
-
-  if (error) throw error;
-  return data as CookbookRow;
+  const diagnostic = `${record.message ?? ''} ${record.details ?? ''}`;
+  return record.code === 'P0001' && diagnostic.includes(COOKBOOK_LIMIT_REACHED_CODE);
 }
 
 export async function createCookbook(input: CreateCookbookInput): Promise<Cookbook> {
@@ -474,76 +438,28 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
   const pageStyleId = normalizeCookbookPageStyleId(input.pageStyleId, coverPreset.id);
   const templateId = getRecipeTemplate(input.pageTemplateId).id;
   const title = input.title.trim() || 'My Cookbook';
-  const basePayload = {
-    user_id: input.userId,
-    title,
-    theme_name: getCookbookPageStyleName(pageStyleId),
-    theme_prompt: getCookbookPageStyleModelDescription(pageStyleId),
-  };
-
-  try {
-    const row = await insertCookbook({
-      ...basePayload,
-      cover_style: coverPreset.id,
-      cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
-      cover_color_id: normalizeCoverColorId(input.coverColorId),
-      page_style_id: pageStyleId,
-      style_revision: getCookbookPageStyleRevision(pageStyleId),
-      page_style_references: getCookbookPageStyleReferences(pageStyleId),
-      page_template_id: templateId,
-      sections: input.sections ?? [],
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .rpc('create_cookbook_for_current_user', {
+      p_title: title,
+      p_theme_name: getCookbookPageStyleName(pageStyleId),
+      p_theme_prompt: getCookbookPageStyleModelDescription(pageStyleId),
+      p_cover_style: coverPreset.id,
+      p_cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+      p_cover_color_id: normalizeCoverColorId(input.coverColorId),
+      p_page_style_id: pageStyleId,
+      p_style_revision: getCookbookPageStyleRevision(pageStyleId),
+      p_page_style_references: getCookbookPageStyleReferences(pageStyleId),
+      p_page_template_id: templateId,
+      p_sections: input.sections ?? [],
     });
-    return { ...mapCookbook(row), pageCount: 0 };
-  } catch (error) {
-    if (isMissingCoverAppearanceColumnError(error)) {
-      try {
-        const row = await insertCookbook({
-          ...basePayload,
-          cover_style: coverPreset.id,
-          page_style_id: pageStyleId,
-          style_revision: getCookbookPageStyleRevision(pageStyleId),
-          page_style_references: getCookbookPageStyleReferences(pageStyleId),
-          page_template_id: templateId,
-          sections: input.sections ?? [],
-        });
-        return { ...mapCookbook(row), pageCount: 0 };
-      } catch (legacyError) {
-        if (!isCoverStyleConstraintError(legacyError)) throw legacyError;
-        const row = await insertCookbook({
-          ...basePayload,
-          cover_style: 'handwritten',
-          page_style_id: pageStyleId,
-          style_revision: getCookbookPageStyleRevision(pageStyleId),
-          page_style_references: getCookbookPageStyleReferences(pageStyleId),
-          page_template_id: templateId,
-          sections: input.sections ?? [],
-        });
-        return { ...mapCookbook(row), pageCount: 0 };
-      }
-    }
 
-    if (isCoverStyleConstraintError(error)) {
-      const row = await insertCookbook({
-        ...basePayload,
-        cover_style: 'handwritten',
-        cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
-        cover_color_id: normalizeCoverColorId(input.coverColorId),
-        page_style_id: pageStyleId,
-        style_revision: getCookbookPageStyleRevision(pageStyleId),
-        page_style_references: getCookbookPageStyleReferences(pageStyleId),
-        page_template_id: templateId,
-        sections: input.sections ?? [],
-      });
-      return { ...mapCookbook(row), pageCount: 0 };
-    }
-
-    if (!isMissingCookbookColumnError(error)) throw error;
-
-    // Older deployed databases may not have the multi-cookbook style columns yet.
-    // The row still saves with theme metadata, and mapCookbook falls back to a valid cover style.
-    const row = await insertCookbook(basePayload);
-    return { ...mapCookbook(row), pageCount: 0 };
+  if (error) {
+    if (isCookbookLimitReachedError(error)) throw new CookbookLimitReachedError();
+    throw error;
   }
+  if (!data) throw new Error('Cookbook creation returned no cookbook');
+  return { ...mapCookbook(data as CookbookRow), pageCount: 0 };
 }
 
 export async function deleteCookbook(cookbookId: string): Promise<void> {

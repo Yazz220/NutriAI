@@ -42,17 +42,34 @@ describe('release privacy contracts', () => {
     expect(generator).toContain('image_url: null');
   });
 
-  it('revokes Apple authorization before removing storage and the Supabase user', () => {
+  it('erases RevenueCat, revokes Apple, then removes local account data', () => {
     const deletionFunction = fs.readFileSync(path.join(
       root,
       'supabase/functions/delete-account/index.ts',
     ), 'utf8');
     const revokeIndex = deletionFunction.indexOf('await revokeAppleAuthorization');
+    const revenueCatIndex = deletionFunction.indexOf('await deleteRevenueCatSubscriber');
     const storageIndex = deletionFunction.indexOf('const [captureObjectsRemoved');
     const deleteUserIndex = deletionFunction.indexOf('adminClient.auth.admin.deleteUser');
 
     expect(revokeIndex).toBeGreaterThan(-1);
+    expect(revenueCatIndex).toBeGreaterThan(-1);
+    expect(revokeIndex).toBeGreaterThan(revenueCatIndex);
     expect(storageIndex).toBeGreaterThan(revokeIndex);
     expect(deleteUserIndex).toBeGreaterThan(storageIndex);
+  });
+
+  it('accepts RevenueCat-verified App Review and TestFlight sandbox purchases by default', () => {
+    const syncFunction = fs.readFileSync(path.join(
+      root,
+      'supabase/functions/sync-subscription/index.ts',
+    ), 'utf8');
+    const webhookFunction = fs.readFileSync(path.join(
+      root,
+      'supabase/functions/revenuecat-webhook/index.ts',
+    ), 'utf8');
+
+    expect(syncFunction).toContain("REVENUECAT_ACCEPT_SANDBOX_EVENTS') !== 'false'");
+    expect(webhookFunction).toContain("REVENUECAT_ACCEPT_SANDBOX_EVENTS') !== 'false'");
   });
 });

@@ -12,6 +12,7 @@ Read these in order:
 | [PRODUCT_FLOW.md](./PRODUCT_FLOW.md) | What the user does and how a recipe reaches a book |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the current app implements that flow |
 | [DATABASE.md](./DATABASE.md) | Which tables, states, RPCs, and ownership rules support it |
+| [MONETIZATION.md](./MONETIZATION.md) | How Free, Plus, App Store products, entitlements, and designed-page capacity work |
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | How to run, test, build, and debug the app |
 | [INGESTION_EVALS.md](./INGESTION_EVALS.md) | How recipe-import quality is measured before changing models, prompts, or adapters |
 | [PHASE9_RELEASE_RUNBOOK.md](./PHASE9_RELEASE_RUNBOOK.md) | What must pass before staging or production |
@@ -48,6 +49,7 @@ When historical material conflicts with the current sources above, follow the cu
 - Update `PRODUCT_FLOW.md` when user behavior changes.
 - Update `ARCHITECTURE.md` when routes, providers, pipeline ownership, or major components change.
 - Update `DATABASE.md` with every schema or state-machine migration.
+- Update `MONETIZATION.md` with every plan, product, entitlement, allowance, or purchase-flow change.
 - Update `DEVELOPMENT.md` when commands, environment variables, deployment order, or debugging steps change.
 - Add an ADR only for a costly, surprising decision with real alternatives.
 - Keep dated plans as history. Do not quietly rewrite them into current architecture.

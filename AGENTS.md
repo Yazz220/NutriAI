@@ -109,11 +109,13 @@ Current `app/_layout.tsx` provider order:
 ShareIntentProvider
   NoshNativeShareProvider
     QueryClientProvider
-      CookbooksProvider
-        NoshConversationProvider
-          ToastProvider
-            GlobalErrorBoundary
-              RootLayoutNav
+      NoshSubscriptionProvider
+        SubscriptionUiProvider
+          CookbooksProvider
+            NoshConversationProvider
+              ToastProvider
+                GlobalErrorBoundary
+                  RootLayoutNav
 ```
 
 Current provider/hook reality:
@@ -123,6 +125,7 @@ Current provider/hook reality:
 - `useCookbook(cookbookId)`: per-book data; no `CookbookProvider` exists.
 - `useRecipeCaptures`: durable capture state, polling, retry, and destination selection.
 - `NoshConversationProvider` / `useNoshConversation`: persistent chat visibility, intake state, and active cookbook/page context across shelf-to-reader navigation.
+- `NoshSubscriptionProvider` / `useNoshSubscription`: user-scoped RevenueCat identity, store offerings, server access snapshot, purchase, restore, sync, and management.
 - `useNoshAssistant`: removed. The Nosh assistant uses `@assistant-ui/react-native` with a root-mounted `LocalRuntime` plus a device-persisted thread list bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Users can start, switch, restore, and delete conversations. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
 
 ## AI And Import Architecture
@@ -170,6 +173,7 @@ Pipeline invariants:
 - The cookbook row owns an independent physical `cover_style` and generated-page `page_style_id`; page style revision and visual references belong to `page_style_id`. Never accept a caller-defined per-recipe style as canonical.
 - The typesetter is a compatibility renderer for old pages only. It is not a second generation pipeline.
 - Internal generation credits are suspended. New generations use `credit_cost = 0` and must not call `reserve_generation_credit`; see ADR 0003 before changing this policy.
+- Free and Plus capacity is enforced by `usage_periods` and idempotent `usage_reservations`, not the dormant credit ledger. Every complete-page path goes through `generate-page-art`, which reserves before provider work and settles only a ready page. Read `docs/MONETIZATION.md` before changing plans, products, allowances, cookbook creation, or page generation.
 
 ## Environment Variables
 
@@ -181,9 +185,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
 EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
 EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
+EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
 EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=
 ```
 
 `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must never select a separate extraction, capture, or page-generation pipeline.
@@ -196,9 +202,13 @@ VIDEO_MODEL                               optional extract-recipe video override
 AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
 AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
 ART_MODEL                                 generate-page-art
+REVENUECAT_SECRET_API_KEY                 sync-subscription, revenuecat-webhook, and delete-account
+REVENUECAT_WEBHOOK_AUTH_TOKEN             revenuecat-webhook Authorization verification
+REVENUECAT_WEBHOOK_SIGNING_SECRET         revenuecat-webhook HMAC verification
+REVENUECAT_ACCEPT_SANDBOX_EVENTS          verified sandbox defaults on for TestFlight/App Review; false is an emergency kill switch
 ```
 
-Never expose provider API keys through `EXPO_PUBLIC_*`.
+Only RevenueCat public SDK keys belong in `EXPO_PUBLIC_*`; keep all secret provider keys server-side. Launch billing is iOS-only; read `docs/MONETIZATION.md` before adding another store.
 
 ## Key Files
 
@@ -218,6 +228,9 @@ Never expose provider API keys through `EXPO_PUBLIC_*`.
 | `utils/cookbook/noshChatAdapter.ts` | bridges assistant-ui to nosh-chat Edge Function |
 | `utils/cookbook/noshThreadStorage.ts` | user-scoped device persistence for conversation threads and messages |
 | `utils/cookbook/noshToolkit.tsx` | Nosh tool definitions with execute + render |
+| `contexts/NoshSubscriptionContext.tsx` | RevenueCat and server access lifecycle |
+| `components/subscription/` | Nosh-native plan, paywall, allowance, and limit presentation |
+| `docs/MONETIZATION.md` | Canonical plan, identifier, accounting, setup, and extension contract |
 | `utils/cookbook/sampleCookbook.ts` | offline sample book fixtures |
 | `constants/cookbookStyles.ts` | persisted cookbook style contracts and the curated creation set |
 

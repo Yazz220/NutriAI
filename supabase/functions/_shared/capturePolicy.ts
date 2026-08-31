@@ -151,16 +151,29 @@ const FAILURE_MESSAGE_BY_STAGE = {
 
 export function captureFailure(message: unknown, stage: CaptureFailureStage = 'extraction'): {
   status: 'needs_attention';
-  failureCode: typeof FAILURE_CODE_BY_STAGE[CaptureFailureStage];
+  failureCode: typeof FAILURE_CODE_BY_STAGE[CaptureFailureStage] | 'designed_page_limit_reached';
   failureMessage: string;
   failedStage: CaptureFailureStage;
   diagnostic: string;
 } {
+  const diagnostic = message instanceof Error
+    ? message.message
+    : String(message ?? 'Recipe capture failed');
+  if (diagnostic === 'designed_page_limit_reached') {
+    return {
+      status: 'needs_attention',
+      failureCode: 'designed_page_limit_reached',
+      failureMessage: 'You have used all of your designed pages for now.',
+      failedStage: 'page_generation',
+      diagnostic,
+    };
+  }
+
   return {
     status: 'needs_attention',
     failureCode: FAILURE_CODE_BY_STAGE[stage],
     failureMessage: FAILURE_MESSAGE_BY_STAGE[stage],
     failedStage: stage,
-    diagnostic: message instanceof Error ? message.message : String(message ?? 'Recipe capture failed'),
+    diagnostic,
   };
 }

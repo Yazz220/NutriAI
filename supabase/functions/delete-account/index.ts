@@ -13,9 +13,11 @@ import { verifyAuth } from '../_shared/auth.ts';
 import { logError, logInfo } from '../_shared/log.ts';
 import { removeStoragePrefix } from '../_shared/storageCleanup.ts';
 import { revokeAppleAuthorization } from '../_shared/appleTokenRevocation.ts';
+import { deleteRevenueCatSubscriber } from '../_shared/revenueCat.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const REVENUECAT_SECRET_API_KEY = Deno.env.get('REVENUECAT_SECRET_API_KEY') || '';
 const CAPTURE_BUCKET = 'recipe-captures';
 const COOKBOOK_PAGE_BUCKET = Deno.env.get('COOKBOOK_PAGE_BUCKET') || 'cookbook-pages';
 
@@ -52,6 +54,13 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => ({})) as { appleAuthorizationCode?: unknown };
     logInfo('delete-account started', { userId });
 
+    // Account erasure must not report success while RevenueCat still retains
+    // the subscriber. This removes provider data only; Apple continues to own
+    // billing and the subscription is not cancelled by this operation.
+    if (!REVENUECAT_SECRET_API_KEY) {
+      return jsonError('Account deletion is not fully configured', 503, req);
+    }
+
     // Use service role client for admin operations
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -63,6 +72,16 @@ serve(async (req: Request) => {
     }
 
     const appleAccount = appleIdentity(authUserData.user);
+    let appleDeletion: {
+      authorizationCode: string;
+      expectedSubject: string;
+      config: {
+        clientId: string;
+        teamId: string;
+        keyId: string;
+        privateKey: string;
+      };
+    } | null = null;
     if (appleAccount.isApple) {
       if (!appleAccount.subject) {
         return jsonError('Could not verify the Sign in with Apple identity', 500, req);
@@ -79,12 +98,30 @@ serve(async (req: Request) => {
       if (!appleConfig.teamId || !appleConfig.keyId || !appleConfig.privateKey) {
         return jsonError('Apple account deletion is not configured', 500, req);
       }
+      appleDeletion = {
+        authorizationCode: body.appleAuthorizationCode,
+        expectedSubject: appleAccount.subject,
+        config: appleConfig,
+      };
+    }
+
+    // Erase provider data before other destructive steps. If RevenueCat is
+    // unreachable the Nosh account and Apple authorization remain intact.
+    try {
+      await deleteRevenueCatSubscriber(userId, REVENUECAT_SECRET_API_KEY);
+    } catch (revenueCatError) {
+      logError('delete-account RevenueCat deletion failed', {
+        userId,
+        error: revenueCatError instanceof Error
+          ? revenueCatError.message
+          : String(revenueCatError),
+      });
+      return jsonError('Could not erase subscription account data', 502, req);
+    }
+
+    if (appleDeletion) {
       try {
-        await revokeAppleAuthorization({
-          authorizationCode: body.appleAuthorizationCode,
-          expectedSubject: appleAccount.subject,
-          config: appleConfig,
-        });
+        await revokeAppleAuthorization(appleDeletion);
       } catch (appleError) {
         logError('delete-account Apple revocation failed', {
           userId,

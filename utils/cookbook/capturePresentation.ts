@@ -55,6 +55,10 @@ const TECHNICAL_FAILURE_COPY: Record<string, { title: string; detail: string }> 
     title: 'The page is ready but was not added',
     detail: 'Try adding the finished page to the cookbook again.',
   },
+  designed_page_limit_reached: {
+    title: 'Page creation is waiting',
+    detail: 'The understood recipe is saved. Check your page allowance to continue without starting over.',
+  },
 };
 
 function presentableFailureMessage(message?: string): string {

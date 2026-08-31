@@ -83,21 +83,24 @@ There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in the current br
 ShareIntentProvider
   NoshNativeShareProvider
     QueryClientProvider
-      CookbooksProvider
-        NoshConversationProvider
-          ToastProvider
-            GlobalErrorBoundary
-              RootLayoutNav
-                GestureHandlerRootView
-                  SafeAreaProvider
-                    StatusBar
-                    Stack
-                      (auth)
-                      (book)
-                    NoshConversationHost
-                    RecipeCaptureResume
-                    NativeShareIngestion
-                    OfflineBanner
+      NoshSubscriptionProvider
+        SubscriptionUiProvider
+          CookbooksProvider
+            NoshConversationProvider
+              ToastProvider
+                GlobalErrorBoundary
+                  RootLayoutNav
+                    GestureHandlerRootView
+                      SafeAreaProvider
+                        StatusBar
+                        Stack
+                          (auth)
+                          (book)
+                        NoshConversationHost
+                        RecipeCaptureResume
+                        NativeShareIngestion
+                        SubscriptionHost
+                        OfflineBanner
 ```
 
 Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. `NoshConversationProvider` keeps the assistant sheet and interaction session alive across route changes. The session records an entry point, active task, stable conversation focus, and a separate visible route context. Its root-mounted `LocalRuntime` bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`.
@@ -112,8 +115,19 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | `useRecipeCaptures` | Durable capture list, polling, retry, and destination selection |
 | `useNoshConversation` | Persistent conversation visibility, intake state, and active book/page context |
 | `useNetworkStatus` | Connectivity state for the offline banner |
+| `useNoshSubscription` | Server-authoritative plan and usage plus RevenueCat offering, purchase, restore, and management state |
 
 `useCookbooks` is the context-backed shelf hook created with `@nkzw/create-context-hook`. Capture state is ordinary React Query state in `useRecipeCaptures`.
+
+## Subscription and capacity
+
+Nosh Free and Plus share the same assistant and capture formats. Capacity is attached to successful designed-page production and cookbook creation. RevenueCat supplies localized store products and subscription lifecycle; Supabase owns the effective plan and usage decision.
+
+`NoshSubscriptionProvider` configures RevenueCat only after a Supabase UUID is known, fetches `get_subscription_access()`, and explicitly synchronizes the backend after purchase or restore. `SubscriptionUiProvider` lets feature surfaces request access without importing store objects. The single root `SubscriptionHost` presents the Nosh paywall, unknown-access recovery, or Plus reset state while the calling feature retains its draft.
+
+`generate-page-art` reserves one unit against its idempotent `generation_request` before provider work. Completion settles the reservation with the ready page version; failure releases it. Direct authenticated cookbook inserts are revoked and `create_cookbook_for_current_user` atomically checks the plan. RevenueCat webhooks are bearer- and HMAC-verified, event-idempotent, and re-read the subscriber before changing entitlement state.
+
+See [MONETIZATION.md](./MONETIZATION.md) for the plan contract and operational setup.
 
 ## Data Flow
 
