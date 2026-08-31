@@ -11,7 +11,11 @@ import {
 import { Minus, Plus } from 'lucide-react-native';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
+import { PageCreationDisclosure } from '@/components/subscription/PageCreationDisclosure';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
+import { isDesignedPageLimitReachedError } from '@/components/subscription/subscriptionErrors';
 import { Colors } from '@/constants/colors';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { Radii, Spacing , Typography} from '@/constants/spacing';
 import type { CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
@@ -46,6 +50,8 @@ export function RecipeRevisionSheet({
   onGenerate,
   onUse,
 }: RecipeRevisionSheetProps) {
+  const { requestPageAccess } = useSubscriptionUi();
+  const { refresh: refreshSubscription } = useNoshSubscription();
   const [draft, setDraft] = useState<RecipeGraph | null>(null);
   const [servings, setServings] = useState('');
   const [prepTime, setPrepTime] = useState('');
@@ -127,21 +133,39 @@ export function RecipeRevisionSheet({
   }
 
   async function generate() {
+    const accessReason = mode === 'edit' ? 'recipe_revision' : 'page_redesign';
+    if (!await requestPageAccess(accessReason)) return;
     setBusy('generate');
     setError(null);
     try {
       const graph = mode === 'edit' ? preparedGraph() : cloneGraph(activeDraft);
+      const artDirection = mode === 'design' ? instruction.trim() || undefined : undefined;
       setDraft(graph);
-      setCandidate(await onGenerate(
-        activePage,
-        graph,
-        mode === 'design' ? instruction.trim() || undefined : undefined,
-        requestKey.current,
-      ));
+      try {
+        setCandidate(await onGenerate(activePage, graph, artDirection, requestKey.current));
+      } catch (generationError) {
+        requestKey.current = createGenerationRequestKey();
+        if (!isDesignedPageLimitReachedError(generationError)) {
+          setError(generationError instanceof Error ? generationError.message : 'Could not create the preview.');
+          return;
+        }
+
+        const canRetry = await requestPageAccess(accessReason, { refresh: true });
+        if (!canRetry) return;
+
+        try {
+          setCandidate(await onGenerate(activePage, graph, artDirection, requestKey.current));
+        } catch (retryError) {
+          requestKey.current = createGenerationRequestKey();
+          setError(isDesignedPageLimitReachedError(retryError)
+            ? 'Page creation is still unavailable. Your edits are still here.'
+            : retryError instanceof Error ? retryError.message : 'Could not create the preview.');
+        }
+      }
     } catch (generationError) {
-      requestKey.current = createGenerationRequestKey();
       setError(generationError instanceof Error ? generationError.message : 'Could not create the preview.');
     } finally {
+      void refreshSubscription();
       setBusy(null);
     }
   }
@@ -213,6 +237,9 @@ export function RecipeRevisionSheet({
             </View>
           )}
           {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+          <PageCreationDisclosure>
+            Creating this preview uses one page creation
+          </PageCreationDisclosure>
           <Pressable
             style={({ pressed }) => [styles.primaryButton, pressed && !busy && styles.pressed]}
             disabled={Boolean(busy)}

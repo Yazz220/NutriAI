@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import SettingsScreen from '@/app/(book)/settings';
 
 const mockReplace = jest.fn();
@@ -7,6 +8,13 @@ const mockSignOut = jest.fn();
 const mockQueryClear = jest.fn();
 const mockPurgeLocalUserData = jest.fn();
 const mockLoadCookingPreferences = jest.fn();
+const mockManageSubscription = jest.fn();
+const mockTrackEvent = jest.fn();
+let mockSubscriptionAccess: null | {
+  planId: 'plus';
+  entitlementStatus: 'active' | 'cancelled';
+  willRenew: boolean;
+} = null;
 
 jest.mock('expo-router', () => ({ router: { replace: mockReplace } }));
 jest.mock('expo-constants', () => ({
@@ -34,8 +42,17 @@ jest.mock('@/contexts/AiDataConsentContext', () => ({
 jest.mock('@/contexts/NoshConversationContext', () => ({
   useNoshConversation: () => ({ open: jest.fn() }),
 }));
+jest.mock('@/contexts/NoshSubscriptionContext', () => ({
+  useNoshSubscription: () => ({
+    access: mockSubscriptionAccess,
+    manage: mockManageSubscription,
+  }),
+}));
 jest.mock('@/utils/accountCleanup', () => ({
   purgeLocalUserData: (...args: unknown[]) => mockPurgeLocalUserData(...args),
+}));
+jest.mock('@/utils/analytics', () => ({
+  trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }));
 jest.mock('@/utils/account', () => ({ deleteAccount: jest.fn() }));
 jest.mock('@/utils/appleAuth', () => ({
@@ -57,12 +74,19 @@ jest.mock('@/components/brand/NoshBrandAssets', () => {
 jest.mock('@/components/settings/CookingPreferencesSheet', () => ({
   CookingPreferencesSheet: () => null,
 }));
+jest.mock('@/components/subscription/SubscriptionPlanCard', () => {
+  const mockReact = require('react');
+  const { Text: MockText } = require('react-native');
+  return { SubscriptionPlanCard: () => mockReact.createElement(MockText, null, 'Nosh Free plan') };
+});
 
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSignOut.mockResolvedValue(undefined);
     mockPurgeLocalUserData.mockResolvedValue({ complete: true, failed: [] });
+    mockManageSubscription.mockResolvedValue(true);
+    mockSubscriptionAccess = null;
     mockLoadCookingPreferences.mockResolvedValue([
       {
         id: 'preference-1',
@@ -77,11 +101,39 @@ describe('SettingsScreen', () => {
     const screen = render(<SettingsScreen />);
 
     expect(screen.getByText('Email')).toBeTruthy();
+    expect(screen.getByText('Nosh Free plan')).toBeTruthy();
     expect(screen.getByText('Cookbooks')).toBeTruthy();
     await screen.findByRole('button', { name: 'Cooking preferences, 1 saved' });
     expect(screen.getByRole('button', { name: 'AI data use, Allowed on this device' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Terms of use' })).toBeTruthy();
     expect(screen.getAllByTestId('nosh-symbol', { includeHiddenElements: true })).toHaveLength(1);
     expect(screen.getByText('Nosh v1.2.3')).toBeTruthy();
+  });
+
+  it('warns active Plus members that account deletion does not cancel App Store billing', async () => {
+    mockSubscriptionAccess = {
+      planId: 'plus',
+      entitlementStatus: 'cancelled',
+      willRenew: false,
+    };
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const screen = render(<SettingsScreen />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+
+    const [, message, buttons] = alert.mock.calls[0];
+    expect(message).toContain('does not cancel or refund an App Store subscription');
+    expect(buttons?.map((button) => button.text)).toEqual([
+      'Cancel',
+      'Manage subscription',
+      'Delete account',
+    ]);
+
+    await act(async () => {
+      buttons?.[1]?.onPress?.();
+    });
+    expect(mockManageSubscription).toHaveBeenCalledTimes(1);
+    alert.mockRestore();
   });
 
   it('purges user-scoped device data before signing out', async () => {

@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
@@ -14,6 +16,7 @@ import {
 } from '@/utils/cookbook/nativeShareAdapter';
 import type { RecipeCaptureSource } from '@/utils/cookbook/captureLifecycle';
 import type { RecipeSourceType } from '@/types/cookbook';
+import { isEffectivePlusAccess } from '@/utils/subscriptions/access';
 
 export function NativeShareIngestion() {
   const router = useRouter();
@@ -23,6 +26,8 @@ export function NativeShareIngestion() {
   const { startCapture } = useRecipeCaptures();
   const { setReceipt, retryToken } = useNoshNativeShare();
   const { requestConsent } = useAiDataConsent();
+  const { refresh: refreshSubscription } = useNoshSubscription();
+  const { requestPageAccess } = useSubscriptionUi();
   const processing = useRef(false);
   const failedAttempt = useRef<number | null>(null);
 
@@ -59,6 +64,24 @@ export function NativeShareIngestion() {
     async function saveShare() {
       let sourceType: RecipeSourceType | undefined;
       try {
+        const normalized = normalizeNativeShareIntent(shareIntent);
+        sourceType = normalized.type;
+        if (!await requestPageAccess('native_share')) {
+          failedAttempt.current = retryToken;
+          const latestAccess = await refreshSubscription().catch(() => null);
+          const resetAt = latestAccess?.features.designedPages.periodEnd;
+          setReceipt({
+            status: 'failed',
+            sourceType,
+            message: isEffectivePlusAccess(latestAccess)
+              ? `This shared recipe is still waiting. Your page allowance${resetAt ? ` refreshes ${formatShareResetDate(resetAt)}` : ' will refresh with your next plan period'}.`
+              : latestAccess?.planId === 'free'
+                ? 'This shared recipe is still waiting. Upgrade to Nosh Plus when you are ready to create another page.'
+                : 'This shared recipe is still waiting. Nosh could not check your plan, so reconnect and try saving again.',
+          });
+          router.replace('/(book)/share');
+          return;
+        }
         if (!await requestConsent()) {
           setReceipt({
             status: 'failed',
@@ -67,8 +90,6 @@ export function NativeShareIngestion() {
           router.replace('/(book)/share');
           return;
         }
-        const normalized = normalizeNativeShareIntent(shareIntent);
-        sourceType = normalized.type;
         setReceipt({ status: 'saving', sourceType });
         router.replace('/(book)/share');
         const requestKey = await getNativeShareRequestKey(normalized);
@@ -94,6 +115,7 @@ export function NativeShareIngestion() {
 
         const result = await startCapture({ source, idempotencyKey: requestKey });
         if (cancelled) return;
+        void refreshSubscription();
         resetShareIntent(true);
         failedAttempt.current = null;
         setReceipt({ status: 'saved', sourceType, captureId: result.capture.id });
@@ -117,7 +139,9 @@ export function NativeShareIngestion() {
     network.isConnected,
     network.isInternetReachable,
     resetShareIntent,
+    requestPageAccess,
     requestConsent,
+    refreshSubscription,
     retryToken,
     router,
     session,
@@ -128,4 +152,10 @@ export function NativeShareIngestion() {
   ]);
 
   return null;
+}
+
+function formatShareResetDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'soon';
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }).format(date);
 }

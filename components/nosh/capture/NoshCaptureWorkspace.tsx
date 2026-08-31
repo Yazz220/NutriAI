@@ -17,6 +17,8 @@ import {
 } from '@/components/cookbook/UnifiedIntakeComposer';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
 import { RecipeCorrectionSheet } from '@/components/nosh/capture/RecipeCorrectionSheet';
+import { PageAllowanceStatus } from '@/components/subscription/PageAllowanceStatus';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -28,6 +30,7 @@ import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import {
@@ -91,6 +94,8 @@ export function NoshCaptureWorkspace({
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const captureState = useRecipeCaptures();
+  const { requestPageAccess } = useSubscriptionUi();
+  const { refresh: refreshSubscription } = useNoshSubscription();
   const [captureId, setCaptureId] = useState(initialCaptureId);
   const [input, setInput] = useState('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -131,6 +136,7 @@ export function NoshCaptureWorkspace({
     [activity],
   );
   const capture = captureState.captures.find((candidate) => candidate.id === captureId);
+  const pageAccessReason = initialSource ? 'agent_capture' : 'page_capture';
   const activeDestinationCookbookId = capture?.destinationCookbookId
     ?? destinationCookbookId
     ?? selectedDestinationCookbookId;
@@ -147,11 +153,15 @@ export function NoshCaptureWorkspace({
 
   useEffect(() => {
     if (destinationCookbookId) {
-      setSelectedDestinationCookbookId(destinationCookbookId);
+      if (selectedDestinationCookbookId !== destinationCookbookId) {
+        setSelectedDestinationCookbookId(destinationCookbookId);
+      }
       return;
     }
     if (capture?.destinationCookbookId) {
-      setSelectedDestinationCookbookId(capture.destinationCookbookId);
+      if (selectedDestinationCookbookId !== capture.destinationCookbookId) {
+        setSelectedDestinationCookbookId(capture.destinationCookbookId);
+      }
       return;
     }
     if (!selectedDestinationCookbookId && availableCookbooks[0]) {
@@ -209,6 +219,19 @@ export function NoshCaptureWorkspace({
     setIsSubmitting(true);
     setError(null);
     try {
+      if (!await requestPageAccess(pageAccessReason)) {
+        setInput(payload.input ?? '');
+        if (payload.type === 'image') {
+          setImageBase64(payload.imageBase64 ?? null);
+          setImageUri(payload.imageUri ?? null);
+          setImageMimeType(payload.mimeType ?? null);
+        } else if (payload.type === 'audio') {
+          setAudioAttachment(payload.audio);
+        } else if (payload.type === 'video' && 'video' in payload) {
+          setVideoAttachment(payload.video);
+        }
+        return;
+      }
       if (!await requestConsent()) return;
       const requestKey = createCaptureRequestKey();
       let source: RecipeCaptureSource;
@@ -254,6 +277,7 @@ export function NoshCaptureWorkspace({
         destinationCookbookId: normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
         idempotencyKey: requestKey,
       });
+      void refreshSubscription();
       const firstCapture = await recordFirstCaptureStarted(
         user.id,
         result.capture.id,
@@ -285,7 +309,7 @@ export function NoshCaptureWorkspace({
       submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }, [activeDestinationCookbookId, captureState, requestConsent, user]);
+  }, [activeDestinationCookbookId, captureState, pageAccessReason, refreshSubscription, requestConsent, requestPageAccess, user]);
 
   useEffect(() => {
     if (!initialSource || !user || capture || handoffStartedRef.current) return;
@@ -321,8 +345,31 @@ export function NoshCaptureWorkspace({
 
   async function retryCapture() {
     if (!capture || !await requestConsent()) return;
-    await captureState.retryCapture(capture.id);
+    setError(null);
+    try {
+      await captureState.retryCapture(capture.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not continue this recipe page.');
+    } finally {
+      void refreshSubscription();
+    }
   }
+
+  async function continueAfterPageLimit() {
+    if (!capture) return;
+    const allowed = await requestPageAccess(pageAccessReason, { refresh: true });
+    if (!allowed) return;
+
+    // Retry this durable capture once. Its extracted recipe and destination
+    // checkpoints remain intact, so the user never has to submit it again.
+    await retryCapture();
+  }
+
+  const captureGenerationSettled = capture?.status === 'ready' || capture?.status === 'needs_attention';
+  useEffect(() => {
+    if (!captureGenerationSettled) return;
+    void refreshSubscription();
+  }, [capture?.updatedAt, captureGenerationSettled, refreshSubscription]);
 
   async function correctCapture(recipeGraph: NonNullable<RecipeCapture['recipeGraph']>) {
     if (!capture || !await requestConsent()) return;
@@ -386,6 +433,7 @@ export function NoshCaptureWorkspace({
           onCorrect={() => { setError(null); setCorrectionVisible(true); }}
           onChooseDestination={chooseDestination}
           onRetry={() => { void retryCapture(); }}
+          onResolvePageLimit={() => { void continueAfterPageLimit(); }}
           onCreateCookbook={() => router.push(`/(book)/library?captureId=${encodeURIComponent(capture.id)}`)}
         />
         <RecipeCorrectionSheet
@@ -436,6 +484,7 @@ export function NoshCaptureWorkspace({
           onSelect={setSelectedDestinationCookbookId}
         />
       ) : null}
+      <PageAllowanceStatus />
       <UnifiedIntakeComposer
         isSubmitting={isSubmitting || captureState.isStarting}
         input={input}
@@ -594,6 +643,7 @@ function CaptureDetail({
   onCorrect,
   onChooseDestination,
   onRetry,
+  onResolvePageLimit,
   onCreateCookbook,
 }: {
   capture: RecipeCapture;
@@ -609,6 +659,7 @@ function CaptureDetail({
   onCorrect: () => void;
   onChooseDestination: (cookbookId: string) => Promise<void>;
   onRetry: () => void;
+  onResolvePageLimit: () => void;
   onCreateCookbook: () => void;
 }) {
   const presentation = getCapturePresentation(capture, destination?.title);
@@ -641,6 +692,30 @@ function CaptureDetail({
   }
 
   if (capture.status === 'needs_attention') {
+    if (capture.failureCode === 'designed_page_limit_reached') {
+      return (
+        <View style={styles.detailStack}>
+          <DetailBackButton onPress={onBack} label={backLabel} />
+          <StateCard
+            icon={<BookOpen size={21} color={Colors.primary} />}
+            title="This recipe is ready for its page"
+            copy="Nosh saved and understood this recipe. Check your page allowance to continue without starting over."
+            action={(
+              <View style={styles.detailActions}>
+                {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
+                <Button
+                  title="Continue page creation"
+                  onPress={onResolvePageLimit}
+                  loading={isRetrying}
+                  fullWidth
+                />
+              </View>
+            )}
+          />
+        </View>
+      );
+    }
+
     const shouldReplaceSource = presentation.action === 'replace_source';
     const shouldCorrectRecipe = presentation.action === 'correct_recipe';
     const sourceUrl = typeof capture.sourcePayload.input === 'string'

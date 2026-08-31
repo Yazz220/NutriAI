@@ -1,5 +1,25 @@
 # Database
 
+## Subscription foundation
+
+Migration `20260831011239_subscription_foundation.sql` adds the launch Free/Plus access model:
+
+| Object | Role |
+|---|---|
+| `subscription_plans` | Stable `free` and `plus` plan identities |
+| `subscription_plan_features` | Server-authoritative feature flags, allowances, and reset policy |
+| `subscription_products` | Store product to plan and RevenueCat entitlement mapping |
+| `user_entitlements` | Newest normalized provider state for a user |
+| `subscription_webhook_events` | Idempotent webhook claim, retry, and completion log |
+| `usage_periods` | Deletion-stable lifetime Free and UTC-calendar-month Plus aggregate counters |
+| `usage_reservations` | Exactly-once reserved, settled, or released page-generation unit |
+
+Authenticated clients call `get_subscription_access()` and `create_cookbook_for_current_user(...)`. Provider synchronization and usage writes are service-only. `reserve_designed_page_generation`, `settle_designed_page_generation`, and `release_designed_page_generation` bind capacity to `generation_requests`; a request can never settle twice. Direct authenticated cookbook inserts are revoked.
+
+Free accounts need no entitlement row. `effective_subscription_plan_id` falls back to Free. An active, grace, billing-retry, or canceled-but-paid-through `nosh_plus` entitlement resolves to Plus until its period end. Existing pre-migration content is not counted retroactively and remains readable after downgrade. Every successful post-migration designed page advances the capped Free lifetime counter even when Plus supplied the active monthly allowance; deleting its page, cookbook, request, or settled reservation detail does not restore that use. When Plus ends with a generation still reserved, Free access includes that active cross-period reservation until it settles or releases.
+
+See [MONETIZATION.md](./MONETIZATION.md) before changing these tables or RPCs.
+
 The Supabase project uses a private `nutriai` schema. Every table is RLS-enabled and scoped by `auth.uid() = user_id`.
 
 ## Tables (current state)

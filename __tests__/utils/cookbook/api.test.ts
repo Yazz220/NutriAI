@@ -1,5 +1,6 @@
 import {
   applyRecipePageRevision,
+  CookbookLimitReachedError,
   createCookbook,
   createRecipePageWithGraph,
   deleteCookbook,
@@ -114,6 +115,71 @@ describe('createRecipePageWithGraph', () => {
     expect(mockSchema).toHaveBeenCalledWith('nutriai');
     expect(recipeInsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'user-1' }));
   });
+
+  it('persists manual provenance for an assistant-authored copy without source metadata', async () => {
+    const copiedGraph: RecipeGraphDraft = { ...recipeGraph, provenance: undefined };
+    const recipeInsert = jest.fn(() => ({
+      select: jest.fn(() => ({
+        single: jest.fn().mockResolvedValue({ data: { id: 'recipe-copy' }, error: null }),
+      })),
+    }));
+    const pageSelect = jest.fn(() => ({
+      eq: jest.fn(() => ({
+        order: jest.fn(() => ({
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        })),
+      })),
+    }));
+    const pageInsert = jest.fn(() => ({
+      select: jest.fn(() => ({
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'page-copy',
+            cookbook_id: 'cookbook-1',
+            recipe_id: 'recipe-copy',
+            page_number: 1,
+            section: copiedGraph.category,
+            sort_order: 0,
+            selected_version_id: null,
+            recipe_graph: copiedGraph,
+            style_id: 'vintage-garden',
+            template_id: 'clean-cream',
+            recipes: {
+              id: 'recipe-copy',
+              user_id: 'user-1',
+              title: copiedGraph.title,
+              ingredients: [],
+              steps: [],
+              source_type: 'manual',
+              tags: copiedGraph.tags,
+              category: copiedGraph.category,
+              confidence: 1,
+            },
+          },
+          error: null,
+        }),
+      })),
+    }));
+    mockSchema.mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === 'recipes') return { insert: recipeInsert };
+        if (table === 'cookbook_pages') return { select: pageSelect, insert: pageInsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await createRecipePageWithGraph({
+      cookbookId: 'cookbook-1',
+      userId: 'user-1',
+      recipeGraph: copiedGraph,
+      styleId: 'vintage-garden',
+      templateId: 'clean-cream',
+    });
+
+    expect(recipeInsert).toHaveBeenCalledWith(expect.objectContaining({
+      source_type: 'manual',
+    }));
+  });
 });
 
 describe('mapRecipeCapture', () => {
@@ -144,40 +210,31 @@ describe('mapRecipeCapture', () => {
 
 describe('createCookbook', () => {
   it('persists cover finish and recipe-page style as independent choices', async () => {
-    const insert = jest.fn((payload) => ({
-      select: jest.fn(() => ({
-        single: jest.fn().mockResolvedValue({
-          data: {
-            id: 'cookbook-1',
-            user_id: 'user-1',
-            title: payload.title,
-            theme_name: payload.theme_name,
-            theme_prompt: payload.theme_prompt,
-            section_order: [],
-            cover_style: payload.cover_style,
-            cover_finish_id: payload.cover_finish_id,
-            cover_color_id: payload.cover_color_id,
-            cover_title_color_id: payload.cover_title_color_id,
-            cover_title_placement_id: payload.cover_title_placement_id,
-            page_style_id: payload.page_style_id,
-            style_revision: payload.style_revision,
-            page_style_references: payload.page_style_references,
-            page_template_id: payload.page_template_id,
-            sections: payload.sections,
-            is_default: false,
-            created_at: '2026-08-23T00:00:00.000Z',
-            updated_at: '2026-08-23T00:00:00.000Z',
-          },
-          error: null,
-        }),
-      })),
+    const rpc = jest.fn((_name: string, payload: Record<string, unknown>) => Promise.resolve({
+      data: {
+        id: 'cookbook-1',
+        user_id: 'user-1',
+        title: payload.p_title,
+        theme_name: payload.p_theme_name,
+        theme_prompt: payload.p_theme_prompt,
+        section_order: [],
+        cover_style: payload.p_cover_style,
+        cover_finish_id: payload.p_cover_finish_id,
+        cover_color_id: payload.p_cover_color_id,
+        cover_title_color_id: payload.p_cover_title_color_id,
+        cover_title_placement_id: payload.p_cover_title_placement_id,
+        page_style_id: payload.p_page_style_id,
+        style_revision: payload.p_style_revision,
+        page_style_references: payload.p_page_style_references,
+        page_template_id: payload.p_page_template_id,
+        sections: payload.p_sections,
+        is_default: false,
+        created_at: '2026-08-23T00:00:00.000Z',
+        updated_at: '2026-08-23T00:00:00.000Z',
+      },
+      error: null,
     }));
-    mockSchema.mockReturnValue({
-      from: jest.fn((table: string) => {
-        if (table === 'cookbooks') return { insert };
-        throw new Error(`Unexpected table: ${table}`);
-      }),
-    });
+    mockSchema.mockReturnValue({ rpc });
 
     const cookbook = await createCookbook({
       userId: 'user-1',
@@ -189,15 +246,18 @@ describe('createCookbook', () => {
       pageStyleId: 'studio-editorial',
     });
 
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Desserts',
-      cover_style: 'navy-leather',
-      cover_finish_id: 'natural-linen',
-      cover_color_id: 'midnight',
-      cover_title_color_id: 'ivory',
-      cover_title_placement_id: 'upper',
-      page_style_id: 'studio-editorial',
-    }));
+    expect(rpc).toHaveBeenCalledWith(
+      'create_cookbook_for_current_user',
+      expect.objectContaining({
+        p_title: 'Desserts',
+        p_cover_style: 'navy-leather',
+        p_cover_finish_id: 'natural-linen',
+        p_cover_color_id: 'midnight',
+        p_cover_title_color_id: 'ivory',
+        p_cover_title_placement_id: 'upper',
+        p_page_style_id: 'studio-editorial',
+      }),
+    );
     expect(cookbook).toMatchObject({
       title: 'Desserts',
       coverStyle: 'navy-leather',
@@ -207,6 +267,24 @@ describe('createCookbook', () => {
       coverTitlePlacementId: 'upper',
       pageStyleId: 'studio-editorial',
     });
+  });
+
+  it('normalizes the guarded RPC denial into a stable limit error', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'P0001', message: 'cookbook_limit_reached' },
+    });
+    mockSchema.mockReturnValue({ rpc });
+
+    await expect(createCookbook({
+      userId: 'user-1',
+      title: 'Third Book',
+      coverFinishId: 'natural-linen',
+      coverColorId: 'midnight',
+      coverTitleColorId: 'auto',
+      coverTitlePlacementId: 'center',
+      pageStyleId: 'studio-editorial',
+    })).rejects.toBeInstanceOf(CookbookLimitReachedError);
   });
 });
 

@@ -2,6 +2,14 @@
 
 This document describes the experience implemented in the current branch. Use it to understand the app, trace a recipe, and decide where a change belongs.
 
+## Plan-aware creation
+
+Nosh Free and Plus use the same chef, recipe context, capture formats, and reading experience. Free includes two cookbooks and five successful designed-page creations for the account lifetime. Plus removes the cookbook limit and includes 20 successful designed-page creations per UTC calendar month.
+
+The app explains capacity beside creation actions, then checks access without discarding the user's source, draft, proposed recipe change, or book customization. A Free limit opens the Nosh Plus sheet. A Plus monthly limit shows the precise refresh date instead of another upsell. Unknown or offline access waits for verification. Server enforcement remains final when another device or concurrent request makes the local snapshot stale.
+
+Failed extraction, provider generation, or publication completion does not consume another unit. Retrying the same capture or publishing an existing ready image reuses its durable state. Reading, sharing, export, chat, cooking help, timers, walkthroughs, and session-only changes remain available regardless of capacity.
+
 ## The product in one sentence
 
 A user shares a recipe with Nosh, Nosh understands it, creates a complete page in the visual style of the chosen cookbook, and keeps the structured recipe available for cooking help.

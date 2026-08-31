@@ -36,10 +36,11 @@ import { getCookbookPageTurnImageSource } from '@/utils/cookbook/pageImage';
 import { createLeafTexture } from '@/utils/cookbook/leafTexture';
 import { Fonts } from '@/utils/fonts';
 import {
+  resolveAnchoredTurnProgress,
   resolveBookStageTranslation,
   resolveNativeBookGeometry,
   resolveNativeReadingPageGeometry,
-  resolveTurnProgress,
+  resolveTurnGrabXForProgress,
   resolveTurnRelease,
   type PageTurnDirection,
 } from '@/utils/cookbook/physicalBook';
@@ -265,10 +266,12 @@ export function Cookbook3DScene({
   const atBackEdge = isPhysicalPageReading
     ? leafIndex === (leaves?.length ?? 1) - 1
     : spreadIndex === spreads.length - 1;
-  // In spread mode the user drags one page width (not the full spread), and
-  // the turn target is the spine (center of the spread) rather than the edge.
+  // Turn travel is one full leaf diameter (two page widths) in both modes:
+  // the corner keeps its grab offset from the pointer, crosses the spine (or
+  // the binding, in one-page mode) at progress 0.5, and lies flat on the far
+  // side at 1 — regardless of grab point or screen width. Only pointer
+  // deltas are used, so screen coordinates need no conversion.
   const turnSurfaceWidth = isPhysicalPageReading ? readingPageWidth : leafWidth;
-  const turnTargetX = isPhysicalPageReading ? undefined : leafWidth;
   const turnProgress = useSharedValue(0);
   const turnDirection = useSharedValue<PageTurnDirection>(0);
   const isSettling = useSharedValue(0);
@@ -719,40 +722,54 @@ export function Cookbook3DScene({
           grabYRatio.value = Math.max(0, Math.min(1, (event.y - pageTopY) / Math.max(surfaceH, 1)));
 
           // Preserve the current turn direction and progress when re-grabbing
-          // mid-turn. Calculate the grab point that would produce the current
-          // progress at the current pointer position, so the page doesn't
-          // snap to 0 when the user catches it mid-flip.
+          // mid-turn. Invert the anchored progress formula exactly, so the
+          // leaf stays precisely where it is when the user catches it
+          // mid-flip — no snap toward either side.
           const currentDir = turnDirection.value;
           const currentProgress = turnProgress.value;
           if (currentDir !== 0 && currentProgress > 0) {
-            // Back-calculate grabX from the progress formula:
-            // progress = (grabX - pointerX) / travel  (forward)
-            // progress = (pointerX - grabX) / travel  (backward)
-            // travel = 2 * |targetX - grabX|
-            // For simplicity, use the pointer as the grab point offset
-            // by the progress * pageWidth, so the page stays where it is.
-            const offset = currentProgress * turnSurfaceWidth;
-            turnGrabX.value = currentDir === 1 ? event.x + offset : event.x - offset;
+            turnGrabX.value = resolveTurnGrabXForProgress({
+              pointerX: event.x,
+              progress: currentProgress,
+              pageWidth: turnSurfaceWidth,
+              direction: currentDir,
+            });
           } else {
             // New touch: lift the corner slightly based on which side was
             // touched. Right half → forward curl, left half → backward curl.
-            turnDirection.value = event.x > width / 2 ? 1 : -1;
-            turnGrabX.value = event.x;
+            // The grab point is anchored for the lift progress, so the corner
+            // keeps rising smoothly from the lift once the drag starts
+            // instead of dropping back to flat.
+            const direction = event.x > width / 2 ? (1 as const) : (-1 as const);
+            turnDirection.value = direction;
+            turnGrabX.value = resolveTurnGrabXForProgress({
+              pointerX: event.x,
+              progress: CORNER_LIFT_PROGRESS,
+              pageWidth: turnSurfaceWidth,
+              direction,
+            });
             turnProgress.value = CORNER_LIFT_PROGRESS;
           }
         })
         .onUpdate((event) => {
           // Determine or correct the turn direction once the drag is large
           // enough. If the corner lift guessed wrong (user touched right but
-          // dragged right), switch direction and reset progress.
+          // dragged right), switch direction and re-anchor the grab point for
+          // the corner lift in the new direction, so the other leaf lifts
+          // from rest instead of jumping.
           if (Math.abs(event.translationX) >= 4) {
-            const dragDir = event.translationX < 0 ? 1 : -1;
+            const dragDir = event.translationX < 0 ? (1 as const) : (-1 as const);
             if (turnDirection.value === 0) {
               turnDirection.value = dragDir;
               runOnJS(notifyTurnGrabbed)();
             } else if (turnDirection.value !== dragDir && turnProgress.value < 0.15) {
               turnDirection.value = dragDir;
-              turnProgress.value = 0;
+              turnGrabX.value = resolveTurnGrabXForProgress({
+                pointerX: event.x,
+                progress: CORNER_LIFT_PROGRESS,
+                pageWidth: turnSurfaceWidth,
+                direction: dragDir,
+              });
               runOnJS(notifyTurnGrabbed)();
             }
           }
@@ -760,13 +777,12 @@ export function Cookbook3DScene({
           const direction = turnDirection.value;
           if (direction === 0) return;
           const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
-          turnProgress.value = resolveTurnProgress({
+          turnProgress.value = resolveAnchoredTurnProgress({
             grabX: turnGrabX.value,
             pointerX: event.x,
             pageWidth: turnSurfaceWidth,
             direction,
             canTurn,
-            targetX: turnTargetX,
           });
         })
         .onEnd((event) => {
@@ -909,7 +925,6 @@ export function Cookbook3DScene({
       turnGrabX,
       turnProgress,
       turnSurfaceWidth,
-      turnTargetX,
       width,
     ],
   );

@@ -253,6 +253,7 @@ export interface NoshToolkitContext {
   onCommitRecipeAction: (
     proposal: RecipeActionProposal,
     mode: RecipeActionCommitMode,
+    idempotencyKey: string,
   ) => Promise<{ pageId?: string }>;
   /** Generate an unselected artwork candidate for the focused page. */
   onGenerateArtCandidate?: (instruction: string | undefined, idempotencyKey: string) => Promise<GeneratedRecipePage>;

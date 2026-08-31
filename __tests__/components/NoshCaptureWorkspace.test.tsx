@@ -20,6 +20,8 @@ const mockUploadRecipeCaptureImage = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockCloseNoshConversation = jest.fn();
 const mockRequestConsent = jest.fn().mockResolvedValue(true);
+const mockRequestPageAccess = jest.fn().mockResolvedValue(true);
+const mockRefreshSubscription = jest.fn().mockResolvedValue(null);
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('@/utils/cookbook/api', () => ({
@@ -32,6 +34,9 @@ jest.mock('@/contexts/NoshConversationContext', () => ({
 }));
 jest.mock('@/contexts/AiDataConsentContext', () => ({
   useAiDataConsent: () => ({ requestConsent: mockRequestConsent }),
+}));
+jest.mock('@/contexts/NoshSubscriptionContext', () => ({
+  useNoshSubscription: () => ({ refresh: mockRefreshSubscription }),
 }));
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => ({
@@ -61,6 +66,12 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
     isCorrecting: false,
     isPreparingDestination: false,
   }),
+}));
+jest.mock('@/components/subscription/SubscriptionHost', () => ({
+  useSubscriptionUi: () => ({ requestPageAccess: mockRequestPageAccess }),
+}));
+jest.mock('@/components/subscription/PageAllowanceStatus', () => ({
+  PageAllowanceStatus: () => null,
 }));
 jest.mock('@/components/nosh/capture/RecipeCorrectionSheet', () => {
   const mockReact = require('react');
@@ -196,6 +207,7 @@ describe('NoshCaptureWorkspace', () => {
     jest.clearAllMocks();
     mockCaptures = [];
     mockPageSlots = [];
+    mockRequestPageAccess.mockReset().mockResolvedValue(true);
     await AsyncStorage.clear();
   });
 
@@ -302,6 +314,38 @@ describe('NoshCaptureWorkspace', () => {
       expect(mockRequestConsent).toHaveBeenCalledTimes(1);
       expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
     });
+  });
+
+  it('uses the subscription recovery path and retries the same durable capture after access returns', async () => {
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureCode: 'designed_page_limit_reached',
+      failureMessage: 'designed_page_limit_reached',
+      recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
+    })];
+    mockRetryCapture.mockResolvedValueOnce({ capture: capture({ status: 'processing' }) });
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
+
+    expect(screen.getByText('This recipe is ready for its page')).toBeTruthy();
+    expect(screen.queryByText('This recipe needs another try')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Continue page creation' }));
+
+    await waitFor(() => {
+      expect(mockRequestPageAccess).toHaveBeenCalledWith('page_capture', { refresh: true });
+      expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
+    });
+  });
+
+  it('keeps the source intact when page access is not available', async () => {
+    mockRequestPageAccess.mockResolvedValueOnce(false);
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Submit test image' }));
+
+    await waitFor(() => expect(mockRequestPageAccess).toHaveBeenCalledWith('page_capture'));
+    expect(mockUploadRecipeCaptureImage).not.toHaveBeenCalled();
+    expect(mockStartCapture).not.toHaveBeenCalled();
+    expect(screen.getByText('Create page')).toBeTruthy();
   });
 
   it('returns evidence failures to the composer instead of retrying the bad source', async () => {

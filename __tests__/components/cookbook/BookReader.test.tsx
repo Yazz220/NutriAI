@@ -45,6 +45,17 @@ jest.mock('@/hooks/useAuth', () => ({
 
 jest.mock('@/utils/analytics', () => ({ trackEvent: jest.fn() }));
 
+jest.mock('@/components/subscription/SubscriptionHost', () => ({
+  useSubscriptionUi: () => ({ requestPageAccess: jest.fn().mockResolvedValue(true) }),
+}));
+
+jest.mock('@/contexts/NoshSubscriptionContext', () => ({
+  useNoshSubscription: () => ({
+    access: { features: { designedPages: { remaining: 4 } } },
+    refresh: jest.fn().mockResolvedValue(null),
+  }),
+}));
+
 jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   const ReactModule = require('react');
   const { Pressable, Text } = require('react-native');

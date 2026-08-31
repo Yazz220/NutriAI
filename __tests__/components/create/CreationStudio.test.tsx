@@ -66,6 +66,21 @@ describe('CreationStudio', () => {
     });
   });
 
+  it('preserves the studio and re-enables creation when an access guard returns false', async () => {
+    const onCreateBook = jest.fn().mockResolvedValue(false);
+    const screen = render(
+      <CreationStudio canCreate onCreateBook={onCreateBook} onSignIn={jest.fn()} />,
+    );
+
+    fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'My Baking Book');
+    const createButton = screen.getByRole('button', { name: 'Add this cookbook to my shelf' });
+    fireEvent.press(createButton);
+
+    await waitFor(() => expect(onCreateBook).toHaveBeenCalledTimes(1));
+    expect(screen.getByDisplayValue('My Baking Book')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add this cookbook to my shelf' }).props.accessibilityState?.disabled).not.toBe(true);
+  });
+
   it('opens the selected sample directly from the book without nested preview tabs', () => {
     const screen = render(
       <CreationStudio canCreate onCreateBook={jest.fn()} onSignIn={jest.fn()} />,

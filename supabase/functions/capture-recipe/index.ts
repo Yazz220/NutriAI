@@ -688,6 +688,9 @@ async function processCapture(
         } else if (pageGeneration.response.status === 202 && typeof pageGeneration.data.requestId === 'string') {
           ({ pageStatus, pageWarning } = capturePagePolicy(true));
         } else {
+          if (pageGeneration.data.code === 'designed_page_limit_reached') {
+            throw new CaptureProcessingError('page_generation', 'designed_page_limit_reached');
+          }
           throw new Error(typeof pageGeneration.data.error === 'string'
             ? pageGeneration.data.error
             : 'Nosh could not generate this recipe page');
@@ -805,6 +808,9 @@ async function prepareCaptureDestination(
         idempotencyKey: capturePageIdempotencyKey(captureId, Number(capture.processing_attempt ?? 1)),
       });
       if (!pageGeneration.response.ok && pageGeneration.response.status !== 202) {
+        if (pageGeneration.data.code === 'designed_page_limit_reached') {
+          throw new CaptureProcessingError('page_generation', 'designed_page_limit_reached');
+        }
         throw new Error(typeof pageGeneration.data.error === 'string'
           ? pageGeneration.data.error
           : 'Nosh could not generate this recipe page');
