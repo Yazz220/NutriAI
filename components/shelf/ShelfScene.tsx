@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
 import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
@@ -9,12 +8,15 @@ import { SpineFace } from '@/components/physical-book/SpineFace';
 import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBookVolume';
 import { ShelfBoard, SHELF_LIP_HEIGHT } from '@/components/shelf/ShelfBoard';
 import { ShelfCarousel } from '@/components/shelf/ShelfCarousel';
+import { ShelfWallpaper } from '@/components/shelf/ShelfWallpaper';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { resolveCookbookBinding } from '@/constants/cookbookBindings';
-import { Radii, Spacing, Typography } from '@/constants/spacing';
+import { getShelfStyle } from '@/constants/shelfAppearance';
+import { Spacing, Typography } from '@/constants/spacing';
+import { useShelfAppearance } from '@/hooks/useShelfAppearance';
 import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 import type { ContextActionGroup, ContextActionId } from '@/utils/cookbook/contextActions';
@@ -60,6 +62,8 @@ export function ShelfScene({
 }: ShelfSceneProps) {
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
+  const { scene } = useShelfAppearance();
+  const shelfStyle = getShelfStyle(scene.shelfStyleId);
   const shelfTextMultiplier = fontScale >= 2 ? 1.35 : undefined;
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -67,13 +71,16 @@ export function ShelfScene({
   const isEmptyShelf = cookbooks.length === 0;
 
   return (
-    <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
+    <View style={styles.container}>
+      <ShelfWallpaper wallpaperStyleId={scene.wallpaperStyleId} />
+
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
         <NoshHorizontalLockup width={112} />
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
             onPress={onOpenSettings}
+            accessibilityRole="button"
             accessibilityLabel="Open settings"
           >
             <SettingsIcon size={21} color={Colors.text} strokeWidth={1.8} />
@@ -93,22 +100,11 @@ export function ShelfScene({
       </View>
 
       <View style={styles.stage}>
-        {/* Wall backdrop: subtle warm gradient with a faint horizon line
-            where wall meets the shelf area, giving the shelf a sense of
-            being mounted on a real wall rather than floating. */}
-        <LinearGradient
-          colors={[Colors.legacySurface.v63, Colors.legacySurface.v50, Colors.legacySurface.v48]}
-          style={styles.wallBackdrop}
-          pointerEvents="none"
+        <ShelfBoard
+          bottom={BOARD_BOTTOM}
+          height={BOARD_HEIGHT}
+          shelfStyleId={scene.shelfStyleId}
         />
-        {/* Wall shadow where the wall meets the shelf board — deeper now
-            to ground the board on the wall */}
-        <LinearGradient
-          colors={[Colors.legacySurface.v61, Colors.legacySurface.v53, Colors.legacySurface.v56]}
-          style={[styles.wallShadow, { bottom: BOARD_CLEARANCE }]}
-          pointerEvents="none"
-        />
-        <ShelfBoard bottom={BOARD_BOTTOM} height={BOARD_HEIGHT} />
 
         <ShelfCarousel
           items={cookbooks}
@@ -157,14 +153,12 @@ export function ShelfScene({
                 actions={actions}
                 onSelect={(actionId) => onContextAction(book, actionId)}
                 fallbackOnPress={onOpenCookbookActions ? () => onOpenCookbookActions(book) : undefined}
+                accessibilityLabel={`Actions for ${book.title}`}
                 title={book.title}
                 testID={`cookbook-actions-${book.id}`}
               >
                 <View
                   style={styles.coverMenuButton}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={`Actions for ${book.title}`}
                 >
                   <Ellipsis size={23} color={iconColor} strokeWidth={2} />
                 </View>
@@ -193,7 +187,15 @@ export function ShelfScene({
         />
       </View>
 
-      <View style={[styles.meta, { paddingBottom: insets.bottom + Spacing.xl + bottomInset }]}>
+      <View
+        style={[
+          styles.meta,
+          {
+            minHeight: shelfStyle.sceneMetaHeight,
+            paddingBottom: insets.bottom + Spacing.xl + bottomInset,
+          },
+        ]}
+      >
         {isEmptyShelf ? (
           <>
             <View style={styles.emptyRule} />
@@ -219,7 +221,7 @@ export function ShelfScene({
           </>
         )}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -243,15 +245,11 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.ash,
-    backgroundColor: Colors.legacySurface.v81,
   },
   buttonPressed: {
-    backgroundColor: Colors.parchment,
+    opacity: 0.5,
   },
   heading: {
     paddingHorizontal: Spacing.xl,
@@ -273,21 +271,7 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'visible',
   },
-  wallBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  wallShadow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 32,
-  },
   meta: {
-    minHeight: 96,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.values[4],

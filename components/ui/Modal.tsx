@@ -172,7 +172,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   closeButton: {
-    padding: Spacing.xs,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: Spacing.md,
   },
   scrollView: {

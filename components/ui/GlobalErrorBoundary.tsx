@@ -1,6 +1,7 @@
-import { Radii, Typography , Spacing} from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Colors } from '@/constants/colors';
 import { captureError } from '@/utils/analytics';
 import { Fonts } from '@/utils/fonts';
@@ -28,20 +29,23 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.subtitle}>An unexpected error occurred. Check the console for details.</Text>
-          {this.state.error && (
-            <ScrollView style={styles.details}>
-              <Text style={styles.errorLabel}>Error</Text>
-              <Text style={styles.errorText}>{String(this.state.error?.message || this.state.error)}</Text>
-              {this.state.errorInfo?.componentStack ? (
-                <>
-                  <Text style={[styles.errorLabel, { marginTop: Spacing.values[12] }]}>Stack</Text>
-                  <Text style={styles.stackText}>{this.state.errorInfo.componentStack}</Text>
-                </>
-              ) : null}
-            </ScrollView>
-          )}
+          <View style={styles.content}>
+            <NoshHorizontalLockup width={136} />
+            <Text style={styles.title}>Something went wrong</Text>
+            <Text style={styles.subtitle}>Close and reopen Nosh. Your cookbooks are safe.</Text>
+            {__DEV__ && this.state.error ? (
+              <ScrollView style={styles.details}>
+                <Text style={styles.errorLabel}>Error</Text>
+                <Text style={styles.errorText}>{String(this.state.error?.message || this.state.error)}</Text>
+                {this.state.errorInfo?.componentStack ? (
+                  <>
+                    <Text style={[styles.errorLabel, { marginTop: Spacing.values[12] }]}>Stack</Text>
+                    <Text style={styles.stackText}>{this.state.errorInfo.componentStack}</Text>
+                  </>
+                ) : null}
+              </ScrollView>
+            ) : null}
+          </View>
         </View>
       );
     }
@@ -53,26 +57,36 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Spacing.values[16],
-    paddingTop: Spacing.values[60],
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
     backgroundColor: Colors.background,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 480,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   title: {
     fontSize: Typography.sizes.xxl,
     lineHeight: Typography.metrics.lineHeight32,
     fontFamily: Fonts.display.bold,
     color: Colors.text,
-    marginBottom: Spacing.values[8],
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: Typography.sizes.md,
     color: Colors.lightText,
-    marginBottom: Spacing.values[16],
+    textAlign: 'center',
   },
   details: {
+    width: '100%',
+    maxHeight: 240,
     backgroundColor: Colors.card,
     borderRadius: Radii.numeric[8],
     padding: Spacing.values[12],
+    marginTop: Spacing.md,
   },
   errorLabel: {
     color: Colors.warning,

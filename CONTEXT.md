@@ -8,6 +8,18 @@ Nosh turns recipes people find elsewhere into personal cookbooks they can read a
 The user's collection of personal cookbooks and the home of the signed-in product.
 _Avoid_: Dashboard, recipe manager
 
+**Bookshelf scene**:
+The user-selected wall and shelf presentation surrounding the cookbook collection. It belongs to the bookshelf as a whole, never to an individual cookbook.
+_Avoid_: Cookbook theme, book style, room
+
+**Shelf style**:
+A curated physical shelf used by the bookshelf scene to support every cookbook in the collection.
+_Avoid_: Book option, furniture setting
+
+**Wallpaper style**:
+A curated wall treatment behind the bookshelf scene. It changes presentation without changing cookbook content or behavior.
+_Avoid_: App theme, cookbook background
+
 **Cookbook**:
 A named physical-looking Nosh book personalized by its title, cover texture, and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
 _Avoid_: Folder, collection

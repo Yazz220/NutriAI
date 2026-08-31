@@ -1,27 +1,28 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ArrowLeft, History, MessageSquarePlus } from 'lucide-react-native';
+import { History, MessageSquarePlus } from 'lucide-react-native';
 import { useAuiState } from '@assistant-ui/react-native';
-import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 
 export function NoshHeaderIdentity({ contextLabel, showingHistory }: { contextLabel: string; showingHistory: boolean }) {
   const sessionTitle = useAuiState((state) => state.threadListItem.title);
   return (
-    <View style={styles.identityRow}>
-      <View style={styles.mark} accessibilityElementsHidden>
-        <NoshSymbol size={32} />
-      </View>
-      <View style={styles.identity}>
-        <Text variant="overline" style={styles.eyebrow} numberOfLines={1} accessibilityLabel={`Nosh focused on ${contextLabel}`}>
-          {showingHistory ? 'Nosh · conversations' : `Nosh · ${contextLabel}`}
+    <View style={styles.identity}>
+      <Text variant="h3" style={styles.title} numberOfLines={1}>
+        {showingHistory ? 'Conversations' : sessionTitle || 'New conversation'}
+      </Text>
+      {!showingHistory ? (
+        <Text
+          variant="bodySmall"
+          style={styles.context}
+          numberOfLines={1}
+          accessibilityLabel={`Nosh focused on ${contextLabel}`}
+        >
+          {contextLabel}
         </Text>
-        <Text variant="h3" style={styles.title} numberOfLines={1}>
-          {showingHistory ? 'History' : sessionTitle || 'New conversation'}
-        </Text>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -34,35 +35,36 @@ export function NoshHeaderActions({ showingHistory, onToggleHistory, onNewConver
   const isRunning = useAuiState((state) => state.thread.isRunning);
   return (
     <View style={styles.actions}>
-      <Pressable
-        onPress={onToggleHistory}
-        style={styles.action}
-        accessibilityRole="button"
-        accessibilityLabel={showingHistory ? 'Back to current conversation' : 'Open conversation history'}
-      >
-        {showingHistory ? <ArrowLeft size={18} color={Colors.text} /> : <History size={18} color={Colors.text} />}
-      </Pressable>
+      {!showingHistory ? (
+        <Pressable
+          onPress={onToggleHistory}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open conversation history"
+        >
+          <History size={19} color={Colors.textSecondary} strokeWidth={1.8} />
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={onNewConversation}
         disabled={isRunning}
-        style={[styles.action, isRunning && styles.disabled]}
+        style={({ pressed }) => [styles.action, isRunning && styles.disabled, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel="Start a new conversation"
         accessibilityState={{ disabled: isRunning }}
       >
-        <MessageSquarePlus size={18} color={Colors.text} />
+        <MessageSquarePlus size={19} color={Colors.textSecondary} strokeWidth={1.8} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  identityRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  mark: { width: 36, alignItems: 'center' },
-  identity: { flex: 1 },
-  eyebrow: { color: Colors.textMuted },
+  identity: { flex: 1, gap: Spacing.values[2] },
   title: { color: Colors.text },
+  context: { color: Colors.textMuted },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  action: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.white },
+  action: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pressed: { opacity: 0.55, transform: [{ scale: 0.97 }] },
   disabled: { opacity: 0.4 },
 });

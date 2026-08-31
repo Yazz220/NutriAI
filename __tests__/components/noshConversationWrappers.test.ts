@@ -46,11 +46,11 @@ describe('purpose-built Nosh conversation wrappers', () => {
   it('removes capture attachments and mixed copy from general conversation', () => {
     expect(getNoshComposerMode(collection, true)).toEqual({
       allowsRecipePhoto: false,
-      placeholder: 'Ask Nosh about your cookbooks...',
+      placeholder: 'Ask Nosh about your cookbooks…',
     });
     expect(getNoshComposerMode(recipe, true)).toEqual({
       allowsRecipePhoto: false,
-      placeholder: 'Ask about Baked Cheesecake...',
+      placeholder: 'Ask about Baked Cheesecake…',
     });
   });
 
@@ -59,14 +59,14 @@ describe('purpose-built Nosh conversation wrappers', () => {
     expect(getNoshStartConfig(capture, true).copy).not.toContain('ask before');
     expect(getNoshComposerMode(capture, true)).toEqual({
       allowsRecipePhoto: true,
-      placeholder: 'Send a recipe link, text, or photo...',
+      placeholder: 'Send a recipe link, text, or photo…',
     });
   });
 
   it('keeps the legacy everything-box behavior while the flag is off', () => {
     expect(getNoshComposerMode(collection, false)).toEqual({
       allowsRecipePhoto: true,
-      placeholder: 'Drop a recipe link or ask Nosh...',
+      placeholder: 'Drop a recipe link or ask Nosh…',
     });
   });
 });

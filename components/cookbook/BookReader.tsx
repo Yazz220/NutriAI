@@ -4,7 +4,7 @@ import { Alert, BackHandler, Platform, Pressable, StyleSheet, useWindowDimension
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronLeft, ChevronRight, Ellipsis, Plus, X } from 'lucide-react-native';
+import { BookOpen, ChevronLeft, ChevronRight, Ellipsis, NotebookPen, X } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -882,18 +882,16 @@ export function BookReader({
                 setActiveSheet('cookbook');
               }
             }}
+            accessibilityLabel={
+              isCompactReading && selectedPage
+                ? `Recipe actions for ${selectedPage.title}`
+                : `Cookbook actions for ${cookbookTitle}`
+            }
             title={isCompactReading ? selectedPage?.title : cookbookTitle}
             testID={isCompactReading ? 'recipe-context-menu' : 'cookbook-context-menu'}
           >
             <View
               style={styles.iconButton}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={
-                isCompactReading && selectedPage
-                  ? `Recipe actions for ${selectedPage.title}`
-                  : `Cookbook actions for ${cookbookTitle}`
-              }
             >
               <Ellipsis size={20} color={Colors.primary} />
             </View>
@@ -985,13 +983,20 @@ export function BookReader({
                   Turn a recipe you love into its first page.
                 </Text>
                 <Pressable
-                  style={({ pressed }) => [styles.emptyBookButton, pressed && styles.actionPressed]}
+                  style={({ pressed }) => [
+                    styles.emptyBookButton,
+                    styles.emptyBookComposeButton,
+                    pressed && styles.actionPressed,
+                  ]}
                   onPress={openAddPage}
                   accessibilityRole="button"
                   accessibilityLabel={`Add the first recipe to ${cookbookTitle}`}
                 >
-                  <Plus size={18} color={Colors.onPrimary} />
-                  <Text style={styles.emptyBookButtonText} maxFontSizeMultiplier={1.35}>
+                  <NotebookPen size={18} color={Colors.text} strokeWidth={1.8} />
+                  <Text
+                    style={[styles.emptyBookButtonText, styles.emptyBookComposeButtonText]}
+                    maxFontSizeMultiplier={1.35}
+                  >
                     Add my first recipe
                   </Text>
                 </Pressable>
@@ -1084,7 +1089,7 @@ export function BookReader({
               accessibilityRole="button"
               accessibilityLabel={`Add a page to ${cookbookTitle}`}
             >
-              <Plus size={20} color={Colors.onPrimary} />
+              <NotebookPen size={20} color={Colors.text} strokeWidth={1.8} />
             </Pressable>
           ) : null}
         </Animated.View>
@@ -1220,14 +1225,12 @@ export function BookReader({
                     setRecipeSheetInitialView('actions');
                     setActiveSheet('recipe');
                   }}
+                  accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
                   title={focusedPage.title}
                   testID="focused-recipe-context-menu"
                 >
                   <View
                     style={styles.focusedIcon}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={`Recipe actions for ${focusedPage.title}`}
                   >
                     <Ellipsis size={18} color={Colors.primary} />
                   </View>
@@ -1487,11 +1490,17 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     backgroundColor: Colors.primary,
   },
+  emptyBookComposeButton: {
+    backgroundColor: Colors.coral,
+  },
   emptyBookButtonText: {
     color: Colors.onPrimary,
     fontFamily: Fonts.ui.semibold,
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight20,
+  },
+  emptyBookComposeButtonText: {
+    color: Colors.text,
   },
   firstPageMoment: {
     position: 'absolute',
@@ -1592,7 +1601,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.numeric[22],
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.coral,
     boxShadow: Colors.book.liftedShadow,
   },
   readerActionDock: {

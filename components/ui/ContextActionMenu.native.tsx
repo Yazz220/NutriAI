@@ -8,6 +8,7 @@ export function ContextActionMenu({
   fallbackOnPress,
   onSelect,
   shouldOpenOnLongPress = false,
+  accessibilityLabel,
   style,
   title,
   testID,
@@ -24,6 +25,8 @@ export function ContextActionMenu({
       onPress={shouldOpenOnLongPress ? undefined : openMenu}
       style={style}
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
     >
       {children}
     </Pressable>

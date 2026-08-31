@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { LockKeyhole } from 'lucide-react-native';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 
 export default function ResetPasswordScreen() {
@@ -80,7 +81,7 @@ export default function ResetPasswordScreen() {
   if (checkingSession) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator color={Colors.primary} />
+        <LoadingSpinner text="Opening reset link…" />
       </View>
     );
   }
@@ -151,11 +152,7 @@ const styles = StyleSheet.create({
   },
   notice: {
     color: Colors.textSecondary,
-    backgroundColor: Colors.cardSecondary,
-    borderColor: Colors.border,
-    borderRadius: Radii.sm,
-    borderWidth: 1,
-    padding: Spacing.md,
+    paddingVertical: Spacing.xs,
   },
   backLink: {
     alignItems: 'center',
@@ -167,8 +164,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
 });

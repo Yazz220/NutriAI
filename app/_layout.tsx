@@ -260,7 +260,7 @@ function RootLayoutNav() {
         <NoshHorizontalLockup width={164} />
         <View style={{ height: Spacing.xl }} />
         <ActivityIndicator color={Colors.primary} />
-        <Text style={{ marginTop: Spacing.values[8], color: Colors.lightText }}>Opening your cookbook...</Text>
+        <Text style={{ marginTop: Spacing.values[8], color: Colors.lightText }}>Opening your cookbook…</Text>
       </View>
     );
   }

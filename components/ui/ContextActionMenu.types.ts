@@ -8,6 +8,7 @@ export interface ContextActionMenuProps {
   onSelect: (id: ContextActionId) => void;
   shouldOpenOnLongPress?: boolean;
   fallbackOnPress?: () => void;
+  accessibilityLabel: string;
   style?: StyleProp<ViewStyle>;
   title?: string;
   testID?: string;

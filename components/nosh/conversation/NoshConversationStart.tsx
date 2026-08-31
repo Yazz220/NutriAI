@@ -49,7 +49,7 @@ export function NoshConversationStart({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.sm, paddingVertical: Spacing.sm },
+  container: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
   title: { color: Colors.text },
   copy: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight19, maxWidth: 390 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, paddingTop: Spacing.xs },
@@ -57,11 +57,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.parchment,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  actionText: { color: Colors.primary, fontFamily: Fonts.ui.medium },
+  actionText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium },
 });

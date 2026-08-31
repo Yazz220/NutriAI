@@ -432,12 +432,8 @@ const styles = StyleSheet.create({
   headerBack: {
     width: 44,
     height: 44,
-    borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   eyebrow: {
     color: Colors.primary,
@@ -454,10 +450,6 @@ const styles = StyleSheet.create({
   },
   actionGroup: {
     overflow: 'hidden',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
   },
   destinationList: {
     gap: Spacing.sm,
@@ -480,12 +472,10 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   actionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radii.full,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.book.accentSoft,
   },
   actionCopy: {
     flex: 1,

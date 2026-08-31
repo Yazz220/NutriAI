@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Check, History, MessageSquarePlus, Pencil, Trash2, X } from 'lucide-react-native';
+import { Check, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react-native';
 import { ThreadListPrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -17,6 +17,7 @@ function HistoryItem({ onOpen, onDeleteActive }: { onOpen: () => void; onDeleteA
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [showingActions, setShowingActions] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title || 'New conversation');
 
   async function openThread() {
@@ -61,10 +62,15 @@ function HistoryItem({ onOpen, onDeleteActive }: { onOpen: () => void; onDeleteA
             <View style={[styles.mark, isMain && styles.markActive]} />
             <View style={styles.itemText}>
               <Text style={styles.itemTitle} numberOfLines={1}>{title || 'New conversation'}</Text>
-              <Text style={styles.itemMeta} numberOfLines={1}>{isRunning ? 'Nosh is still working' : isMain ? 'Current conversation' : 'Saved conversation'}</Text>
+              {isRunning ? <Text style={styles.itemMeta}>Working</Text> : null}
             </View>
           </Pressable>
-          {!confirmingDelete ? <Pressable onPress={() => { setDraftTitle(title || 'New conversation'); setIsRenaming(true); }} style={styles.smallAction} accessibilityRole="button" accessibilityLabel={`Rename ${title || 'conversation'}`}><Pencil size={15} color={Colors.textMuted} /></Pressable> : null}
+          {!confirmingDelete && showingActions ? (
+            <>
+              <Pressable onPress={() => { setDraftTitle(title || 'New conversation'); setIsRenaming(true); setShowingActions(false); }} style={styles.smallAction} accessibilityRole="button" accessibilityLabel={`Rename ${title || 'conversation'}`}><Pencil size={15} color={Colors.textMuted} /></Pressable>
+              <Pressable onPress={() => { setConfirmingDelete(true); setShowingActions(false); }} style={styles.smallAction} accessibilityRole="button" accessibilityLabel={`Delete ${title || 'conversation'}`}><Trash2 size={16} color={Colors.textMuted} /></Pressable>
+            </>
+          ) : null}
         </>
       )}
       {!isRenaming && confirmingDelete ? (
@@ -73,14 +79,13 @@ function HistoryItem({ onOpen, onDeleteActive }: { onOpen: () => void; onDeleteA
           <Pressable onPress={() => void deleteThread()} disabled={isDeleting} style={styles.deleteButton} accessibilityRole="button" accessibilityLabel="Delete conversation permanently"><Text style={styles.deleteText}>{isDeleting ? 'Deleting…' : 'Delete'}</Text></Pressable>
         </View>
       ) : !isRenaming ? (
-        <Pressable onPress={() => setConfirmingDelete(true)} style={styles.deleteAction} accessibilityRole="button" accessibilityLabel={`Delete ${title || 'conversation'}`}><Trash2 size={16} color={Colors.textMuted} /></Pressable>
+        <Pressable onPress={() => setShowingActions((current) => !current)} style={styles.smallAction} accessibilityRole="button" accessibilityLabel={`More actions for ${title || 'conversation'}`}><MoreHorizontal size={18} color={Colors.textMuted} /></Pressable>
       ) : null}
     </View>
   );
 }
 
-export function NoshThreadHistory({ onNewConversation, onOpenConversation, onDeleteActive }: {
-  onNewConversation: () => void;
+export function NoshThreadHistory({ onOpenConversation, onDeleteActive }: {
   onOpenConversation: () => void;
   onDeleteActive: () => void;
 }) {
@@ -88,14 +93,10 @@ export function NoshThreadHistory({ onNewConversation, onOpenConversation, onDel
   const isLoading = useAuiState((state) => state.threads.isLoading);
   return (
     <View style={styles.panel}>
-      <View style={styles.intro}>
-        <View><Text style={styles.heading}>Your conversations</Text></View>
-        <Pressable onPress={onNewConversation} style={styles.newButton} accessibilityRole="button" accessibilityLabel="Start a new conversation"><MessageSquarePlus size={17} color={Colors.onPrimary} /><Text style={styles.newText}>New</Text></Pressable>
-      </View>
       {isLoading ? (
-        <View style={styles.empty}><Text style={styles.emptyTitle}>Opening your recipe journal…</Text></View>
+        <View style={styles.empty}><Text style={styles.emptyTitle}>Opening conversations…</Text></View>
       ) : threadCount === 0 ? (
-        <View style={styles.empty}><History size={28} color={Colors.textMuted} /><Text style={styles.emptyTitle}>No saved conversations yet</Text></View>
+        <View style={styles.empty}><Text style={styles.emptyTitle}>No conversations yet</Text></View>
       ) : (
         <ThreadListPrimitive.Root style={styles.listRoot}><ThreadListPrimitive.Items contentContainerStyle={styles.listContent} renderItem={() => <HistoryItem onOpen={onOpenConversation} onDeleteActive={onDeleteActive} />} /></ThreadListPrimitive.Root>
       )}
@@ -104,17 +105,13 @@ export function NoshThreadHistory({ onNewConversation, onOpenConversation, onDel
 }
 
 const styles = StyleSheet.create({
-  panel: { flex: 1, minHeight: 260, gap: Spacing.md },
-  intro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.ash, paddingBottom: Spacing.md },
-  heading: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, },
-  copy: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, marginTop: Spacing.values[2] },
-  newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.values[7], borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
-  newText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  listRoot: { flex: 1 }, listContent: { gap: Spacing.sm, paddingBottom: Spacing.md },
-  item: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, borderRadius: Radii.lg, borderWidth: 1, borderColor: Colors.ash, backgroundColor: Colors.white, padding: Spacing.xs },
-  itemActive: { borderColor: Colors.charcoal, backgroundColor: Colors.parchment },
+  panel: { flex: 1, width: '100%', maxWidth: 760, minHeight: 260, alignSelf: 'center' },
+  listRoot: { flex: 1 },
+  listContent: { paddingBottom: Spacing.md },
+  item: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: Spacing.values[2], borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.divider, paddingVertical: Spacing.xs },
+  itemActive: { backgroundColor: Colors.parchment },
   itemMain: { flex: 1, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.sm },
-  mark: { width: 8, height: 28, borderRadius: Radii.numeric[4], backgroundColor: Colors.ash }, markActive: { backgroundColor: Colors.butterscotch },
+  mark: { width: 6, height: 6, borderRadius: Radii.full, backgroundColor: 'transparent' }, markActive: { backgroundColor: Colors.primary },
   itemText: { flex: 1, gap: Spacing.values[3] }, itemTitle: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, }, itemMeta: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, },
   smallAction: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
   renameEditor: { flex: 1, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: Spacing.values[2], paddingLeft: Spacing.sm },
@@ -122,8 +119,6 @@ const styles = StyleSheet.create({
   deleteConfirm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.values[4], paddingRight: Spacing.values[4] },
   deleteCancel: { minHeight: 44, justifyContent: 'center', paddingHorizontal: Spacing.values[7] }, deleteCancelText: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   deleteButton: { minHeight: 44, justifyContent: 'center', borderRadius: Radii.full, backgroundColor: Colors.error, paddingHorizontal: Spacing.sm }, deleteText: { color: Colors.onError, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
-  deleteAction: { width: 44, height: 44, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
-  empty: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.lg, borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.ash, backgroundColor: Colors.parchment, padding: Spacing.xl },
-  emptyTitle: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.md, textAlign: 'center' },
-  emptyCopy: { color: Colors.textSecondary, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18, textAlign: 'center', maxWidth: 280 },
+  empty: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  emptyTitle: { color: Colors.textMuted, fontFamily: Fonts.ui.regular, fontSize: Typography.sizes.md, textAlign: 'center' },
 });

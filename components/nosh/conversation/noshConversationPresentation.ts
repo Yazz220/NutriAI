@@ -46,13 +46,13 @@ export function getNoshComposerMode(
   contextModelEnabled: boolean,
 ) {
   if (!contextModelEnabled) {
-    return { allowsRecipePhoto: true, placeholder: 'Drop a recipe link or ask Nosh...' };
+    return { allowsRecipePhoto: true, placeholder: 'Drop a recipe link or ask Nosh…' };
   }
   if (interaction.task === 'capture') {
-    return { allowsRecipePhoto: true, placeholder: 'Send a recipe link, text, or photo...' };
+    return { allowsRecipePhoto: true, placeholder: 'Send a recipe link, text, or photo…' };
   }
   if (interaction.focus.kind === 'recipe') {
-    return { allowsRecipePhoto: false, placeholder: `Ask about ${interaction.focus.title}...` };
+    return { allowsRecipePhoto: false, placeholder: `Ask about ${interaction.focus.title}…` };
   }
-  return { allowsRecipePhoto: false, placeholder: 'Ask Nosh about your cookbooks...' };
+  return { allowsRecipePhoto: false, placeholder: 'Ask Nosh about your cookbooks…' };
 }

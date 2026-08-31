@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { LockKeyhole, Mail } from 'lucide-react-native';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
@@ -92,7 +91,10 @@ export default function SignUpScreen() {
       <Input
         label="Email"
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
+        textContentType="emailAddress"
+        spellCheck={false}
         value={email}
         onChangeText={setEmail}
         placeholder="you@example.com"
@@ -101,6 +103,8 @@ export default function SignUpScreen() {
       <Input
         label="Password"
         secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
@@ -109,6 +113,8 @@ export default function SignUpScreen() {
       <Input
         label="Confirm password"
         secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
         value={confirm}
         onChangeText={setConfirm}
         placeholder="Confirm password"
@@ -123,13 +129,18 @@ export default function SignUpScreen() {
         loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={8}
-            style={styles.appleButton}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign up with Apple"
             onPress={onAppleSignUp}
-          />
+            style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
+          >
+            <Image
+              source={require('../../assets/auth/apple-sign-in-logo-black.png')}
+              style={styles.appleButtonImage}
+              accessible={false}
+            />
+          </Pressable>
         )
       ) : null}
     </AuthScaffold>
@@ -138,9 +149,19 @@ export default function SignUpScreen() {
 
 const styles = StyleSheet.create({
   appleButton: {
+    alignSelf: 'center',
     height: 44,
-    width: '100%',
-    borderRadius: Radii.sm,
+    width: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  appleButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }],
+  },
+  appleButtonImage: {
+    height: 44,
+    width: 44,
   },
   footer: {
     flexDirection: 'row',
@@ -156,8 +177,6 @@ const styles = StyleSheet.create({
   },
   error: {
     color: Colors.error,
-    backgroundColor: Colors.errorLight,
-    borderRadius: Radii.sm,
-    padding: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
 });

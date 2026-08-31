@@ -1379,7 +1379,11 @@ export function Cookbook3DScene({
           intercepts touches. */}
           <View style={styles.coverLayer} pointerEvents={isOpen ? 'none' : 'box-none'}>
             <Animated.View style={[styles.coverPivot, coverOpenStyle]}>
-              <Pressable onPress={onOpen} accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}>
+              <Pressable
+                onPress={onOpen}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${cookbook?.title ?? 'cookbook'}`}
+              >
                 <PhysicalBook
                   title={cookbook?.title ?? 'My Cookbook'}
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
@@ -1401,7 +1405,11 @@ export function Cookbook3DScene({
           receives taps; 'none' when open. */}
           <View style={styles.coverLayer} pointerEvents={isBackClosed ? 'box-none' : 'none'}>
             <Animated.View style={[styles.backCoverPivot, backCoverOpenStyle]}>
-              <Pressable onPress={onOpenBack} accessibilityLabel="Open back cover">
+              <Pressable
+                onPress={onOpenBack}
+                accessibilityRole="button"
+                accessibilityLabel="Open back cover"
+              >
                 <PhysicalBook
                   title=""
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}

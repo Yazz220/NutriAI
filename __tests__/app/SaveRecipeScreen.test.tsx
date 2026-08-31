@@ -49,11 +49,12 @@ describe('SaveRecipeScreen activity navigation', () => {
     mockParams = {};
   });
 
-  it('opens on the composer and reveals history from the header', () => {
+  it('reveals activity only when unfinished work exists', () => {
     const screen = render(<SaveRecipeScreen />);
 
     expect(screen.getByText('Save a recipe')).toBeTruthy();
     expect(screen.getByText('Composer workspace')).toBeTruthy();
+    expect(screen.getByText('1 page needs attention')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', {
       name: '2 recipe items active, 1 needs attention',
@@ -61,6 +62,11 @@ describe('SaveRecipeScreen activity navigation', () => {
 
     expect(screen.getByText('Recipe activity')).toBeTruthy();
     expect(screen.getByText('Activity workspace')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Save another recipe' })).toBeTruthy();
+    expect(screen.queryByText('1 page needs attention')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Back to save a recipe' }));
+    expect(screen.getByText('Save a recipe')).toBeTruthy();
+    expect(screen.getByText('Composer workspace')).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

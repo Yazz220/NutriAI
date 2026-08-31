@@ -64,7 +64,7 @@ export function NoshResponseReportButton({
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
       <Flag size={14} color={Colors.textSecondary} />
-      {compact ? null : <Text style={styles.label}>{submitting ? 'Sending...' : 'Report'}</Text>}
+      {compact ? null : <Text style={styles.label}>{submitting ? 'Sending…' : 'Report'}</Text>}
     </Pressable>
   );
 }

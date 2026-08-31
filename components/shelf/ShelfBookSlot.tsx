@@ -2,21 +2,17 @@
 import React, { useRef } from 'react';
 import { Pressable, StyleSheet, View, type AccessibilityActionEvent } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import { ContactShadow } from '@/components/physical-book/ContactShadow';
 import {
   resolveShelfPose,
-  resolveShelfShadow,
   resolveSpineFacePose,
   type ShelfGeometry,
 } from '@/utils/cookbook/physicalShelf';
 import { flattenContextActions, type ContextActionGroup, type ContextActionId } from '@/utils/cookbook/contextActions';
 
 /**
- * One slot on the spine-packed shelf. Three sibling layers all derive from
+ * One slot on the spine-packed shelf. Two sibling layers derive from
  * the shared carousel offset on the UI thread, forming a two-face cuboid:
  *
- * - shadow: slides with the book and narrows to the spine footprint as the
- *   book pivots away (the board is static, so the shadow never rotates).
  * - spine: a perpendicular plane hinged at the cover's left edge — visible
  *   on the flanks, edge-on (hidden) at center.
  * - cover: the full front cover, facing forward at center and foreshortened
@@ -178,24 +174,8 @@ export function ShelfBookSlot({
     };
   });
 
-  const shadowStyle = useAnimatedStyle(() => {
-    const shadow = resolveShelfShadow(index - shelfOffset.value, geometry, coverWidth, spineWidth);
-    return {
-      transform: [{ translateX: shadow.translateX }, { scaleX: shadow.scaleX }],
-      // ContactShadow bakes opacity 0.3 into its Skia color; normalize here.
-      opacity: shadow.opacity / 0.3,
-    };
-  });
-
   return (
     <>
-      <Animated.View
-        style={[styles.shadowLayer, { left: stageCenterX - coverWidth / 2, bottom, width: coverWidth }, shadowStyle]}
-        pointerEvents="none"
-      >
-        <ContactShadow width={coverWidth} />
-      </Animated.View>
-
       <Animated.View
         style={[
           styles.spineLayer,
@@ -228,10 +208,6 @@ export function ShelfBookSlot({
 }
 
 const styles = StyleSheet.create({
-  shadowLayer: {
-    position: 'absolute',
-    zIndex: 1,
-  },
   spineLayer: {
     position: 'absolute',
   },

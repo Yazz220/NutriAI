@@ -11,6 +11,7 @@ import type {
 } from '@/utils/cookbook/collectionActions';
 import { createCollectionActionRequestKey } from '@/utils/cookbook/collectionActions';
 import { Fonts } from '@/utils/fonts';
+import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
 
 export function CollectionActionCard({
   action,
@@ -39,6 +40,7 @@ export function CollectionActionCard({
   const [preview, setPreview] = React.useState<CollectionActionPreview | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [committing, setCommitting] = React.useState(false);
+  const [previewAttempt, setPreviewAttempt] = React.useState(0);
   const requestKey = React.useRef(createCollectionActionRequestKey()).current;
 
   React.useEffect(() => {
@@ -54,7 +56,7 @@ export function CollectionActionCard({
     return () => {
       cancelled = true;
     };
-  }, [action, destinationCookbookId, onPreview, pageId]);
+  }, [action, destinationCookbookId, onPreview, pageId, previewAttempt]);
 
   const commit = async () => {
     if (!preview || committing) return;
@@ -71,8 +73,8 @@ export function CollectionActionCard({
 
   if (!preview && !error) {
     return (
-      <View style={styles.card} accessibilityLiveRegion="polite">
-        <ActivityIndicator color={Colors.primary} />
+      <View style={styles.loading} accessibilityLiveRegion="polite" accessibilityRole="progressbar">
+        <NoshActivityDots size={5} />
         <Text style={styles.muted}>Checking…</Text>
       </View>
     );
@@ -83,6 +85,27 @@ export function CollectionActionCard({
       <View style={styles.card} accessibilityLiveRegion="polite">
         <Text style={styles.title}>This change is unavailable</Text>
         <Text style={styles.error}>{error}</Text>
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel collection change"
+            onPress={() => onResult({ cancelled: true })}
+            style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}
+          >
+            <Text style={styles.quietText}>Not now</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Try loading the collection change again"
+            onPress={() => {
+              setError(null);
+              setPreviewAttempt((attempt) => attempt + 1);
+            }}
+            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryText}>Try again</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -110,9 +133,9 @@ export function CollectionActionCard({
           accessibilityState={{ disabled: committing }}
           disabled={committing}
           onPress={() => onResult({ cancelled: true })}
-          style={styles.secondary}
+          style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}
         >
-          <Text style={styles.secondaryText}>Cancel</Text>
+          <Text style={styles.quietText}>Not now</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -120,10 +143,10 @@ export function CollectionActionCard({
           accessibilityState={{ disabled: committing, busy: committing }}
           disabled={committing}
           onPress={() => void commit()}
-          style={[styles.primary, committing && styles.disabled]}
+          style={({ pressed }) => [styles.primary, committing && styles.disabled, pressed && styles.pressed]}
         >
           {committing ? <ActivityIndicator size="small" color={Colors.onPrimary} /> : null}
-          <Text style={styles.primaryText}>{committing ? 'Saving...' : `Confirm ${action}`}</Text>
+          <Text style={styles.primaryText}>{committing ? 'Saving…' : `Confirm ${action}`}</Text>
         </Pressable>
       </View>
     </View>
@@ -131,19 +154,21 @@ export function CollectionActionCard({
 }
 
 const styles = StyleSheet.create({
-  card: { gap: Spacing.sm, borderWidth: 1, borderColor: Colors.ash, borderRadius: Radii.lg, backgroundColor: Colors.white, padding: Spacing.md },
+  card: { gap: Spacing.sm, borderWidth: 1, borderColor: Colors.borderLight, borderRadius: Radii.lg, backgroundColor: Colors.white, padding: Spacing.md, marginVertical: Spacing.values[4] },
+  loading: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.xs },
   heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   headingText: { flex: 1, gap: Spacing.values[2] },
   eyebrow: { color: Colors.textMuted, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, textTransform: 'uppercase' },
   title: { color: Colors.text, fontFamily: Fonts.display.bold, fontSize: Typography.sizes.lgMd },
-  route: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, borderRadius: Radii.md, backgroundColor: Colors.parchment, padding: Spacing.sm },
+  route: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, paddingVertical: Spacing.xs },
   book: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
   muted: { color: Colors.textSecondary, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
   error: { color: Colors.error, fontSize: Typography.sizes.md, lineHeight: Typography.metrics.lineHeight18 },
-  actions: { flexDirection: 'row', gap: Spacing.sm },
-  primary: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  primary: { flexGrow: 1, minWidth: 128, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, borderRadius: Radii.full, backgroundColor: Colors.primary, paddingHorizontal: Spacing.md },
   primaryText: { color: Colors.onPrimary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, textTransform: 'capitalize' },
-  secondary: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.charcoal, borderRadius: Radii.full, backgroundColor: Colors.white, paddingHorizontal: Spacing.md },
-  secondaryText: { color: Colors.text, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md, },
+  quiet: { flexGrow: 1, minWidth: 96, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radii.full, backgroundColor: Colors.alpha.primary[5], paddingHorizontal: Spacing.md },
+  quietText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium, fontSize: Typography.sizes.md },
   disabled: { opacity: 0.6 },
+  pressed: { opacity: 0.7 },
 });

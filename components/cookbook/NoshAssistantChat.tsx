@@ -6,10 +6,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react-native';
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -30,7 +31,7 @@ import { NoshConversationDisplay } from '@/components/nosh/conversation/NoshConv
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -594,9 +595,20 @@ export function NoshConversationHost() {
         closeAccessibilityLabel="Close Nosh conversation"
         header={
           <>
-            <View style={styles.iconBadge}>
-              <NoshSymbol size={26} tone="ivory" />
-            </View>
+            {showingHistory ? (
+              <Pressable
+                onPress={() => setShowingHistory(false)}
+                style={({ pressed }) => [styles.leadingAction, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Back to current conversation"
+              >
+                <ArrowLeft size={21} color={Colors.text} strokeWidth={1.8} />
+              </Pressable>
+            ) : (
+              <View style={styles.brandMark} accessibilityElementsHidden>
+                <NoshSymbol size={30} />
+              </View>
+            )}
             <NoshHeaderIdentity contextLabel={contextLabel} showingHistory={showingHistory} />
             {interaction.task !== 'capture' ? (
               <NoshHeaderActions
@@ -610,7 +622,6 @@ export function NoshConversationHost() {
       >
         {showingHistory ? (
           <NoshThreadHistory
-            onNewConversation={() => void startNewConversation()}
             onOpenConversation={() => {
               clearSessionScratch();
               setShowingHistory(false);
@@ -664,15 +675,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   handle: { backgroundColor: Colors.duskGrey },
-  closeButton: { backgroundColor: Colors.white },
+  closeButton: { backgroundColor: 'transparent', borderWidth: 0 },
   captureScroll: { flex: 1 },
   captureScrollContent: { paddingBottom: Spacing.lg },
-  iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: Radii.numeric[21],
+  brandMark: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
   },
+  leadingAction: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  pressed: { opacity: 0.55, transform: [{ scale: 0.97 }] },
 });

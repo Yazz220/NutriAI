@@ -17,7 +17,7 @@ import React from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, FileAudio, Link, Paperclip, Send, Video, X } from 'lucide-react-native';
+import { FileAudio, NotebookPen, Paperclip, X } from 'lucide-react-native';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
@@ -246,17 +246,9 @@ export function UnifiedIntakeComposer({
   const canSubmit = Boolean(hasImage || hasAudio || hasVideo || input.trim()) && !isSubmitting;
 
   const submitIcon = isSubmitting ? (
-    <ActivityIndicator size="small" color={Colors.onPrimary} />
-  ) : hasImage ? (
-    <Camera size={18} color={Colors.onPrimary} />
-  ) : hasAudio ? (
-    <FileAudio size={18} color={Colors.onPrimary} />
-  ) : hasVideo || looksLikeVideoUrl(input) ? (
-    <Video size={18} color={Colors.onPrimary} />
-  ) : looksLikeUrl(input) ? (
-    <Link size={18} color={Colors.onPrimary} />
+    <ActivityIndicator size="small" color={Colors.text} />
   ) : (
-    <Send size={18} color={Colors.onPrimary} />
+    <NotebookPen size={18} color={Colors.text} strokeWidth={1.8} />
   );
 
   return (
@@ -298,6 +290,7 @@ export function UnifiedIntakeComposer({
             }}
             accessibilityRole="button"
             accessibilityLabel={hasAudio ? 'Remove attached audio' : hasVideo ? 'Remove attached video' : 'Remove attached image'}
+            style={styles.removeAttachment}
             hitSlop={Spacing.sm}
           >
             <X size={16} color={Colors.textMuted} />
@@ -366,6 +359,7 @@ export function UnifiedIntakeComposer({
           disabled={!canSubmit}
           accessibilityRole="button"
           accessibilityLabel="Create recipe page"
+          accessibilityState={{ disabled: !canSubmit, busy: isSubmitting }}
         >
           {submitIcon}
           <Text style={styles.primaryText}>
@@ -456,11 +450,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
+  removeAttachment: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   primaryButton: {
     minWidth: 128,
     minHeight: 44,
     borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.coral,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   primaryText: {
-    color: Colors.onPrimary,
+    color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.sm,
   },
