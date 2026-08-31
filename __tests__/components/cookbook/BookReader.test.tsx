@@ -359,6 +359,7 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByRole('button', { name: 'Next recipe' })).toBeEnabled();
     expect(screen.queryByText('RECIPE')).toBeNull();
     expect(screen.getByText(`1 / ${SAMPLE_COOKBOOK_PAGES.length}`)).toBeTruthy();
+    expect(screen.getAllByTestId('page-overview-icon').length).toBeGreaterThan(0);
   });
 
   it('lets the native scene animate an arrow turn before committing navigation', async () => {

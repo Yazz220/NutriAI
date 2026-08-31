@@ -4,7 +4,7 @@ import { Alert, BackHandler, Platform, Pressable, StyleSheet, useWindowDimension
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronLeft, ChevronRight, Ellipsis, NotebookPen, X } from 'lucide-react-native';
+import { BookOpen, ChevronLeft, ChevronRight, Ellipsis, LayoutGrid, NotebookPen, X } from 'lucide-react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -1261,6 +1261,8 @@ export function BookReader({
                 nextDisabled={focusedPageIndex >= pages.length - 1}
                 onPrevious={() => goToFocusedPage(-1)}
                 onNext={() => goToFocusedPage(1)}
+                onStatusPress={openOverview}
+                statusLabel="Open page overview"
               />
             </View>
           </LinearGradient>
@@ -1322,9 +1324,16 @@ function ReaderNavigationRail({
           onPress={onStatusPress}
           accessibilityRole="button"
           accessibilityLabel={statusLabel}
+          accessibilityHint="Shows every page in this cookbook"
           accessibilityLiveRegion="polite"
         >
           {count}
+          <LayoutGrid
+            testID="page-overview-icon"
+            size={15}
+            color={Colors.primary}
+            strokeWidth={1.7}
+          />
         </Pressable>
       ) : (
         <View style={styles.navigationStatus} accessibilityLiveRegion="polite">
@@ -1583,10 +1592,12 @@ const styles = StyleSheet.create({
     opacity: 0.26,
   },
   navigationStatus: {
-    minWidth: 64,
+    minWidth: 76,
     minHeight: 32,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.xs,
   },
   navigationCount: {
     color: Colors.text,

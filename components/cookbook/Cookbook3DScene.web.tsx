@@ -975,10 +975,9 @@ function drawEmbossedNoshMark(
   clothColor: string,
 ) {
   const markWidth = width * 0.13;
-  const markHeight = markWidth * (NOSH_SYMBOL_VIEWBOX.height / NOSH_SYMBOL_VIEWBOX.width);
   const inset = width * 0.065;
   const x = width - inset - markWidth;
-  const y = height - inset - markHeight;
+  const y = inset;
   const path = new Path2D(NOSH_SYMBOL_PATH);
   const scale = markWidth / NOSH_SYMBOL_VIEWBOX.width;
 

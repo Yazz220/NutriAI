@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { CreationStudio } from '@/components/create/CreationStudio';
 
 jest.mock('expo-haptics', () => ({
@@ -36,6 +37,10 @@ describe('CreationStudio', () => {
     expect(screen.getByTestId('title-color-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('title-position-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('page-style-rail').props.horizontal).toBe(true);
+    expect(StyleSheet.flatten(screen.getByTestId('page-style-sample-studio').props.style)).toMatchObject({
+      width: '100%',
+      height: 112,
+    });
 
     fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'Desserts');
     fireEvent.press(screen.getByRole('button', {

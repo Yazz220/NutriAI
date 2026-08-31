@@ -951,6 +951,7 @@ function PageStyleSelector({
                 source={option.samples.brownies}
                 resizeMode="cover"
                 style={styles.pageStyleSample}
+                testID={`page-style-sample-${option.id}`}
                 accessible={false}
               />
               <View style={styles.pageStyleCopy}>
@@ -1397,7 +1398,7 @@ const styles = StyleSheet.create({
   },
   pageStyleSample: {
     width: '100%',
-    aspectRatio: 4 / 5,
+    height: 112,
     borderRadius: Radii.sm,
     backgroundColor: Colors.book.page,
   },

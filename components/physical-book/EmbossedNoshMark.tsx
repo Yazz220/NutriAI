@@ -23,7 +23,7 @@ export const EmbossedNoshMark = React.memo(function EmbossedNoshMark({
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.wrap, { width, height, right: inset, bottom: inset }]}
+      style={[styles.wrap, { width, height, right: inset, top: inset }]}
     >
       <Svg width={width} height={height} viewBox={`0 0 ${NOSH_SYMBOL_VIEWBOX.width} ${NOSH_SYMBOL_VIEWBOX.height}`}>
         <Path
