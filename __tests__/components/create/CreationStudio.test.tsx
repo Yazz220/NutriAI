@@ -33,6 +33,8 @@ describe('CreationStudio', () => {
 
     expect(screen.getByTestId('cover-finish-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('cover-color-rail').props.horizontal).toBe(true);
+    expect(screen.getByTestId('title-color-rail').props.horizontal).toBe(true);
+    expect(screen.getByTestId('title-position-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('page-style-rail').props.horizontal).toBe(true);
 
     fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'Desserts');
@@ -40,6 +42,8 @@ describe('CreationStudio', () => {
       name: 'Natural linen cover texture: A warmer, more open woven texture',
     }));
     fireEvent.press(screen.getByRole('button', { name: 'Midnight cover color' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Plum title color' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Lower title position' }));
     fireEvent.press(screen.getByRole('button', {
       name: 'Editorial recipe page style: Bold imagery and clean type',
     }));
@@ -50,6 +54,8 @@ describe('CreationStudio', () => {
         title: 'Desserts',
         coverFinishId: 'natural-linen',
         coverColorId: 'midnight',
+        coverTitleColorId: 'plum',
+        coverTitlePlacementId: 'lower',
         pageStyleId: 'studio-editorial',
       });
     });
@@ -94,7 +100,8 @@ describe('CreationStudio', () => {
 
     expect(screen.getByDisplayValue('My Cookbook')).toBeTruthy();
     expect(screen.getByText('Cover finish')).toBeTruthy();
-    expect(screen.getByText('Color')).toBeTruthy();
+    expect(screen.getByText('Cover color')).toBeTruthy();
+    expect(screen.getByText('Title style')).toBeTruthy();
     expect(screen.getByText('Page style')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
@@ -108,6 +115,8 @@ describe('CreationStudio', () => {
         title: 'My Cookbook',
         coverFinishId: 'fine-cloth',
         coverColorId: 'clay',
+        coverTitleColorId: 'auto',
+        coverTitlePlacementId: 'center',
         pageStyleId: 'heritage',
       });
     });
@@ -137,16 +146,16 @@ describe('CreationStudio', () => {
     expect(screen.getByTestId('shelf-style-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('wallpaper-style-rail').props.horizontal).toBe(true);
 
-    fireEvent.press(screen.getByRole('button', { name: 'Floating oak shelf' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Carved walnut shelf' }));
 
     await waitFor(() => {
-      expect(onShelfStyleChange).toHaveBeenCalledWith('floating-oak');
+      expect(onShelfStyleChange).toHaveBeenCalledWith('carved-walnut');
     });
 
-    fireEvent.press(screen.getByRole('button', { name: 'Sage tile wallpaper' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Charcoal damask wallpaper' }));
 
     await waitFor(() => {
-      expect(onWallpaperStyleChange).toHaveBeenCalledWith('sage-zellige');
+      expect(onWallpaperStyleChange).toHaveBeenCalledWith('charcoal-damask');
     });
   });
 });

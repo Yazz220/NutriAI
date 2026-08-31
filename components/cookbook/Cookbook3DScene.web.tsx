@@ -26,8 +26,17 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Group } from 'three';
 import type { Cookbook3DSceneProps } from '@/components/cookbook/Cookbook3DScene.types';
+import { resolveCookbookBinding } from '@/constants/cookbookBindings';
+import {
+  normalizeCoverTitlePlacementId,
+  resolveCoverTitleCenterRatio,
+  resolveCoverTitleFoil,
+  type CoverTitleFoil,
+} from '@/constants/cookbookCoverTypography';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
-import type { CookbookPage } from '@/types/cookbook';
+import { NOSH_SYMBOL_PATH, NOSH_SYMBOL_VIEWBOX } from '@/constants/noshSymbol';
+import type { CookbookCoverTitlePlacementId, CookbookPage } from '@/types/cookbook';
+import { shiftColor } from '@/utils/cookbook/coverArt';
 import {
   buildPageCurlCurve,
   estimateTurnSettleDuration,
@@ -98,7 +107,14 @@ export function Cookbook3DScene({
   onOpenRecipe,
   style,
 }: Cookbook3DSceneProps) {
-  const coverUri = resolveImageAssetUri(cookbook?.coverImageAsset) ?? makeFallbackImageUri(cookbook?.title ?? 'My Cookbook');
+  const coverBinding = resolveCookbookBinding({
+    finishId: cookbook?.coverFinishId,
+    colorId: cookbook?.coverColorId,
+    legacyStyleId: cookbook?.coverStyle,
+  });
+  const coverTitleFoil = resolveCoverTitleFoil(cookbook?.coverTitleColorId, coverBinding.foil);
+  const coverTitlePlacementId = normalizeCoverTitlePlacementId(cookbook?.coverTitlePlacementId);
+  const coverUri = resolveImageAssetUri(cookbook?.coverImageAsset) ?? makeFallbackCoverImageUri();
   const pageUris = pages.map(
     (page) => resolveImageAssetUri(page.imageAsset) ?? page.imageUrl ?? makeFallbackImageUri(page.title),
   );
@@ -123,6 +139,9 @@ export function Cookbook3DScene({
         <Suspense fallback={<FallbackBook />}>
           <BookScene
             title={cookbook?.title ?? 'My Cookbook'}
+            coverTitleFoil={coverTitleFoil}
+            coverTitlePlacementId={coverTitlePlacementId}
+            coverClothColor={coverBinding.cloth}
             pages={pages}
             spreads={spreads}
             spreadIndex={spreadIndex}
@@ -190,6 +209,9 @@ function FallbackBook() {
 
 function BookScene({
   title,
+  coverTitleFoil,
+  coverTitlePlacementId,
+  coverClothColor,
   pages,
   spreads,
   spreadIndex,
@@ -204,6 +226,9 @@ function BookScene({
   onOpenRecipe,
 }: {
   title: string;
+  coverTitleFoil: CoverTitleFoil;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
+  coverClothColor: string;
   pages: CookbookPage[];
   spreads: CookbookSpread[];
   spreadIndex: number;
@@ -220,7 +245,10 @@ function BookScene({
   const loadedTextures = useLoader(TextureLoader, textureUris);
   const coverTexture = loadedTextures[0];
   const recipeTextures = loadedTextures.slice(1);
-  const coverTitleTexture = useMemo(() => createCoverTitleTexture(title), [title]);
+  const coverTitleTexture = useMemo(
+    () => createCoverTitleTexture(title, coverTitleFoil, coverTitlePlacementId, coverClothColor),
+    [coverClothColor, coverTitleFoil, coverTitlePlacementId, title],
+  );
   const bookplateTexture = useMemo(() => createBookplateTexture(title, pages.length), [pages.length, title]);
   const blankTexture = useMemo(() => createBlankTexture(), []);
   const gutterShadowTexture = useMemo(() => createGutterShadowTexture(), []);
@@ -613,7 +641,7 @@ function BookScene({
         {/* Base board — the rigid cover material underneath the pages */}
         <mesh castShadow receiveShadow position={[BOOK_WIDTH / 2, 0, 0]}>
           <roundedBoxGeometry args={[BOOK_WIDTH + 0.1, 0.1, BOOK_HEIGHT + 0.1, 7, 0.1]} />
-          <meshPhysicalMaterial color={COVER_GREEN} roughness={0.82} sheen={0.18} sheenColor={Colors.legacySurface.v13} specularIntensity={0.22} />
+          <meshPhysicalMaterial color={coverClothColor} roughness={0.82} sheen={0.18} sheenColor={Colors.legacySurface.v13} specularIntensity={0.22} />
         </mesh>
 
         {/* Right page stack — thins as you read forward */}
@@ -689,7 +717,7 @@ function BookScene({
             }}
           >
             <roundedBoxGeometry args={[BOOK_WIDTH, COVER_THICKNESS, BOOK_HEIGHT, 7, 0.085]} />
-            <meshPhysicalMaterial color={COVER_GREEN} roughness={0.8} sheen={0.2} sheenColor={Colors.legacySurface.v14} specularIntensity={0.24} />
+            <meshPhysicalMaterial color={coverClothColor} roughness={0.8} sheen={0.2} sheenColor={Colors.legacySurface.v14} specularIntensity={0.24} />
           </mesh>
           <mesh position={[BOOK_WIDTH / 2, COVER_THICKNESS / 2 + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[BOOK_WIDTH - 0.075, BOOK_HEIGHT - 0.075]} />
@@ -864,33 +892,28 @@ function createRestingPageGeometry(side: 'left' | 'right'): PlaneGeometry {
   return geometry;
 }
 
-function createCoverTitleTexture(title: string): CanvasTexture {
+function createCoverTitleTexture(
+  title: string,
+  foil: CoverTitleFoil,
+  placementId: CookbookCoverTitlePlacementId,
+  clothColor: string,
+): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = COOKBOOK_GEOMETRY.page.designWidth;
   canvas.height = COOKBOOK_GEOMETRY.page.designHeight;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Could not create cover title texture');
 
+  const centerY = canvas.height * resolveCoverTitleCenterRatio(placementId);
+  const lineHeight = canvas.height * 0.067;
   context.textAlign = 'center';
-  context.fillStyle = Colors.legacySurface.v33;
-  context.font = `600 ${Math.round(canvas.width * 0.024)}px Georgia`;
-  context.fillText('A PERSONAL COOKBOOK', canvas.width / 2, canvas.height * 0.25);
-
-  context.fillStyle = Colors.legacySurface.v39;
+  context.textBaseline = 'middle';
   context.font = `bold ${Math.round(canvas.width * 0.09)}px Georgia`;
-  drawWrappedText(context, title, canvas.width / 2, canvas.height * 0.33, canvas.width * 0.7, canvas.height * 0.067);
+  drawCenteredWrappedText(context, title, canvas.width / 2, centerY - 1.5, canvas.width * 0.7, lineHeight, foil[2]);
+  drawCenteredWrappedText(context, title, canvas.width / 2, centerY + 1.8, canvas.width * 0.7, lineHeight, foil[0]);
+  drawCenteredWrappedText(context, title, canvas.width / 2, centerY, canvas.width * 0.7, lineHeight, foil[1]);
 
-  context.strokeStyle = Colors.legacySurface.v49;
-  context.lineWidth = 2;
-  context.beginPath();
-  context.moveTo(canvas.width * 0.36, canvas.height * 0.48);
-  context.lineTo(canvas.width * 0.64, canvas.height * 0.48);
-  context.stroke();
-
-  context.fillStyle = Colors.legacySurface.v08;
-  context.font = `bold ${Math.round(canvas.width * 0.022)}px Georgia`;
-  context.letterSpacing = `${Math.round(canvas.width * 0.006)}px`;
-  context.fillText('RECIPES', canvas.width / 2, canvas.height * 0.86);
+  drawEmbossedNoshMark(context, canvas.width, canvas.height, clothColor);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -905,6 +928,87 @@ function makeFallbackImageUri(title: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${Colors.legacySurface.v36}"/><rect x="38" y="38" width="${width - 76}" height="${height - 76}" rx="24" fill="none" stroke="${Colors.legacySurface.v20}" stroke-width="4"/><text x="${width / 2}" y="${height * 0.48}" text-anchor="middle" font-family="Georgia" font-size="54" fill="${Colors.legacySurface.v06}">${safeTitle}</text><text x="${width / 2}" y="${height * 0.54}" text-anchor="middle" font-family="Georgia" font-size="20" letter-spacing="7" fill="${Colors.legacySurface.v15}">COOKBOOK</text></svg>`,
   )}`;
+}
+
+function makeFallbackCoverImageUri(): string {
+  const width = COOKBOOK_GEOMETRY.page.designWidth;
+  const height = COOKBOOK_GEOMETRY.page.designHeight;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#ffffff"/><path d="M0 64H${width}M0 128H${width}M0 192H${width}M0 256H${width}M0 320H${width}M0 384H${width}M0 448H${width}M0 512H${width}M0 576H${width}" stroke="#1f171f" stroke-opacity="0.035" stroke-width="1"/></svg>`,
+  )}`;
+}
+
+function drawCenteredWrappedText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  centerY: number,
+  maxWidth: number,
+  lineHeight: number,
+  color: string,
+) {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let line = '';
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+
+  context.fillStyle = color;
+  const firstLineY = centerY - ((lines.length - 1) * lineHeight) / 2;
+  lines.slice(0, 3).forEach((value, index) => {
+    context.fillText(value, x, firstLineY + index * lineHeight);
+  });
+}
+
+function drawEmbossedNoshMark(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  clothColor: string,
+) {
+  const markWidth = width * 0.13;
+  const markHeight = markWidth * (NOSH_SYMBOL_VIEWBOX.height / NOSH_SYMBOL_VIEWBOX.width);
+  const inset = width * 0.065;
+  const x = width - inset - markWidth;
+  const y = height - inset - markHeight;
+  const path = new Path2D(NOSH_SYMBOL_PATH);
+  const scale = markWidth / NOSH_SYMBOL_VIEWBOX.width;
+
+  context.save();
+  context.translate(x, y);
+  context.scale(scale, scale);
+
+  context.save();
+  context.translate(-9, -9);
+  context.globalAlpha = 0.26;
+  context.fillStyle = shiftColor(clothColor, 34);
+  context.fill(path);
+  context.restore();
+
+  context.save();
+  context.translate(10, 11);
+  context.globalAlpha = 0.34;
+  context.fillStyle = shiftColor(clothColor, -30);
+  context.fill(path);
+  context.restore();
+
+  context.globalAlpha = 0.16;
+  context.fillStyle = shiftColor(clothColor, -12);
+  context.fill(path);
+  context.globalAlpha = 0.62;
+  context.lineWidth = 18;
+  context.lineJoin = 'round';
+  context.strokeStyle = shiftColor(clothColor, -34);
+  context.stroke(path);
+  context.restore();
 }
 
 function escapeXml(value: string): string {

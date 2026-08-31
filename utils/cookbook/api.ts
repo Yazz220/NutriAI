@@ -9,6 +9,10 @@ import {
   normalizeCoverFinishId,
 } from '@/constants/cookbookBindings';
 import {
+  normalizeCoverTitleColorId,
+  normalizeCoverTitlePlacementId,
+} from '@/constants/cookbookCoverTypography';
+import {
   getCookbookPageStyleModelDescription,
   getCookbookPageStyleName,
   getCookbookPageStyleReferences,
@@ -20,6 +24,8 @@ import type {
   Cookbook,
   CookbookCoverColorId,
   CookbookCoverFinishId,
+  CookbookCoverTitleColorId,
+  CookbookCoverTitlePlacementId,
   CookbookPage,
   CookbookPageStyleId,
   CookbookSectionEntry,
@@ -48,6 +54,8 @@ type CookbookInsertPayload = {
   cover_style?: CookbookStyleId;
   cover_finish_id?: CookbookCoverFinishId;
   cover_color_id?: CookbookCoverColorId;
+  cover_title_color_id?: CookbookCoverTitleColorId;
+  cover_title_placement_id?: CookbookCoverTitlePlacementId;
   page_style_id?: CookbookPageStyleId;
   page_template_id?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -66,6 +74,8 @@ interface CookbookRow {
   cover_style?: string | null;
   cover_finish_id?: string | null;
   cover_color_id?: string | null;
+  cover_title_color_id?: string | null;
+  cover_title_placement_id?: string | null;
   page_style_id?: string | null;
   page_template_id?: string | null;
   sections?: unknown;
@@ -196,6 +206,8 @@ export function mapCookbook(row: CookbookRow): Cookbook {
   const coverStyle = normalizeCoverStyle(row.cover_style, row.theme_name);
   const coverFinishId = normalizeCoverFinishId(row.cover_finish_id);
   const coverColorId = normalizeCoverColorId(row.cover_color_id, coverStyle);
+  const coverTitleColorId = normalizeCoverTitleColorId(row.cover_title_color_id);
+  const coverTitlePlacementId = normalizeCoverTitlePlacementId(row.cover_title_placement_id);
   const pageStyleId = normalizeCookbookPageStyleId(row.page_style_id, coverStyle);
   const pageTemplateId = normalizePageTemplateId(row.page_template_id);
   const sections = normalizeSections(row.sections);
@@ -208,6 +220,8 @@ export function mapCookbook(row: CookbookRow): Cookbook {
     coverStyle,
     coverFinishId,
     coverColorId,
+    coverTitleColorId,
+    coverTitlePlacementId,
     pageStyleId,
     styleRevision: row.style_revision ?? getCookbookPageStyleRevision(pageStyleId),
     pageStyleReferences: asStringArray(row.page_style_references),
@@ -404,6 +418,8 @@ export interface CreateCookbookInput {
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   pageStyleId: CookbookPageStyleId;
   pageTemplateId?: RecipeTemplateId;
   sections?: CookbookSectionEntry[];
@@ -426,6 +442,13 @@ function isMissingCoverAppearanceColumnError(error: unknown): boolean {
   const message = (error as { message?: string }).message ?? '';
   return message.includes("Could not find the 'cover_finish_id' column")
     || message.includes("Could not find the 'cover_color_id' column");
+}
+
+function isMissingCoverTypographyColumnError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = (error as { message?: string }).message ?? '';
+  return message.includes("Could not find the 'cover_title_color_id' column")
+    || message.includes("Could not find the 'cover_title_placement_id' column");
 }
 
 function isCoverStyleConstraintError(error: unknown): boolean {
@@ -458,6 +481,10 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     theme_name: getCookbookPageStyleName(pageStyleId),
     theme_prompt: getCookbookPageStyleModelDescription(pageStyleId),
   };
+  const coverTypographyPayload = {
+    cover_title_color_id: normalizeCoverTitleColorId(input.coverTitleColorId),
+    cover_title_placement_id: normalizeCoverTitlePlacementId(input.coverTitlePlacementId),
+  };
 
   try {
     const row = await insertCookbook({
@@ -465,6 +492,7 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
       cover_style: coverPreset.id,
       cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
       cover_color_id: normalizeCoverColorId(input.coverColorId),
+      ...coverTypographyPayload,
       page_style_id: pageStyleId,
       style_revision: getCookbookPageStyleRevision(pageStyleId),
       page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -473,11 +501,35 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
     });
     return { ...mapCookbook(row), pageCount: 0 };
   } catch (error) {
-    if (isMissingCoverAppearanceColumnError(error)) {
+    let compatibleError = error;
+    let includeCoverTypography = true;
+
+    if (isMissingCoverTypographyColumnError(compatibleError)) {
+      includeCoverTypography = false;
       try {
         const row = await insertCookbook({
           ...basePayload,
           cover_style: coverPreset.id,
+          cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
+          cover_color_id: normalizeCoverColorId(input.coverColorId),
+          page_style_id: pageStyleId,
+          style_revision: getCookbookPageStyleRevision(pageStyleId),
+          page_style_references: getCookbookPageStyleReferences(pageStyleId),
+          page_template_id: templateId,
+          sections: input.sections ?? [],
+        });
+        return { ...mapCookbook(row), pageCount: 0 };
+      } catch (fallbackError) {
+        compatibleError = fallbackError;
+      }
+    }
+
+    if (isMissingCoverAppearanceColumnError(compatibleError)) {
+      try {
+        const row = await insertCookbook({
+          ...basePayload,
+          cover_style: coverPreset.id,
+          ...(includeCoverTypography ? coverTypographyPayload : {}),
           page_style_id: pageStyleId,
           style_revision: getCookbookPageStyleRevision(pageStyleId),
           page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -490,6 +542,7 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
         const row = await insertCookbook({
           ...basePayload,
           cover_style: 'handwritten',
+          ...(includeCoverTypography ? coverTypographyPayload : {}),
           page_style_id: pageStyleId,
           style_revision: getCookbookPageStyleRevision(pageStyleId),
           page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -500,12 +553,13 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
       }
     }
 
-    if (isCoverStyleConstraintError(error)) {
+    if (isCoverStyleConstraintError(compatibleError)) {
       const row = await insertCookbook({
         ...basePayload,
         cover_style: 'handwritten',
         cover_finish_id: normalizeCoverFinishId(input.coverFinishId),
         cover_color_id: normalizeCoverColorId(input.coverColorId),
+        ...(includeCoverTypography ? coverTypographyPayload : {}),
         page_style_id: pageStyleId,
         style_revision: getCookbookPageStyleRevision(pageStyleId),
         page_style_references: getCookbookPageStyleReferences(pageStyleId),
@@ -515,7 +569,7 @@ export async function createCookbook(input: CreateCookbookInput): Promise<Cookbo
       return { ...mapCookbook(row), pageCount: 0 };
     }
 
-    if (!isMissingCookbookColumnError(error)) throw error;
+    if (!isMissingCookbookColumnError(compatibleError)) throw compatibleError;
 
     // Older deployed databases may not have the multi-cookbook style columns yet.
     // The row still saves with theme metadata, and mapCookbook falls back to a valid cover style.

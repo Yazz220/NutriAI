@@ -131,6 +131,8 @@ export function ShelfScene({
               coverStyle={book.coverStyle}
               coverFinishId={book.coverFinishId}
               coverColorId={book.coverColorId}
+              coverTitleColorId={book.coverTitleColorId}
+              coverTitlePlacementId={book.coverTitlePlacementId}
               pageCount={book.pageCount}
               imageAsset={book.coverImageAsset}
               width={width}

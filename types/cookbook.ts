@@ -40,6 +40,18 @@ export type CookbookCoverColorId =
   | 'charcoal'
   | 'umber';
 
+/** Curated stamped title treatments for the physical cover. */
+export type CookbookCoverTitleColorId =
+  | 'auto'
+  | 'gilt'
+  | 'ivory'
+  | 'plum'
+  | 'charcoal'
+  | 'silver';
+
+/** Editorial title positions that stay consistent at every book size. */
+export type CookbookCoverTitlePlacementId = 'upper' | 'center' | 'lower';
+
 /**
  * The book-owned visual language used by complete-page generation.
  * Legacy cover-linked ids remain valid so existing cookbooks preserve their
@@ -80,6 +92,10 @@ export interface Cookbook {
   coverFinishId: CookbookCoverFinishId;
   /** Curated color applied independently to the selected cover finish. */
   coverColorId: CookbookCoverColorId;
+  /** Stamped title treatment, independent from the cover color. */
+  coverTitleColorId: CookbookCoverTitleColorId;
+  /** Curated title position on the front board. */
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   /** Book-owned recipe-page visual language, independent of its cover. */
   pageStyleId: CookbookPageStyleId;
   /** Immutable page-style revision used by every generated page in this book. */

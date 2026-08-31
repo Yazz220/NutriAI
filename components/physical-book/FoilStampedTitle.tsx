@@ -1,9 +1,11 @@
-import { Spacing, Typography } from '@/constants/spacing';
+import { Typography } from '@/constants/spacing';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { Fonts } from '@/utils/fonts';
 import type { CookbookBinding } from '@/constants/cookbookBindings';
+import { resolveCoverTitleCenterRatio } from '@/constants/cookbookCoverTypography';
+import type { CookbookCoverTitlePlacementId } from '@/types/cookbook';
 import { withAlpha } from '@/utils/cookbook/coverArt';
 
 /**
@@ -17,6 +19,7 @@ interface FoilStampedTitleProps {
   foil: CookbookBinding['foil'];
   width: number;
   spineWidth: number;
+  placementId: CookbookCoverTitlePlacementId;
 }
 
 export const FoilStampedTitle = React.memo(function FoilStampedTitle({
@@ -24,12 +27,25 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
   foil,
   width,
   spineWidth,
+  placementId,
 }: FoilStampedTitleProps) {
   const titleFontSize = Math.max(14, Math.min(26, Math.round(width * 0.105)));
-  const captionSize = Math.max(7, Math.round(width * 0.042));
+  const centerRatio = resolveCoverTitleCenterRatio(placementId);
+  const titleBlockHeight = width * 0.72;
 
   return (
-    <View style={[styles.wrap, { left: spineWidth + 14 }]} pointerEvents="none">
+    <View
+      style={[
+        styles.wrap,
+        {
+          left: spineWidth + 14,
+          height: titleBlockHeight,
+          top: `${centerRatio * 100}%`,
+          transform: [{ translateY: -titleBlockHeight / 2 }],
+        },
+      ]}
+      pointerEvents="none"
+    >
       <View style={styles.titleStack}>
         <Text
           style={[
@@ -80,13 +96,6 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
           {title}
         </Text>
       </View>
-
-      <Text
-        style={[styles.caption, { color: withAlpha(foil[1], 0.85), fontSize: captionSize }]}
-        allowFontScaling={false}
-      >
-        NOSH
-      </Text>
     </View>
   );
 });
@@ -94,13 +103,9 @@ export const FoilStampedTitle = React.memo(function FoilStampedTitle({
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    top: 0,
     right: 10,
-    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.values[12],
-    paddingTop: Spacing.values[8],
   },
   titleStack: {
     alignItems: 'center',
@@ -117,11 +122,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-  },
-  caption: {
-    fontFamily: Fonts.ui.medium,
-    letterSpacing: Typography.metrics.letterSpacing24,
-    opacity: 0.72,
-    textAlign: 'center',
   },
 });

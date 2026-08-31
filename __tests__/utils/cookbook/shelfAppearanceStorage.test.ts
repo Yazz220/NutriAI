@@ -17,13 +17,13 @@ describe('bookshelf scene storage', () => {
 
   it('persists the shelf independently of cookbook data', async () => {
     await saveBookshelfScene('reader-1', {
-      shelfStyleId: 'floating-oak',
-      wallpaperStyleId: 'botanical-paper',
+      shelfStyleId: 'carved-walnut',
+      wallpaperStyleId: 'charcoal-damask',
     });
 
     await expect(loadBookshelfScene('reader-1')).resolves.toEqual({
-      shelfStyleId: 'floating-oak',
-      wallpaperStyleId: 'botanical-paper',
+      shelfStyleId: 'carved-walnut',
+      wallpaperStyleId: 'charcoal-damask',
     });
   });
 

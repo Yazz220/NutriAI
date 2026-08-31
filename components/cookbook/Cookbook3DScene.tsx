@@ -1389,6 +1389,8 @@ export function Cookbook3DScene({
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
                   coverFinishId={cookbook?.coverFinishId}
                   coverColorId={cookbook?.coverColorId}
+                  coverTitleColorId={cookbook?.coverTitleColorId}
+                  coverTitlePlacementId={cookbook?.coverTitlePlacementId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   width={leafWidth}
@@ -1415,6 +1417,8 @@ export function Cookbook3DScene({
                   coverStyle={cookbook?.coverStyle ?? 'handwritten'}
                   coverFinishId={cookbook?.coverFinishId}
                   coverColorId={cookbook?.coverColorId}
+                  coverTitleColorId={cookbook?.coverTitleColorId}
+                  coverTitlePlacementId={cookbook?.coverTitlePlacementId}
                   pageCount={pages.length}
                   imageAsset={cookbook?.coverImageAsset}
                   face="back"

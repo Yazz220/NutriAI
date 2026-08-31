@@ -130,6 +130,8 @@ describe('createCookbook', () => {
             cover_style: payload.cover_style,
             cover_finish_id: payload.cover_finish_id,
             cover_color_id: payload.cover_color_id,
+            cover_title_color_id: payload.cover_title_color_id,
+            cover_title_placement_id: payload.cover_title_placement_id,
             page_style_id: payload.page_style_id,
             style_revision: payload.style_revision,
             page_style_references: payload.page_style_references,
@@ -155,6 +157,8 @@ describe('createCookbook', () => {
       title: 'Desserts',
       coverFinishId: 'natural-linen',
       coverColorId: 'midnight',
+      coverTitleColorId: 'ivory',
+      coverTitlePlacementId: 'upper',
       pageStyleId: 'studio-editorial',
     });
 
@@ -163,6 +167,8 @@ describe('createCookbook', () => {
       cover_style: 'navy-leather',
       cover_finish_id: 'natural-linen',
       cover_color_id: 'midnight',
+      cover_title_color_id: 'ivory',
+      cover_title_placement_id: 'upper',
       page_style_id: 'studio-editorial',
     }));
     expect(cookbook).toMatchObject({
@@ -170,6 +176,8 @@ describe('createCookbook', () => {
       coverStyle: 'navy-leather',
       coverFinishId: 'natural-linen',
       coverColorId: 'midnight',
+      coverTitleColorId: 'ivory',
+      coverTitlePlacementId: 'upper',
       pageStyleId: 'studio-editorial',
     });
   });

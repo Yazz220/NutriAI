@@ -3,15 +3,22 @@ import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ImageSourcePropType, ViewStyle } from 'react-native';
 import { ContactShadow } from '@/components/physical-book/ContactShadow';
+import { EmbossedNoshMark } from '@/components/physical-book/EmbossedNoshMark';
 import { FoilStampedTitle } from '@/components/physical-book/FoilStampedTitle';
 import { PageBlockEdges } from '@/components/physical-book/PageBlockEdges';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
 import { resolveCookbookBinding } from '@/constants/cookbookBindings';
+import {
+  normalizeCoverTitlePlacementId,
+  resolveCoverTitleFoil,
+} from '@/constants/cookbookCoverTypography';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { resolveNoshBookMaterialGeometry } from '@/constants/cookbookMaterial';
 import type {
   CookbookCoverColorId,
   CookbookCoverFinishId,
+  CookbookCoverTitleColorId,
+  CookbookCoverTitlePlacementId,
   CookbookStyleId,
 } from '@/types/cookbook';
 
@@ -46,6 +53,8 @@ interface PhysicalBookProps {
   coverStyle: CookbookStyleId;
   coverFinishId?: CookbookCoverFinishId;
   coverColorId?: CookbookCoverColorId;
+  coverTitleColorId?: CookbookCoverTitleColorId;
+  coverTitlePlacementId?: CookbookCoverTitlePlacementId;
   pageCount?: number;
   imageAsset?: ImageSourcePropType;
   face?: 'front' | 'back';
@@ -67,6 +76,8 @@ export const PhysicalBook = React.memo(function PhysicalBook({
   coverStyle,
   coverFinishId,
   coverColorId,
+  coverTitleColorId,
+  coverTitlePlacementId,
   pageCount,
   imageAsset,
   face = 'front',
@@ -85,6 +96,8 @@ export const PhysicalBook = React.memo(function PhysicalBook({
   const hingeWidth = materialGeometry.hingeWidth;
   const blockWidth = materialGeometry.pageBlockDepth;
   const boardRadius = materialGeometry.boardCornerRadius;
+  const titleFoil = resolveCoverTitleFoil(coverTitleColorId, binding.foil);
+  const titlePlacement = normalizeCoverTitlePlacementId(coverTitlePlacementId);
 
   return (
     <View
@@ -115,7 +128,16 @@ export const PhysicalBook = React.memo(function PhysicalBook({
         {face === 'back' ? (
           <View pointerEvents="none" style={[styles.backWash, { borderRadius: boardRadius }]} />
         ) : (
-          <FoilStampedTitle title={title || 'Untitled'} foil={binding.foil} width={width} spineWidth={hingeWidth} />
+          <>
+            <FoilStampedTitle
+              title={title || 'Untitled'}
+              foil={titleFoil}
+              width={width}
+              spineWidth={hingeWidth}
+              placementId={titlePlacement}
+            />
+            <EmbossedNoshMark clothColor={binding.cloth} coverWidth={width} />
+          </>
         )}
       </View>
     </View>

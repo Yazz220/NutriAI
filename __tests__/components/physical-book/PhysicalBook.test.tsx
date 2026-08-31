@@ -25,7 +25,8 @@ describe('PhysicalBook canonical shell', () => {
 
     expect(screen.UNSAFE_getByType(Image).props.source).toBe(SAMPLE_COOKBOOK.coverImageAsset);
     expect(screen.getAllByText('Week Night Table Recipes')).toHaveLength(3);
-    expect(screen.getByText('NOSH')).toBeTruthy();
+    expect(screen.queryByText('NOSH')).toBeNull();
+    expect(screen.getByTestId('nosh-cover-maker-mark', { includeHiddenElements: true })).toBeTruthy();
   });
 
   it('reuses artwork on the canonical back without adding front-cover text', () => {
@@ -42,6 +43,7 @@ describe('PhysicalBook canonical shell', () => {
     expect(screen.UNSAFE_getByType(Image).props.source).toBe(SAMPLE_COOKBOOK.coverImageAsset);
     expect(screen.queryByText('Untitled')).toBeNull();
     expect(screen.queryByText('NOSH')).toBeNull();
+    expect(screen.queryByTestId('nosh-cover-maker-mark', { includeHiddenElements: true })).toBeNull();
   });
 
   it('keeps a legacy back face free of placeholder copy', () => {
@@ -55,6 +57,7 @@ describe('PhysicalBook canonical shell', () => {
     const screen = render(<PhysicalBook title="Family Recipes" coverStyle="handwritten" showShadow={false} />);
 
     expect(screen.getAllByText('Family Recipes')).toHaveLength(3);
-    expect(screen.getByText('NOSH')).toBeTruthy();
+    expect(screen.queryByText('NOSH')).toBeNull();
+    expect(screen.getByTestId('nosh-cover-maker-mark', { includeHiddenElements: true })).toBeTruthy();
   });
 });

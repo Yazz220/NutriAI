@@ -46,10 +46,24 @@ import {
   getLegacyCoverStyleForColor,
   resolveCookbookBinding,
 } from '@/constants/cookbookBindings';
+import {
+  DEFAULT_COVER_TITLE_COLOR_ID,
+  DEFAULT_COVER_TITLE_PLACEMENT_ID,
+  listCoverTitleColors,
+  listCoverTitlePlacements,
+  resolveCoverTitleFoil,
+  type CoverTitleColorOption,
+  type CoverTitlePlacementOption,
+} from '@/constants/cookbookCoverTypography';
 import { resolveCookbookSpreadHeight } from '@/constants/cookbookGeometry';
 import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { CookbookCoverColorId, CookbookCoverFinishId } from '@/types/cookbook';
+import type {
+  CookbookCoverColorId,
+  CookbookCoverFinishId,
+  CookbookCoverTitleColorId,
+  CookbookCoverTitlePlacementId,
+} from '@/types/cookbook';
 
 /**
  * Cookbook creation keeps the physical book canonical while letting the user
@@ -63,6 +77,8 @@ export interface CreateCookbookDetails {
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   pageStyleId: CreationPageStyleId;
 }
 
@@ -92,6 +108,8 @@ export function CreationStudio({
   const { width } = useWindowDimensions();
   const coverFinishes = listCookbookCoverFinishes();
   const coverColors = listCookbookCoverColors();
+  const coverTitleColors = listCoverTitleColors();
+  const coverTitlePlacements = listCoverTitlePlacements();
   const pageStyles = listCreationPageStyles();
   const shelfStyles = listShelfStyles();
   const wallpaperStyles = listWallpaperStyles();
@@ -99,6 +117,12 @@ export function CreationStudio({
   const [title, setTitle] = useState(isFirstRun ? 'My Cookbook' : '');
   const [coverFinishId, setCoverFinishId] = useState<CookbookCoverFinishId>(DEFAULT_COVER_FINISH_ID);
   const [coverColorId, setCoverColorId] = useState<CookbookCoverColorId>(DEFAULT_COVER_COLOR_ID);
+  const [coverTitleColorId, setCoverTitleColorId] = useState<CookbookCoverTitleColorId>(
+    DEFAULT_COVER_TITLE_COLOR_ID,
+  );
+  const [coverTitlePlacementId, setCoverTitlePlacementId] = useState<CookbookCoverTitlePlacementId>(
+    DEFAULT_COVER_TITLE_PLACEMENT_ID,
+  );
   const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
   const [previewFace, setPreviewFace] = useState<PreviewFace>('cover');
   const [studioScope, setStudioScope] = useState<StudioScope>('book');
@@ -128,6 +152,20 @@ export function CreationStudio({
 
   function selectPreviewFace(value: PreviewFace) {
     setPreviewFace(value);
+    void Haptics.selectionAsync().catch(() => undefined);
+  }
+
+  function selectCoverTitleColor(value: CookbookCoverTitleColorId) {
+    setCoverTitleColorId(value);
+    setPreviewFace('cover');
+    setError(null);
+    void Haptics.selectionAsync().catch(() => undefined);
+  }
+
+  function selectCoverTitlePlacement(value: CookbookCoverTitlePlacementId) {
+    setCoverTitlePlacementId(value);
+    setPreviewFace('cover');
+    setError(null);
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
@@ -161,7 +199,14 @@ export function CreationStudio({
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook({ title: trimmed, coverFinishId, coverColorId, pageStyleId });
+      await onCreateBook({
+        title: trimmed,
+        coverFinishId,
+        coverColorId,
+        coverTitleColorId,
+        coverTitlePlacementId,
+        pageStyleId,
+      });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (creationError) {
       setError(getErrorMessage(creationError));
@@ -198,6 +243,8 @@ export function CreationStudio({
                 title={title}
                 coverFinishId={coverFinishId}
                 coverColorId={coverColorId}
+                coverTitleColorId={coverTitleColorId}
+                coverTitlePlacementId={coverTitlePlacementId}
                 pageStyleId={pageStyleId}
                 face={previewFace}
                 availableWidth={Math.min(width - Spacing.xl * 2, 640)}
@@ -213,6 +260,16 @@ export function CreationStudio({
                   setTitle(value);
                   setError(null);
                 }}
+              />
+              <TitleStyleSelector
+                colorValue={coverTitleColorId}
+                placementValue={coverTitlePlacementId}
+                coverColorId={coverColorId}
+                colorOptions={coverTitleColors}
+                placementOptions={coverTitlePlacements}
+                disabled={submitting}
+                onColorChange={selectCoverTitleColor}
+                onPlacementChange={selectCoverTitlePlacement}
               />
               <CoverFinishSelector
                 value={coverFinishId}
@@ -264,6 +321,8 @@ export function CreationStudio({
               title={title}
               coverFinishId={coverFinishId}
               coverColorId={coverColorId}
+              coverTitleColorId={coverTitleColorId}
+              coverTitlePlacementId={coverTitlePlacementId}
               shelfStyleId={shelfStyleId}
               wallpaperStyleId={wallpaperStyleId}
               availableWidth={Math.min(width - Spacing.xl * 2, 640)}
@@ -329,6 +388,8 @@ function ScenePreview({
   title,
   coverFinishId,
   coverColorId,
+  coverTitleColorId,
+  coverTitlePlacementId,
   shelfStyleId,
   wallpaperStyleId,
   availableWidth,
@@ -336,6 +397,8 @@ function ScenePreview({
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   shelfStyleId: ShelfStyleId;
   wallpaperStyleId: WallpaperStyleId;
   availableWidth: number;
@@ -364,6 +427,8 @@ function ScenePreview({
           coverStyle={getLegacyCoverStyleForColor(coverColorId)}
           coverFinishId={coverFinishId}
           coverColorId={coverColorId}
+          coverTitleColorId={coverTitleColorId}
+          coverTitlePlacementId={coverTitlePlacementId}
           width={bookWidth}
           showShadow={false}
         />
@@ -462,7 +527,11 @@ function WallpaperStyleSelector({
               >
                 <ShelfWallpaper wallpaperStyleId={option.id} />
               </View>
-              <Text style={[styles.wallpaperName, selected && styles.wallpaperNameSelected]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.wallpaperName, selected && styles.wallpaperNameSelected]}
+              >
                 {option.name}
               </Text>
               {selected ? (
@@ -504,6 +573,8 @@ function BookPreview({
   title,
   coverFinishId,
   coverColorId,
+  coverTitleColorId,
+  coverTitlePlacementId,
   pageStyleId,
   face,
   availableWidth,
@@ -512,6 +583,8 @@ function BookPreview({
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   pageStyleId: CreationPageStyleId;
   face: PreviewFace;
   availableWidth: number;
@@ -546,6 +619,8 @@ function BookPreview({
             coverStyle={getLegacyCoverStyleForColor(coverColorId)}
             coverFinishId={coverFinishId}
             coverColorId={coverColorId}
+            coverTitleColorId={coverTitleColorId}
+            coverTitlePlacementId={coverTitlePlacementId}
             width={coverWidth}
           />
         </>
@@ -692,6 +767,103 @@ function CoverFinishSelector({
   );
 }
 
+function TitleStyleSelector({
+  colorValue,
+  placementValue,
+  coverColorId,
+  colorOptions,
+  placementOptions,
+  disabled,
+  onColorChange,
+  onPlacementChange,
+}: {
+  colorValue: CookbookCoverTitleColorId;
+  placementValue: CookbookCoverTitlePlacementId;
+  coverColorId: CookbookCoverColorId;
+  colorOptions: CoverTitleColorOption[];
+  placementOptions: CoverTitlePlacementOption[];
+  disabled: boolean;
+  onColorChange: (value: CookbookCoverTitleColorId) => void;
+  onPlacementChange: (value: CookbookCoverTitlePlacementId) => void;
+}) {
+  const binding = resolveCookbookBinding({ colorId: coverColorId });
+  const selectedFoil = resolveCoverTitleFoil(colorValue, binding.foil);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Title style</Text>
+      <View style={styles.titleStyleGroup}>
+        <Text style={styles.controlLabel}>Color</Text>
+        <OptionRail testID="title-color-rail">
+          {colorOptions.map((option) => {
+            const selected = colorValue === option.id;
+            const foil = option.foil ?? binding.foil;
+            return (
+              <Pressable
+                key={option.id}
+                style={styles.titleColorOption}
+                onPress={() => onColorChange(option.id)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected, disabled }}
+                accessibilityLabel={`${option.name} title color`}
+              >
+                <View style={[styles.titleColorSwatchFrame, selected && styles.colorSwatchFrameSelected]}>
+                  <LinearGradient
+                    colors={[foil[0], foil[1], foil[2]]}
+                    start={{ x: 0, y: 1 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.titleColorSwatch}
+                  />
+                  {selected ? (
+                    <View style={styles.selectedMark}>
+                      <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.colorName, selected && styles.colorNameSelected]}>{option.name}</Text>
+              </Pressable>
+            );
+          })}
+        </OptionRail>
+      </View>
+
+      <View style={styles.titleStyleGroup}>
+        <Text style={styles.controlLabel}>Position</Text>
+        <OptionRail testID="title-position-rail">
+          {placementOptions.map((option) => {
+            const selected = placementValue === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                style={[styles.titlePlacementOption, selected && styles.titlePlacementOptionSelected]}
+                onPress={() => onPlacementChange(option.id)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected, disabled }}
+                accessibilityLabel={`${option.name} title position`}
+              >
+                <View style={[styles.titlePlacementBook, { backgroundColor: binding.cloth }]}>
+                  <View
+                    style={[
+                      styles.titlePlacementLine,
+                      {
+                        top: option.centerRatio * 54 - 2,
+                        backgroundColor: selectedFoil[1],
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.colorName, selected && styles.colorNameSelected]}>{option.name}</Text>
+              </Pressable>
+            );
+          })}
+        </OptionRail>
+      </View>
+    </View>
+  );
+}
+
 function CoverColorSelector({
   value,
   options,
@@ -705,7 +877,7 @@ function CoverColorSelector({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Color</Text>
+      <Text style={styles.sectionTitle}>Cover color</Text>
       <OptionRail testID="cover-color-rail">
         {options.map((option) => {
           const selected = value === option.id;
@@ -966,6 +1138,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.values[6],
     position: 'relative',
+  },
+  controlLabel: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight17,
+  },
+  titleStyleGroup: {
+    gap: Spacing.values[6],
+  },
+  titleColorOption: {
+    width: 64,
+    alignItems: 'center',
+    gap: Spacing.values[6],
+  },
+  titleColorSwatchFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    position: 'relative',
+  },
+  titleColorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.legacySurface.v62,
+  },
+  titlePlacementOption: {
+    width: 82,
+    minHeight: 86,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.values[6],
+  },
+  titlePlacementOptionSelected: {
+    backgroundColor: Colors.surfaceMuted,
+  },
+  titlePlacementBook: {
+    width: 42,
+    height: 54,
+    borderRadius: Radii.numeric[4],
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.legacySurface.v62,
+  },
+  titlePlacementLine: {
+    position: 'absolute',
+    left: 9,
+    right: 7,
+    height: 4,
+    borderRadius: Radii.full,
   },
   finishCardSelected: {
     backgroundColor: Colors.surfaceMuted,

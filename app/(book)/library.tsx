@@ -28,8 +28,22 @@ export default function BookLibraryScreen() {
   const { prepareDestination } = useRecipeCaptures();
   const { scene, setShelfStyleId, setWallpaperStyleId } = useShelfAppearance();
 
-  async function handleCreate({ title, coverFinishId, coverColorId, pageStyleId }: CreateCookbookDetails) {
-    const cookbook = await createCookbook({ title, coverFinishId, coverColorId, pageStyleId });
+  async function handleCreate({
+    title,
+    coverFinishId,
+    coverColorId,
+    coverTitleColorId,
+    coverTitlePlacementId,
+    pageStyleId,
+  }: CreateCookbookDetails) {
+    const cookbook = await createCookbook({
+      title,
+      coverFinishId,
+      coverColorId,
+      coverTitleColorId,
+      coverTitlePlacementId,
+      pageStyleId,
+    });
     if (captureId) {
       try {
         await prepareDestination({ captureId, destinationCookbookId: cookbook.id });
@@ -47,6 +61,8 @@ export default function BookLibraryScreen() {
           cookbookId: cookbook.id,
           coverFinishId,
           coverColorId,
+          coverTitleColorId,
+          coverTitlePlacementId,
           pageStyleId,
         },
       });
