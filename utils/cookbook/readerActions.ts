@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import type { CookbookPage } from '@/types/cookbook';
 
 export function getRecipeSourceUrl(page: CookbookPage): string | null {
-  const candidate = page.recipeGraph?.provenance.sourceUrl ?? page.recipe?.sourceUrl;
+  const candidate = page.recipeGraph?.provenance?.sourceUrl ?? page.recipe?.sourceUrl;
   if (!candidate) return null;
 
   try {

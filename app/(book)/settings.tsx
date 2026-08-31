@@ -1,52 +1,105 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronRight,
-  Bot,
   LifeBuoy,
   LogOut,
   Mail,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
 } from 'lucide-react-native';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
+import { CookingPreferencesSheet } from '@/components/settings/CookingPreferencesSheet';
 import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
+import { PRIVACY_POLICY_URL, SUPPORT_CONTACT_URL } from '@/constants/legal';
 import { Spacing, Typography } from '@/constants/spacing';
-import { Fonts } from '@/utils/fonts';
+import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { deleteAccount } from '@/utils/account';
-import { clearCachedPages, clearCachedShelf } from '@/utils/cookbook/cache';
-import { clearBookshelfScene } from '@/utils/cookbook/shelfAppearanceStorage';
-import { PRIVACY_POLICY_URL, SUPPORT_URL } from '@/constants/legal';
-import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import { purgeLocalUserData } from '@/utils/accountCleanup';
+import {
+  loadCookingPreferences,
+  saveCookingPreference,
+  type CookingPreference,
+} from '@/utils/cookbook/cookingPreferences';
+import { Fonts } from '@/utils/fonts';
 import {
   getAppleDeletionAuthorizationCode,
   isAppleCancellation,
 } from '@/utils/appleAuth';
+
+function deletionErrorMessage(): string {
+  return 'Nosh could not finish deleting your account. Please try again. If this keeps happening, contact support.';
+}
 
 export default function CookbookSettingsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const { cookbooks } = useCookbooks();
-  const { reviewConsent } = useAiDataConsent();
+  const { isGranted, isReady, reviewConsent } = useAiDataConsent();
+  const { open: openNosh } = useNoshConversation();
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [preferencesVisible, setPreferencesVisible] = useState(false);
+  const [preferences, setPreferences] = useState<CookingPreference[]>([]);
+  const [preferencesLoading, setPreferencesLoading] = useState(false);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const [removingPreferenceId, setRemovingPreferenceId] = useState<string | null>(null);
+
+  const refreshPreferences = useCallback(async () => {
+    if (!user?.id) {
+      setPreferences([]);
+      return;
+    }
+    setPreferencesLoading(true);
+    setPreferencesError(null);
+    try {
+      setPreferences(await loadCookingPreferences(user.id));
+    } catch {
+      setPreferencesError('Could not load preferences. Check your connection and try again.');
+    } finally {
+      setPreferencesLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    void refreshPreferences();
+  }, [refreshPreferences]);
+
+  async function clearCurrentUserData() {
+    if (!user?.id) return;
+    const result = await purgeLocalUserData({
+      userId: user.id,
+      cookbookIds: cookbooks.map((cookbook) => cookbook.id),
+    });
+    if (!result.complete) {
+      console.warn('[Settings] Local account cleanup will retry', result.failed);
+    }
+  }
 
   async function handleSignOut() {
+    if (signingOut || deletingAccount) return;
     setSigningOut(true);
     try {
+      await clearCurrentUserData().catch((error) => {
+        console.warn('[Settings] Local sign-out cleanup failed', error);
+      });
+      queryClient.clear();
       await signOut();
       router.replace('/(auth)/sign-in');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not sign out.';
-      Alert.alert('Sign out failed', message);
+    } catch {
+      Alert.alert('Sign out failed', 'Nosh could not sign you out. Please try again.');
     } finally {
       setSigningOut(false);
     }
@@ -59,30 +112,19 @@ export default function CookbookSettingsScreen() {
       return;
     }
 
-    const cookbookIds = cookbooks.map((cookbook) => cookbook.id);
     setDeletingAccount(true);
     try {
       const appleAuthorizationCode = await getAppleDeletionAuthorizationCode(user);
       await deleteAccount(appleAuthorizationCode);
-
-      const cleanupResults = await Promise.allSettled([
-        clearCachedPages(cookbookIds),
-        clearCachedShelf(user.id),
-        clearBookshelfScene(user.id),
-      ]);
-      cleanupResults.forEach((result) => {
-        if (result.status === 'rejected') {
-          console.warn('[Settings] Local account cleanup failed', result.reason);
-        }
+      await clearCurrentUserData().catch((error) => {
+        console.warn('[Settings] Local account cleanup failed', error);
       });
-
       queryClient.clear();
       await signOut();
       router.replace('/(auth)/sign-in');
-    } catch (err) {
-      if (isAppleCancellation(err)) return;
-      const message = err instanceof Error ? err.message : 'Could not delete account.';
-      Alert.alert('Delete account failed', message);
+    } catch (error) {
+      if (isAppleCancellation(error)) return;
+      Alert.alert('Delete account failed', deletionErrorMessage());
     } finally {
       setDeletingAccount(false);
     }
@@ -92,14 +134,47 @@ export default function CookbookSettingsScreen() {
     if (deletingAccount) return;
     Alert.alert(
       'Delete account',
-      'This permanently deletes your Nosh account, cookbooks, and recipe pages. This cannot be undone.',
+      'This permanently deletes your Nosh account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Delete account',
           style: 'destructive',
           onPress: () => {
             void handleDeleteAccount();
+          },
+        },
+      ],
+    );
+  }
+
+  function confirmRemovePreference(preference: CookingPreference) {
+    if (!user?.id || removingPreferenceId) return;
+    Alert.alert(
+      'Forget this preference?',
+      `Nosh will stop using "${preference.value}" as a saved ${preference.key.replaceAll('_', ' ')}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Forget',
+          style: 'destructive',
+          onPress: () => {
+            setRemovingPreferenceId(preference.id);
+            void saveCookingPreference({
+              userId: user.id,
+              key: preference.key,
+              value: preference.value,
+              action: 'remove',
+            })
+              .then(() => {
+                setPreferences((current) => current.filter((item) => item.id !== preference.id));
+              })
+              .catch(() => {
+                Alert.alert('Could not forget preference', 'Please try again.');
+              })
+              .finally(() => {
+                setRemovingPreferenceId(null);
+              });
           },
         },
       ],
@@ -113,6 +188,16 @@ export default function CookbookSettingsScreen() {
       Alert.alert('Could not open link', 'Please try again when you are online.');
     }
   }
+
+  const preferenceStatus = preferencesLoading
+    ? 'Loading'
+    : preferencesError
+      ? 'Unavailable'
+      : preferences.length === 0
+        ? 'None saved'
+        : `${preferences.length} saved`;
+  const consentStatus = isReady ? (isGranted ? 'Allowed on this device' : 'Off') : 'Loading';
+  const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -131,43 +216,63 @@ export default function CookbookSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Section title="Overview">
-          <Row icon={<Mail size={18} color={Colors.textSecondary} />} label="Email" value={user?.email ?? '-'} />
-          <Row
-            icon={<Sparkles size={18} color={Colors.textSecondary} />}
+          <InfoRow
+            icon={<Mail size={19} color={Colors.textSecondary} />}
+            label="Email"
+            value={user?.email ?? '-'}
+          />
+          <InfoRow
+            icon={<Sparkles size={19} color={Colors.textSecondary} />}
             label="Cookbooks"
             value={String(cookbooks.length)}
+          />
+          <ActionRow
+            icon={<SlidersHorizontal size={19} color={Colors.textSecondary} />}
+            label="Cooking preferences"
+            accessibilityLabel={`Cooking preferences, ${preferenceStatus}`}
+            onPress={() => setPreferencesVisible(true)}
           />
         </Section>
 
         <Section title="Privacy and support">
           <ActionRow
-            icon={<ShieldCheck size={18} color={Colors.textSecondary} />}
+            icon={<ShieldCheck size={19} color={Colors.textSecondary} />}
             label="Privacy policy"
-            onPress={() => { void openLink(PRIVACY_POLICY_URL); }}
+            role="link"
+            onPress={() => {
+              void openLink(PRIVACY_POLICY_URL);
+            }}
           />
           <ActionRow
-            icon={<Bot size={18} color={Colors.textSecondary} />}
+            icon={<NoshSymbol size={24} />}
             label="AI data use"
+            accessibilityLabel={`AI data use, ${consentStatus}`}
             onPress={reviewConsent}
+            disabled={!isReady}
           />
           <ActionRow
-            icon={<LifeBuoy size={18} color={Colors.textSecondary} />}
+            icon={<LifeBuoy size={19} color={Colors.textSecondary} />}
             label="Help and support"
-            onPress={() => { void openLink(SUPPORT_URL); }}
+            role="link"
+            onPress={() => {
+              void openLink(SUPPORT_CONTACT_URL);
+            }}
           />
         </Section>
 
         <Section title="Account actions">
           <ActionRow
-            icon={<LogOut size={18} color={Colors.text} />}
-            label={signingOut ? 'Signing out…' : 'Sign out'}
-            onPress={handleSignOut}
+            icon={<LogOut size={19} color={Colors.text} />}
+            label={signingOut ? 'Signing out...' : 'Sign out'}
+            onPress={() => {
+              void handleSignOut();
+            }}
             disabled={signingOut || deletingAccount}
             busy={signingOut}
           />
           <ActionRow
-            icon={<Trash2 size={18} color={Colors.error} />}
-            label={deletingAccount ? 'Deleting account…' : 'Delete account'}
+            icon={<Trash2 size={19} color={Colors.error} />}
+            label={deletingAccount ? 'Deleting account...' : 'Delete account'}
             destructive
             onPress={confirmDeleteAccount}
             disabled={deletingAccount || signingOut}
@@ -175,8 +280,25 @@ export default function CookbookSettingsScreen() {
           />
         </Section>
 
-        <Text style={styles.footer}>Nosh v0.1</Text>
+        <Text style={styles.footer}>Nosh v{version}</Text>
       </ScrollView>
+
+      <CookingPreferencesSheet
+        visible={preferencesVisible}
+        preferences={preferences}
+        loading={preferencesLoading}
+        error={preferencesError}
+        removingId={removingPreferenceId}
+        onClose={() => setPreferencesVisible(false)}
+        onRetry={() => {
+          void refreshPreferences();
+        }}
+        onRemove={confirmRemovePreference}
+        onOpenNosh={() => {
+          setPreferencesVisible(false);
+          openNosh('shelf-nosh', { kind: 'collection' });
+        }}
+      />
     </View>
   );
 }
@@ -190,7 +312,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Row({
+function RowIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.rowIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {children}
+    </View>
+  );
+}
+
+function InfoRow({
   icon,
   label,
   value,
@@ -200,8 +330,8 @@ function Row({
   value: string;
 }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.rowIcon}>{icon}</View>
+    <View style={styles.row} accessible accessibilityLabel={`${label}, ${value}`}>
+      <RowIcon>{icon}</RowIcon>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue} numberOfLines={1}>
         {value}
@@ -213,28 +343,37 @@ function Row({
 function ActionRow({
   icon,
   label,
+  accessibilityLabel,
   onPress,
   destructive,
   disabled,
   busy,
+  role = 'button',
 }: {
   icon: React.ReactNode;
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   destructive?: boolean;
   disabled?: boolean;
   busy?: boolean;
+  role?: 'button' | 'link';
 }) {
   return (
     <Pressable
-      style={[styles.row, styles.actionRow, disabled && styles.actionRowDisabled]}
+      style={({ pressed }) => [
+        styles.row,
+        styles.actionRow,
+        pressed && !disabled && styles.actionRowPressed,
+        disabled && styles.actionRowDisabled,
+      ]}
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityRole={role}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled, busy }}
     >
-      <View style={styles.rowIcon}>{icon}</View>
+      <RowIcon>{icon}</RowIcon>
       <Text style={[styles.rowLabel, destructive && styles.destructiveText]}>{label}</Text>
       <ChevronRight size={18} color={Colors.textTertiary} />
     </Pressable>
@@ -273,25 +412,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxxl,
-    gap: Spacing.xl,
     width: '100%',
     maxWidth: 760,
     alignSelf: 'center',
+    padding: Spacing.lg,
+    gap: Spacing.xl,
   },
   section: {
     gap: Spacing.xs,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.sm,
-    fontFamily: Fonts.ui.medium,
-    letterSpacing: Typography.metrics.letterSpacing10,
     color: Colors.textMuted,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
+    letterSpacing: Typography.metrics.letterSpacing10,
     textTransform: 'uppercase',
   },
-  sectionBody: {
-  },
+  sectionBody: {},
   row: {
     minHeight: 54,
     flexDirection: 'row',
@@ -304,8 +441,11 @@ const styles = StyleSheet.create({
   actionRow: {
     minHeight: 56,
   },
+  actionRowPressed: {
+    backgroundColor: Colors.backgroundSecondary,
+  },
   actionRowDisabled: {
-    opacity: 0.5,
+    opacity: Colors.state.disabledOpacity,
   },
   rowIcon: {
     width: 24,

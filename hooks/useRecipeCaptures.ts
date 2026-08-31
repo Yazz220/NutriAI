@@ -4,12 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import type { CookbookPage } from '@/types/cookbook';
 import {
+  correctRecipeCapture,
   fetchPageById,
   listRecipeCaptures,
   prepareRecipeCaptureDestination,
   retryRecipeCapture,
   startRecipeCapture,
 } from '@/utils/cookbook/api';
+import type { RecipeGraphDraft } from '@/types/recipeGraph';
 import {
   loadCachedCaptures,
   saveCachedCaptures,
@@ -94,6 +96,12 @@ export function useRecipeCaptures() {
     onSuccess: mergeResult,
   });
 
+  const correctionMutation = useMutation({
+    mutationFn: (input: { captureId: string; recipeGraph: RecipeGraphDraft }) =>
+      correctRecipeCapture(input.captureId, input.recipeGraph),
+    onSuccess: mergeResult,
+  });
+
   const destinationMutation = useMutation({
     mutationFn: (input: { captureId: string; destinationCookbookId: string }) =>
       prepareRecipeCaptureDestination(input.captureId, input.destinationCookbookId),
@@ -108,9 +116,11 @@ export function useRecipeCaptures() {
     refresh: query.refetch,
     startCapture: startMutation.mutateAsync,
     retryCapture: retryMutation.mutateAsync,
+    correctCapture: correctionMutation.mutateAsync,
     prepareDestination: destinationMutation.mutateAsync,
     isStarting: startMutation.isPending,
     isRetrying: retryMutation.isPending,
+    isCorrecting: correctionMutation.isPending,
     isPreparingDestination: destinationMutation.isPending,
   };
 }

@@ -23,6 +23,10 @@ function storageKey(userId: string): string {
   return `nosh:first-run:${userId}:v${FIRST_RUN_ONBOARDING_VERSION}`;
 }
 
+export async function clearFirstRunOnboardingState(userId: string): Promise<void> {
+  await AsyncStorage.removeItem(storageKey(userId));
+}
+
 export function defaultFirstRunOnboardingState(): FirstRunOnboardingState {
   return {
     version: FIRST_RUN_ONBOARDING_VERSION,

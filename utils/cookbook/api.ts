@@ -1,4 +1,3 @@
-import { File } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
@@ -45,6 +44,16 @@ import {
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
 import { signStoredPageImages } from '@/utils/cookbook/privatePageUrls';
+import { prepareRecipeCaptureImage } from '@/utils/cookbook/recipeCaptureImage';
+import {
+  prepareRecipeCaptureAudio,
+  type RecipeCaptureAudioAsset,
+} from '@/utils/cookbook/recipeCaptureAudio';
+import {
+  prepareRecipeCaptureVideo,
+  type RecipeCaptureVideoAsset,
+} from '@/utils/cookbook/recipeCaptureVideo';
+import { captureStageCheckpoints } from '@/supabase/functions/_shared/captureStages';
 
 type CookbookInsertPayload = {
   user_id: string;
@@ -150,6 +159,8 @@ interface RecipeCaptureRow {
   art_warning?: string | null;
   failure_code?: string | null;
   failure_message?: string | null;
+  failed_stage?: string | null;
+  stage_checkpoints?: unknown;
   idempotency_key: string;
   processing_attempt: number;
   processing_started_at?: string | null;
@@ -357,6 +368,17 @@ export function mapRecipeCapture(row: RecipeCaptureRow): RecipeCapture {
     pageWarning: row.art_warning ?? undefined,
     failureCode: row.failure_code ?? undefined,
     failureMessage: row.failure_message ?? undefined,
+    failedStage: row.failed_stage === 'source'
+      || row.failed_stage === 'transcription'
+      || row.failed_stage === 'extraction'
+      || row.failed_stage === 'normalization'
+      || row.failed_stage === 'quality'
+      || row.failed_stage === 'destination'
+      || row.failed_stage === 'page_generation'
+      || row.failed_stage === 'publication'
+      ? row.failed_stage
+      : undefined,
+    stageCheckpoints: captureStageCheckpoints(row.stage_checkpoints),
     idempotencyKey: row.idempotency_key,
     processingAttempt: row.processing_attempt,
     processingStartedAt: row.processing_started_at ?? undefined,
@@ -689,6 +711,21 @@ export async function retryRecipeCapture(captureId: string): Promise<{
   return callAuthenticatedFunction('capture-recipe', { captureId }, { timeoutMs: 20_000 });
 }
 
+export async function correctRecipeCapture(
+  captureId: string,
+  correctedRecipeGraph: RecipeGraphDraft,
+): Promise<{
+  capture: RecipeCapture;
+  pendingPage?: CookbookPage;
+  status: 'processing';
+}> {
+  return callAuthenticatedFunction(
+    'capture-recipe',
+    { captureId, correctedRecipeGraph },
+    { timeoutMs: 20_000 },
+  );
+}
+
 export async function prepareRecipeCaptureDestination(
   captureId: string,
   destinationCookbookId: string,
@@ -700,25 +737,6 @@ export async function prepareRecipeCaptureDestination(
   );
 }
 
-function decodeBase64(value: string): Uint8Array {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const clean = value.replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '').replace(/=+$/, '');
-  const bytes: number[] = [];
-  let buffer = 0;
-  let bits = 0;
-  for (const character of clean) {
-    const index = alphabet.indexOf(character);
-    if (index < 0) throw new Error('The selected image could not be read');
-    buffer = (buffer << 6) | index;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-  return Uint8Array.from(bytes);
-}
-
 export async function uploadRecipeCaptureImage(input: {
   userId: string;
   imageUri?: string;
@@ -726,20 +744,61 @@ export async function uploadRecipeCaptureImage(input: {
   mimeType?: string;
   requestKey: string;
 }): Promise<{ storagePath: string; mimeType: string }> {
-  const mimeType = input.mimeType ?? 'image/jpeg';
-  const extension = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
-  const storagePath = `${input.userId}/${input.requestKey}.${extension}`;
-  const imageBytes = input.imageUri
-    ? await new File(input.imageUri).bytes()
-    : input.imageBase64
-      ? decodeBase64(input.imageBase64)
-      : null;
-  if (!imageBytes) throw new Error('The selected image could not be read');
+  const prepared = await prepareRecipeCaptureImage(input);
+  const storagePath = `${input.userId}/${input.requestKey}.jpg`;
   const { error } = await supabase.storage
     .from('recipe-captures')
-    .upload(storagePath, imageBytes, { contentType: mimeType, upsert: false });
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) throw error;
-  return { storagePath, mimeType };
+  return { storagePath, mimeType: prepared.mimeType };
+}
+
+export async function uploadRecipeCaptureAudio(input: {
+  userId: string;
+  audio: RecipeCaptureAudioAsset;
+  requestKey: string;
+}): Promise<{
+  storagePath: string;
+  mimeType: string;
+  fileName: string;
+  byteSize: number;
+}> {
+  const prepared = await prepareRecipeCaptureAudio(input.audio);
+  const storagePath = `${input.userId}/${input.requestKey}.${prepared.format}`;
+  const { error } = await supabase.storage
+    .from('recipe-captures')
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+  if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+  return {
+    storagePath,
+    mimeType: prepared.mimeType,
+    fileName: prepared.fileName,
+    byteSize: prepared.byteSize,
+  };
+}
+
+export async function uploadRecipeCaptureVideo(input: {
+  userId: string;
+  video: RecipeCaptureVideoAsset;
+  requestKey: string;
+}): Promise<{
+  storagePath: string;
+  mimeType: string;
+  fileName: string;
+  byteSize: number;
+}> {
+  const prepared = await prepareRecipeCaptureVideo(input.video);
+  const storagePath = `${input.userId}/${input.requestKey}.${prepared.fileExtension}`;
+  const { error } = await supabase.storage
+    .from('recipe-captures')
+    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+  if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+  return {
+    storagePath,
+    mimeType: prepared.mimeType,
+    fileName: prepared.fileName,
+    byteSize: prepared.byteSize,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -785,11 +844,11 @@ export async function createRecipePageWithGraph(input: {
       cook_time: recipeGraph.cookTimeMinutes ?? null,
       ingredients: flatIngredients,
       steps: flatSteps,
-      source_type: recipeGraph.provenance.sourceType,
-      source_url: recipeGraph.provenance.sourceUrl ?? null,
+      source_type: recipeGraph.provenance?.sourceType ?? 'manual',
+      source_url: recipeGraph.provenance?.sourceUrl ?? null,
       tags: recipeGraph.tags,
       category: recipeGraph.category,
-      confidence: recipeGraph.provenance.confidence,
+      confidence: recipeGraph.provenance?.confidence ?? 1,
     })
     .select('id')
     .single();

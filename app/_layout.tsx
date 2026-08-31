@@ -27,6 +27,7 @@ import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { LocalUserDataCleanupResume } from '@/components/account/LocalUserDataCleanupResume';
 import { supabase } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
@@ -284,6 +285,7 @@ function RootLayoutNav() {
           <NoshConversationHost />
           <RecipeCaptureResume />
           <NativeShareIngestion />
+          <LocalUserDataCleanupResume />
           <OfflineBanner />
         </SafeAreaProvider>
       </GestureHandlerRootView>

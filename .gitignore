@@ -39,6 +39,7 @@ credentials.json
 
 # Testing
 coverage/
+output/ingestion-evals/
 
 # Supabase local
 supabase/.temp/

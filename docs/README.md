@@ -13,6 +13,7 @@ Read these in order:
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the current app implements that flow |
 | [DATABASE.md](./DATABASE.md) | Which tables, states, RPCs, and ownership rules support it |
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | How to run, test, build, and debug the app |
+| [INGESTION_EVALS.md](./INGESTION_EVALS.md) | How recipe-import quality is measured before changing models, prompts, or adapters |
 | [PHASE9_RELEASE_RUNBOOK.md](./PHASE9_RELEASE_RUNBOOK.md) | What must pass before staging or production |
 | [adr/](./adr/) | Accepted decisions and the reasons behind them |
 

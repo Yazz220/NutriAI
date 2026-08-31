@@ -20,8 +20,8 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 | `cover_style` | text CHECK ∈ {`vintage-garden`, `handwritten`, `editorial`, `watercolor`, `rustic`, `minimal`, `sage-linen`, `terracotta-cloth`, `navy-leather`, `charcoal-cloth`, `alabaster-linen`, `umber-leather`} | Legacy compatibility preset derived from `cover_color_id` by new clients |
 | `cover_finish_id` | text CHECK ∈ {`fine-cloth`, `natural-linen`} | Surface weave and grain on the canonical cover construction |
 | `cover_color_id` | text CHECK ∈ {`sage`, `clay`, `midnight`, `alabaster`, `charcoal`, `umber`} | Curated cover color, independent from finish and recipe-page style |
-| `page_style_id` | text CHECK including the legacy style ids plus {`illustrated`, `studio-editorial`, `heritage`} | Database-owned visual language for complete-page generation; independent from the cover |
-| `style_revision` | integer | Version of the book-owned page-style contract |
+| `page_style_id` | text, composite FK with `style_revision` → `recipe_page_style_versions` | Database-owned visual language for complete-page generation; independent from the cover |
+| `style_revision` | integer, composite FK with `page_style_id` → `recipe_page_style_versions` | Immutable version of the book-owned page-style contract |
 | `page_style_references` | jsonb string array | Optional immutable visual anchors for page consistency |
 | `is_default` | boolean | At most one per user; automatic destination for new captures |
 | `page_template_id` | text CHECK ∈ {`clean-cream`, `ink-sketch`, `modern-editorial`} default `clean-cream` | Legacy vector-layout default. It is not an input to complete-page image generation. |
@@ -31,6 +31,9 @@ A user's books. After the 2026-05-05 migration there can be **many cookbooks per
 Indexes:
 - `cookbooks_user_updated_idx` on `(user_id, updated_at DESC)` for shelf listing.
 - The legacy `cookbooks_one_per_user_idx` UNIQUE constraint is **dropped** (multi-book support).
+
+### `nutriai.recipe_page_style_versions`
+Private catalog of valid immutable page-style identities. `(style_id, revision)` is the primary key and at most one revision of an identity can have `status = 'active'`. Existing revision-1 identities remain `legacy`; new Studio choices resolve to Studio 1, Editorial 2, Illustrated 2, Heritage 2, Journal 1, or Bold 1. Prompt and art-direction definitions live in `constants/recipePageStyles.ts`; the database catalog protects persisted identity integrity without exposing prompt internals to clients.
 
 ### `nutriai.recipes`
 Structured recipe data extracted from a source. One recipe per imported page.
@@ -43,7 +46,7 @@ Structured recipe data extracted from a source. One recipe per imported page.
 | `servings`, `prep_time`, `cook_time` | integer | |
 | `ingredients` | jsonb | `[{name, quantity, unit, isOptional?}]` |
 | `steps` | jsonb | `string[]` |
-| `source_type` | text CHECK ∈ {`url`, `text`, `image`, `video`} | |
+| `source_type` | text CHECK ∈ {`url`, `text`, `image`, `video`, `audio`} | |
 | `source_url` | text | |
 | `tags` | jsonb | `string[]` |
 | `category` | text | Section bucket (breakfast / dinner / desserts / more) |
@@ -62,7 +65,7 @@ A page = one recipe rendered into one book.
 | `sort_order` | integer | Manual ordering inside a section |
 | `selected_version_id` | uuid → `page_versions` | Which generated version is "the" page |
 | `recipe_graph` | jsonb | Canonical machine-readable recipe used by Nosh |
-| `style_id`, `style_revision` | text, integer | Visual identity snapshot used for this page |
+| `style_id`, `style_revision` | text, integer, composite FK → `recipe_page_style_versions` | Visual identity snapshot used for this page |
 | `template_id` | text | Legacy vector-layout metadata. Complete-page image generation does not read it. |
 | `search_vector` | tsvector generated | Weighted lexical document derived from the canonical graph |
 | `lifecycle_status` | text | `processing` until its complete image is ready, then `approved`. The database value `approved` now means published and does not imply a user approval step. |
@@ -77,7 +80,13 @@ Search indexes:
 
 ### `nutriai.recipe_captures`
 
-Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. Images live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths. Different capture rows can be claimed and processed independently. The claim lease blocks only duplicate work for the same capture.
+Extraction provenance, confidence, inferred fields, and quality assessments remain internal to the durable capture. A cookbook page receives a clean cooking-data projection; those diagnostics do not become recipe notes, descriptions, instructions, or generated-page copy.
+
+Durable recipe intake records. Each row owns the safe source reference, optional destination, extraction result, complete-page generation state, failure details, processing attempt, and one user-scoped idempotency key. `stage_checkpoints` is a JSON object keyed by `source`, `transcription`, `extraction`, `normalization`, `quality`, `page_generation`, and `publication`; each completed entry records a contract version, completion time, and bounded stage metadata. Image extraction metadata records the detected format, byte size, dimensions, and dimension hint so later diagnosis can separate container failures from model evidence decisions. `failed_stage` records where work stopped. Images, permissioned videos, and audio recordings live in the private `recipe-captures` Storage bucket; the table stores only their user-prefixed paths. The bucket is capped at 20 MB and uses a MIME allowlist for the supported source formats. After successful speech-to-text, an audio capture's `source_payload` retains the bounded transcript and transcription model/adapter metadata so extraction retries reuse the same evidence. Different capture rows can be claimed and processed independently. The claim lease blocks only duplicate work for the same capture.
+
+`failure_code` is also the durable recovery contract. Recipe-evidence failures use `not_a_recipe`, `blank_or_empty_source`, `unreadable_source`, `blurry_or_low_resolution_image`, `cropped_recipe_image`, `url_unavailable`, `url_access_restricted`, `url_source_unsupported`, `url_too_large`, `video_source_unsupported`, `video_permission_required`, `video_unavailable`, `video_too_large`, `audio_source_unsupported`, `audio_too_large`, `audio_no_speech`, `audio_transcription_failed`, `missing_ingredients`, `missing_instructions`, or `multiple_recipes`. These codes stop before Recipe Graph or page creation. Most replace the saved source; `url_unavailable`, `video_unavailable`, and `audio_transcription_failed` may retry the same durable source. `needs_recipe_correction` means a Recipe Graph was saved but deterministic semantic checks stopped the capture before page creation; the app edits that graph and resumes the same row. Retryable technical codes are `source_read_failed`, `extraction_failed`, `quality_assessment_failed`, `destination_unavailable`, `page_generation_failed`, and `publication_failed`. `publication_failed` keeps `art_status = ready` because the selected page image already exists. `failure_message` stores deterministic Nosh copy, never raw model prose; raw provider or database diagnostics remain in server logs. Stored video sources keep `mimeType`, `fileName`, `byteSize`, `rightsConfirmed`, and optional notes in `source_payload`; the private media path remains in `source_storage_path`.
+
+The Recipe Graph may omit numeric `servings`. `yieldText` preserves source values such as "1 loaf" or "Makes 24 cookies" without assigning them people-serving semantics. The capture's internal extraction graph retains raw ingredient lines, versioned source provenance, the latest quality assessment, the first blocking assessment after correction, issue paths, and measured coverage. The cookbook page stores the clean cooking-data projection instead. The compatibility `recipes.servings` column remains nullable. Page revision accepts a missing serving count and writes null to that compatibility column.
 
 The database transition trigger permits `processing -> needs_destination | ready | needs_attention`, plus `needs_destination -> processing` and `needs_attention -> processing`. Repeating the current state is idempotent. Client roles can read only their own rows. Authenticated creation and destination choice use guarded RPCs; extraction, page creation, failure, and finalization RPCs are restricted to `service_role`. The client treats a 10-minute-old `processing_started_at` as an abandoned lease. If the worker stopped before claiming the row, it falls back to `updated_at`. Each new `processing_attempt` gets one automatic reclaim, so a second worker failure can recover without another cold launch.
 
@@ -164,6 +173,12 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260823041346_add_cookbook_page_styles.sql` | Separates physical `cover_style` from book-owned `page_style_id` and preserves existing books' page identities |
 | `supabase/migrations/20260829183126_separate_cover_finish_and_color.sql` | Separates the canonical cover's surface finish from its curated color while preserving `cover_style` compatibility |
 | `supabase/migrations/20260829183847_sync_legacy_cover_style_and_color.sql` | Keeps legacy `cover_style` writes synchronized with `cover_color_id` across app versions |
+| `supabase/migrations/20260830051728_allow_unknown_recipe_servings.sql` | Lets canonical recipes and atomic page revisions preserve non-serving yields without inventing a numeric serving count |
+| `supabase/migrations/20260830162003_add_audio_recipe_captures.sql` | Adds private existing-audio capture, bounded transcription evidence, and audio source constraints |
+| `supabase/migrations/20260830174134_version_recipe_capture_stages.sql` | Adds versioned capture checkpoints, stage-specific failures, and publication-only retry for already-generated pages |
+| `supabase/migrations/20260830210000_add_permissioned_video_captures.sql` | Expands private capture Storage and row constraints for permissioned video files while preserving URL-only video bookmarks |
+| `supabase/migrations/20260830231805_version_recipe_page_styles.sql` | Replaces duplicated style-id checks with an immutable style/version catalog and activates the six-style creation family |
+| `supabase/migrations/20260830234436_harden_recipe_page_style_catalog.sql` | Adds covering indexes for style-version foreign keys and an explicit service-role read policy |
 | `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |
 
 ## RLS posture

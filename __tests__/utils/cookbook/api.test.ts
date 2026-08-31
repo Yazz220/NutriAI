@@ -3,6 +3,7 @@ import {
   createCookbook,
   createRecipePageWithGraph,
   deleteCookbook,
+  mapRecipeCapture,
   retryReaderStorageCleanup,
   updateCookbookTitle,
 } from '@/utils/cookbook/api';
@@ -112,6 +113,32 @@ describe('createRecipePageWithGraph', () => {
 
     expect(mockSchema).toHaveBeenCalledWith('nutriai');
     expect(recipeInsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'user-1' }));
+  });
+});
+
+describe('mapRecipeCapture', () => {
+  it('maps durable stage diagnostics without trusting unknown stage names', () => {
+    const mapped = mapRecipeCapture({
+      id: 'capture-1',
+      user_id: 'user-1',
+      source_type: 'text',
+      source_payload: { input: 'Soup recipe' },
+      status: 'needs_attention',
+      art_status: 'not_started',
+      failure_code: 'extraction_failed',
+      failure_message: 'Safe copy',
+      failed_stage: 'extraction',
+      stage_checkpoints: {
+        source: { version: 'text-source-v1', completedAt: '2026-08-30T12:00:00.000Z' },
+      },
+      idempotency_key: 'capture-request-123456',
+      processing_attempt: 1,
+      created_at: '2026-08-30T12:00:00.000Z',
+      updated_at: '2026-08-30T12:01:00.000Z',
+    });
+
+    expect(mapped.failedStage).toBe('extraction');
+    expect(mapped.stageCheckpoints.source?.version).toBe('text-source-v1');
   });
 });
 

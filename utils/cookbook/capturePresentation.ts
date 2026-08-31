@@ -1,4 +1,9 @@
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
+import {
+  isRecipeEvidenceFailureCode,
+  recipeEvidenceFeedback,
+  type RecipeEvidenceFailureCode,
+} from '@/supabase/functions/_shared/recipeEvidence';
 
 export type CapturePresentationPhase =
   | 'reading'
@@ -14,6 +19,8 @@ export interface CapturePresentation {
   title: string;
   detail: string;
   cookbookTitle?: string;
+  action?: 'retry' | 'replace_source' | 'correct_recipe';
+  actionLabel?: string;
 }
 
 export interface CaptureProgressStep {
@@ -23,12 +30,62 @@ export interface CaptureProgressStep {
 
 const GENERIC_CAPTURE_FAILURE = 'Nosh saved your recipe, but could not finish the page. Please try again.';
 
+const TECHNICAL_FAILURE_COPY: Record<string, { title: string; detail: string }> = {
+  source_read_failed: {
+    title: 'Nosh could not reopen this source',
+    detail: 'The source is still saved. Try reading it again.',
+  },
+  extraction_failed: {
+    title: 'Nosh could not finish reading this recipe',
+    detail: 'The source is still saved. Try reading it again.',
+  },
+  quality_assessment_failed: {
+    title: 'Nosh could not verify the recipe details',
+    detail: 'The understood recipe is still saved. Try the check again.',
+  },
+  destination_unavailable: {
+    title: 'Nosh could not open this cookbook',
+    detail: 'Try again, or choose another cookbook for this recipe.',
+  },
+  page_generation_failed: {
+    title: 'Nosh could not finish the cookbook page',
+    detail: 'The understood recipe is still saved. Try designing the page again.',
+  },
+  publication_failed: {
+    title: 'The page is ready but was not added',
+    detail: 'Try adding the finished page to the cookbook again.',
+  },
+};
+
 function presentableFailureMessage(message?: string): string {
   if (!message) return GENERIC_CAPTURE_FAILURE;
   if (/\b(constraint|relation|sqlstate|postgres|row-level security|duplicate key|invalid input syntax)\b/i.test(message)) {
     return GENERIC_CAPTURE_FAILURE;
   }
   return message;
+}
+
+function recipeEvidenceTitle(reasonCode: RecipeEvidenceFailureCode): string {
+  if (reasonCode === 'not_a_recipe' || reasonCode === 'blank_or_empty_source') {
+    return 'This does not look like a recipe';
+  }
+  if (reasonCode === 'unreadable_source') return 'Nosh could not read this recipe';
+  if (reasonCode === 'blurry_or_low_resolution_image') return 'This recipe image is too blurry';
+  if (reasonCode === 'cropped_recipe_image') return 'This recipe image is incomplete';
+  if (reasonCode === 'url_unavailable') return 'Nosh could not open this recipe page';
+  if (reasonCode === 'url_access_restricted') return 'This site blocked recipe access';
+  if (reasonCode === 'url_source_unsupported') return "This link isn't a readable recipe page";
+  if (reasonCode === 'url_too_large') return 'This recipe page is too large';
+  if (reasonCode === 'video_source_unsupported') return 'Add the recipe another way';
+  if (reasonCode === 'video_permission_required') return 'Permission is required for this video';
+  if (reasonCode === 'video_unavailable') return 'Nosh could not open this video';
+  if (reasonCode === 'video_too_large') return 'This video is too large';
+  if (reasonCode === 'audio_source_unsupported') return "This audio format isn't supported";
+  if (reasonCode === 'audio_too_large') return 'This audio file is too large';
+  if (reasonCode === 'audio_no_speech') return 'Nosh could not hear a recipe';
+  if (reasonCode === 'audio_transcription_failed') return 'Nosh could not transcribe this audio';
+  if (reasonCode === 'multiple_recipes') return 'Share one recipe at a time';
+  return 'Nosh needs a more complete source';
 }
 
 export function getCapturePresentation(
@@ -47,12 +104,63 @@ export function getCapturePresentation(
   }
 
   if (capture.status === 'needs_attention') {
+    if (capture.failureCode === 'needs_recipe_correction' && capture.recipeGraph) {
+      const openIssues = capture.recipeGraph.provenance?.qualityAssessment?.issues.filter((issue) => (
+        issue.severity === 'blocking' && !issue.confirmed
+      )) ?? [];
+      return {
+        phase: 'attention',
+        label: 'Check details',
+        title: `Check ${recipeTitle}`,
+        detail: openIssues[0]?.message
+          ?? 'Check the extracted recipe details before Nosh creates the page.',
+        cookbookTitle,
+        action: 'correct_recipe',
+        actionLabel: 'Review recipe',
+      };
+    }
+    if (isRecipeEvidenceFailureCode(capture.failureCode)) {
+      const retrySavedSource = capture.failureCode === 'url_unavailable'
+        || capture.failureCode === 'video_unavailable'
+        || capture.failureCode === 'audio_transcription_failed';
+      return {
+        phase: 'attention',
+        label: 'Check source',
+        title: recipeEvidenceTitle(capture.failureCode),
+        detail: recipeEvidenceFeedback(capture.failureCode),
+        cookbookTitle,
+        action: retrySavedSource ? 'retry' : 'replace_source',
+        actionLabel: capture.failureCode === 'url_unavailable'
+          ? 'Try link again'
+          : capture.failureCode === 'video_unavailable'
+            ? 'Try video again'
+            : capture.failureCode === 'audio_transcription_failed'
+              ? 'Try audio again'
+              : 'Choose another source',
+      };
+    }
+    const technicalFailure = capture.failureCode
+      ? TECHNICAL_FAILURE_COPY[capture.failureCode]
+      : undefined;
+    if (technicalFailure) {
+      return {
+        phase: 'attention',
+        label: 'Try again',
+        title: technicalFailure.title,
+        detail: technicalFailure.detail,
+        cookbookTitle,
+        action: 'retry',
+        actionLabel: 'Try again',
+      };
+    }
     return {
       phase: 'attention',
       label: 'Try again',
       title: recipeTitle,
       detail: presentableFailureMessage(capture.failureMessage ?? capture.pageWarning),
       cookbookTitle,
+      action: 'retry',
+      actionLabel: 'Try again',
     };
   }
 

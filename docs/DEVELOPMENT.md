@@ -17,6 +17,7 @@ npx expo start --web --port 8081
 npx expo start --lan
 npm test
 npm run test:watch
+npm run eval:ingestion
 npm run typecheck
 npm run lint
 ```
@@ -26,6 +27,8 @@ The dev server connects to the Nosh dev build on device. Web preview is useful f
 Before a Phase 9 release, follow `docs/PHASE9_RELEASE_RUNBOOK.md`. A passing web preview does not satisfy the native-share, dynamic-type, screen-reader, reduced-motion, or representative-device gates.
 
 Before changing capture or generation, read `docs/PRODUCT_FLOW.md` and ADR 0002. The app has one capture pipeline and one complete-page generator.
+
+Before changing an ingestion model, provider, prompt, parser, transcription adapter, or normalizer, read `docs/INGESTION_EVALS.md` and run `npm run eval:ingestion`. A release candidate must also run `npm run eval:ingestion:live` against the deployed candidate with the unchanged versioned corpus.
 
 ## Environment
 
@@ -53,6 +56,10 @@ Supabase Edge Function secrets:
 | `AI_API_KEY` | `extract-recipe`, `nosh-chat` |
 | `AI_API_BASE` | `extract-recipe`, `nosh-chat` |
 | `AI_MODEL` | `extract-recipe`, `nosh-chat` |
+| `VIDEO_MODEL` | optional video-specific override for `extract-recipe`; defaults to `AI_MODEL` |
+| `AUDIO_TRANSCRIPTION_MODEL` | speech-to-text model used by `capture-recipe`; defaults to `openai/whisper-large-v3` |
+| `AUDIO_TRANSCRIPTION_API_BASE` | optional OpenAI-compatible speech-to-text base URL; defaults to `AI_API_BASE` |
+| `AUDIO_TRANSCRIPTION_API_KEY` | optional speech-to-text provider key; defaults to `AI_API_KEY` |
 | `ART_MODEL` | `generate-page-art` |
 | `APPLE_CLIENT_ID` | `delete-account` |
 | `APPLE_TEAM_ID` | `delete-account` |
@@ -131,7 +138,7 @@ Live functions:
 - `delete-account`
 - `delete-reader-content`
 
-Deploy migrations before deploying Edge Functions that depend on new columns or RPCs. For the simplified pipeline, apply `20260822153000_simplify_recipe_page_pipeline.sql` before the matching `capture-recipe` and `generate-page-art` versions.
+Deploy migrations before deploying Edge Functions that depend on new columns, constraints, buckets, or RPCs. Apply `20260830174134_version_recipe_capture_stages.sql` before the matching capture workers, and apply `20260830210000_add_permissioned_video_captures.sql` before enabling video file selection in the mobile build.
 
 `APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 
@@ -175,6 +182,15 @@ npx eas-cli submit --platform ios
 | Import fails with 401 | missing Supabase JWT | call through `callAuthenticatedFunction` |
 | Generated page has no image | missing `ART_MODEL` secret, OpenRouter failure, or an unselected page version | check `generate-page-art` logs, `generation_requests`, and `selected_version_id` |
 | Capture stays in processing | stale worker, failed generator callback, or migration mismatch | inspect `recipe_captures`, `generation_requests`, and `capture-recipe` logs; retry the same capture id |
+| Retry starts too early or repeats a provider call | missing, legacy, or incompatible stage checkpoint | inspect `recipe_captures.stage_checkpoints`, `failed_stage`, and the artifact saved by the previous stage |
+| Generated image exists but the page is absent | capture publication failed after page generation | confirm `failed_stage = publication`, `art_status = ready`, and a ready `selected_version_id`; retry the same capture to publish that version |
+| Recipe image fails before capture starts | source exceeds 15 MB, native decoder cannot read it, or normalization cannot produce an artifact below 8 MB | reproduce through `recipeCaptureImage.ts`; inspect the original dimensions/size and the adaptive normalization attempts |
+| Image capture asks for another source | extractor classified it as blank, unreadable, blurry/low-resolution, cropped, or incomplete | inspect `extract-recipe` logs for the provider-neutral `reasonCode` and internal `diagnostic`; keep user-facing copy in `recipeEvidence.ts` |
+| Video capture says the source is unsupported | the URL is a social-platform bookmark or the file is not MP4, MOV, MPEG, or WebM | open the original, then add a permissioned video file, screenshots, audio, or pasted recipe text; never pass a social page URL straight to the model |
+| Video capture asks for permission | the source did not pass through the Composer confirmation | add the video again and confirm that the user made it or has permission to process it |
+| Uploaded video reaches technical retry | `VIDEO_MODEL` does not accept the selected video format, or its provider is unavailable | choose a compatible video model or use a supported file format; keep the video adapter and capture lifecycle unchanged |
+| Audio is rejected before capture | unsupported format or file exceeds 6 MB | choose MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC below the source limit |
+| Saved audio cannot be transcribed | `AUDIO_TRANSCRIPTION_MODEL` is unavailable, misconfigured, or the provider is temporarily failing | inspect `capture-recipe` logs and retry the same capture; do not create another extraction path |
 | Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |
 | New page uses the typesetter | caller bypassed the capture contract or page has no complete image | trace the source through `capture-recipe`; do not add another generation path |
 | Page style differs from its book | stale cookbook page-style fields or caller-defined references | inspect `page_style_id`, `style_revision`, and `page_style_references`; generation must read them from the database |

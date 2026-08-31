@@ -4,14 +4,15 @@ This runbook separates code-complete hardening from checks that require a linked
 
 ## Release order
 
-1. Run the local automated gate: `npm test`, `npm run typecheck`, and `npm run lint`.
+1. Run the local automated gate: `npm test`, `npm run eval:ingestion`, `npm run typecheck`, and `npm run lint`.
 2. Apply all pending migrations to a non-production Supabase branch or staging project in timestamp order.
 3. Run the rollback-only SQL proofs in `supabase/tests/` against staging.
 4. Run Supabase security and performance advisors. Review new findings; do not waive ownership, RLS, function-grant, mutable-search-path, or foreign-key-index findings.
 5. Deploy `extract-recipe`, `capture-recipe`, `nosh-chat`, `generate-page-art`, and `delete-account` to staging.
-6. Choose the `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` conversation presentation for the internal build. Both values must use the same capture pipeline.
-7. Complete the device matrix and inspect the monitoring signals below.
-8. Promote the same tested migration/function/client versions to production in that order.
+6. Run `npm run eval:ingestion:live` against the staged extraction configuration and retain the ignored result artifact with the release evidence.
+7. Choose the `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` conversation presentation for the internal build. Both values must use the same capture pipeline.
+8. Complete the device matrix and inspect the monitoring signals below.
+9. Promote the same tested migration/function/client versions to production in that order.
 
 The connected production-like Nosh project was audited read-only on 2026-08-21. It had zero cookbook rows and was several migrations behind the repository. No migration or Edge Function was deployed during that audit.
 
@@ -24,6 +25,7 @@ The automated suite must cover:
 - empty, resolved, and ambiguous collection retrieval;
 - the five-candidate search cap and three-loaded-recipe request cap;
 - persisted concurrent captures, stale work, retries, destination choice, duplicate share delivery, and lost-response idempotency;
+- recipe, non-recipe, insufficient-evidence, critical-fact, and quality-routing gates across URL, text, image, video, and audio sources;
 - preview-before-commit for recipe and collection mutations;
 - account deletion of database rows plus private capture/art Storage objects.
 

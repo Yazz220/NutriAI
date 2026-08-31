@@ -1,6 +1,16 @@
 import type { ImageSourcePropType } from 'react-native';
 import type { CookbookPageStyleId, CookbookStyleId } from '@/types/cookbook';
-import { getCookbookStyle } from '@/constants/cookbookStyles';
+import {
+  compileRecipePageStyleDescriptor,
+  DEFAULT_RECIPE_PAGE_STYLE_ID,
+  isCreationPageStyleId as isActiveRecipePageStyleId,
+  isRecipePageStyleId,
+  listActiveRecipePageStyles,
+  resolveActiveRecipePageStyle,
+  resolveLatestRecipePageStyle,
+  resolveRecipePageStyleVersion,
+  type CreationPageStyleId,
+} from '@/constants/recipePageStyles';
 export {
   COOKBOOK_COVER_COLORS,
   COOKBOOK_COVER_FINISHES,
@@ -13,8 +23,7 @@ export type {
   CookbookCoverColor as CookbookCoverColorOption,
   CookbookCoverFinish as CookbookCoverFinishOption,
 } from '@/constants/cookbookBindings';
-
-export type CreationPageStyleId = 'illustrated' | 'studio-editorial' | 'heritage';
+export type { CreationPageStyleId } from '@/constants/recipePageStyles';
 
 export interface CookbookPageStyleOption {
   id: CreationPageStyleId;
@@ -30,93 +39,87 @@ export interface CookbookPageStyleOption {
   studioOrder: number;
 }
 
+function option(
+  id: CreationPageStyleId,
+  samples: CookbookPageStyleOption['samples'],
+): CookbookPageStyleOption {
+  const style = resolveActiveRecipePageStyle(id);
+  return {
+    id,
+    name: style.name,
+    description: style.description,
+    modelDescription: compileRecipePageStyleDescriptor(style, 'standard'),
+    revision: style.revision,
+    styleReferences: style.styleReferences,
+    samples,
+    studioOrder: style.studioOrder ?? 0,
+  };
+}
+
 export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyleOption> = {
-  illustrated: {
-    id: 'illustrated',
-    name: 'Illustrated',
-    description: 'Gentle drawings and soft color',
-    modelDescription:
-      'refined hand-drawn black ink food illustration with delicate translucent watercolor, warm alabaster paper, muted sage and ochre accents, airy contemporary cookbook publishing',
-    revision: 1,
-    styleReferences: [],
-    samples: {
-      brownies: require('../assets/cookbook/style-previews/illustrated-brownies.png'),
-      cookies: require('../assets/cookbook/style-previews/illustrated-cookies.png'),
-    },
-    studioOrder: 0,
-  },
-  'studio-editorial': {
-    id: 'studio-editorial',
-    name: 'Editorial',
-    description: 'Bold imagery and clean type',
-    modelDescription:
-      'polished contemporary culinary editorial photography, warm white paper, confident high-contrast serif titles, precise sans-serif recipe text, disciplined asymmetric grid, restrained terracotta rules',
-    revision: 1,
-    styleReferences: [],
-    samples: {
-      brownies: require('../assets/cookbook/style-previews/editorial-brownies.png'),
-      cookies: require('../assets/cookbook/style-previews/editorial-cookies.png'),
-    },
-    studioOrder: 1,
-  },
-  heritage: {
-    id: 'heritage',
-    name: 'Heritage',
-    description: 'Classic ink and quiet ornament',
-    modelDescription:
-      'refined archival cookbook publishing with engraved copperplate food artwork, pristine warm parchment, deep umber ink, restrained antique gold rules, dignified serif typography and quiet classical ornament',
-    revision: 1,
-    styleReferences: [],
-    samples: {
-      brownies: require('../assets/cookbook/style-previews/heritage-brownies.png'),
-      cookies: require('../assets/cookbook/style-previews/heritage-cookies.png'),
-    },
-    studioOrder: 2,
-  },
+  studio: option('studio', {
+    brownies: require('../assets/cookbook/style-previews/studio-v1-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/studio-v1-cookies.png'),
+  }),
+  editorial: option('editorial', {
+    brownies: require('../assets/cookbook/style-previews/editorial-v2-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/editorial-v2-cookies.png'),
+  }),
+  illustrated: option('illustrated', {
+    brownies: require('../assets/cookbook/style-previews/illustrated-v2-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/illustrated-v2-cookies.png'),
+  }),
+  heritage: option('heritage', {
+    brownies: require('../assets/cookbook/style-previews/heritage-v2-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/heritage-v2-cookies.png'),
+  }),
+  journal: option('journal', {
+    brownies: require('../assets/cookbook/style-previews/journal-v1-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/journal-v1-cookies.png'),
+  }),
+  bold: option('bold', {
+    brownies: require('../assets/cookbook/style-previews/bold-v1-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/bold-v1-cookies.png'),
+  }),
 };
 
-export const DEFAULT_CREATION_PAGE_STYLE_ID: CreationPageStyleId = 'illustrated';
-
-const CREATION_PAGE_STYLE_IDS = new Set<string>(Object.keys(COOKBOOK_PAGE_STYLES));
+export const DEFAULT_CREATION_PAGE_STYLE_ID: CreationPageStyleId = DEFAULT_RECIPE_PAGE_STYLE_ID;
 
 export function listCreationPageStyles(): CookbookPageStyleOption[] {
-  return Object.values(COOKBOOK_PAGE_STYLES).sort((left, right) => left.studioOrder - right.studioOrder);
+  return listActiveRecipePageStyles().map((style) => COOKBOOK_PAGE_STYLES[style.id as CreationPageStyleId]);
 }
 
 export function isCreationPageStyleId(value?: string | null): value is CreationPageStyleId {
-  return typeof value === 'string' && CREATION_PAGE_STYLE_IDS.has(value);
+  return isActiveRecipePageStyleId(value);
 }
 
 export function normalizeCookbookPageStyleId(
   value?: string | null,
   legacyCoverStyle?: CookbookStyleId,
 ): CookbookPageStyleId {
-  if (isCreationPageStyleId(value)) return value;
-  if (value && getCookbookStyle(value).id === value) return value as CookbookStyleId;
-  return legacyCoverStyle ?? DEFAULT_CREATION_PAGE_STYLE_ID;
+  if (isRecipePageStyleId(value)) return value;
+  if (legacyCoverStyle && isRecipePageStyleId(legacyCoverStyle)) return legacyCoverStyle;
+  return DEFAULT_CREATION_PAGE_STYLE_ID;
 }
 
 export function getCookbookPageStyleRevision(styleId: CookbookPageStyleId): number {
-  return isCreationPageStyleId(styleId)
-    ? COOKBOOK_PAGE_STYLES[styleId].revision
-    : getCookbookStyle(styleId).styleRevision;
+  return resolveLatestRecipePageStyle(styleId).revision;
 }
 
-export function getCookbookPageStyleReferences(styleId: CookbookPageStyleId): string[] {
-  const references = isCreationPageStyleId(styleId)
-    ? COOKBOOK_PAGE_STYLES[styleId].styleReferences
-    : getCookbookStyle(styleId).pageStyleReferences ?? [];
-  return [...references];
+export function getCookbookPageStyleReferences(
+  styleId: CookbookPageStyleId,
+  revision?: number,
+): string[] {
+  const style = revision
+    ? resolveRecipePageStyleVersion(styleId, revision)
+    : resolveLatestRecipePageStyle(styleId);
+  return [...(style?.styleReferences ?? [])];
 }
 
 export function getCookbookPageStyleName(styleId: CookbookPageStyleId): string {
-  return isCreationPageStyleId(styleId)
-    ? COOKBOOK_PAGE_STYLES[styleId].name
-    : getCookbookStyle(styleId).theme.name;
+  return resolveLatestRecipePageStyle(styleId).name;
 }
 
 export function getCookbookPageStyleModelDescription(styleId: CookbookPageStyleId): string {
-  return isCreationPageStyleId(styleId)
-    ? COOKBOOK_PAGE_STYLES[styleId].modelDescription
-    : getCookbookStyle(styleId).theme.prompt;
+  return compileRecipePageStyleDescriptor(resolveLatestRecipePageStyle(styleId), 'standard');
 }

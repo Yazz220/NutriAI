@@ -1,9 +1,9 @@
 import {
   buildOpenRouterImageRequest,
   buildRecipePagePrompt,
-  RECIPE_PAGE_STYLE_PROFILES,
   stableCookbookSeed,
 } from '../../../supabase/functions/_shared/artGeneration';
+import { resolveRecipePageStyleVersion } from '@/constants/recipePageStyles';
 
 describe('complete recipe page generation contract', () => {
   const recipe = {
@@ -32,6 +32,7 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v3');
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',
@@ -40,15 +41,20 @@ describe('complete recipe page generation contract', () => {
   });
 
   it('locks the style revision and supplies visual anchors without borrowing their text', () => {
-    const reference = 'https://example.test/sage-anchor.png';
-    const { prompt, payload } = buildRecipePagePrompt(recipe, 'sage-linen', {
-      styleRevision: 3,
+    const reference = 'https://example.test/editorial-anchor.png';
+    const { prompt, payload } = buildRecipePagePrompt(recipe, 'editorial', {
+      styleRevision: 2,
       styleReferences: [reference],
     });
 
-    expect(prompt).toContain('Locked cookbook identity, revision 3');
+    expect(prompt).toContain('Locked cookbook identity editorial, immutable revision 2');
     expect(prompt).toContain('Never copy their recipe content');
     expect(payload.styleReferences).toEqual([reference]);
+  });
+
+  it('rejects an unknown revision instead of silently changing a shipped style', () => {
+    expect(() => buildRecipePagePrompt(recipe, 'illustrated', { styleRevision: 99 }))
+      .toThrow('Unsupported recipe page style version illustrated@99');
   });
 
   it('requests the canonical portrait 4:5 page from Qwen Image 3 Pro', () => {
@@ -77,6 +83,34 @@ describe('complete recipe page generation contract', () => {
     expect(payload.output.aspectRatio).toBe('4:5');
   });
 
+  it('prints the source yield without relabeling it as people-servings', () => {
+    const { payload } = buildRecipePagePrompt({
+      ...recipe,
+      servings: undefined,
+      yieldText: 'Makes 1 loaf',
+    }, 'illustrated');
+
+    expect(payload.recipe.metadata).toContain('Makes 1 loaf');
+    expect(payload.recipe.metadata).not.toContain('Serves 1');
+  });
+
+  it('keeps extraction commentary out of the finished cookbook page', () => {
+    const { prompt, payload } = buildRecipePagePrompt({
+      ...recipe,
+      notes: [
+        'Serve with grated Parmesan.',
+        'The source did not explicitly state the simmering time.',
+        'Nosh inferred the temperature from the image.',
+      ],
+    }, 'illustrated');
+
+    expect(payload.recipe.notes).toEqual(['Serve with grated Parmesan.']);
+    expect(prompt).toContain('Serve with grated Parmesan.');
+    expect(prompt).not.toContain('did not explicitly state');
+    expect(prompt).not.toContain('Nosh inferred');
+    expect(prompt).toContain('Never print extraction analysis');
+  });
+
   it('supports a stable seed for tests without forcing one in production', () => {
     const cookbookId = '9fc84d73-cab8-4f8e-840e-c871f91cbb65';
     const productionRequest = buildOpenRouterImageRequest('qwen/qwen-image-3-pro', 'Complete pasta page');
@@ -87,16 +121,27 @@ describe('complete recipe page generation contract', () => {
   });
 
   it.each([
-    ['illustrated', 'translucent watercolor'],
-    ['studio-editorial', 'culinary photography'],
-    ['heritage', 'copperplate-style'],
-  ])('gives %s a distinctive polished visual contract', (styleId, signature) => {
-    const profile = RECIPE_PAGE_STYLE_PROFILES[styleId];
-    const { prompt, payload } = buildRecipePagePrompt(recipe, styleId);
+    ['studio', 1, 'natural daylight food photography'],
+    ['editorial', 2, 'cinematic close-cropped food photography'],
+    ['illustrated', 2, 'absolutely no photography'],
+    ['heritage', 2, 'wood engraving or copperplate'],
+    ['journal', 1, 'instant-film food photograph'],
+    ['bold', 1, 'screenprint or risograph'],
+  ])('gives %s a distinctive polished visual contract', (styleId, revision, signature) => {
+    const profile = resolveRecipePageStyleVersion(styleId as never, revision);
+    const { prompt, payload } = buildRecipePagePrompt(recipe, styleId, { styleRevision: revision });
 
-    expect(profile.illustration).toContain(signature);
-    expect(prompt).toContain(profile.paper);
-    expect(prompt).toContain(profile.typography);
+    expect(profile?.imagery).toContain(signature);
+    expect(prompt).toContain(profile?.paper);
+    expect(prompt).toContain(profile?.typography);
     expect(payload.styleId).toBe(styleId);
+  });
+
+  it('adapts composition to recipe density without changing page geometry', () => {
+    const { payload } = buildRecipePagePrompt(recipe, 'studio', { styleRevision: 1 });
+
+    expect(payload.density).toBe('sparse');
+    expect(payload.styleDescriptor).toContain('Composition for sparse recipe density');
+    expect(payload.output.aspectRatio).toBe('4:5');
   });
 });

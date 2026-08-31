@@ -86,7 +86,7 @@ const COLLECTION_SESSION: NoshInteractionSession = {
 function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
   const references = cookbook.pageStyleReferences?.length
     ? cookbook.pageStyleReferences
-    : getCookbookPageStyleReferences(cookbook.pageStyleId);
+    : getCookbookPageStyleReferences(cookbook.pageStyleId, cookbook.styleRevision);
   return references?.length ? [...references] : undefined;
 }
 
@@ -287,10 +287,8 @@ export function NoshConversationHost() {
       ...proposal.proposed,
       provenance: {
         ...proposal.proposed.provenance,
-        extractionNotes: [
-          ...(proposal.proposed.provenance.extractionNotes ?? []),
-          `Saved as a copy of ${proposal.original.title}.`,
-        ],
+        sourceType: proposal.proposed.provenance?.sourceType ?? 'manual',
+        confidence: proposal.proposed.provenance?.confidence ?? 1,
       },
     };
     let copiedPage = await createRecipePageWithGraph({

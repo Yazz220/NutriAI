@@ -40,6 +40,107 @@ describe('recipe graph normalization', () => {
     expect(() => validateNormalizedRecipeGraph(normalized)).not.toThrow();
   });
 
+  it('preserves ingredient text, parsed amounts, instruction sections, and source yield', () => {
+    const fallback = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      '@id': 'https://example.com/bread#recipe',
+      name: 'Country loaf',
+      recipeYield: '1 loaf',
+      recipeIngredient: [
+        '3 1/2 cups bread flour',
+        '1 teaspoon fine sea salt',
+        'water, as needed',
+      ],
+      recipeInstructions: [
+        {
+          '@type': 'HowToSection',
+          name: 'Mix the dough',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Combine the flour and salt.' },
+          ],
+        },
+        {
+          '@type': 'HowToSection',
+          name: 'Bake',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Bake until deeply browned.' },
+          ],
+        },
+      ],
+    }, 'https://example.com/shared', {
+      canonicalUrl: 'https://example.com/bread',
+      sourceTitle: 'Country loaf recipe',
+      sourceLanguage: 'en',
+      fetchedAt: '2026-08-30T01:00:00.000Z',
+      sourceContentHash: 'sha256:test',
+      candidateCount: 1,
+      selectionReason: 'single_candidate',
+    });
+
+    expect(fallback?.servings).toBeUndefined();
+    expect(fallback?.yieldText).toBe('1 loaf');
+    expect(fallback?.ingredientGroups[0].ingredients).toEqual([
+      expect.objectContaining({
+        rawText: '3 1/2 cups bread flour',
+        quantity: '3 1/2',
+        unit: 'cups',
+        name: 'bread flour',
+      }),
+      expect.objectContaining({
+        rawText: '1 teaspoon fine sea salt',
+        quantity: '1',
+        unit: 'teaspoon',
+        name: 'fine sea salt',
+      }),
+      expect.objectContaining({
+        rawText: 'water, as needed',
+        name: 'water',
+        preparation: 'as needed',
+      }),
+    ]);
+    expect(fallback?.stepGroups.map((group) => group.label)).toEqual(['Mix the dough', 'Bake']);
+    expect(fallback?.provenance).toMatchObject({
+      sourceUrl: 'https://example.com/shared',
+      canonicalUrl: 'https://example.com/bread',
+      sourceTitle: 'Country loaf recipe',
+      sourceLanguage: 'en',
+      parserId: 'schema-org-json-ld',
+      parserVersion: 2,
+      structuredDataId: 'https://example.com/bread#recipe',
+      sourceContentHash: 'sha256:test',
+    });
+  });
+
+  it('sets numeric servings only when the structured yield means servings', () => {
+    const servingsRecipe = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'Soup',
+      recipeYield: 'Serves 6',
+      recipeIngredient: ['1 litre stock'],
+      recipeInstructions: ['Simmer.'],
+    }, sourceUrl);
+    const cookiesRecipe = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'Cookies',
+      recipeYield: 'Makes 24 cookies',
+      recipeIngredient: ['2 cups flour'],
+      recipeInstructions: ['Bake.'],
+    }, sourceUrl);
+    const rangeRecipe = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'Flexible stew',
+      recipeYield: '6-8 servings',
+      recipeIngredient: ['1 pot stew'],
+      recipeInstructions: ['Simmer.'],
+    }, sourceUrl);
+
+    expect(servingsRecipe).toMatchObject({ servings: 6, yieldText: 'Serves 6' });
+    expect(cookiesRecipe?.servings).toBeUndefined();
+    expect(cookiesRecipe?.yieldText).toBe('Makes 24 cookies');
+    expect(rangeRecipe?.servings).toBeUndefined();
+    expect(rangeRecipe?.yieldText).toBe('6-8 servings');
+  });
+
   it('repairs common top-level ingredients and instructions aliases', () => {
     const normalized = normalizeRecipeGraphDraft({
       title: 'Toast',

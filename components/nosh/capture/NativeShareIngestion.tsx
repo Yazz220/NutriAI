@@ -82,6 +82,12 @@ export function NativeShareIngestion() {
             requestKey,
           });
           source = { type: 'image', ...upload, notes: normalized.notes };
+        } else if (normalized.type === 'video') {
+          source = {
+            type: 'video',
+            input: normalized.input,
+            rightsConfirmed: normalized.rightsConfirmed,
+          };
         } else {
           source = { type: normalized.type, input: normalized.input };
         }
