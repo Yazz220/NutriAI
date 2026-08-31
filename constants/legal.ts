@@ -3,3 +3,9 @@ import { APP_WEBSITE } from '@/constants/brand';
 export const PRIVACY_POLICY_URL = `${APP_WEBSITE}/privacy.html`;
 export const SUPPORT_URL = `${APP_WEBSITE}/support.html`;
 export const OPENROUTER_PRIVACY_URL = 'https://openrouter.ai/privacy';
+
+const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim();
+
+export const SUPPORT_CONTACT_URL = supportEmail
+  ? `mailto:${supportEmail}?subject=${encodeURIComponent('Nosh support')}`
+  : SUPPORT_URL;

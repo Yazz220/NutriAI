@@ -1,4 +1,4 @@
-import { BrandPalette } from './brandTheme';
+import { BrandPalette, BrandThemeLight } from './brandTheme';
 
 /**
  * Nosh product color system.
@@ -28,6 +28,7 @@ const deepOcean = '#627755';
 const burnishedBronze = '#453d37';
 const warmUmber = '#2d2824';
 const blushMist = '#f4ded9';
+const dangerText = BrandThemeLight.status.danger;
 
 export const Colors = {
   // Canonical palette and compatibility neutrals
@@ -112,6 +113,7 @@ export const Colors = {
   onWarning: charcoal,
 
   error: peach,
+  dangerText,
   errorLight: blushMist,
   errorDark: peach,
   onError: white,

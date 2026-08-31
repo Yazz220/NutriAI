@@ -7,8 +7,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
-import { Bot, ExternalLink, ShieldCheck } from 'lucide-react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ExternalLink, ShieldCheck } from 'lucide-react-native';
+import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
@@ -48,6 +49,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
   const userId = user?.id;
   const [isGranted, setIsGranted] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [sheetMode, setSheetMode] = useState<'request' | 'review' | null>(null);
   const pendingRequest = useRef<Promise<boolean> | null>(null);
   const resolveRequest = useRef<((allowed: boolean) => void) | null>(null);
@@ -56,6 +58,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
     let cancelled = false;
     setIsReady(false);
     setIsGranted(false);
+    setIsUpdating(false);
     setSheetMode(null);
     resolveRequest.current?.(false);
     resolveRequest.current = null;
@@ -110,6 +113,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
       finishRequest(false);
       return;
     }
+    setIsUpdating(true);
     try {
       await grantAiDataConsent(userId);
       setIsGranted(true);
@@ -117,17 +121,22 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
       finishRequest(true);
     } catch {
       Alert.alert('Could not save permission', 'Please try again.');
+    } finally {
+      setIsUpdating(false);
     }
   }, [finishRequest, userId]);
 
   const withdraw = useCallback(async () => {
     if (!userId) return;
+    setIsUpdating(true);
     try {
       await withdrawAiDataConsent(userId);
       setIsGranted(false);
       setSheetMode(null);
     } catch {
       Alert.alert('Could not update permission', 'Please try again.');
+    } finally {
+      setIsUpdating(false);
     }
   }, [userId]);
 
@@ -146,6 +155,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
       <Sheet
         visible={sheetMode !== null}
         onClose={() => finishRequest(false)}
+        maxHeight="94%"
         closeAccessibilityLabel={isRequest ? 'Not now' : 'Close AI data use'}
         header={
           <View style={styles.header}>
@@ -159,13 +169,17 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
           </View>
         }
       >
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.body}>
             Nosh uses external AI to read recipes, create cookbook pages, and answer cooking questions.
           </Text>
           <View style={styles.disclosureCard}>
             <DisclosureRow
-              icon={<Bot size={18} color={Colors.primary} />}
+              icon={<NoshSymbol size={22} />}
               text="Recipe links, pasted text, photos, video links, chat messages, and the active recipe context may be sent."
             />
             <DisclosureRow
@@ -198,6 +212,8 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
                 title="Allow AI processing"
                 onPress={() => { void allow(); }}
                 fullWidth
+                loading={isUpdating || !isReady}
+                disabled={isUpdating || !isReady}
                 testID="allow-ai-data-processing"
               />
               <Button
@@ -213,6 +229,8 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
               variant="outline"
               onPress={() => { void withdraw(); }}
               fullWidth
+              loading={isUpdating || !isReady}
+              disabled={isUpdating || !isReady}
               testID="withdraw-ai-data-processing"
             />
           ) : (
@@ -220,10 +238,12 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
               title="Allow AI processing"
               onPress={() => { void allow(); }}
               fullWidth
+              loading={isUpdating || !isReady}
+              disabled={isUpdating || !isReady}
               testID="allow-ai-data-processing"
             />
           )}
-        </View>
+        </ScrollView>
       </Sheet>
     </AiDataConsentContext.Provider>
   );
@@ -274,6 +294,9 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.lg,
+  },
+  scroll: {
+    flexShrink: 1,
   },
   body: {
     color: Colors.textSecondary,
