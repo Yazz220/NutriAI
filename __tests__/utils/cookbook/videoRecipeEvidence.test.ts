@@ -1,4 +1,5 @@
 import {
+  acquireDirectVideoRecipeSource,
   buildVideoRecipeEvidencePrompt,
   classifyVideoModelFailure,
   degradedVideoEvidenceNote,
@@ -11,6 +12,7 @@ import {
   classifyVideoSourceUrl,
   isRecognizedVideoSourceUrl,
 } from '@/supabase/functions/_shared/videoSource';
+import { transcribeVideoRecipeEvidence } from '@/supabase/functions/_shared/videoTranscription';
 
 const allowPublicUrl = async () => {};
 
@@ -90,6 +92,30 @@ describe('video recipe evidence adapter', () => {
       new URL('https://cdn.example.com/recipe.mp4'),
       expect.objectContaining({ method: 'GET', redirect: 'manual' }),
     );
+  });
+
+  it('exposes the acquired direct-video bytes for capture-owned transcription and extraction', async () => {
+    const bytes = validMp4Bytes();
+    const fetchImpl = jest.fn().mockResolvedValue(new Response(
+      bytes,
+      { status: 200, headers: { 'content-type': 'video/mp4', 'content-length': '32' } },
+    ));
+
+    const result = await acquireDirectVideoRecipeSource('https://cdn.example.com/recipe.mp4', {
+      fetchImpl,
+      checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
+    });
+
+    expect(result).toEqual({
+      ready: true,
+      kind: 'direct_file',
+      canonicalUrl: 'https://cdn.example.com/recipe.mp4',
+      bytes,
+      mimeType: 'video/mp4',
+      byteSize: 32,
+      adapterVersion: 'video-source-v2',
+    });
   });
 
   it('rejects redirects into social-platform media hosts before downloading them', async () => {
@@ -188,6 +214,69 @@ describe('video recipe evidence adapter', () => {
       reasonCode: 'video_source_unsupported',
       diagnostic: expect.stringContaining('container signature'),
     });
+  });
+
+  it.each([
+    ['video/mp4', 'recipe.mp4'],
+    ['video/mov', 'recipe.mov'],
+    ['video/mpeg', 'recipe.mpeg'],
+    ['video/webm', 'recipe.webm'],
+  ] as const)('transcribes an inspected %s upload through the direct-media adapter', async (mimeType, fileName) => {
+    const fetchImpl = jest.fn().mockImplementation(async (_input, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      expect(form).toBeInstanceOf(FormData);
+      expect(form.get('model_id')).toBe('scribe_v2');
+      expect(form.get('tag_audio_events')).toBe('false');
+      expect(form.get('diarize')).toBe('false');
+      expect(form.get('timestamps_granularity')).toBe('none');
+      const file = form.get('file');
+      expect(file).toBeInstanceOf(Blob);
+      expect((file as Blob).type).toBe(mimeType);
+      return new Response(JSON.stringify({ text: 'Add two eggs, then whisk and fry.' }), { status: 200 });
+    });
+
+    await expect(transcribeVideoRecipeEvidence({
+      bytes: validMp4Bytes(),
+      mimeType,
+      fileName,
+    }, {
+      apiBase: 'https://api.elevenlabs.io/v1',
+      apiKey: 'test-key',
+      model: 'scribe_v2',
+      fetchImpl,
+    })).resolves.toMatchObject({
+      ready: true,
+      transcript: 'Add two eggs, then whisk and fry.',
+      provider: 'elevenlabs',
+      adapterVersion: 'video-transcription-adapter-v1',
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.elevenlabs.io/v1/speech-to-text',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'xi-api-key': 'test-key' },
+      }),
+    );
+  });
+
+  it('degrades without calling an undocumented audio endpoint when video STT is not configured', async () => {
+    const fetchImpl = jest.fn();
+    await expect(transcribeVideoRecipeEvidence({
+      bytes: validMp4Bytes(),
+      mimeType: 'video/mp4',
+      fileName: 'recipe.mp4',
+    }, {
+      apiBase: 'https://api.elevenlabs.io/v1',
+      apiKey: '',
+      model: 'scribe_v2',
+      fetchImpl,
+    })).resolves.toMatchObject({
+      ready: false,
+      reasonCode: 'audio_transcription_failed',
+      diagnostic: 'The video transcription provider is not configured.',
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('makes transcript availability explicit and recognizes access failures', () => {

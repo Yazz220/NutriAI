@@ -24,22 +24,6 @@ export const MAX_VIDEO_FRAME_BASE64_BYTES = 1_500_000;
 export const MAX_VIDEO_FRAMES_TOTAL_BASE64_BYTES = 6_000_000;
 export const MAX_VIDEO_TRANSCRIPT_CHARACTERS = MAX_AUDIO_TRANSCRIPT_CHARACTERS;
 
-/**
- * Containers the configured speech-to-text provider can demux directly.
- * QuickTime (video/mov) is not a supported transcription input, so those
- * videos keep whole-video evidence only.
- */
-export type VideoTranscriptionFormat = 'mp4' | 'webm' | 'mpeg';
-
-export function videoTranscriptionFormat(
-  mimeType: VideoRecipeMimeType | undefined,
-): VideoTranscriptionFormat | null {
-  if (mimeType === 'video/mp4') return 'mp4';
-  if (mimeType === 'video/webm') return 'webm';
-  if (mimeType === 'video/mpeg') return 'mpeg';
-  return null;
-}
-
 type JsonRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -93,6 +77,20 @@ export type RejectedVideoRecipeEvidence = {
 
 export type VideoRecipeEvidenceResolution =
   | ResolvedVideoRecipeEvidence
+  | RejectedVideoRecipeEvidence;
+
+export type AcquiredDirectVideoRecipeSource = {
+  ready: true;
+  kind: 'direct_file';
+  canonicalUrl: string;
+  bytes: Uint8Array;
+  mimeType: VideoRecipeMimeType;
+  byteSize: number;
+  adapterVersion: 'video-source-v2';
+};
+
+export type DirectVideoRecipeSourceAcquisition =
+  | AcquiredDirectVideoRecipeSource
   | RejectedVideoRecipeEvidence;
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -175,7 +173,7 @@ async function acquireDirectVideo(
     checkPublicUrl: PublicUrlCheck;
   },
   redirectCount = 0,
-): Promise<VideoRecipeEvidenceResolution> {
+): Promise<DirectVideoRecipeSourceAcquisition> {
   if (redirectCount > MAX_REDIRECTS) {
     return { ready: false, reasonCode: 'video_unavailable', diagnostic: 'The video redirected too many times.' };
   }
@@ -269,10 +267,9 @@ async function acquireDirectVideo(
       ready: true,
       kind: 'direct_file',
       canonicalUrl: initialUrl.toString(),
-      videoUrl: `data:${inspection.mimeType};base64,${toBase64(bytes)}`,
+      bytes,
       mimeType: inspection.mimeType,
       byteSize: inspection.byteSize,
-      transcriptStatus: 'not_supplied',
       adapterVersion: 'video-source-v2',
     };
   } finally {
@@ -280,14 +277,14 @@ async function acquireDirectVideo(
   }
 }
 
-export async function resolveVideoRecipeEvidence(
+export async function acquireDirectVideoRecipeSource(
   value: string,
   dependencies: {
     fetchImpl?: FetchLike;
     checkPublicUrl: PublicUrlCheck;
     rightsConfirmed?: boolean;
   },
-): Promise<VideoRecipeEvidenceResolution> {
+): Promise<DirectVideoRecipeSourceAcquisition> {
   const parsed = parseHttpUrl(value);
   const classification = classifyVideoSourceUrl(parsed.toString());
   if (classification?.kind === 'platform_link') {
@@ -310,6 +307,28 @@ export async function resolveVideoRecipeEvidence(
     fetchImpl: dependencies.fetchImpl ?? fetch,
     checkPublicUrl: dependencies.checkPublicUrl,
   });
+}
+
+export async function resolveVideoRecipeEvidence(
+  value: string,
+  dependencies: {
+    fetchImpl?: FetchLike;
+    checkPublicUrl: PublicUrlCheck;
+    rightsConfirmed?: boolean;
+  },
+): Promise<VideoRecipeEvidenceResolution> {
+  const acquisition = await acquireDirectVideoRecipeSource(value, dependencies);
+  if (!acquisition.ready) return acquisition;
+  return {
+    ready: true,
+    kind: acquisition.kind,
+    canonicalUrl: acquisition.canonicalUrl,
+    videoUrl: `data:${acquisition.mimeType};base64,${toBase64(acquisition.bytes)}`,
+    mimeType: acquisition.mimeType,
+    byteSize: acquisition.byteSize,
+    transcriptStatus: 'not_supplied',
+    adapterVersion: acquisition.adapterVersion,
+  };
 }
 
 export function resolveUploadedVideoRecipeEvidence(input: {
@@ -433,13 +452,13 @@ export function degradedVideoEvidenceNote(input: {
   frameCount: number;
 }): string | null {
   if (input.hasTranscript && input.frameCount > 0) {
-    return 'The whole-video pass failed, so Nosh extracted from the narration transcript and sampled frames.';
+    return 'The whole-video pass failed, so Folio extracted from the narration transcript and sampled frames.';
   }
   if (input.hasTranscript) {
-    return 'The whole-video pass failed, so Nosh extracted from the narration transcript.';
+    return 'The whole-video pass failed, so Folio extracted from the narration transcript.';
   }
   if (input.frameCount > 0) {
-    return 'The whole-video pass failed, so Nosh extracted from sampled frames.';
+    return 'The whole-video pass failed, so Folio extracted from sampled frames.';
   }
   return null;
 }

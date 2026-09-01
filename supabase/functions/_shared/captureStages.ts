@@ -22,7 +22,7 @@ export const CAPTURE_SOURCE_STAGE_VERSIONS = {
 } as const;
 
 export const AUDIO_TRANSCRIPTION_STAGE_VERSION = 'audio-transcription-v1';
-export const VIDEO_TRANSCRIPTION_STAGE_VERSION = 'video-transcription-v1';
+export const VIDEO_TRANSCRIPTION_STAGE_VERSION = 'video-transcription-v2';
 export const RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION = 'recipe-evidence-acquisition-v1';
 export const RECIPE_EXTRACTION_STAGE_VERSION = 'recipe-extraction-v2';
 export const RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION = 'recipe-graph-normalization-v1';

@@ -62,6 +62,9 @@ Supabase Edge Function secrets:
 | `AUDIO_TRANSCRIPTION_MODEL` | speech-to-text model used by `capture-recipe`; defaults to `openai/whisper-large-v3` |
 | `AUDIO_TRANSCRIPTION_API_BASE` | optional OpenAI-compatible speech-to-text base URL; defaults to `AI_API_BASE` |
 | `AUDIO_TRANSCRIPTION_API_KEY` | optional speech-to-text provider key; defaults to `AI_API_KEY` |
+| `VIDEO_TRANSCRIPTION_MODEL` | direct-media speech-to-text model used for uploaded and direct-file video; defaults to ElevenLabs `scribe_v2` |
+| `VIDEO_TRANSCRIPTION_API_BASE` | optional direct-media speech-to-text base URL; defaults to `https://api.elevenlabs.io/v1` |
+| `VIDEO_TRANSCRIPTION_API_KEY` | server-only direct-media speech-to-text credential required for narrated uploaded and direct-file video |
 | `SOCIAL_VIDEO_ACQUISITION_PROVIDER` | optional external social-video evidence adapter; `guided` by default, `supadata` enables the current adapter |
 | `SUPADATA_API_KEY` | server-only Supadata credential used only when the provider is `supadata` |
 | `SUPADATA_API_BASE` | optional Supadata base URL; defaults to `https://api.supadata.ai/v1` |
