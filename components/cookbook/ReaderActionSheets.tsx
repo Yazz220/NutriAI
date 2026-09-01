@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   BookOpen,
   ChevronLeft,
   Download,
   ExternalLink,
   FileDown,
+  Palette,
   Pencil,
   RefreshCw,
   Share2,
@@ -246,7 +247,7 @@ interface CookbookSettingsSheetProps {
   visible: boolean;
   cookbook: Cookbook | null;
   onClose: () => void;
-  onSaveTitle: (title: string) => Promise<void> | void;
+  onCustomize: () => void;
   onExport?: () => Promise<void> | void;
   onDelete: () => Promise<void> | void;
 }
@@ -255,44 +256,23 @@ export function CookbookSettingsSheet({
   visible,
   cookbook,
   onClose,
-  onSaveTitle,
+  onCustomize,
   onExport,
   onDelete,
 }: CookbookSettingsSheetProps) {
-  const [title, setTitle] = useState(cookbook?.title ?? '');
-  const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
-    setTitle(cookbook?.title ?? '');
-    setSaving(false);
     setExporting(false);
     setError(null);
-  }, [cookbook?.title, visible]);
+  }, [visible]);
 
   if (!cookbook) return null;
 
-  const trimmedTitle = title.trim();
-  const canSave = Boolean(trimmedTitle) && trimmedTitle !== cookbook.title && !saving;
-
-  async function saveTitle() {
-    if (!canSave) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await onSaveTitle(trimmedTitle);
-      onClose();
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'The cookbook name could not be saved.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function exportCookbook() {
-    if (!onExport || exporting || saving) return;
+    if (!onExport || exporting) return;
     setExporting(true);
     setError(null);
     try {
@@ -309,7 +289,6 @@ export function CookbookSettingsSheet({
     <Sheet
       visible={visible}
       onClose={onClose}
-      keyboardAvoiding
       closeAccessibilityLabel="Close cookbook settings"
       closeButtonStyle={styles.closeButton}
       header={
@@ -321,17 +300,16 @@ export function CookbookSettingsSheet({
         </View>
       }
     >
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Book name</Text>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          editable={!saving}
-          maxLength={48}
-          returnKeyType="done"
-          onSubmitEditing={() => void saveTitle()}
-          accessibilityLabel="Book name"
-          style={styles.input}
+      <View style={styles.actionGroup}>
+        <ActionRow
+          icon={<Palette size={19} color={Colors.text} />}
+          title="Customize cookbook"
+          pending={false}
+          disabled={exporting}
+          onPress={() => {
+            onClose();
+            onCustomize();
+          }}
         />
       </View>
       {error ? (
@@ -339,30 +317,13 @@ export function CookbookSettingsSheet({
           {error}
         </Text>
       ) : null}
-      <Pressable
-        style={({ pressed }) => [
-          styles.saveButton,
-          !canSave && styles.disabledButton,
-          pressed && canSave && styles.pressed,
-        ]}
-        disabled={!canSave}
-        onPress={() => void saveTitle()}
-        accessibilityRole="button"
-        accessibilityLabel="Save cookbook name"
-      >
-        {saving ? (
-          <ActivityIndicator color={Colors.onPrimary} />
-        ) : (
-          <Text style={styles.saveButtonText}>Save changes</Text>
-        )}
-      </Pressable>
       {onExport ? (
         <View style={styles.actionGroup}>
           <ActionRow
             icon={<FileDown size={19} color={Colors.text} />}
             title="Download cookbook PDF"
             pending={exporting}
-            disabled={saving || exporting}
+            disabled={exporting}
             onPress={() => void exportCookbook()}
           />
         </View>
@@ -492,41 +453,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.ui.regular,
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight16,
-  },
-  field: {
-    gap: Spacing.xs,
-  },
-  fieldLabel: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight18,
-  },
-  input: {
-    minHeight: 50,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surfaceElevated,
-    paddingHorizontal: Spacing.md,
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.md,
-  },
-  saveButton: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.full,
-    backgroundColor: Colors.primary,
-  },
-  saveButtonText: {
-    color: Colors.onPrimary,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.md,
-  },
-  disabledButton: {
-    opacity: 0.38,
   },
   dangerSection: {
     gap: Spacing.sm,

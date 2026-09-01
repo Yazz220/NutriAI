@@ -64,7 +64,7 @@ Route responsibilities:
 | `app/(auth)/reset-password.tsx` | Password reset form reached via recovery callback |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
 | `app/(book)/library.tsx` | Single-book customization studio and cookbook creation |
-| `app/(book)/save.tsx` | The single recipe source composer plus processing, destination, retry, and ready activity |
+| `app/(book)/save.tsx` | The single recipe source composer plus physical-book destination carousel, processing, retry, and ready activity |
 | `app/(book)/imports.tsx` | Compatibility redirect into Save a recipe |
 | `app/(book)/share.tsx` | Native share receipt and retry screen |
 | `app/(book)/settings.tsx` | Account, library stats, sign out |
@@ -74,6 +74,8 @@ Route responsibilities:
 | `app/(book)/[cookbookId]/generation/[pageId].tsx` | Compatibility generated-page result screen |
 
 There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in the current branch. Reader page selection is state inside `app/(book)/[cookbookId]/index.tsx`. The review and generation routes are redirects retained only for old links. The reader now contains a bookplate and recipe pages; the table of contents has been retired.
+
+`CookbookDestinationCarousel` is a custom gesture surface built on the app's existing Gesture Handler, Reanimated, and Expo Haptics stack. It activates only after deliberate horizontal travel, fails early for vertical scrolling, maps logical positions into a continuous circular cookbook order, applies resistance beyond one-book travel, and clamps each gesture to one cookbook. Selection settles with a reduced-motion-aware spring; haptics occur only when crossing a cookbook detent or making an explicit tap.
 
 ## Root Provider Tree
 
@@ -112,13 +114,14 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | `useAuth` | Supabase session, user, and sign-out |
 | `useCookbooks` | Shelf list, create/delete cookbook, and shelf cache hydration |
 | `useCookbook(cookbookId)` | One cookbook, its pages, selected page, refresh, and optimistic page upsert |
-| `useRecipeCaptures` | Durable capture list, polling, retry, and destination selection |
+| `useRecipeCaptures` | Durable capture list, polling, retry, destination selection, and page-cache reconciliation |
+| `useRecipeCaptureFeed` | Read-only shared capture feed used by passive app-level lifecycle observers |
 | `useUnseenCookbookPages` | Device-local New markers for pages that become ready after a cookbook baseline is established |
 | `useNoshConversation` | Persistent conversation visibility, intake state, and active book/page context |
 | `useNetworkStatus` | Connectivity state for the offline banner |
 | `useNoshSubscription` | Server-authoritative plan and usage plus RevenueCat offering, purchase, restore, and management state |
 
-`useCookbooks` is the context-backed shelf hook created with `@nkzw/create-context-hook`. Capture state is ordinary React Query state in `useRecipeCaptures`.
+`useCookbooks` is the context-backed shelf hook created with `@nkzw/create-context-hook`. Its cookbook-customization mutation writes the title and canonical physical-cover fields atomically, returns the RLS-filtered row, and reconciles both the shelf and active-book query caches. `CreationStudio` owns the shared create/edit interface; edit mode is prefilled from the selected cookbook, omits scene and recipe-page-style controls, and does not run cookbook-capacity checks. Capture state is ordinary React Query state in `useRecipeCaptures`.
 
 ## Subscription and capacity
 
@@ -220,7 +223,7 @@ Each capture stores `stage_checkpoints` for source reading, optional external ac
 
 `supabase/functions/extract-recipe/evals/corpus.v1.json` is the versioned ingestion-quality contract. `_shared/ingestionEval.ts` scores provider output at the evidence, critical Recipe Graph field, and semantic-quality levels rather than treating schema validity or model confidence as correctness. Automated release cases cover every source type and fail on any missing observation, false recipe acceptance, missed recipe, lost critical fact, invented forbidden fact, or unexpected quality route. Diagnostic cases keep known hard inputs visible until Folio has stable and properly licensed fixtures. See [Recipe ingestion evaluations](./INGESTION_EVALS.md) and [ADR 0014](./adr/0014-gate-ingestion-changes-with-a-versioned-corpus.md).
 
-The root-mounted `RecipeCaptureResume` query restores the user-scoped capture cache, polls while work is processing, and retries explicit needs-attention captures. Processing pages stay out of cookbook counts, reader queries, and collection search until publication.
+The root-mounted `RecipeCaptureResume` query restores the user-scoped capture cache, polls while work is processing, and retries explicit needs-attention captures. `RecipeCaptureCompletionObserver` watches that shared query without reconciling page caches a second time. It ignores historical ready captures on mount, announces only a live transition to a published page, names the destination cookbook, and offers a direct reader action. Processing pages stay out of cookbook counts, reader queries, and collection search until publication.
 
 Native Share to Folio uses `expo-share-intent` 5.1.1. The iOS extension stores one URL, text selection, or image in a variant-specific App Group and opens the main app. Android registers single-item `ACTION_SEND` filters for `text/*` and `image/*`. `NativeShareIngestion` waits for an authenticated and reachable main app, then sends shared images through the same preparation boundary as the in-app picker: source files may be at most 15 MB, decoded orientation is applied, the longest edge is bounded at 2400 pixels, and adaptive JPEG passes keep the stored artifact below the extractor's 8 MB decoded limit. It uploads that canonical artifact to the private `recipe-captures` bucket, starts the same durable capture lifecycle, and clears the native payload only after the database confirms Saved.
 

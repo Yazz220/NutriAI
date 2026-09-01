@@ -13,6 +13,7 @@ import { View, ActivityIndicator, Platform, Text, Text as RNText, StyleProp, Tex
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { RecipeCaptureCompletionObserver } from "@/components/cookbook/RecipeCaptureCompletionObserver";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { CookbooksProvider } from "@/hooks/useCookbooks";
@@ -310,6 +311,7 @@ export default function RootLayout() {
                       <>
                         <WebInteractionStyles />
                         <RootLayoutNav />
+                        <RecipeCaptureCompletionObserver />
                       </>
                     </GlobalErrorBoundary>
                   </ToastProvider>

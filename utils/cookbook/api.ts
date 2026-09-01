@@ -516,6 +516,42 @@ export async function updateCookbookTitle(cookbookId: string, title: string): Pr
   if (error) throw error;
 }
 
+export interface UpdateCookbookAppearanceInput {
+  title: string;
+  coverFinishId: CookbookCoverFinishId;
+  coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
+}
+
+export async function updateCookbookAppearance(
+  cookbookId: string,
+  input: UpdateCookbookAppearanceInput,
+): Promise<Cookbook> {
+  const title = input.title.trim();
+  if (!title) throw new Error('Cookbook name cannot be empty.');
+
+  const coverFinishId = normalizeCoverFinishId(input.coverFinishId);
+  const coverColorId = normalizeCoverColorId(input.coverColorId);
+  const { data, error } = await supabase
+    .schema('nutriai')
+    .from('cookbooks')
+    .update({
+      title,
+      cover_style: getLegacyCoverStyleForColor(coverColorId),
+      cover_finish_id: coverFinishId,
+      cover_color_id: coverColorId,
+      cover_title_color_id: normalizeCoverTitleColorId(input.coverTitleColorId),
+      cover_title_placement_id: normalizeCoverTitlePlacementId(input.coverTitlePlacementId),
+    })
+    .eq('id', cookbookId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return mapCookbook(data as CookbookRow);
+}
+
 export async function updateCookbookSections(
   cookbookId: string,
   sections: CookbookSectionEntry[],

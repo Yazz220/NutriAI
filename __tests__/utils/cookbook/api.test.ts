@@ -9,6 +9,7 @@ import {
   retryReaderStorageCleanup,
   startRecipeCapture,
   updateCookbookTitle,
+  updateCookbookAppearance,
 } from '@/utils/cookbook/api';
 import { supabase } from '@/lib/supabase';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
@@ -343,6 +344,72 @@ describe('updateCookbookTitle', () => {
 
     expect(update).toHaveBeenCalledWith({ title: 'Weeknight favorites' });
     expect(eq).toHaveBeenCalledWith('id', 'cookbook-1');
+  });
+});
+
+describe('updateCookbookAppearance', () => {
+  it('updates the physical identity atomically and returns the normalized cookbook', async () => {
+    const single = jest.fn().mockResolvedValue({
+      data: {
+        id: 'cookbook-1',
+        user_id: 'user-1',
+        title: 'Weeknight Favorites',
+        theme_name: 'Studio',
+        theme_prompt: 'Studio pages',
+        section_order: ['dinner'],
+        cover_style: 'terracotta-cloth',
+        cover_finish_id: 'natural-linen',
+        cover_color_id: 'clay',
+        cover_title_color_id: 'gilt',
+        cover_title_placement_id: 'lower',
+        page_style_id: 'studio',
+        style_revision: 1,
+        page_style_references: [],
+        page_template_id: 'clean-cream',
+        sections: [],
+        is_default: false,
+        created_at: '2026-08-23T00:00:00.000Z',
+        updated_at: '2026-09-02T00:00:00.000Z',
+      },
+      error: null,
+    });
+    const select = jest.fn(() => ({ single }));
+    const eq = jest.fn(() => ({ select }));
+    const update = jest.fn(() => ({ eq }));
+    mockSchema.mockReturnValue({
+      from: jest.fn((table: string) => {
+        if (table === 'cookbooks') return { update };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    const result = await updateCookbookAppearance('cookbook-1', {
+      title: '  Weeknight Favorites  ',
+      coverFinishId: 'natural-linen',
+      coverColorId: 'clay',
+      coverTitleColorId: 'gilt',
+      coverTitlePlacementId: 'lower',
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      title: 'Weeknight Favorites',
+      cover_style: 'terracotta-cloth',
+      cover_finish_id: 'natural-linen',
+      cover_color_id: 'clay',
+      cover_title_color_id: 'gilt',
+      cover_title_placement_id: 'lower',
+    });
+    expect(eq).toHaveBeenCalledWith('id', 'cookbook-1');
+    expect(select).toHaveBeenCalledWith('*');
+    expect(result).toMatchObject({
+      id: 'cookbook-1',
+      title: 'Weeknight Favorites',
+      coverFinishId: 'natural-linen',
+      coverColorId: 'clay',
+      coverTitleColorId: 'gilt',
+      coverTitlePlacementId: 'lower',
+      pageStyleId: 'studio',
+    });
   });
 });
 

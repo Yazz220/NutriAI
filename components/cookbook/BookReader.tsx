@@ -72,6 +72,8 @@ interface BookReaderProps {
   pageSlots?: CookbookPage[];
   captures?: RecipeCapture[];
   initialPageId?: string;
+  onExit?: () => void;
+  exitAccessibilityLabel?: string;
   onSelectPage: (id: string) => void;
   onShare: (page: CookbookPage) => void;
   onExportPage?: (page: CookbookPage) => Promise<void> | void;
@@ -90,7 +92,7 @@ interface BookReaderProps {
     idempotencyKey: string,
   ) => Promise<GeneratedRecipePage>;
   onUsePageCandidate?: (page: CookbookPage, candidate: GeneratedRecipePage, recipeGraph?: RecipeGraph) => Promise<void>;
-  onRenameCookbook?: (title: string) => Promise<void> | void;
+  onCustomizeCookbook?: () => void;
   onExportCookbook?: () => Promise<void> | void;
   onDeleteCookbook?: () => Promise<void> | void;
   isStale?: boolean;
@@ -125,6 +127,8 @@ export function BookReader({
   pageSlots = pages,
   captures,
   initialPageId,
+  onExit,
+  exitAccessibilityLabel = 'Back to my collection',
   onSelectPage,
   onShare,
   onExportPage,
@@ -138,7 +142,7 @@ export function BookReader({
   reorderError = false,
   onGeneratePageCandidate,
   onUsePageCandidate,
-  onRenameCookbook,
+  onCustomizeCookbook,
   onExportCookbook,
   onDeleteCookbook,
   isStale = false,
@@ -316,11 +320,11 @@ export function BookReader({
     () =>
       buildCookbookContextActions({
         canAddRecipe: Boolean(!readOnly && cookbookId),
-        canRename: Boolean(!readOnly && cookbook && onRenameCookbook),
+        canCustomize: Boolean(!readOnly && cookbook && onCustomizeCookbook),
         canExport: Boolean(!readOnly && onExportCookbook),
         canDelete: Boolean(!readOnly && cookbook && onDeleteCookbook),
       }),
-    [cookbook, cookbookId, onDeleteCookbook, onExportCookbook, onRenameCookbook, readOnly],
+    [cookbook, cookbookId, onCustomizeCookbook, onDeleteCookbook, onExportCookbook, readOnly],
   );
   const canOpenRecipeActions = Boolean(isCompactReading && selectedRecipeActions.length > 0);
   const canOpenCookbookSettings = Boolean(!isCompactReading && cookbookContextActions.length > 0);
@@ -808,8 +812,8 @@ export function BookReader({
       openAddPage();
       return;
     }
-    if (actionId === 'rename_cookbook') {
-      setActiveSheet('cookbook');
+    if (actionId === 'customize_cookbook') {
+      onCustomizeCookbook?.();
       return;
     }
     if (actionId === 'export_cookbook') {
@@ -898,11 +902,17 @@ export function BookReader({
         <Pressable
           style={({ pressed }) => [styles.backButton, { width: topSideWidth }, pressed && styles.actionPressed]}
           onPress={() =>
-            isOverview ? closeOverview() : isCompactReading ? exitReadingView() : router.dismissTo('/(book)')
+            isOverview
+              ? closeOverview()
+              : isCompactReading
+                ? exitReadingView()
+                : onExit
+                  ? onExit()
+                  : router.dismissTo('/(book)')
           }
           accessibilityRole="button"
           accessibilityLabel={
-            isOverview ? 'Back to cookbook' : isCompactReading ? 'Back to open cookbook' : 'Back to my collection'
+            isOverview ? 'Back to cookbook' : isCompactReading ? 'Back to open cookbook' : exitAccessibilityLabel
           }
         >
           <ChevronLeft size={19} color={Colors.primary} />
@@ -1236,7 +1246,7 @@ export function BookReader({
         />
       ) : null}
 
-      {cookbook && onRenameCookbook && onDeleteCookbook ? (
+      {cookbook && onCustomizeCookbook && onDeleteCookbook ? (
         <CookbookSettingsSheet
           visible={activeSheet === 'cookbook'}
           cookbook={cookbook}
@@ -1244,7 +1254,7 @@ export function BookReader({
             setActiveSheet(null);
             pokeChrome();
           }}
-          onSaveTitle={onRenameCookbook}
+          onCustomize={onCustomizeCookbook}
           onExport={onExportCookbook}
           onDelete={onDeleteCookbook}
         />

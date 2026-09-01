@@ -239,6 +239,21 @@ describe('BookReader cover entry', () => {
     expect(router.dismissTo).toHaveBeenCalledWith('/(book)');
   });
 
+  it('returns to the originating workflow when a page was opened from there', async () => {
+    const onExit = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      onExit,
+      exitAccessibilityLabel: 'Back to Composer',
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Back to Composer' }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the sample useful without exposing mutable recipe actions', async () => {
     const samplePage = {
       ...SAMPLE_COOKBOOK_PAGES[0],
@@ -531,7 +546,7 @@ describe('BookReader compact reading flow', () => {
     const onShare = jest.fn();
     const onExportPage = jest.fn();
     const onVisitSource = jest.fn();
-    const onRenameCookbook = jest.fn();
+    const onCustomizeCookbook = jest.fn();
     const onDeleteCookbook = jest.fn();
     const onExportCookbook = jest.fn();
     const onMoveRecipe = jest.fn();
@@ -582,7 +597,7 @@ describe('BookReader compact reading flow', () => {
       onRemoveRecipe,
       onGeneratePageCandidate,
       onUsePageCandidate,
-      onRenameCookbook,
+      onCustomizeCookbook,
       onDeleteCookbook,
       onExportCookbook,
     });
@@ -597,7 +612,7 @@ describe('BookReader compact reading flow', () => {
     fireEvent.press(cookbookMenu);
     expect(actionSheet).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        options: ['Add recipe', 'Rename cookbook', 'Download cookbook PDF', 'Delete cookbook', 'Cancel'],
+        options: ['Add recipe', 'Customize cookbook', 'Download cookbook PDF', 'Delete cookbook', 'Cancel'],
         destructiveButtonIndex: [3],
         cancelButtonIndex: 4,
       }),
@@ -605,9 +620,7 @@ describe('BookReader compact reading flow', () => {
     );
 
     act(() => actionSheet.mock.calls.at(-1)?.[1](1));
-    expect(screen.getByText('Cookbook settings')).toBeTruthy();
-    expect(screen.getByLabelText('Book name')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Close cookbook settings'));
+    expect(onCustomizeCookbook).toHaveBeenCalledTimes(1);
 
     fireEvent.press(cookbookMenu);
     act(() => actionSheet.mock.calls.at(-1)?.[1](2));

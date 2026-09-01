@@ -37,11 +37,13 @@ export default function BookReaderScreen() {
   const { showToast } = useToast();
   const { requestConsent } = useAiDataConsent();
   const queryClient = useQueryClient();
-  const { cookbookId, pageId } = useLocalSearchParams<{
+  const { cookbookId, pageId, returnTo } = useLocalSearchParams<{
     cookbookId: string;
     pageId?: string | string[];
+    returnTo?: string | string[];
   }>();
   const normalizedPageId = Array.isArray(pageId) ? pageId[0] : pageId;
+  const normalizedReturnTo = Array.isArray(returnTo) ? returnTo[0] : returnTo;
   const readOnly = isSampleCookbookId(cookbookId);
   const {
     cookbook,
@@ -65,7 +67,6 @@ export default function BookReaderScreen() {
   const {
     cookbooks: shelfCookbooks,
     deleteCookbook,
-    updateCookbookTitle,
   } = useCookbooks();
   const shelfCookbook = shelfCookbooks.find((book) => book.id === cookbookId);
   const effectiveCookbook = cookbook ?? shelfCookbook ?? null;
@@ -124,9 +125,8 @@ export default function BookReaderScreen() {
     }
   };
 
-  const handleRenameCookbook = async (title: string) => {
-    await updateCookbookTitle({ cookbookId, title });
-    showToast({ message: 'Cookbook name updated.', type: 'success' });
+  const handleCustomizeCookbook = () => {
+    router.push(`/(book)/library?cookbookId=${encodeURIComponent(cookbookId)}`);
   };
 
   const handleExportCookbook = async () => {
@@ -154,6 +154,7 @@ export default function BookReaderScreen() {
           params: {
             cookbookId: result.destinationCookbookId,
             pageId: result.resultPageId,
+            returnTo: 'previous',
           },
         }),
       },
@@ -345,6 +346,11 @@ export default function BookReaderScreen() {
       pageSlots={pageSlots}
       captures={captures}
       initialPageId={normalizedPageId}
+      onExit={normalizedReturnTo ? () => {
+        if (router.canGoBack()) router.back();
+        else router.dismissTo('/(book)');
+      } : undefined}
+      exitAccessibilityLabel={normalizedReturnTo === 'composer' ? 'Back to Composer' : undefined}
       onSelectPage={setSelectedPageId}
       onShare={handleShare}
       onExportPage={handleExportPage}
@@ -358,7 +364,7 @@ export default function BookReaderScreen() {
       reorderError={Boolean(pageOrder.error)}
       onGeneratePageCandidate={handleGeneratePageCandidate}
       onUsePageCandidate={handleUsePageCandidate}
-      onRenameCookbook={handleRenameCookbook}
+      onCustomizeCookbook={handleCustomizeCookbook}
       onExportCookbook={handleExportCookbook}
       onDeleteCookbook={handleDeleteCookbook}
       readOnly={readOnly}

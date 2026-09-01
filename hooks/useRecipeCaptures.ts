@@ -28,14 +28,12 @@ import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 
 export const RECIPE_CAPTURES_QUERY_KEY = (userId?: string | null) => ['recipe-captures', userId];
 
-export function useRecipeCaptures() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const queryKey = RECIPE_CAPTURES_QUERY_KEY(user?.id);
-  const query = useQuery({
+function useRecipeCapturesQuery(userId?: string | null) {
+  const queryKey = RECIPE_CAPTURES_QUERY_KEY(userId);
+  return useQuery({
     queryKey,
-    enabled: Boolean(user?.id),
-    queryFn: () => listRecipeCaptures(user!.id),
+    enabled: Boolean(userId),
+    queryFn: () => listRecipeCaptures(userId!),
     refetchInterval: (state) => {
       const captures = state.state.data ?? [];
       return captures.some((capture) =>
@@ -43,6 +41,27 @@ export function useRecipeCaptures() {
       ) ? 2_500 : false;
     },
   });
+}
+
+export function useRecipeCaptureFeed() {
+  const { user } = useAuth();
+  const query = useRecipeCapturesQuery(user?.id);
+
+  return {
+    captures: query.data ?? [],
+    hasData: query.data !== undefined,
+    isLoading: query.isLoading,
+    isStale: isStaleCachedData(query.error, query.data),
+    error: query.error,
+    refresh: query.refetch,
+  };
+}
+
+export function useRecipeCaptures() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = RECIPE_CAPTURES_QUERY_KEY(user?.id);
+  const query = useRecipeCapturesQuery(user?.id);
 
   useEffect(() => {
     if (!user?.id || query.data !== undefined) return;

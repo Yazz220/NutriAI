@@ -94,6 +94,35 @@ jest.mock('@/components/subscription/SubscriptionHost', () => ({
 jest.mock('@/components/subscription/PageAllowanceStatus', () => ({
   PageAllowanceStatus: () => null,
 }));
+jest.mock('@/components/cookbook/CookbookDestinationCarousel', () => {
+  const mockReact = require('react');
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    CookbookDestinationCarousel: ({ cookbooks, selectedCookbookId, onSelect }: {
+      cookbooks: Array<{ id: string; title: string }>;
+      selectedCookbookId?: string;
+      onSelect: (cookbookId: string) => void;
+    }) => mockReact.createElement(
+      View,
+      null,
+      mockReact.createElement(
+        Text,
+        null,
+        `Destination carousel: ${cookbooks.find((book) => book.id === selectedCookbookId)?.title ?? 'none'}`,
+      ),
+      ...cookbooks.map((book) => mockReact.createElement(
+        Pressable,
+        {
+          key: book.id,
+          accessibilityRole: 'button',
+          accessibilityLabel: `Add recipes to ${book.title}`,
+          onPress: () => onSelect(book.id),
+        },
+        mockReact.createElement(Text, null, book.title),
+      )),
+    ),
+  };
+});
 jest.mock('@/components/nosh/capture/RecipeCorrectionSheet', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
@@ -364,9 +393,7 @@ describe('NoshCaptureWorkspace', () => {
   it('keeps the page workspace and reordering beneath the simplified composer', async () => {
     const screen = await renderWorkspace();
 
-    expect(screen.getByRole('button', {
-      name: 'Change destination cookbook. Currently Family Table',
-    })).toBeTruthy();
+    expect(screen.getByText('Destination carousel: Family Table')).toBeTruthy();
     expect(screen.getByText('Cookbook grid: 0 pages')).toBeTruthy();
     expect(screen.getByText('Reordering: enabled')).toBeTruthy();
     expect(screen.queryByText('COOKBOOK WORKSPACE')).toBeNull();
@@ -388,14 +415,9 @@ describe('NoshCaptureWorkspace', () => {
     mockCaptures = [capture({ status: 'ready', destinationCookbookId: 'book-1' })];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    fireEvent.press(screen.getByRole('button', {
-      name: 'Change destination cookbook. Currently Family Table',
-    }));
     fireEvent.press(screen.getByRole('button', { name: 'Add recipes to Weeknight Book' }));
 
-    await waitFor(() => expect(screen.getByRole('button', {
-      name: 'Change destination cookbook. Currently Weeknight Book',
-    })).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Destination carousel: Weeknight Book')).toBeTruthy());
   });
 
   it('stays busy through photo upload and ignores a duplicate submission', async () => {
@@ -789,7 +811,14 @@ describe('NoshCaptureWorkspace', () => {
 
     await waitFor(() => {
       expect(mockCloseNoshConversation).toHaveBeenCalledTimes(1);
-      expect(mockRouter.replace).toHaveBeenCalledWith('/(book)/book-1?pageId=page-1');
+      expect(mockRouter.push).toHaveBeenCalledWith({
+        pathname: '/(book)/[cookbookId]',
+        params: {
+          cookbookId: 'book-1',
+          pageId: 'page-1',
+          returnTo: 'composer',
+        },
+      });
     });
     expect((await loadFirstRunOnboardingState('user-1')).status).toBe('completed');
     expect(mockTrackEvent).toHaveBeenCalledWith(expect.objectContaining({

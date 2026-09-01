@@ -26,7 +26,7 @@ import { isSampleCookbookId, SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleC
 import { buildCookbookContextActions, type ContextActionId } from '@/utils/cookbook/contextActions';
 
 export default function MyCookbooksScreen() {
-  const { cookbooks, isLoading, isShelfStale, shelfError, refresh, deleteCookbook, updateCookbookTitle } =
+  const { cookbooks, isLoading, isShelfStale, shelfError, refresh, deleteCookbook } =
     useCookbooks();
   const { user } = useAuth();
   const { receipt } = useNoshNativeShare();
@@ -34,7 +34,7 @@ export default function MyCookbooksScreen() {
   const [firstRunReady, setFirstRunReady] = useState(false);
   const [managedCookbook, setManagedCookbook] = useState<Cookbook | null>(null);
   const cookbookActions = useMemo(
-    () => buildCookbookContextActions({ canAddRecipe: true, canRename: true, canDelete: true }),
+    () => buildCookbookContextActions({ canAddRecipe: true, canCustomize: true, canDelete: true }),
     [],
   );
   const realCookbooks = useMemo(() => cookbooks.filter((cookbook) => !isSampleCookbookId(cookbook.id)), [cookbooks]);
@@ -84,6 +84,11 @@ export default function MyCookbooksScreen() {
     router.push(`/(book)/${cookbook.id}`);
   }
 
+  function customizeCookbook(cookbook: Cookbook) {
+    setManagedCookbook(null);
+    router.push(`/(book)/library?cookbookId=${encodeURIComponent(cookbook.id)}`);
+  }
+
   function confirmDeleteCookbook(cookbook: Cookbook) {
     Alert.alert('Delete cookbook?', `This permanently deletes ${cookbook.title} and all of its recipe pages.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -106,8 +111,8 @@ export default function MyCookbooksScreen() {
       router.push(`/(book)/${cookbook.id}/add`);
       return;
     }
-    if (actionId === 'rename_cookbook') {
-      setManagedCookbook(cookbook);
+    if (actionId === 'customize_cookbook') {
+      customizeCookbook(cookbook);
       return;
     }
     if (actionId === 'delete_cookbook') {
@@ -217,9 +222,8 @@ export default function MyCookbooksScreen() {
         visible={managedCookbook !== null}
         cookbook={managedCookbook}
         onClose={() => setManagedCookbook(null)}
-        onSaveTitle={async (title) => {
-          if (!managedCookbook) return;
-          await updateCookbookTitle({ cookbookId: managedCookbook.id, title });
+        onCustomize={() => {
+          if (managedCookbook) customizeCookbook(managedCookbook);
         }}
         onDelete={() => {
           if (managedCookbook) confirmDeleteCookbook(managedCookbook);

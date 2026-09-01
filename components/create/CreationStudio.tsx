@@ -83,11 +83,13 @@ export interface CreateCookbookDetails {
 }
 
 interface CreationStudioProps {
-  canCreate: boolean;
-  onCreateBook: (details: CreateCookbookDetails) => Promise<void | boolean>;
-  onSignIn: () => void;
+  canCreate?: boolean;
+  onCreateBook?: (details: CreateCookbookDetails) => Promise<void | boolean>;
+  onSaveBook?: (details: CreateCookbookDetails) => Promise<void | boolean>;
+  onSignIn?: () => void;
+  initialDetails?: CreateCookbookDetails;
   bottomInset?: number;
-  mode?: 'standard' | 'first-run';
+  mode?: 'standard' | 'first-run' | 'edit';
   shelfStyleId?: ShelfStyleId;
   wallpaperStyleId?: WallpaperStyleId;
   onShelfStyleChange?: (shelfStyleId: ShelfStyleId) => void | Promise<void>;
@@ -97,7 +99,9 @@ interface CreationStudioProps {
 export function CreationStudio({
   canCreate,
   onCreateBook,
+  onSaveBook,
   onSignIn,
+  initialDetails,
   bottomInset = 0,
   mode = 'standard',
   shelfStyleId = DEFAULT_BOOKSHELF_SCENE.shelfStyleId,
@@ -114,16 +118,23 @@ export function CreationStudio({
   const shelfStyles = listShelfStyles();
   const wallpaperStyles = listWallpaperStyles();
   const isFirstRun = mode === 'first-run';
-  const [title, setTitle] = useState(isFirstRun ? 'My Cookbook' : '');
-  const [coverFinishId, setCoverFinishId] = useState<CookbookCoverFinishId>(DEFAULT_COVER_FINISH_ID);
-  const [coverColorId, setCoverColorId] = useState<CookbookCoverColorId>(DEFAULT_COVER_COLOR_ID);
+  const isEditing = mode === 'edit';
+  const [title, setTitle] = useState(initialDetails?.title ?? (isFirstRun ? 'My Cookbook' : ''));
+  const [coverFinishId, setCoverFinishId] = useState<CookbookCoverFinishId>(
+    initialDetails?.coverFinishId ?? DEFAULT_COVER_FINISH_ID,
+  );
+  const [coverColorId, setCoverColorId] = useState<CookbookCoverColorId>(
+    initialDetails?.coverColorId ?? DEFAULT_COVER_COLOR_ID,
+  );
   const [coverTitleColorId, setCoverTitleColorId] = useState<CookbookCoverTitleColorId>(
-    DEFAULT_COVER_TITLE_COLOR_ID,
+    initialDetails?.coverTitleColorId ?? DEFAULT_COVER_TITLE_COLOR_ID,
   );
   const [coverTitlePlacementId, setCoverTitlePlacementId] = useState<CookbookCoverTitlePlacementId>(
-    DEFAULT_COVER_TITLE_PLACEMENT_ID,
+    initialDetails?.coverTitlePlacementId ?? DEFAULT_COVER_TITLE_PLACEMENT_ID,
   );
-  const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
+  const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(
+    initialDetails?.pageStyleId ?? DEFAULT_CREATION_PAGE_STYLE_ID,
+  );
   const [previewFace, setPreviewFace] = useState<PreviewFace>('cover');
   const [studioScope, setStudioScope] = useState<StudioScope>('book');
   const [submitting, setSubmitting] = useState(false);
@@ -193,13 +204,13 @@ export function CreationStudio({
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
-  async function handleCreate() {
+  async function handleSubmit() {
     const trimmed = title.trim();
-    if (!trimmed || submitting || !canCreate) return;
+    if (!trimmed || submitting || (isEditing ? !onSaveBook : !canCreate || !onCreateBook)) return;
     setSubmitting(true);
     setError(null);
     try {
-      const created = await onCreateBook({
+      const saved = await (isEditing ? onSaveBook : onCreateBook)?.({
         title: trimmed,
         coverFinishId,
         coverColorId,
@@ -207,18 +218,19 @@ export function CreationStudio({
         coverTitlePlacementId,
         pageStyleId,
       });
-      if (created === false) {
+      if (saved === false) {
         setSubmitting(false);
         return;
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    } catch (creationError) {
-      setError(getErrorMessage(creationError));
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, isEditing ? 'Could not save cookbook.' : 'Could not create cookbook.'));
       setSubmitting(false);
     }
   }
 
-  const ctaDisabled = canCreate ? !title.trim() || submitting : false;
+  const canSubmit = isEditing ? Boolean(onSaveBook) : Boolean(canCreate && onCreateBook);
+  const ctaDisabled = canSubmit ? !title.trim() || submitting : false;
 
   return (
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -234,11 +246,13 @@ export function CreationStudio({
               ? 'Set the scene'
               : isFirstRun
                 ? 'Give your recipes a home'
-                : 'Make it yours'}
+                : isEditing
+                  ? 'Customize your cookbook'
+                  : 'Make it yours'}
           </Text>
         </View>
 
-        <StudioScopeToggle value={studioScope} onChange={selectStudioScope} />
+        {!isEditing ? <StudioScopeToggle value={studioScope} onChange={selectStudioScope} /> : null}
 
         {studioScope === 'book' ? (
           <>
@@ -287,23 +301,27 @@ export function CreationStudio({
                 disabled={submitting}
                 onChange={selectCoverColor}
               />
-              <PageStyleSelector
-                value={pageStyleId}
-                options={pageStyles}
-                disabled={submitting}
-                onChange={selectPageStyle}
-              />
+              {!isEditing ? (
+                <PageStyleSelector
+                  value={pageStyleId}
+                  options={pageStyles}
+                  disabled={submitting}
+                  onChange={selectPageStyle}
+                />
+              ) : null}
 
               {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
               <Pressable
                 style={[styles.finishButton, ctaDisabled && styles.disabledButton]}
-                onPress={canCreate ? () => void handleCreate() : onSignIn}
+                onPress={canSubmit ? () => void handleSubmit() : onSignIn}
                 disabled={ctaDisabled}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  canCreate
-                    ? isFirstRun
+                  canSubmit
+                    ? isEditing
+                      ? 'Save cookbook changes'
+                      : isFirstRun
                       ? 'Put this cookbook on my shelf'
                       : 'Add this cookbook to my shelf'
                     : 'Go to sign in'
@@ -313,7 +331,13 @@ export function CreationStudio({
                   <ActivityIndicator color={Colors.onPrimary} />
                 ) : (
                   <Text style={styles.finishText}>
-                    {canCreate ? (isFirstRun ? 'Create my cookbook' : 'Add to shelf') : 'Sign in to save'}
+                    {canSubmit
+                      ? isEditing
+                        ? 'Save changes'
+                        : isFirstRun
+                          ? 'Create my cookbook'
+                          : 'Add to shelf'
+                      : 'Sign in to save'}
                   </Text>
                 )}
               </Pressable>
@@ -353,9 +377,9 @@ export function CreationStudio({
   );
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
-  return 'Could not create cookbook.';
+  return fallback;
 }
 
 function StudioScopeToggle({

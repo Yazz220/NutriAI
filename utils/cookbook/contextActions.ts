@@ -1,6 +1,6 @@
 export type ContextActionId =
   | 'add_recipe'
-  | 'rename_cookbook'
+  | 'customize_cookbook'
   | 'export_cookbook'
   | 'delete_cookbook'
   | 'edit_recipe'
@@ -27,7 +27,7 @@ export interface ContextActionGroup {
 
 interface CookbookActionCapabilities {
   canAddRecipe?: boolean;
-  canRename?: boolean;
+  canCustomize?: boolean;
   canExport?: boolean;
   canDelete?: boolean;
 }
@@ -57,7 +57,7 @@ export function buildCaptureContextActions(primaryTitle: string): ContextActionG
 
 export function buildCookbookContextActions({
   canAddRecipe = false,
-  canRename = false,
+  canCustomize = false,
   canExport = false,
   canDelete = false,
 }: CookbookActionCapabilities): ContextActionGroup[] {
@@ -68,8 +68,8 @@ export function buildCookbookContextActions({
   if (canAddRecipe) {
     primary.push({ id: 'add_recipe', title: 'Add recipe', systemImage: 'plus' });
   }
-  if (canRename) {
-    primary.push({ id: 'rename_cookbook', title: 'Rename cookbook', systemImage: 'pencil' });
+  if (canCustomize) {
+    primary.push({ id: 'customize_cookbook', title: 'Customize cookbook', systemImage: 'paintbrush' });
   }
   if (canExport) {
     sharing.push({ id: 'export_cookbook', title: 'Download cookbook PDF', systemImage: 'arrow.down.doc' });

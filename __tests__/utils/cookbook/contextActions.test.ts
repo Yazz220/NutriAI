@@ -11,7 +11,7 @@ describe('context actions', () => {
     const actions = flattenContextActions(
       buildCookbookContextActions({
         canAddRecipe: true,
-        canRename: true,
+        canCustomize: true,
         canExport: true,
         canDelete: true,
       }),
@@ -19,7 +19,7 @@ describe('context actions', () => {
 
     expect(actions.map((action) => action.id)).toEqual([
       'add_recipe',
-      'rename_cookbook',
+      'customize_cookbook',
       'export_cookbook',
       'delete_cookbook',
     ]);
@@ -46,11 +46,11 @@ describe('context actions', () => {
 
   it('maps actions to an iOS action sheet without losing destructive intent', () => {
     const model = buildContextActionSheetModel(
-      buildCookbookContextActions({ canAddRecipe: true, canRename: true, canDelete: true }),
+      buildCookbookContextActions({ canAddRecipe: true, canCustomize: true, canDelete: true }),
     );
 
-    expect(model.options).toEqual(['Add recipe', 'Rename cookbook', 'Delete cookbook', 'Cancel']);
-    expect(model.ids).toEqual(['add_recipe', 'rename_cookbook', 'delete_cookbook']);
+    expect(model.options).toEqual(['Add recipe', 'Customize cookbook', 'Delete cookbook', 'Cancel']);
+    expect(model.ids).toEqual(['add_recipe', 'customize_cookbook', 'delete_cookbook']);
     expect(model.destructiveButtonIndices).toEqual([2]);
     expect(model.cancelButtonIndex).toBe(3);
   });

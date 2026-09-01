@@ -178,4 +178,42 @@ describe('CreationStudio', () => {
       expect(onWallpaperStyleChange).toHaveBeenCalledWith('charcoal-damask');
     });
   });
+
+  it('edits the physical cookbook identity without exposing page-style or scene changes', async () => {
+    const onSaveBook = jest.fn().mockResolvedValue(undefined);
+    const screen = render(
+      <CreationStudio
+        mode="edit"
+        initialDetails={{
+          title: 'Weeknight Table',
+          coverFinishId: 'natural-linen',
+          coverColorId: 'midnight',
+          coverTitleColorId: 'ivory',
+          coverTitlePlacementId: 'upper',
+          pageStyleId: 'studio',
+        }}
+        onSaveBook={onSaveBook}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('Weeknight Table')).toBeTruthy();
+    expect(screen.queryByText('Page style')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Customize bookshelf scene' })).toBeNull();
+
+    fireEvent.changeText(screen.getByDisplayValue('Weeknight Table'), 'Weeknight Favorites');
+    fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Lower title position' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Save cookbook changes' }));
+
+    await waitFor(() => {
+      expect(onSaveBook).toHaveBeenCalledWith({
+        title: 'Weeknight Favorites',
+        coverFinishId: 'natural-linen',
+        coverColorId: 'clay',
+        coverTitleColorId: 'ivory',
+        coverTitlePlacementId: 'lower',
+        pageStyleId: 'studio',
+      });
+    });
+  });
 });
