@@ -1,8 +1,11 @@
 import type { RecipeEvidenceFailureCode } from './recipeEvidence.ts';
 import {
-  classifyVideoSourceUrl,
-  type SocialVideoPlatform,
-} from './videoSource.ts';
+  captureCheckpoint,
+  sourceStageVersion,
+  VIDEO_TRANSCRIPTION_STAGE_VERSION,
+} from './captureStages.ts';
+import { MAX_AUDIO_TRANSCRIPT_CHARACTERS } from './audioTranscription.ts';
+import { classifyVideoSourceUrl, socialVideoPlatformLabel } from './videoSource.ts';
 import {
   inspectUploadedVideoRecipeSource,
   MAX_DIRECT_VIDEO_BYTES,
@@ -15,6 +18,54 @@ export {
   MAX_DIRECT_VIDEO_BYTES,
   MIN_VIDEO_BYTES,
 } from './videoUploadContract.ts';
+
+export const MAX_VIDEO_FRAMES = 8;
+export const MAX_VIDEO_FRAME_BASE64_BYTES = 1_500_000;
+export const MAX_VIDEO_FRAMES_TOTAL_BASE64_BYTES = 6_000_000;
+export const MAX_VIDEO_TRANSCRIPT_CHARACTERS = MAX_AUDIO_TRANSCRIPT_CHARACTERS;
+
+/**
+ * Containers the configured speech-to-text provider can demux directly.
+ * QuickTime (video/mov) is not a supported transcription input, so those
+ * videos keep whole-video evidence only.
+ */
+export type VideoTranscriptionFormat = 'mp4' | 'webm' | 'mpeg';
+
+export function videoTranscriptionFormat(
+  mimeType: VideoRecipeMimeType | undefined,
+): VideoTranscriptionFormat | null {
+  if (mimeType === 'video/mp4') return 'mp4';
+  if (mimeType === 'video/webm') return 'webm';
+  if (mimeType === 'video/mpeg') return 'mpeg';
+  return null;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A saved video transcript is reusable on retry only when both the source
+ * artifact and the transcription adapter still match their versioned stage
+ * contracts, mirroring the saved-audio-transcript rule.
+ */
+export function canReuseSavedVideoTranscript(
+  capture: Parameters<typeof captureCheckpoint>[0],
+  payload: JsonRecord,
+): boolean {
+  const transcription = isRecord(payload.transcription) ? payload.transcription : {};
+  const sourceCheckpoint = captureCheckpoint(capture, 'source');
+  const transcriptionCheckpoint = captureCheckpoint(capture, 'transcription');
+  const sourceCompatible = sourceCheckpoint
+    ? sourceCheckpoint.version === sourceStageVersion('video')
+    : transcription.sourceAdapterVersion === sourceStageVersion('video');
+  const transcriptionCompatible = transcriptionCheckpoint
+    ? transcriptionCheckpoint.version === VIDEO_TRANSCRIPTION_STAGE_VERSION
+    : transcription.transcriptionAdapterVersion === VIDEO_TRANSCRIPTION_STAGE_VERSION;
+  return sourceCompatible && transcriptionCompatible;
+}
 
 const MAX_REDIRECTS = 5;
 const VIDEO_FETCH_TIMEOUT_MS = 25_000;
@@ -30,7 +81,7 @@ export type ResolvedVideoRecipeEvidence = {
   videoUrl: string;
   mimeType?: VideoRecipeMimeType;
   byteSize?: number;
-  transcriptStatus: 'not_supplied';
+  transcriptStatus: 'not_supplied' | 'supplied';
   adapterVersion: 'video-source-v2';
 };
 
@@ -62,14 +113,6 @@ function mimeTypeFromResponse(contentType: string | null, url: URL): ResolvedVid
   if (extension === 'mpeg' || extension === 'mpg') return 'video/mpeg';
   if (extension === 'webm') return 'video/webm';
   return null;
-}
-
-function platformLabel(platform: SocialVideoPlatform): string {
-  if (platform === 'youtube') return 'YouTube';
-  if (platform === 'tiktok') return 'TikTok';
-  if (platform === 'instagram') return 'Instagram';
-  if (platform === 'facebook') return 'Facebook';
-  return 'Pinterest';
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -141,7 +184,7 @@ async function acquireDirectVideo(
     return {
       ready: false,
       reasonCode: 'video_source_unsupported',
-      diagnostic: `${platformLabel(classification.platform)} media links are retained as source bookmarks and are not downloaded or processed at launch.`,
+      diagnostic: `${socialVideoPlatformLabel(classification.platform)} media links are retained as source bookmarks and are not downloaded or processed at launch.`,
     };
   }
   await options.checkPublicUrl(initialUrl);
@@ -251,7 +294,7 @@ export async function resolveVideoRecipeEvidence(
     return {
       ready: false,
       reasonCode: 'video_source_unsupported',
-      diagnostic: `${platformLabel(classification.platform)} links are retained as source bookmarks and are not downloaded or processed at launch.`,
+      diagnostic: `${socialVideoPlatformLabel(classification.platform)} links are retained as source bookmarks and are not downloaded or processed at launch.`,
     };
   }
 
@@ -328,22 +371,77 @@ export function resolveUploadedVideoBase64RecipeEvidence(input: {
   };
 }
 
+export interface VideoRecipeEvidencePromptOptions {
+  notes?: string;
+  transcript?: string;
+  frameCount?: number;
+  wholeVideoAttached?: boolean;
+}
+
 export function buildVideoRecipeEvidencePrompt(
   evidence: ResolvedVideoRecipeEvidence,
-  notes?: string,
+  options: VideoRecipeEvidencePromptOptions = {},
 ): string {
   const sourceDescription = evidence.kind === 'owned_upload'
     ? `a user-supplied ${evidence.mimeType ?? 'video'} file`
     : `a directly retrieved ${evidence.mimeType ?? 'video'} file`;
-  const normalizedNotes = notes?.trim().slice(0, 2_000);
-  return [
-    `Extract the complete recipe from ${sourceDescription}.`,
-    normalizedNotes
-      ? `The user included this untrusted recipe context:\n<UNTRUSTED_USER_NOTES>\n${normalizedNotes}\n</UNTRUSTED_USER_NOTES>`
-      : null,
-    'No separate transcript was supplied. Read narration, visible captions, on-screen text, ingredients, quantities, and cooking actions from the video itself.',
-    'If narration or captions are inaccessible and the remaining evidence does not contain both a usable ingredient list and method, return insufficient_evidence instead of inventing details.',
-  ].filter(Boolean).join('\n\n');
+  const normalizedNotes = options.notes?.trim().slice(0, 2_000);
+  const transcript = options.transcript?.trim().slice(0, MAX_VIDEO_TRANSCRIPT_CHARACTERS);
+  const frameCount = Math.max(0, Math.floor(options.frameCount ?? 0));
+  const wholeVideoAttached = options.wholeVideoAttached !== false;
+
+  const sections: string[] = [`Extract the complete recipe from ${sourceDescription}.`];
+
+  if (transcript) {
+    sections.push(
+      'NARRATION TRANSCRIPT (speech-to-text; it may contain recognition errors):\n'
+        + `<UNTRUSTED_AUDIO_TRANSCRIPT>\n${transcript}\n</UNTRUSTED_AUDIO_TRANSCRIPT>`,
+    );
+  }
+  if (frameCount > 0) {
+    sections.push(
+      `SAMPLED VIDEO FRAMES: ${frameCount} frames sampled from the video are attached as images.`
+        + ' Read on-screen text, ingredient lists, quantities, temperatures, timers, and demonstrated cooking actions from them.',
+    );
+  }
+  if (wholeVideoAttached) {
+    sections.push(transcript
+      ? 'COMPLETE VIDEO: the full video is also attached. Its narration is the same speech as the transcript above, so treat the transcript as the textual record of it and use the video for captions, on-screen text, and cooking actions.'
+      : 'COMPLETE VIDEO: the full video is attached. Read narration, visible captions, on-screen text, ingredients, quantities, and cooking actions from the video itself.');
+  } else if (transcript || frameCount > 0) {
+    sections.push(
+      'COMPLETE VIDEO: the whole video could not be attached for this extraction. Rely on the narration transcript and the sampled frames instead of assuming unseen content.',
+    );
+  }
+  if (normalizedNotes) {
+    sections.push(
+      `The user included this untrusted recipe context:\n<UNTRUSTED_USER_NOTES>\n${normalizedNotes}\n</UNTRUSTED_USER_NOTES>`,
+    );
+  }
+
+  sections.push(
+    'Prefer explicit spoken or on-screen quantities over inference. When the transcript and the on-screen text disagree on a material quantity, use the more explicit reading and record the conflict in provenance.extractionNotes.',
+  );
+  sections.push(
+    'If the combined evidence does not contain both a usable ingredient list and a cooking method, return insufficient_evidence instead of inventing details.',
+  );
+  return sections.join('\n\n');
+}
+
+export function degradedVideoEvidenceNote(input: {
+  hasTranscript: boolean;
+  frameCount: number;
+}): string | null {
+  if (input.hasTranscript && input.frameCount > 0) {
+    return 'The whole-video pass failed, so Nosh extracted from the narration transcript and sampled frames.';
+  }
+  if (input.hasTranscript) {
+    return 'The whole-video pass failed, so Nosh extracted from the narration transcript.';
+  }
+  if (input.frameCount > 0) {
+    return 'The whole-video pass failed, so Nosh extracted from sampled frames.';
+  }
+  return null;
 }
 
 export function classifyVideoModelFailure(message: string): 'video_unavailable' | null {

@@ -1,6 +1,15 @@
 export type SocialVideoPlatform = 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'pinterest';
 export type DirectVideoFormat = 'mp4' | 'mov' | 'mpeg' | 'webm';
 
+export const EXTERNAL_SOCIAL_VIDEO_PLATFORMS = [
+  'youtube',
+  'tiktok',
+  'instagram',
+  'facebook',
+] as const satisfies readonly SocialVideoPlatform[];
+
+export type ExternalSocialVideoPlatform = typeof EXTERNAL_SOCIAL_VIDEO_PLATFORMS[number];
+
 export type VideoSourceUrlClassification =
   | {
       kind: 'platform_link';
@@ -113,4 +122,18 @@ export function classifyVideoSourceUrl(value: string): VideoSourceUrlClassificat
 export function isRecognizedVideoSourceUrl(value: string): boolean {
   const classification = classifyVideoSourceUrl(value);
   return classification?.kind === 'platform_link' || classification?.kind === 'direct_file';
+}
+
+export function socialVideoPlatformSupportsExternalAcquisition(
+  platform: SocialVideoPlatform,
+): platform is ExternalSocialVideoPlatform {
+  return (EXTERNAL_SOCIAL_VIDEO_PLATFORMS as readonly string[]).includes(platform);
+}
+
+export function socialVideoPlatformLabel(platform: SocialVideoPlatform): string {
+  if (platform === 'youtube') return 'YouTube';
+  if (platform === 'tiktok') return 'TikTok';
+  if (platform === 'instagram') return 'Instagram';
+  if (platform === 'facebook') return 'Facebook';
+  return 'Pinterest';
 }

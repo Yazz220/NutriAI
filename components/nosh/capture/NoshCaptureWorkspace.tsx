@@ -13,6 +13,7 @@ import {
 } from 'lucide-react-native';
 import {
   UnifiedIntakeComposer,
+  type RecipeIntakeImage,
   type UnifiedIntakePayload,
 } from '@/components/cookbook/UnifiedIntakeComposer';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
@@ -34,8 +35,10 @@ import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import {
+  removeRecipeCaptureStoragePaths,
   uploadRecipeCaptureAudio,
   uploadRecipeCaptureImage,
+  uploadRecipeCaptureImages,
   uploadRecipeCaptureVideo,
 } from '@/utils/cookbook/api';
 import {
@@ -101,6 +104,7 @@ export function NoshCaptureWorkspace({
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<RecipeIntakeImage[]>([]);
   const [audioAttachment, setAudioAttachment] = useState<RecipeCaptureAudioAsset | null>(null);
   const [videoAttachment, setVideoAttachment] = useState<RecipeCaptureVideoAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,7 +141,10 @@ export function NoshCaptureWorkspace({
   );
   const capture = captureState.captures.find((candidate) => candidate.id === captureId);
   const pageAccessReason = initialSource ? 'agent_capture' : 'page_capture';
-  const activeDestinationCookbookId = capture?.destinationCookbookId
+  const captureDestinationCookbookId = capture?.status === 'ready'
+    ? undefined
+    : capture?.destinationCookbookId;
+  const activeDestinationCookbookId = captureDestinationCookbookId
     ?? destinationCookbookId
     ?? selectedDestinationCookbookId;
   const cookbookState = useCookbook(activeDestinationCookbookId);
@@ -158,16 +165,16 @@ export function NoshCaptureWorkspace({
       }
       return;
     }
-    if (capture?.destinationCookbookId) {
-      if (selectedDestinationCookbookId !== capture.destinationCookbookId) {
-        setSelectedDestinationCookbookId(capture.destinationCookbookId);
+    if (captureDestinationCookbookId) {
+      if (selectedDestinationCookbookId !== captureDestinationCookbookId) {
+        setSelectedDestinationCookbookId(captureDestinationCookbookId);
       }
       return;
     }
     if (!selectedDestinationCookbookId && availableCookbooks[0]) {
       setSelectedDestinationCookbookId(availableCookbooks[0].id);
     }
-  }, [availableCookbooks, capture?.destinationCookbookId, destinationCookbookId, selectedDestinationCookbookId]);
+  }, [availableCookbooks, captureDestinationCookbookId, destinationCookbookId, selectedDestinationCookbookId]);
 
   useEffect(() => {
     if (!onActivitySummaryChange) return;
@@ -218,6 +225,7 @@ export function NoshCaptureWorkspace({
     submitInFlightRef.current = true;
     setIsSubmitting(true);
     setError(null);
+    let unclaimedStoragePaths: string[] = [];
     try {
       if (!await requestPageAccess(pageAccessReason)) {
         setInput(payload.input ?? '');
@@ -225,6 +233,7 @@ export function NoshCaptureWorkspace({
           setImageBase64(payload.imageBase64 ?? null);
           setImageUri(payload.imageUri ?? null);
           setImageMimeType(payload.mimeType ?? null);
+          setAdditionalImages(payload.additionalImages ?? []);
         } else if (payload.type === 'audio') {
           setAudioAttachment(payload.audio);
         } else if (payload.type === 'video' && 'video' in payload) {
@@ -236,20 +245,37 @@ export function NoshCaptureWorkspace({
       const requestKey = createCaptureRequestKey();
       let source: RecipeCaptureSource;
       if (payload.type === 'image') {
-        const upload = await uploadRecipeCaptureImage({
-          userId: user.id,
-          imageUri: payload.imageUri,
-          imageBase64: payload.imageBase64,
-          mimeType: payload.mimeType,
-          requestKey,
-        });
-        source = { type: 'image', ...upload, notes: payload.input };
+        const images = [
+          {
+            imageUri: payload.imageUri,
+            imageBase64: payload.imageBase64,
+            mimeType: payload.mimeType,
+          },
+          ...(payload.additionalImages ?? []).map((image) => ({
+            imageUri: image.uri,
+            mimeType: image.mimeType ?? undefined,
+          })),
+        ];
+        if (images.length === 1) {
+          const upload = await uploadRecipeCaptureImage({
+            userId: user.id,
+            ...images[0],
+            requestKey,
+          });
+          unclaimedStoragePaths = [upload.storagePath];
+          source = { type: 'image', ...upload, notes: payload.input };
+        } else {
+          const upload = await uploadRecipeCaptureImages({ userId: user.id, images, requestKey });
+          unclaimedStoragePaths = [upload.storagePath, ...upload.additionalImagePaths];
+          source = { type: 'image', ...upload, notes: payload.input };
+        }
       } else if (payload.type === 'audio') {
         const upload = await uploadRecipeCaptureAudio({
           userId: user.id,
           audio: payload.audio,
           requestKey,
         });
+        unclaimedStoragePaths = [upload.storagePath];
         source = { type: 'audio', ...upload, notes: payload.input };
       } else if (payload.type === 'video' && 'video' in payload) {
         const upload = await uploadRecipeCaptureVideo({
@@ -257,6 +283,7 @@ export function NoshCaptureWorkspace({
           video: payload.video,
           requestKey,
         });
+        unclaimedStoragePaths = [upload.storagePath, ...upload.framePaths];
         source = {
           type: 'video',
           ...upload,
@@ -277,6 +304,7 @@ export function NoshCaptureWorkspace({
         destinationCookbookId: normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
         idempotencyKey: requestKey,
       });
+      unclaimedStoragePaths = [];
       void refreshSubscription();
       const firstCapture = await recordFirstCaptureStarted(
         user.id,
@@ -301,9 +329,13 @@ export function NoshCaptureWorkspace({
       setImageBase64(null);
       setImageUri(null);
       setImageMimeType(null);
+      setAdditionalImages([]);
       setAudioAttachment(null);
       setVideoAttachment(null);
     } catch (reason) {
+      if (unclaimedStoragePaths.length > 0) {
+        await removeRecipeCaptureStoragePaths(unclaimedStoragePaths).catch(() => undefined);
+      }
       setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
     } finally {
       submitInFlightRef.current = false;
@@ -491,6 +523,7 @@ export function NoshCaptureWorkspace({
         imageBase64={imageBase64}
         imageUri={imageUri}
         imageMimeType={imageMimeType}
+        additionalImages={additionalImages}
         audioAttachment={audioAttachment}
         videoAttachment={videoAttachment}
         error={error}
@@ -500,8 +533,10 @@ export function NoshCaptureWorkspace({
           setImageUri(uri);
           setImageMimeType(mimeType);
         }}
+        onAdditionalImagesChange={setAdditionalImages}
         onAudioAttachmentChange={setAudioAttachment}
         onVideoAttachmentChange={setVideoAttachment}
+        onSourceChange={() => setError(null)}
         onSubmit={submit}
       />
 
@@ -722,8 +757,10 @@ function CaptureDetail({
       ? capture.sourcePayload.input
       : null;
     const sourceClassification = sourceUrl ? classifyVideoSourceUrl(sourceUrl) : null;
-    const canOpenOriginal = capture.failureCode === 'video_source_unsupported'
-      && sourceClassification?.kind === 'platform_link';
+    const canOpenOriginal = (
+      capture.failureCode === 'video_source_unsupported'
+      || capture.failureCode === 'video_unavailable'
+    ) && sourceClassification?.kind === 'platform_link';
     return (
       <View style={styles.detailStack}>
         <DetailBackButton onPress={onBack} label={backLabel} />

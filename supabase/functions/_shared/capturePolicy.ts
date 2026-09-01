@@ -129,6 +129,7 @@ export type CaptureFailureStage = CaptureCheckpointName | 'destination';
 
 const FAILURE_CODE_BY_STAGE = {
   source: 'source_read_failed',
+  acquisition: 'source_acquisition_failed',
   transcription: 'audio_transcription_failed',
   extraction: 'extraction_failed',
   normalization: 'extraction_failed',
@@ -140,6 +141,7 @@ const FAILURE_CODE_BY_STAGE = {
 
 const FAILURE_MESSAGE_BY_STAGE = {
   source: 'Nosh could not read the saved recipe source. Try again.',
+  acquisition: 'Nosh could not read this social video right now. The link is saved, so you can try again.',
   transcription: 'Nosh could not transcribe this audio. Try again.',
   extraction: 'Nosh could not understand this recipe right now. Try again.',
   normalization: 'Nosh could not structure this recipe right now. Try again.',

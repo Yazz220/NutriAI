@@ -13,7 +13,7 @@ import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { Fonts } from '@/utils/fonts';
 
 export default function NativeShareReceiptScreen() {
-  const { receipt, retry, setReceipt } = useNoshNativeShare();
+  const { confirmVideoPermission, receipt, retry, setReceipt } = useNoshNativeShare();
   const { resetShareIntent } = useShareIntentContext();
 
   function finish() {
@@ -32,7 +32,17 @@ export default function NativeShareReceiptScreen() {
         <View style={styles.brand} accessibilityElementsHidden>
           <NoshHorizontalLockup width={132} />
         </View>
-        {receipt.status === 'saving' ? (
+        {receipt.status === 'needs_video_permission' ? (
+          <>
+            <View style={styles.icon}><Share2 size={24} color={Colors.text} /></View>
+            <Text style={styles.title}>Confirm this video</Text>
+            <Text style={styles.copy}>
+              Only add a video you made or have permission to use. Nosh keeps it private and uses it to create your recipe page.
+            </Text>
+            <Button title="I have permission" onPress={confirmVideoPermission} fullWidth />
+            <Button title="Cancel shared item" variant="ghost" onPress={cancel} fullWidth />
+          </>
+        ) : receipt.status === 'saving' ? (
           <>
             <View style={styles.icon}><ActivityIndicator color={Colors.primary} /></View>
             <Text style={styles.title}>Saving your recipe</Text>

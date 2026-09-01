@@ -9,6 +9,8 @@ export interface RecipeCaptureVideoAsset {
   name: string;
   mimeType?: string | null;
   size?: number | null;
+  /** Video duration in milliseconds, when the picker reports it. */
+  duration?: number | null;
 }
 
 export interface PreparedRecipeCaptureVideo {

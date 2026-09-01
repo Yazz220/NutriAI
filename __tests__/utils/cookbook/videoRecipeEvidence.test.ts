@@ -1,6 +1,7 @@
 import {
   buildVideoRecipeEvidencePrompt,
   classifyVideoModelFailure,
+  degradedVideoEvidenceNote,
   inspectUploadedVideoRecipeSource,
   MAX_DIRECT_VIDEO_BYTES,
   resolveUploadedVideoRecipeEvidence,
@@ -197,13 +198,52 @@ describe('video recipe evidence adapter', () => {
       mimeType: 'video/mp4',
       transcriptStatus: 'not_supplied',
       adapterVersion: 'video-source-v2',
-    }, 'Use the creator\'s corrected quantity.');
+    }, { notes: 'Use the creator\'s corrected quantity.' });
 
-    expect(prompt).toContain('No separate transcript was supplied');
     expect(prompt).toContain('<UNTRUSTED_USER_NOTES>');
     expect(prompt).toContain("Use the creator's corrected quantity.");
     expect(prompt).toContain('return insufficient_evidence instead of inventing details');
     expect(classifyVideoModelFailure('The YouTube video is private and unavailable')).toBe('video_unavailable');
     expect(classifyVideoModelFailure('No endpoints support video input')).toBeNull();
+  });
+
+  it('includes narration transcript and sampled-frame guidance when supplied', () => {
+    const prompt = buildVideoRecipeEvidencePrompt({
+      ready: true,
+      kind: 'owned_upload',
+      videoUrl: 'data:video/mp4;base64,AQID',
+      mimeType: 'video/mp4',
+      transcriptStatus: 'supplied',
+      adapterVersion: 'video-source-v2',
+    }, { transcript: 'Add two cups of flour', frameCount: 4 });
+
+    expect(prompt).toContain('<UNTRUSTED_AUDIO_TRANSCRIPT>');
+    expect(prompt).toContain('Add two cups of flour');
+    expect(prompt).toContain('SAMPLED VIDEO FRAMES: 4 frames');
+    expect(prompt).toContain('treat the transcript as the textual record of it');
+  });
+
+  it('describes degraded evidence when the whole video is not attached', () => {
+    const prompt = buildVideoRecipeEvidencePrompt({
+      ready: true,
+      kind: 'owned_upload',
+      videoUrl: 'data:video/mp4;base64,AQID',
+      mimeType: 'video/mp4',
+      transcriptStatus: 'supplied',
+      adapterVersion: 'video-source-v2',
+    }, { transcript: 'Whisk three eggs', frameCount: 2, wholeVideoAttached: false });
+
+    expect(prompt).toContain('the whole video could not be attached');
+    expect(prompt).not.toContain('the full video is also attached');
+  });
+
+  it('records exactly which decomposed signals supported a degraded extraction', () => {
+    expect(degradedVideoEvidenceNote({ hasTranscript: true, frameCount: 3 }))
+      .toContain('narration transcript and sampled frames');
+    expect(degradedVideoEvidenceNote({ hasTranscript: true, frameCount: 0 }))
+      .toContain('narration transcript.');
+    expect(degradedVideoEvidenceNote({ hasTranscript: false, frameCount: 3 }))
+      .toContain('sampled frames.');
+    expect(degradedVideoEvidenceNote({ hasTranscript: false, frameCount: 0 })).toBeNull();
   });
 });

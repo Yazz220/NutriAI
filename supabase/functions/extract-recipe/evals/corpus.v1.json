@@ -274,6 +274,40 @@
       }
     },
     {
+      "id": "image-ordered-split-recipe",
+      "sourceType": "image",
+      "gate": "release",
+      "tags": ["multi-image", "split-screenshot", "ordered-merge"],
+      "sourceSummary": "One complete sheet-pan recipe split across two ordered screenshots.",
+      "verification": { "status": "human_verified", "note": "The first fixture contains the title and ingredients; the second contains the full ordered method." },
+      "execution": {
+        "mode": "live_endpoint",
+        "assetPaths": [
+          "supabase/functions/extract-recipe/evals/fixtures/images/split-lemon-chicken-1.png",
+          "supabase/functions/extract-recipe/evals/fixtures/images/split-lemon-chicken-2.png"
+        ],
+        "request": { "type": "image", "notes": "These ordered screenshots show one recipe. Merge them without inventing missing facts." }
+      },
+      "expected": {
+        "outcome": "recipe",
+        "reasonCodes": ["none"],
+        "graph": {
+          "titleIncludes": ["lemon", "chicken"],
+          "minimumIngredientCount": 8,
+          "minimumStepCount": 5,
+          "ingredients": [
+            { "nameIncludes": ["chicken"], "quantity": "700", "unit": "g" },
+            { "nameIncludes": ["potatoes"], "quantity": "600", "unit": "g" },
+            { "nameIncludes": ["green beans"], "quantity": "250", "unit": "g" }
+          ],
+          "stepsInOrder": ["220°C", "potatoes", "15 minutes", "chicken", "25 minutes", "lemon juice"],
+          "yieldText": "Serves 4",
+          "servings": 4
+        },
+        "qualityDecisions": ["auto_publish", "publish_with_note"]
+      }
+    },
+    {
       "id": "image-uniformly-black",
       "sourceType": "image",
       "gate": "release",

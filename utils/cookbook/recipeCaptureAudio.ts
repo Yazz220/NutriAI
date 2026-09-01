@@ -1,4 +1,5 @@
 import { File } from 'expo-file-system';
+import { Platform } from 'react-native';
 import {
   inspectAudioRecipeSource,
   type AudioRecipeFormat,
@@ -22,8 +23,18 @@ export interface PreparedRecipeCaptureAudio {
 export async function prepareRecipeCaptureAudio(
   asset: RecipeCaptureAudioAsset,
 ): Promise<PreparedRecipeCaptureAudio> {
-  const file = new File(asset.uri);
-  const byteSize = asset.size ?? file.size;
+  let bytes: Uint8Array | null = null;
+  let byteSize: number;
+  if (Platform.OS === 'web') {
+    if (asset.size == null) {
+      const response = await fetch(asset.uri);
+      if (!response.ok) throw new Error('Nosh could not read this audio file. Choose another recording.');
+      bytes = new Uint8Array(await response.arrayBuffer());
+    }
+    byteSize = asset.size ?? bytes?.byteLength ?? 0;
+  } else {
+    byteSize = asset.size ?? new File(asset.uri).size;
+  }
   const decision = inspectAudioRecipeSource({
     byteSize,
     mimeType: asset.mimeType,
@@ -36,7 +47,15 @@ export async function prepareRecipeCaptureAudio(
     throw new Error('Choose an MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC audio file.');
   }
 
-  const bytes = await file.bytes();
+  if (!bytes) {
+    if (Platform.OS === 'web') {
+      const response = await fetch(asset.uri);
+      if (!response.ok) throw new Error('Nosh could not read this audio file. Choose another recording.');
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } else {
+      bytes = await new File(asset.uri).bytes();
+    }
+  }
   if (bytes.byteLength !== byteSize) {
     const verified = inspectAudioRecipeSource({
       byteSize: bytes.byteLength,

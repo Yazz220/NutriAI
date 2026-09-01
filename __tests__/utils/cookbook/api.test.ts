@@ -6,18 +6,22 @@ import {
   deleteCookbook,
   mapRecipeCapture,
   retryReaderStorageCleanup,
+  startRecipeCapture,
   updateCookbookTitle,
 } from '@/utils/cookbook/api';
 import { supabase } from '@/lib/supabase';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
-import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+import { callAuthenticatedFunction, FunctionTimeoutError } from '@/utils/supabaseEdge';
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     schema: jest.fn(),
   },
 }));
-jest.mock('@/utils/supabaseEdge', () => ({ callAuthenticatedFunction: jest.fn() }));
+jest.mock('@/utils/supabaseEdge', () => ({
+  ...jest.requireActual('@/utils/supabaseEdge'),
+  callAuthenticatedFunction: jest.fn(),
+}));
 
 const mockSchema = supabase.schema as jest.Mock;
 const mockedCallAuthenticatedFunction = jest.mocked(callAuthenticatedFunction);
@@ -205,6 +209,41 @@ describe('mapRecipeCapture', () => {
 
     expect(mapped.failedStage).toBe('extraction');
     expect(mapped.stageCheckpoints.source?.version).toBe('text-source-v1');
+  });
+});
+
+describe('startRecipeCapture', () => {
+  it('recovers the durable capture when the request times out after the server accepted it', async () => {
+    mockedCallAuthenticatedFunction.mockRejectedValue(new FunctionTimeoutError(20_000));
+    const maybeSingle = jest.fn().mockResolvedValue({
+      data: {
+        id: 'capture-url-1',
+        user_id: 'user-1',
+        source_type: 'url',
+        source_payload: { input: 'https://example.com/recipe' },
+        status: 'processing',
+        art_status: 'not_started',
+        idempotency_key: 'capture-request-url-1',
+        processing_attempt: 1,
+        created_at: '2026-08-31T21:48:03.000Z',
+        updated_at: '2026-08-31T21:48:03.000Z',
+      },
+      error: null,
+    });
+    const eq = jest.fn(() => ({ maybeSingle }));
+    const select = jest.fn(() => ({ eq }));
+    mockSchema.mockReturnValue({ from: jest.fn(() => ({ select })) });
+
+    await expect(startRecipeCapture({
+      source: { type: 'url', input: 'https://example.com/recipe' },
+      destinationCookbookId: 'cookbook-1',
+      idempotencyKey: 'capture-request-url-1',
+    })).resolves.toMatchObject({
+      status: 'processing',
+      capture: { id: 'capture-url-1', status: 'processing' },
+    });
+
+    expect(eq).toHaveBeenCalledWith('idempotency_key', 'capture-request-url-1');
   });
 });
 

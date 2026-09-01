@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
+import { Platform } from 'react-native';
 import {
   assertRecipeCaptureSourceSize,
   assertRecipeCaptureUploadSize,
@@ -50,6 +51,9 @@ function cacheBase64Source(input: {
 }): string {
   const bytes = decodeBase64(input.imageBase64);
   assertRecipeCaptureSourceSize(bytes.byteLength);
+  if (Platform.OS === 'web') {
+    return `data:${input.mimeType ?? 'image/jpeg'};base64,${input.imageBase64.replace(/^data:[^;]+;base64,/, '')}`;
+  }
   const file = new File(
     Paths.cache,
     `nosh-recipe-source-${safeRequestKey(input.requestKey)}.${sourceExtension(input.mimeType)}`,
@@ -57,6 +61,15 @@ function cacheBase64Source(input: {
   file.create({ overwrite: true });
   file.write(bytes);
   return file.uri;
+}
+
+async function readUriBytes(uri: string): Promise<Uint8Array> {
+  if (Platform.OS !== 'web') return new File(uri).bytes();
+  const response = await fetch(uri);
+  if (!response.ok) {
+    throw new Error('The selected image could not be read. Choose another image and try again.');
+  }
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 async function loadSourceImage(input: {
@@ -67,8 +80,12 @@ async function loadSourceImage(input: {
 }): Promise<ImageRef> {
   let sourceUri: string;
   if (input.imageUri) {
-    const sourceFile = new File(input.imageUri);
-    assertRecipeCaptureSourceSize(sourceFile.size);
+    if (Platform.OS === 'web') {
+      assertRecipeCaptureSourceSize((await readUriBytes(input.imageUri)).byteLength);
+    } else {
+      const sourceFile = new File(input.imageUri);
+      assertRecipeCaptureSourceSize(sourceFile.size);
+    }
     sourceUri = input.imageUri;
   } else if (input.imageBase64) {
     sourceUri = cacheBase64Source({
@@ -99,7 +116,7 @@ async function renderAttempt(
     format: SaveFormat.JPEG,
   });
   return {
-    bytes: await new File(saved.uri).bytes(),
+    bytes: await readUriBytes(saved.uri),
     width: saved.width,
     height: saved.height,
   };

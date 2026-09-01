@@ -13,10 +13,20 @@ import {
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockCaptures: RecipeCapture[] = [];
 let mockPageSlots: CookbookPage[] = [];
+let mockCookbooks = [{
+  id: 'book-1',
+  userId: 'user-1',
+  title: 'Family Table',
+  coverStyle: 'sage-linen',
+  coverFinishId: 'fine-cloth',
+  coverColorId: 'sage',
+}];
 const mockRetryCapture = jest.fn();
 const mockCorrectCapture = jest.fn();
 const mockStartCapture = jest.fn();
 const mockUploadRecipeCaptureImage = jest.fn();
+const mockUploadRecipeCaptureImages = jest.fn();
+const mockRemoveRecipeCaptureStoragePaths = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockCloseNoshConversation = jest.fn();
 const mockRequestConsent = jest.fn().mockResolvedValue(true);
@@ -25,7 +35,9 @@ const mockRefreshSubscription = jest.fn().mockResolvedValue(null);
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('@/utils/cookbook/api', () => ({
+  removeRecipeCaptureStoragePaths: (...args: unknown[]) => mockRemoveRecipeCaptureStoragePaths(...args),
   uploadRecipeCaptureImage: (...args: unknown[]) => mockUploadRecipeCaptureImage(...args),
+  uploadRecipeCaptureImages: (...args: unknown[]) => mockUploadRecipeCaptureImages(...args),
 }));
 jest.mock('@/utils/analytics', () => ({ trackEvent: (...args: unknown[]) => mockTrackEvent(...args) }));
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
@@ -40,14 +52,7 @@ jest.mock('@/contexts/NoshSubscriptionContext', () => ({
 }));
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => ({
-    cookbooks: [{
-      id: 'book-1',
-      userId: 'user-1',
-      title: 'Family Table',
-      coverStyle: 'sage-linen',
-      coverFinishId: 'fine-cloth',
-      coverColorId: 'sage',
-    }],
+    cookbooks: mockCookbooks,
   }),
 }));
 jest.mock('@/hooks/useRecipeCaptures', () => ({
@@ -159,6 +164,23 @@ jest.mock('@/components/cookbook/UnifiedIntakeComposer', () => {
         },
         mockReact.createElement(Text, null, isSubmitting ? 'Starting page' : 'Create page'),
       ),
+      mockReact.createElement(
+        Pressable,
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: 'Submit test image set',
+          disabled: isSubmitting,
+          onPress: () => onSubmit({
+            type: 'image',
+            imageUri: 'file:///page-1.jpg',
+            mimeType: 'image/jpeg',
+            additionalImages: [
+              { uri: 'file:///page-2.jpg', mimeType: 'image/jpeg' },
+            ],
+          }),
+        },
+        mockReact.createElement(Text, null, 'Create image set'),
+      ),
     ),
   };
 });
@@ -207,6 +229,14 @@ describe('NoshCaptureWorkspace', () => {
     jest.clearAllMocks();
     mockCaptures = [];
     mockPageSlots = [];
+    mockCookbooks = [{
+      id: 'book-1',
+      userId: 'user-1',
+      title: 'Family Table',
+      coverStyle: 'sage-linen',
+      coverFinishId: 'fine-cloth',
+      coverColorId: 'sage',
+    }];
     mockRequestPageAccess.mockReset().mockResolvedValue(true);
     await AsyncStorage.clear();
   });
@@ -234,6 +264,31 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Reordering: enabled')).toBeTruthy();
     expect(screen.queryByText('COOKBOOK WORKSPACE')).toBeNull();
     expect(screen.queryByText('Tap a page to read it. Long-press and drag a finished page to reorder.')).toBeNull();
+  });
+
+  it('allows a new destination after the previous capture becomes ready', async () => {
+    mockCookbooks = [
+      mockCookbooks[0],
+      {
+        id: 'book-2',
+        userId: 'user-1',
+        title: 'Weeknight Book',
+        coverStyle: 'sage-linen',
+        coverFinishId: 'fine-cloth',
+        coverColorId: 'sage',
+      },
+    ];
+    mockCaptures = [capture({ status: 'ready', destinationCookbookId: 'book-1' })];
+    const screen = await renderWorkspace({ captureId: 'capture-1', activityVisible: false });
+
+    fireEvent.press(screen.getByRole('button', {
+      name: 'Change destination cookbook. Currently Family Table',
+    }));
+    fireEvent.press(screen.getByRole('button', { name: 'Add recipes to Weeknight Book' }));
+
+    await waitFor(() => expect(screen.getByRole('button', {
+      name: 'Change destination cookbook. Currently Weeknight Book',
+    })).toBeTruthy());
   });
 
   it('stays busy through photo upload and ignores a duplicate submission', async () => {
@@ -314,6 +369,51 @@ describe('NoshCaptureWorkspace', () => {
       expect(mockRequestConsent).toHaveBeenCalledTimes(1);
       expect(mockRetryCapture).toHaveBeenCalledWith('capture-1');
     });
+  });
+
+  it('uploads an ordered image set into one capture source', async () => {
+    mockUploadRecipeCaptureImages.mockResolvedValueOnce({
+      storagePath: 'user-1/request-1.jpg',
+      mimeType: 'image/jpeg',
+      additionalImagePaths: ['user-1/request-2.jpg'],
+    });
+    mockStartCapture.mockResolvedValueOnce({ capture: capture() });
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Submit test image set' }));
+
+    await waitFor(() => expect(mockStartCapture).toHaveBeenCalledWith(expect.objectContaining({
+      source: expect.objectContaining({
+        type: 'image',
+        storagePath: 'user-1/request-1.jpg',
+        additionalImagePaths: ['user-1/request-2.jpg'],
+      }),
+    })));
+    expect(mockUploadRecipeCaptureImages).toHaveBeenCalledWith(expect.objectContaining({
+      images: [
+        expect.objectContaining({ imageUri: 'file:///page-1.jpg' }),
+        expect.objectContaining({ imageUri: 'file:///page-2.jpg' }),
+      ],
+    }));
+    expect(mockRemoveRecipeCaptureStoragePaths).not.toHaveBeenCalled();
+  });
+
+  it('removes uploaded images when durable capture creation fails', async () => {
+    mockRemoveRecipeCaptureStoragePaths.mockResolvedValueOnce(undefined);
+    mockUploadRecipeCaptureImages.mockResolvedValueOnce({
+      storagePath: 'user-1/failed-1.jpg',
+      mimeType: 'image/jpeg',
+      additionalImagePaths: ['user-1/failed-2.jpg'],
+    });
+    mockStartCapture.mockRejectedValueOnce(new Error('Capture service unavailable'));
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Submit test image set' }));
+
+    await waitFor(() => expect(mockRemoveRecipeCaptureStoragePaths).toHaveBeenCalledWith([
+      'user-1/failed-1.jpg',
+      'user-1/failed-2.jpg',
+    ]));
   });
 
   it('uses the subscription recovery path and retries the same durable capture after access returns', async () => {

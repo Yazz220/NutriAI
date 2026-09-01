@@ -47,7 +47,7 @@ describe('capture processing policy', () => {
     })).toEqual({
       accepted: false,
       failureCode: 'video_source_unsupported',
-      failureMessage: 'Nosh can read permissioned MP4, MOV, MPEG, or WebM files, but it does not download social-platform videos. Open the original, or add a supported video, screenshots, audio, or recipe text.',
+      failureMessage: 'Nosh could not read this social video directly. Open the original, then add the video file, screenshots, audio, or recipe text.',
       outcome: 'insufficient_evidence',
       diagnostic: 'The URL returned a social HTML page.',
     });

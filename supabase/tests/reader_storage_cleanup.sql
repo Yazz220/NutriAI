@@ -18,8 +18,8 @@ insert into nutriai.recipe_captures (
   '6ddddddd-dddd-4ddd-8ddd-dddddddddddd',
   '61111111-1111-4111-8111-111111111111',
   '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-  'image', '{}'::jsonb,
-  '61111111-1111-4111-8111-111111111111/captures/source.jpg',
+  'video', '{"framePaths":["61111111-1111-4111-8111-111111111111/captures/source-frame-0.jpg","61111111-1111-4111-8111-111111111111/captures/source-frame-1.jpg"]}'::jsonb,
+  '61111111-1111-4111-8111-111111111111/captures/source.mp4',
   'ready', '{"title":"Shared Toast"}'::jsonb, 'ready', 'reader-storage-proof'
 );
 
@@ -28,7 +28,7 @@ insert into nutriai.recipes (
 ) values (
   '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
   '61111111-1111-4111-8111-111111111111',
-  'Shared Toast', 1, '[]'::jsonb, '[]'::jsonb, 'image', '[]'::jsonb, 'breakfast', 1
+  'Shared Toast', 1, '[]'::jsonb, '[]'::jsonb, 'video', '[]'::jsonb, 'breakfast', 1
 );
 
 insert into nutriai.cookbook_pages (
@@ -126,16 +126,28 @@ begin
   select count(*) into remaining
   from nutriai.storage_cleanup_jobs
   where user_id = '61111111-1111-4111-8111-111111111111';
-  if remaining <> 2 then
-    raise exception 'Expected two cleanup jobs, found %', remaining;
+  if remaining <> 4 then
+    raise exception 'Expected four cleanup jobs, found %', remaining;
   end if;
 
   if not exists (
     select 1 from nutriai.storage_cleanup_jobs
     where bucket = 'recipe-captures'
-      and object_path = '61111111-1111-4111-8111-111111111111/captures/source.jpg'
+      and object_path = '61111111-1111-4111-8111-111111111111/captures/source.mp4'
   ) then
     raise exception 'Capture source was not queued';
+  end if;
+
+  if (
+    select count(*)
+    from nutriai.storage_cleanup_jobs
+    where bucket = 'recipe-captures'
+      and object_path in (
+        '61111111-1111-4111-8111-111111111111/captures/source-frame-0.jpg',
+        '61111111-1111-4111-8111-111111111111/captures/source-frame-1.jpg'
+      )
+  ) <> 2 then
+    raise exception 'Sampled-frame cleanup jobs were missing';
   end if;
 
   if not exists (

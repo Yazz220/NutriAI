@@ -97,6 +97,20 @@ describe('recipe quality assessment', () => {
     ]));
   });
 
+  it('does not mistake baking powder in a stovetop method for oven use', () => {
+    const assessment = assessRecipeQuality(recipe({
+      stepGroups: [{
+        id: 'default',
+        steps: [
+          { id: 'step-1', text: 'Whisk the flour, baking powder, and sugar together.' },
+          { id: 'step-2', text: 'Cook ladles of batter on a hot pan for 2 minutes per side.' },
+        ],
+      }],
+    }));
+
+    expect(assessment.issues.map((issue) => issue.code)).not.toContain('missing_baking_temperature');
+  });
+
   it('requires correction when numeric servings conflict with the source yield', () => {
     const assessment = assessRecipeQuality(recipe({ servings: 4, yieldText: 'Serves 8' }));
 

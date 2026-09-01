@@ -1,5 +1,3 @@
-import type { ResolvedAudioRecipeEvidence } from './audioRecipeEvidence.ts';
-
 export type AudioTranscriptionResult =
   | {
       ready: true;
@@ -18,7 +16,7 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 export const MAX_AUDIO_TRANSCRIPT_CHARACTERS = 40_000;
 
 export async function transcribeAudioRecipeEvidence(
-  evidence: ResolvedAudioRecipeEvidence,
+  evidence: { base64Audio: string; format: string },
   options: {
     apiBase: string;
     apiKey: string;

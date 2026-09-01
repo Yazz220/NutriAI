@@ -1,6 +1,6 @@
 type JsonRecord = Record<string, unknown>;
 
-export const RECIPE_QUALITY_ASSESSMENT_VERSION = 1;
+export const RECIPE_QUALITY_ASSESSMENT_VERSION = 2;
 
 export const RECIPE_QUALITY_ISSUE_CODES = [
   'blank_ingredient',
@@ -63,7 +63,7 @@ interface IndexedRecord {
 
 const QUANTITY_PREFIX = /^\s*(?:\d|[¼½¾⅓⅔⅛⅜⅝⅞]|a\s+(?:pinch|dash|handful|sprig|bunch)\b)/i;
 const QUANTITY_EXEMPTION = /\b(?:to taste|as needed|as desired|for garnish|for serving|optional)\b/i;
-const BAKING_ACTION = /\b(?:bake|baked|baking|roast|roasted|roasting|preheat|oven)\b/i;
+const BAKING_ACTION = /\b(?:bake|baked|baking(?!\s+(?:powder|soda))|roast|roasted|roasting|preheat|oven)\b/i;
 const COOKING_ACTION = /\b(?:bake|roast|boil|simmer|steam|fry|cook|grill|broil|poach|braise|sauté|saute)\b/i;
 const EXPLICIT_TEMPERATURE = /(?:\b\d{2,3}\s*(?:°|degrees?\s*)?(?:f|c|fahrenheit|celsius)\b|\bgas\s+mark\s+\d+\b)/i;
 const EXPLICIT_DURATION = /\b\d+(?:\s*(?:-|–|to)\s*\d+)?\s*(?:seconds?|secs?|minutes?|mins?|hours?|hrs?)\b/i;

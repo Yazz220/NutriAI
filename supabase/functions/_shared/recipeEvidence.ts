@@ -4,6 +4,12 @@ export const RECIPE_EVIDENCE_OUTCOMES = [
   'insufficient_evidence',
 ] as const;
 
+export const MAX_RECIPE_TEXT_CHARACTERS = 50_000;
+
+export function recipeTextSourceIsTooLarge(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > MAX_RECIPE_TEXT_CHARACTERS;
+}
+
 export type RecipeEvidenceOutcome = typeof RECIPE_EVIDENCE_OUTCOMES[number];
 
 export const RECIPE_EVIDENCE_REASON_CODES = [
@@ -52,6 +58,15 @@ export type RecipeEvidenceDecision =
   | AcceptedRecipeEvidenceDecision
   | RejectedRecipeEvidenceDecision;
 
+interface RecipeEvidenceCompletion {
+  choices?: Array<{
+    finish_reason?: string | null;
+    message?: {
+      content?: string | Array<{ type?: string; text?: string }> | null;
+    };
+  }>;
+}
+
 const NOT_RECIPE_REASONS = new Set<RecipeEvidenceReasonCode>([
   'not_a_recipe',
   'blank_or_empty_source',
@@ -88,7 +103,7 @@ const FEEDBACK_BY_REASON: Record<RecipeEvidenceFailureCode, string> = {
   url_access_restricted: 'This site would not let Nosh read the recipe. Open it in your browser, then share screenshots or paste the recipe text.',
   url_source_unsupported: 'This link does not open a readable webpage. Share the recipe page itself, screenshots, or paste the recipe text.',
   url_too_large: 'This webpage is too large for Nosh to read safely. Share screenshots or paste the recipe text instead.',
-  video_source_unsupported: 'Nosh can read permissioned MP4, MOV, MPEG, or WebM files, but it does not download social-platform videos. Open the original, or add a supported video, screenshots, audio, or recipe text.',
+  video_source_unsupported: 'Nosh could not read this social video directly. Open the original, then add the video file, screenshots, audio, or recipe text.',
   video_permission_required: 'Confirm that you made this video or have permission to process it, then add it again.',
   video_unavailable: 'Nosh could not open this video. Check that it is public and still available, then try again.',
   video_too_large: 'This video is too large to read directly. Choose a shorter file under 20 MB, screenshots, audio, or pasted recipe text.',
@@ -154,6 +169,39 @@ export function normalizeRecipeEvidenceDecision(value: unknown): RecipeEvidenceD
     return { outcome, reasonCode: 'none', diagnostic, recipeGraph: recipeGraph! };
   }
   return { outcome, reasonCode: reasonCode as RecipeEvidenceFailureCode, diagnostic, recipeGraph: null };
+}
+
+export function parseRecipeEvidenceCompletion(
+  response: RecipeEvidenceCompletion,
+): RecipeEvidenceDecision {
+  const choice = response.choices?.[0];
+  if (choice?.finish_reason && choice.finish_reason !== 'stop') {
+    throw new Error('Recipe extraction did not finish. Please try again.');
+  }
+
+  const content = choice?.message?.content;
+  const text = typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => part.type === 'text' ? part.text ?? '' : '').join('\n')
+      : '';
+  if (!text.trim()) throw new Error('Extraction returned no content');
+
+  const trimmed = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  const jsonText = start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    throw new Error('AI returned invalid JSON');
+  }
+  return normalizeRecipeEvidenceDecision(parsed);
 }
 
 export function recipeEvidenceFeedback(reasonCode: RecipeEvidenceFailureCode): string {

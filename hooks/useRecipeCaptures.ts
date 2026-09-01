@@ -18,6 +18,7 @@ import {
 } from '@/utils/cookbook/cache';
 import {
   isCaptureProcessing,
+  markRecipeCaptureRetryQueued,
   reconcileCapturePage,
   type RecipeCapture,
   type RecipeCaptureSource,
@@ -93,7 +94,15 @@ export function useRecipeCaptures() {
 
   const retryMutation = useMutation({
     mutationFn: retryRecipeCapture,
+    onMutate: (captureId) => {
+      queryClient.setQueryData<RecipeCapture[]>(queryKey, (current = []) => current.map((capture) => (
+        capture.id === captureId ? markRecipeCaptureRetryQueued(capture) : capture
+      )));
+    },
     onSuccess: mergeResult,
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   const correctionMutation = useMutation({

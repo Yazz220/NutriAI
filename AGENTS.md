@@ -139,8 +139,13 @@ User shares or submits a link, text, photo, video, or existing audio file
      -> URL with schema.org Recipe JSON-LD or Microdata: deterministic normalization
      -> image: normalized bounded image evidence with signature and dimension preflight
      -> video: permissioned private upload or permission-confirmed bounded direct-video evidence
+        -> supported containers (MP4, WebM, MPEG) submitted to the speech-to-text adapter in capture-recipe
+        -> client samples up to eight frames and uploads them as supplementary JPEG evidence
+        -> extract-recipe merges transcript + frames + whole video; degraded retry drops whole video
+     -> supported public social-video link: replaceable acquisition adapter -> bounded metadata and seen/heard observations
+        -> transcription remains Nosh-owned and Supadata's transcript endpoint is not used
      -> audio: private bounded file -> replaceable speech-to-text adapter -> transcript evidence
-     -> unstructured text/image/video/audio transcript: replaceable strict-schema multimodal model
+     -> unstructured text/image/video with merged signals/audio transcript: replaceable strict-schema multimodal model
   -> destination resolves from the active, explicit, default, or sole cookbook
   -> only an unresolved destination pauses for a simple book picker
   -> one processing CookbookPage stores the RecipeGraph as JSONB
@@ -152,7 +157,7 @@ User shares or submits a link, text, photo, video, or existing audio file
 
 Active functions:
 
-- `extract-recipe`: URL, text, image, resolved video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. YouTube, TikTok, Instagram, Facebook, and Pinterest links remain source bookmarks and are rejected before model extraction. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
+- `extract-recipe`: URL, text, image, resolved video evidence with merged transcript and frame signals, acquired social-video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. For supported containers, `capture-recipe` submits the video container to Nosh's speech-to-text adapter and the client uploads up to eight sampled frames; `extract-recipe` merges transcript, frames, and whole video into one multimodal call, with a degraded retry that drops the whole video if the first attempt fails. Public YouTube, TikTok, Instagram, and Facebook links may use the configured replaceable acquisition adapter, which returns bounded metadata and seen/heard observations rather than a RecipeGraph. Pinterest retains the guided file, screenshot, audio, or text fallback. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
@@ -167,7 +172,7 @@ Pipeline invariants:
 - `recipe_graph` is the canonical reasoning record. The selected `page_versions` image is the reading artifact.
 - Source provenance, confidence, inferred fields, and quality diagnostics remain on the durable capture. Project clean cooking data before creating a cookbook page or generation prompt; never render extraction commentary as recipe copy.
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
-- `recipe_captures.stage_checkpoints` versions source, optional transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
+- `recipe_captures.stage_checkpoints` versions source, optional external acquisition, optional Nosh-owned transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
 - `recipe_captures.failed_stage` identifies where work stopped. `failure_code` decides the user recovery action; provider and database diagnostics stay in server logs.
 - Ingestion model, provider, prompt, parser, transcription, or normalization changes must run the versioned corpus in `supabase/functions/extract-recipe/evals/`; release cases fail closed and diagnostic cases record hard-source coverage still awaiting stable fixtures.
 - The cookbook row owns an independent physical `cover_style` and generated-page `page_style_id`; page style revision and visual references belong to `page_style_id`. Never accept a caller-defined per-recipe style as canonical.
@@ -201,6 +206,10 @@ AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
 VIDEO_MODEL                               optional extract-recipe video override
 AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
 AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
+SOCIAL_VIDEO_ACQUISITION_PROVIDER          guided (default) or supadata
+SUPADATA_API_KEY                           server-only Supadata credential
+SUPADATA_API_BASE                          optional Supadata base URL
+SUPADATA_ENABLED_PLATFORMS                 optional per-platform allowlist
 ART_MODEL                                 generate-page-art
 REVENUECAT_SECRET_API_KEY                 sync-subscription, revenuecat-webhook, and delete-account
 REVENUECAT_WEBHOOK_AUTH_TOKEN             revenuecat-webhook Authorization verification
@@ -223,6 +232,7 @@ Only RevenueCat public SDK keys belong in `EXPO_PUBLIC_*`; keep all secret provi
 | `components/cookbook/UnifiedIntakeComposer.tsx` | multimodal recipe source input |
 | `components/cookbook/NoshAssistantChat.tsx` | root-mounted assistant-ui conversation and shelf/reader launchers |
 | `components/cookbook/PageCanvas.tsx` | renders complete generated pages with legacy typesetter fallback |
+| `utils/cookbook/recipeCaptureVideoFrames.ts` | client-side video frame sampling for on-screen-text evidence |
 | `utils/cookbook/api.ts` | Supabase and Edge Function API calls |
 | `utils/cookbook/cache.ts` | AsyncStorage shelf/page cache |
 | `utils/cookbook/noshChatAdapter.ts` | bridges assistant-ui to nosh-chat Edge Function |

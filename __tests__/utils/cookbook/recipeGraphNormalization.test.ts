@@ -141,6 +141,53 @@ describe('recipe graph normalization', () => {
     expect(rangeRecipe?.yieldText).toBe('6-8 servings');
   });
 
+  it('keeps compact and dual-unit ingredient facts out of the ingredient name', () => {
+    const fallback = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'Chicken Fajitas',
+      recipeYield: '4 servings',
+      recipeIngredient: [
+        '1/4 cup / 65 ml lime juice',
+        '1/4 cup / 65 ml orange juice ((Note 1 for subs))',
+        '700g / 1.2 lb skinless chicken thighs or 2 large chicken breasts (, halved horizontally (Note 2))',
+        '2 garlic cloves (, minced)',
+        '3 capsicums / bell peppers (, deseeded and sliced (red, yellow or green))',
+      ],
+      recipeInstructions: ['Cook the fajitas.'],
+    }, sourceUrl);
+
+    expect(fallback?.ingredientGroups[0].ingredients).toEqual([
+      expect.objectContaining({
+        quantity: '1/4',
+        unit: 'cup',
+        name: 'lime juice',
+        rawText: '1/4 cup / 65 ml lime juice',
+      }),
+      expect.objectContaining({
+        quantity: '1/4',
+        unit: 'cup',
+        name: 'orange juice (Note 1 for subs)',
+        rawText: '1/4 cup / 65 ml orange juice ((Note 1 for subs))',
+      }),
+      expect.objectContaining({
+        quantity: '700',
+        unit: 'g',
+        name: 'skinless chicken thighs or 2 large chicken breasts',
+        preparation: 'halved horizontally (Note 2)',
+      }),
+      expect.objectContaining({
+        quantity: '2',
+        name: 'garlic cloves',
+        preparation: 'minced',
+      }),
+      expect.objectContaining({
+        quantity: '3',
+        name: 'capsicums / bell peppers',
+        preparation: 'deseeded and sliced (red, yellow or green)',
+      }),
+    ]);
+  });
+
   it('repairs common top-level ingredients and instructions aliases', () => {
     const normalized = normalizeRecipeGraphDraft({
       title: 'Toast',

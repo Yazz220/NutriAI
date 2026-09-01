@@ -1,10 +1,19 @@
 import {
   isRecipeEvidenceFailureCode,
+  MAX_RECIPE_TEXT_CHARACTERS,
   normalizeRecipeEvidenceDecision,
+  parseRecipeEvidenceCompletion,
   recipeEvidenceFeedback,
+  recipeTextSourceIsTooLarge,
 } from '@/supabase/functions/_shared/recipeEvidence';
 
 describe('recipe evidence decision contract', () => {
+  it('bounds pasted recipe text before persistence or model extraction', () => {
+    expect(recipeTextSourceIsTooLarge('a'.repeat(MAX_RECIPE_TEXT_CHARACTERS))).toBe(false);
+    expect(recipeTextSourceIsTooLarge('a'.repeat(MAX_RECIPE_TEXT_CHARACTERS + 1))).toBe(true);
+    expect(recipeTextSourceIsTooLarge(null)).toBe(false);
+  });
+
   it('accepts a recipe only when the canonical graph is present', () => {
     expect(normalizeRecipeEvidenceDecision({
       outcome: 'recipe',
@@ -101,7 +110,7 @@ describe('recipe evidence decision contract', () => {
       })).toMatchObject({ outcome: 'insufficient_evidence', reasonCode });
     }
 
-    expect(recipeEvidenceFeedback('video_source_unsupported')).toContain('does not download social-platform videos');
+    expect(recipeEvidenceFeedback('video_source_unsupported')).toContain('could not read this social video directly');
     expect(recipeEvidenceFeedback('video_permission_required')).toContain('permission');
   });
 
@@ -141,5 +150,38 @@ describe('recipe evidence decision contract', () => {
 
     expect(recipeEvidenceFeedback('audio_source_unsupported')).toContain('MP3');
     expect(recipeEvidenceFeedback('audio_transcription_failed')).toContain('try again');
+  });
+
+  it('rejects incomplete, empty, and malformed model completions before accepting evidence', () => {
+    expect(() => parseRecipeEvidenceCompletion({
+      choices: [{ finish_reason: 'length', message: { content: '{}' } }],
+    })).toThrow('Recipe extraction did not finish');
+
+    expect(() => parseRecipeEvidenceCompletion({
+      choices: [{ finish_reason: 'stop', message: { content: null } }],
+    })).toThrow('Extraction returned no content');
+
+    expect(() => parseRecipeEvidenceCompletion({
+      choices: [{ finish_reason: 'stop', message: { content: 'not json' } }],
+    })).toThrow('AI returned invalid JSON');
+  });
+
+  it('normalizes a valid model completion into the provider-neutral decision', () => {
+    expect(parseRecipeEvidenceCompletion({
+      choices: [{
+        finish_reason: 'stop',
+        message: {
+          content: JSON.stringify({
+            outcome: 'insufficient_evidence',
+            reasonCode: 'missing_ingredients',
+            diagnostic: 'The method is present but quantities are not.',
+            recipeGraph: null,
+          }),
+        },
+      }],
+    })).toMatchObject({
+      outcome: 'insufficient_evidence',
+      reasonCode: 'missing_ingredients',
+    });
   });
 });

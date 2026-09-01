@@ -8,9 +8,10 @@ import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
-import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
+import { uploadRecipeCaptureImage, uploadRecipeCaptureVideo } from '@/utils/cookbook/api';
 import {
   getNativeShareRequestKey,
+  nativeShareNeedsVideoPermission,
   nativeShareReadiness,
   normalizeNativeShareIntent,
 } from '@/utils/cookbook/nativeShareAdapter';
@@ -24,12 +25,13 @@ export function NativeShareIngestion() {
   const { session, user } = useAuth();
   const { hasShareIntent, shareIntent, resetShareIntent, error: nativeError } = useShareIntentContext();
   const { startCapture } = useRecipeCaptures();
-  const { setReceipt, retryToken } = useNoshNativeShare();
+  const { setReceipt, retryToken, videoPermissionToken } = useNoshNativeShare();
   const { requestConsent } = useAiDataConsent();
   const { refresh: refreshSubscription } = useNoshSubscription();
   const { requestPageAccess } = useSubscriptionUi();
   const processing = useRef(false);
   const failedAttempt = useRef<number | null>(null);
+  const usedVideoPermissionToken = useRef(0);
 
   useEffect(() => {
     if (nativeError) {
@@ -66,6 +68,17 @@ export function NativeShareIngestion() {
       try {
         const normalized = normalizeNativeShareIntent(shareIntent);
         sourceType = normalized.type;
+        if (
+          nativeShareNeedsVideoPermission(normalized)
+          && videoPermissionToken <= usedVideoPermissionToken.current
+        ) {
+          setReceipt({ status: 'needs_video_permission', sourceType: 'video' });
+          router.replace('/(book)/share');
+          return;
+        }
+        if (nativeShareNeedsVideoPermission(normalized)) {
+          usedVideoPermissionToken.current = videoPermissionToken;
+        }
         if (!await requestPageAccess('native_share')) {
           failedAttempt.current = retryToken;
           const latestAccess = await refreshSubscription().catch(() => null);
@@ -103,11 +116,23 @@ export function NativeShareIngestion() {
             requestKey,
           });
           source = { type: 'image', ...upload, notes: normalized.notes };
+        } else if (normalized.type === 'video' && 'video' in normalized) {
+          const upload = await uploadRecipeCaptureVideo({
+            userId,
+            video: normalized.video,
+            requestKey,
+          });
+          source = {
+            type: 'video',
+            ...upload,
+            rightsConfirmed: true,
+            notes: normalized.notes,
+          };
         } else if (normalized.type === 'video') {
           source = {
             type: 'video',
             input: normalized.input,
-            rightsConfirmed: normalized.rightsConfirmed,
+            rightsConfirmed: nativeShareNeedsVideoPermission(normalized),
           };
         } else {
           source = { type: normalized.type, input: normalized.input };
@@ -149,6 +174,7 @@ export function NativeShareIngestion() {
     shareIntent,
     startCapture,
     user,
+    videoPermissionToken,
   ]);
 
   return null;

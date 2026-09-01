@@ -210,6 +210,16 @@ describe('capture presentation', () => {
   it('explains which technical stage will resume without exposing provider details', () => {
     expect(getCapturePresentation(capture({
       status: 'needs_attention',
+      failureCode: 'source_acquisition_failed',
+      failureMessage: 'provider returned HTTP 500',
+    }))).toMatchObject({
+      title: 'Nosh could not read this social video',
+      detail: 'The link is still saved. Try reading it again.',
+      action: 'retry',
+    });
+
+    expect(getCapturePresentation(capture({
+      status: 'needs_attention',
       failureCode: 'page_generation_failed',
       failureMessage: 'upstream model returned HTTP 502',
     }))).toMatchObject({

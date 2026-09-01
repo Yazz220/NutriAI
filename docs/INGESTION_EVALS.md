@@ -2,6 +2,8 @@
 
 Nosh uses one versioned evaluation corpus to protect the path from source evidence to a canonical Recipe Graph. The corpus is intentionally provider-neutral: model and provider names are recorded on a run, but they do not change the expected recipe facts or the release gates.
 
+The source-by-source validation sequence is tracked in [Ingestion reliability roadmap](./INGESTION_RELIABILITY_ROADMAP.md).
+
 The source of truth is `supabase/functions/extract-recipe/evals/corpus.v1.json`. Every case records:
 
 - the source modality and risk tags;

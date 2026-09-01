@@ -5,6 +5,7 @@ import {
   buildIntakePayload,
   UnifiedIntakeComposer,
 } from '@/components/cookbook/UnifiedIntakeComposer';
+import { MAX_RECIPE_TEXT_CHARACTERS } from '@/supabase/functions/_shared/recipeEvidence';
 
 const mockLaunchImageLibraryAsync = jest.fn();
 const mockGetDocumentAsync = jest.fn();
@@ -33,6 +34,44 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
       .toEqual({ type: 'url', input: 'https://example.com/recipe' });
   });
 
+  it('submits a supported social-video link without an extra confirmation step', async () => {
+    const onSubmit = jest.fn();
+    const screen = render(
+      <UnifiedIntakeComposer
+        input="https://www.tiktok.com/@cook/video/1234567890"
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.queryByText('TikTok video recipe')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Create recipe page' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      type: 'video',
+      input: 'https://www.tiktok.com/@cook/video/1234567890',
+      rightsConfirmed: false,
+    }));
+  });
+
+  it('keeps the guided file fallback for an unsupported social platform', () => {
+    const screen = render(
+      <UnifiedIntakeComposer
+        input="https://www.pinterest.com/pin/1234567890"
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Pinterest video recipe')).toBeTruthy();
+    expect(screen.getByText(
+      'Save or share the video file, then attach it here — or paste the caption or a screenshot.',
+    )).toBeTruthy();
+  });
+
   it('keeps large recipe text inside a scrollable fixed-height input', () => {
     const screen = render(
       <UnifiedIntakeComposer
@@ -48,7 +87,27 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     expect(input.props.multiline).toBe(true);
     expect(input.props.scrollEnabled).toBe(true);
     expect(input.props.maxFontSizeMultiplier).toBe(2);
+    expect(input.props.maxLength).toBe(MAX_RECIPE_TEXT_CHARACTERS);
     expect(input.props.style).toEqual(expect.objectContaining({ height: 104 }));
+  });
+
+  it('keeps oversized text local and explains how to recover', async () => {
+    const onSubmit = jest.fn();
+    const screen = render(
+      <UnifiedIntakeComposer
+        input={'A'.repeat(MAX_RECIPE_TEXT_CHARACTERS + 1)}
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create recipe page' }));
+
+    expect(await screen.findByText('Recipe text is too long')).toBeTruthy();
+    expect(screen.getByText('Paste one recipe at a time, then try again.')).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('keeps image upload inside the composer and leaves one standalone action', () => {
@@ -87,6 +146,7 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     });
     const onAudioAttachmentChange = jest.fn();
     const onImageUriChange = jest.fn();
+    const onSourceChange = jest.fn();
 
     const screen = render(
       <UnifiedIntakeComposer
@@ -96,6 +156,7 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
         onImageBase64Change={jest.fn()}
         onImageUriChange={onImageUriChange}
         onAudioAttachmentChange={onAudioAttachmentChange}
+        onSourceChange={onSourceChange}
         onSubmit={jest.fn()}
       />,
     );
@@ -111,6 +172,7 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
       });
     });
     expect(onImageUriChange).toHaveBeenCalledWith(null, null);
+    expect(onSourceChange).toHaveBeenCalledTimes(1);
     expect(mockGetDocumentAsync).toHaveBeenCalledWith({
       type: 'audio/*',
       multiple: false,
@@ -151,7 +213,96 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     expect(mockLaunchImageLibraryAsync).toHaveBeenCalledWith(expect.objectContaining({
       base64: false,
       mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
     }));
+  });
+
+  it('keeps up to four selected screenshots in their picker order', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        { uri: 'file:///page-1.png', mimeType: 'image/png' },
+        { uri: 'file:///page-2.png', mimeType: 'image/png' },
+        { uri: 'file:///page-3.jpg', mimeType: 'image/jpeg' },
+      ],
+    });
+    const onImageUriChange = jest.fn();
+    const onAdditionalImagesChange = jest.fn();
+    const screen = render(
+      <UnifiedIntakeComposer
+        input=""
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onImageUriChange={onImageUriChange}
+        onAdditionalImagesChange={onAdditionalImagesChange}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Attach photo or video' }));
+
+    await waitFor(() => expect(onImageUriChange).toHaveBeenCalledWith(
+      'file:///page-1.png',
+      'image/png',
+    ));
+    expect(onAdditionalImagesChange).toHaveBeenCalledWith([
+      { uri: 'file:///page-2.png', mimeType: 'image/png' },
+      { uri: 'file:///page-3.jpg', mimeType: 'image/jpeg' },
+    ]);
+    expect(buildIntakePayload(
+      '',
+      null,
+      'file:///page-1.png',
+      'image/png',
+      null,
+      null,
+      [
+        { uri: 'file:///page-2.png', mimeType: 'image/png' },
+        { uri: 'file:///page-3.jpg', mimeType: 'image/jpeg' },
+      ],
+    )).toEqual({
+      type: 'image',
+      imageUri: 'file:///page-1.png',
+      mimeType: 'image/png',
+      additionalImages: [
+        { uri: 'file:///page-2.png', mimeType: 'image/png' },
+        { uri: 'file:///page-3.jpg', mimeType: 'image/jpeg' },
+      ],
+    });
+  });
+
+  it('rejects a mixed photo and video selection without replacing the current source', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        { uri: 'file:///page-1.png', type: 'image', mimeType: 'image/png' },
+        { uri: 'file:///recipe.mp4', type: 'video', mimeType: 'video/mp4' },
+      ],
+    });
+    const onImageUriChange = jest.fn();
+    const onAdditionalImagesChange = jest.fn();
+    const onVideoAttachmentChange = jest.fn();
+    const screen = render(
+      <UnifiedIntakeComposer
+        input=""
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onImageUriChange={onImageUriChange}
+        onAdditionalImagesChange={onAdditionalImagesChange}
+        onVideoAttachmentChange={onVideoAttachmentChange}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Attach photo or video' }));
+
+    expect(await screen.findByText('Choose one video, or up to four recipe photos.')).toBeTruthy();
+    expect(onImageUriChange).not.toHaveBeenCalled();
+    expect(onAdditionalImagesChange).not.toHaveBeenCalled();
+    expect(onVideoAttachmentChange).not.toHaveBeenCalled();
   });
 
   it('attaches a selected video as a file-backed capture source', async () => {
@@ -188,6 +339,7 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
         name: 'Family pasta.mov',
         mimeType: 'video/quicktime',
         size: 4096,
+        duration: null,
       });
     });
     expect(onImageUriChange).toHaveBeenCalledWith(null, null);

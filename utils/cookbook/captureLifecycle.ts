@@ -53,8 +53,15 @@ export type RecipeCaptureSource =
       byteSize: number;
       rightsConfirmed: boolean;
       notes?: string;
+      framePaths?: string[];
     }
-  | { type: 'image'; storagePath: string; mimeType: string; notes?: string }
+  | {
+      type: 'image';
+      storagePath: string;
+      mimeType: string;
+      additionalImagePaths?: string[];
+      notes?: string;
+    }
   | {
       type: 'audio';
       storagePath: string;
@@ -143,6 +150,22 @@ export function canTransitionCapture(
 
 export function isCaptureProcessing(status: RecipeCaptureStatus): boolean {
   return status === 'processing';
+}
+
+export function markRecipeCaptureRetryQueued(
+  capture: RecipeCapture,
+  queuedAt = new Date().toISOString(),
+): RecipeCapture {
+  return {
+    ...capture,
+    status: 'processing',
+    failureCode: undefined,
+    failureMessage: undefined,
+    failedStage: undefined,
+    pageWarning: undefined,
+    processingStartedAt: queuedAt,
+    updatedAt: queuedAt,
+  };
 }
 
 export function isCaptureStale(

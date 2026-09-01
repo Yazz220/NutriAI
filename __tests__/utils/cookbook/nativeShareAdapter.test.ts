@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getNativeShareRequestKey,
+  nativeShareNeedsVideoPermission,
   nativeShareReadiness,
   normalizeNativeShareIntent,
 } from '@/utils/cookbook/nativeShareAdapter';
 import type { ShareIntent } from 'expo-share-intent';
+import { MAX_RECIPE_TEXT_CHARACTERS } from '@/supabase/functions/_shared/recipeEvidence';
 
 function intent(input: Partial<ShareIntent>): ShareIntent {
   return { type: null, files: null, text: null, webUrl: null, ...input };
@@ -50,6 +52,58 @@ describe('native share adapter', () => {
       .toMatchObject({ type: 'video', rightsConfirmed: false });
   });
 
+  it('requires rights confirmation for direct video evidence but not social bookmarks', () => {
+    expect(nativeShareNeedsVideoPermission({
+      type: 'video',
+      input: 'https://cdn.example.com/recipe.mp4',
+      rightsConfirmed: false,
+    })).toBe(true);
+    expect(nativeShareNeedsVideoPermission({
+      type: 'video',
+      input: 'https://www.tiktok.com/@cook/video/123',
+      rightsConfirmed: false,
+    })).toBe(false);
+  });
+
+  it('accepts a shared video file as a permissioned upload candidate', () => {
+    expect(normalizeNativeShareIntent(intent({
+      files: [{
+        fileName: 'recipe.mp4',
+        mimeType: 'video/mp4',
+        path: 'file:///private/recipe.mp4',
+        size: 1234,
+        width: 1080,
+        height: 1920,
+        duration: 30_000,
+      }],
+    }))).toEqual({
+      type: 'video',
+      video: {
+        uri: 'file:///private/recipe.mp4',
+        name: 'recipe.mp4',
+        mimeType: 'video/mp4',
+        size: 1234,
+        duration: 30_000,
+      },
+      rightsConfirmed: false,
+    });
+  });
+
+  it('keeps a shared video file when the share also includes caption text', () => {
+    expect(normalizeNativeShareIntent(intent({
+      text: 'Original post https://example.com/post',
+      files: [{
+        fileName: 'recipe.webm',
+        mimeType: 'video/webm',
+        path: 'file:///private/recipe.webm',
+        size: 1234,
+        width: 1080,
+        height: 1920,
+        duration: 20_000,
+      }],
+    }))).toMatchObject({ type: 'video', video: { name: 'recipe.webm' } });
+  });
+
   it('uses the canonical image source limit for native shares', () => {
     expect(() => normalizeNativeShareIntent(intent({
       files: [{
@@ -62,6 +116,12 @@ describe('native share adapter', () => {
         duration: null,
       }],
     }))).toThrow('larger than 15 MB');
+  });
+
+  it('rejects oversized shared text before persisting a capture', () => {
+    expect(() => normalizeNativeShareIntent(intent({
+      text: 'a'.repeat(MAX_RECIPE_TEXT_CHARACTERS + 1),
+    }))).toThrow('Recipe text is too long');
   });
 
   it('uses the same request key for a duplicate OS delivery', async () => {

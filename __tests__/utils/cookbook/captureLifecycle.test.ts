@@ -4,6 +4,7 @@ import {
   isCaptureReadyToOpen,
   isCaptureProcessing,
   isCaptureStale,
+  markRecipeCaptureRetryQueued,
   normalizeCaptureDestinationCookbookId,
   normalizeRecipeCaptureStatus,
   reconcileCapturePage,
@@ -50,6 +51,36 @@ describe('recipe capture lifecycle', () => {
       updatedAt: '2026-08-21T12:10:00.000Z',
     }, now)).toBe(false);
     expect(isCaptureStale({ status: 'needs_attention', processingStartedAt: '2026-08-21T12:00:00.000Z' }, now)).toBe(false);
+  });
+
+  it('keeps a timed-out retry visibly processing until polling reconciles the server result', () => {
+    const queuedAt = '2026-09-01T00:00:00.000Z';
+    const capture = {
+      id: 'capture-1',
+      userId: 'user-1',
+      sourceType: 'audio' as const,
+      sourcePayload: {},
+      status: 'needs_attention' as const,
+      extractionNotes: [],
+      inferredFields: [],
+      pageStatus: 'not_started' as const,
+      failureCode: 'quality_failed',
+      failureMessage: 'Try again.',
+      failedStage: 'quality' as const,
+      stageCheckpoints: {},
+      idempotencyKey: 'request-1',
+      processingAttempt: 1,
+      createdAt: queuedAt,
+      updatedAt: queuedAt,
+    };
+
+    expect(markRecipeCaptureRetryQueued(capture, queuedAt)).toMatchObject({
+      status: 'processing',
+      failureCode: undefined,
+      failureMessage: undefined,
+      failedStage: undefined,
+      processingStartedAt: queuedAt,
+    });
   });
 
   it('reconciles a published page without duplicating it', () => {

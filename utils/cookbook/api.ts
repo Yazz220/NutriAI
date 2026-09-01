@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import { callAuthenticatedFunction } from '@/utils/supabaseEdge';
+import {
+  callAuthenticatedFunction,
+  FunctionNetworkError,
+  FunctionTimeoutError,
+} from '@/utils/supabaseEdge';
 import { COOKBOOK_SECTION_ORDER, normalizeSection, normalizeSections } from '@/utils/cookbook/sections';
 import { COOKBOOK_STYLE_PRESETS, getCookbookStyle } from '@/constants/cookbookStyles';
 import {
@@ -53,6 +57,10 @@ import {
   prepareRecipeCaptureVideo,
   type RecipeCaptureVideoAsset,
 } from '@/utils/cookbook/recipeCaptureVideo';
+import {
+  collectRecipeCaptureVideoFrames,
+  MAX_VIDEO_FRAME_COUNT,
+} from '@/utils/cookbook/recipeCaptureVideoFrames';
 import { captureStageCheckpoints } from '@/supabase/functions/_shared/captureStages';
 
 interface CookbookRow {
@@ -578,7 +586,23 @@ export async function startRecipeCapture(input: {
   destinationCookbookId?: string;
   idempotencyKey: string;
 }): Promise<{ capture: RecipeCapture; pendingPage?: CookbookPage; status: 'processing' }> {
-  return callAuthenticatedFunction('capture-recipe', input, { timeoutMs: 20_000 });
+  try {
+    return await callAuthenticatedFunction('capture-recipe', input, { timeoutMs: 20_000 });
+  } catch (error) {
+    if (!(error instanceof FunctionTimeoutError) && !(error instanceof FunctionNetworkError)) {
+      throw error;
+    }
+
+    const { data, error: recoveryError } = await supabase
+      .schema('nutriai')
+      .from('recipe_captures')
+      .select('*')
+      .eq('idempotency_key', input.idempotencyKey)
+      .maybeSingle();
+    if (recoveryError || !data) throw error;
+
+    return { status: 'processing', capture: mapRecipeCapture(data as RecipeCaptureRow) };
+  }
 }
 
 export async function retryRecipeCapture(captureId: string): Promise<{
@@ -631,6 +655,44 @@ export async function uploadRecipeCaptureImage(input: {
   return { storagePath, mimeType: prepared.mimeType };
 }
 
+export async function uploadRecipeCaptureImages(input: {
+  userId: string;
+  images: Array<{ imageUri?: string; imageBase64?: string; mimeType?: string }>;
+  requestKey: string;
+}): Promise<{ storagePath: string; mimeType: string; additionalImagePaths: string[] }> {
+  if (input.images.length < 1 || input.images.length > 4) {
+    throw new Error('Choose between one and four recipe images.');
+  }
+  const uploadedPaths: string[] = [];
+  try {
+    for (const [index, image] of input.images.entries()) {
+      const uploaded = await uploadRecipeCaptureImage({
+        userId: input.userId,
+        ...image,
+        requestKey: `${input.requestKey}-${index + 1}`,
+      });
+      uploadedPaths.push(uploaded.storagePath);
+    }
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from('recipe-captures').remove(uploadedPaths).catch(() => undefined);
+    }
+    throw error;
+  }
+  return {
+    storagePath: uploadedPaths[0],
+    mimeType: 'image/jpeg',
+    additionalImagePaths: uploadedPaths.slice(1),
+  };
+}
+
+export async function removeRecipeCaptureStoragePaths(paths: string[]): Promise<void> {
+  const uniquePaths = [...new Set(paths.filter((path) => path.trim().length > 0))];
+  if (uniquePaths.length === 0) return;
+  const { error } = await supabase.storage.from('recipe-captures').remove(uniquePaths);
+  if (error) throw error;
+}
+
 export async function uploadRecipeCaptureAudio(input: {
   userId: string;
   audio: RecipeCaptureAudioAsset;
@@ -664,6 +726,7 @@ export async function uploadRecipeCaptureVideo(input: {
   mimeType: string;
   fileName: string;
   byteSize: number;
+  framePaths: string[];
 }> {
   const prepared = await prepareRecipeCaptureVideo(input.video);
   const storagePath = `${input.userId}/${input.requestKey}.${prepared.fileExtension}`;
@@ -671,11 +734,29 @@ export async function uploadRecipeCaptureVideo(input: {
     .from('recipe-captures')
     .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+
+  // Sampled frames are supplementary on-screen-text evidence. A frame that
+  // cannot be produced or uploaded is skipped; the video stays the source.
+  const framePaths: string[] = [];
+  try {
+    const frames = await collectRecipeCaptureVideoFrames(input.video);
+    for (const [index, frame] of frames.slice(0, MAX_VIDEO_FRAME_COUNT).entries()) {
+      const framePath = `${input.userId}/${input.requestKey}-frame-${index}.jpg`;
+      const { error: frameError } = await supabase.storage
+        .from('recipe-captures')
+        .upload(framePath, frame.bytes, { contentType: 'image/jpeg', upsert: false });
+      if (frameError && !/already exists|duplicate/i.test(frameError.message)) continue;
+      framePaths.push(framePath);
+    }
+  } catch {
+    // Frames are best-effort; the video itself remains the primary source.
+  }
   return {
     storagePath,
     mimeType: prepared.mimeType,
     fileName: prepared.fileName,
     byteSize: prepared.byteSize,
+    framePaths,
   };
 }
 

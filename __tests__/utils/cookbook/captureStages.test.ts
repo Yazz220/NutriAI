@@ -1,5 +1,6 @@
 import {
   AUDIO_TRANSCRIPTION_STAGE_VERSION,
+  CAPTURE_CHECKPOINT_NAMES,
   captureCheckpointIsCompatible,
   captureStageCheckpoints,
   LEGACY_CAPTURE_STAGE_VERSION,
@@ -11,6 +12,19 @@ import {
 } from '@/supabase/functions/_shared/captureStages';
 
 describe('recipe capture stage checkpoints', () => {
+  it('includes external acquisition between source reading and transcription', () => {
+    expect(CAPTURE_CHECKPOINT_NAMES).toEqual([
+      'source',
+      'acquisition',
+      'transcription',
+      'extraction',
+      'normalization',
+      'quality',
+      'page_generation',
+      'publication',
+    ]);
+  });
+
   it('keeps only recognized checkpoints with versions', () => {
     expect(captureStageCheckpoints({
       source: { version: 'image-source-v1', byteSize: 1200 },
