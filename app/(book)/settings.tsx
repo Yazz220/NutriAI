@@ -44,7 +44,7 @@ import {
 } from '@/utils/appleAuth';
 
 function deletionErrorMessage(): string {
-  return 'Nosh could not finish deleting your account. Please try again. If this keeps happening, contact support.';
+  return 'Folio could not finish deleting your account. Please try again. If this keeps happening, contact support.';
 }
 
 export default function CookbookSettingsScreen() {
@@ -105,7 +105,7 @@ export default function CookbookSettingsScreen() {
       await signOut();
       router.replace('/(auth)/sign-in');
     } catch {
-      Alert.alert('Sign out failed', 'Nosh could not sign you out. Please try again.');
+      Alert.alert('Sign out failed', 'Folio could not sign you out. Please try again.');
     } finally {
       setSigningOut(false);
     }
@@ -142,11 +142,11 @@ export default function CookbookSettingsScreen() {
 
     if (hasActivePlus) {
       const renewalCopy = subscription.access?.willRenew
-        ? 'Your Nosh Plus subscription is set to renew.'
-        : 'Your Nosh Plus access may remain active through the end of its current billing period.';
+        ? 'Your Folio Plus subscription is set to renew.'
+        : 'Your Folio Plus access may remain active through the end of its current billing period.';
       Alert.alert(
         'Delete account',
-        `${renewalCopy} Deleting your Nosh account does not cancel or refund an App Store subscription. You can manage the subscription first, or delete your account immediately.\n\nThis permanently deletes your cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.`,
+        `${renewalCopy} Deleting your Folio account does not cancel or refund an App Store subscription. You can manage the subscription first, or delete your account immediately.\n\nThis permanently deletes your cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -188,7 +188,7 @@ export default function CookbookSettingsScreen() {
 
     Alert.alert(
       'Delete account',
-      'This permanently deletes your Nosh account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
+      'This permanently deletes your Folio account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -206,7 +206,7 @@ export default function CookbookSettingsScreen() {
     if (!user?.id || removingPreferenceId) return;
     Alert.alert(
       'Forget this preference?',
-      `Nosh will stop using "${preference.value}" as a saved ${preference.key.replaceAll('_', ' ')}.`,
+      `Folio will stop using "${preference.value}" as a saved ${preference.key.replaceAll('_', ' ')}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -346,7 +346,7 @@ export default function CookbookSettingsScreen() {
           />
         </Section>
 
-        <Text style={styles.footer}>Nosh v{version}</Text>
+        <Text style={styles.footer}>Folio v{version}</Text>
       </ScrollView>
 
       <CookingPreferencesSheet

@@ -1,6 +1,6 @@
 # Recipe ingestion evaluations
 
-Nosh uses one versioned evaluation corpus to protect the path from source evidence to a canonical Recipe Graph. The corpus is intentionally provider-neutral: model and provider names are recorded on a run, but they do not change the expected recipe facts or the release gates.
+Folio uses one versioned evaluation corpus to protect the path from source evidence to a canonical Recipe Graph. The corpus is intentionally provider-neutral: model and provider names are recorded on a run, but they do not change the expected recipe facts or the release gates.
 
 The source-by-source validation sequence is tracked in [Ingestion reliability roadmap](./INGESTION_RELIABILITY_ROADMAP.md).
 
@@ -53,7 +53,7 @@ npm run eval:ingestion:live
 
 Use a dedicated test account and a short-lived access token. Never commit the token or result artifacts containing provider diagnostics. The output directory is ignored by Git.
 
-The live runner evaluates local JSON-LD and Microdata fixtures without network access, injects local image assets into image requests, and sends text, audio-transcript, image, and adapter cases to the configured endpoint. Image release cases include a readable screenshot, a uniformly black wrong file, a visibly cropped recipe, and unreadable low-resolution text. Unit coverage separately verifies corrupt-container and implausibly tiny-image rejection before a provider call. Release video cases verify that social bookmarks and unconfirmed direct files stop before acquisition. The audio cases in this runner measure interpretation after transcription. End-to-end speech-to-text cases must enter `capture-recipe` and should be promoted from the diagnostic lane only when Nosh owns a stable audio fixture. Positive video cases likewise require stable, permissioned media uploaded through `capture-recipe`, never an arbitrary third-party social URL.
+The live runner evaluates local JSON-LD and Microdata fixtures without network access, injects local image assets into image requests, and sends text, audio-transcript, image, and adapter cases to the configured endpoint. Image release cases include a readable screenshot, a uniformly black wrong file, a visibly cropped recipe, and unreadable low-resolution text. Unit coverage separately verifies corrupt-container and implausibly tiny-image rejection before a provider call. Release video cases verify that social bookmarks and unconfirmed direct files stop before acquisition. The audio cases in this runner measure interpretation after transcription. End-to-end speech-to-text cases must enter `capture-recipe` and should be promoted from the diagnostic lane only when Folio owns a stable audio fixture. Positive video cases likewise require stable, permissioned media uploaded through `capture-recipe`, never an arbitrary third-party social URL.
 
 ## Comparing a model, prompt, or provider
 

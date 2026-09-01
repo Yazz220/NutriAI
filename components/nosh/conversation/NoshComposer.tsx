@@ -62,7 +62,7 @@ export function NoshComposer({
   async function pickRecipePhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== ImagePicker.PermissionStatus.GRANTED) {
-      Alert.alert('Photo access is needed', 'Allow photo access to send Nosh a recipe image.');
+      Alert.alert('Photo access is needed', 'Allow photo access to send Folio a recipe image.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -160,7 +160,7 @@ export function NoshComposer({
           <ComposerPrimitive.Input
             placeholder={mode.placeholder}
             placeholderTextColor={Colors.textMuted}
-            accessibilityLabel="Message Nosh"
+            accessibilityLabel="Message Folio"
             accessibilityHint={Platform.OS === 'web'
               ? 'Press Enter to send. Press Shift and Enter for a new line.'
               : undefined}
@@ -179,7 +179,7 @@ export function NoshComposer({
           {isRunning ? (
             <ComposerPrimitive.Cancel
               accessibilityLabel="Stop response"
-              accessibilityHint="Stops Nosh's current response"
+              accessibilityHint="Stops Folio's current response"
               style={({ pressed }) => [styles.actionButton, pressed && styles.controlPressed]}
             >
               <Square size={12} color={Colors.onPrimary} fill={Colors.onPrimary} />

@@ -6,7 +6,7 @@ status: accepted
 
 ## Decision
 
-Nosh uses one shared `RecipePageStyleRegistry` for the creation Studio and complete-page generation. A style definition owns art direction only: paper, typography, image medium, palette, graphic language, signature cues, density-aware composition, exclusions, and optional references. Canonical recipe data, 4:5 page geometry, capture orchestration, publication, and reader behavior remain style-independent.
+Folio uses one shared `RecipePageStyleRegistry` for the creation Studio and complete-page generation. A style definition owns art direction only: paper, typography, image medium, palette, graphic language, signature cues, density-aware composition, exclusions, and optional references. Canonical recipe data, 4:5 page geometry, capture orchestration, publication, and reader behavior remain style-independent.
 
 Every cookbook stores an exact `(page_style_id, style_revision)` identity backed by `nutriai.recipe_page_style_versions`. Shipped versions are immutable. The six active creation identities are Studio 1, Editorial 2, Illustrated 2, Heritage 2, Journal 1, and Bold 1. Previous identities and revisions remain available for existing cookbooks.
 

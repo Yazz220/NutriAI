@@ -45,7 +45,7 @@ export function NoshResponseReportButton({
   const confirm = () => {
     Alert.alert(
       'Report this response?',
-      'The response text will be sent privately to Nosh support for safety and quality review.',
+      'The response text will be sent privately to Folio support for safety and quality review.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Send report', onPress: () => { void submit(); } },
@@ -56,7 +56,7 @@ export function NoshResponseReportButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Report this Nosh response"
+      accessibilityLabel="Report this Folio response"
       accessibilityState={{ disabled: submitting }}
       disabled={submitting}
       hitSlop={8}

@@ -34,6 +34,6 @@ export function assertRecipeCaptureSourceSize(size: number): void {
 
 export function assertRecipeCaptureUploadSize(size: number): void {
   if (!Number.isFinite(size) || size <= 0 || size > RECIPE_CAPTURE_IMAGE_UPLOAD_MAX_BYTES) {
-    throw new Error('Nosh could not prepare this image for recipe reading. Choose a smaller image and try again.');
+    throw new Error('Folio could not prepare this image for recipe reading. Choose a smaller image and try again.');
   }
 }

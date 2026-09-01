@@ -22,7 +22,7 @@ npm run typecheck
 npm run lint
 ```
 
-The dev server connects to the Nosh dev build on device. Web preview is useful for reader layout work, but iOS device builds are still required for native auth and platform checks.
+The dev server connects to the Folio dev build on device. Web preview is useful for reader layout work, but iOS device builds are still required for native auth and platform checks.
 
 Before a Phase 9 release, follow `docs/PHASE9_RELEASE_RUNBOOK.md`. A passing web preview does not satisfy the native-share, dynamic-type, screen-reader, reduced-motion, or representative-device gates.
 
@@ -165,9 +165,9 @@ Apply `20260831011239_subscription_foundation.sql` before deploying subscription
 
 | Profile | App name | Bundle ID | Scheme |
 |---|---|---|---|
-| development | Nosh (Dev) | `com.yaz12.nosh.dev` | `nosh` |
-| preview | Nosh | `com.yaz12.nosh` | `nosh` |
-| production | Nosh | `com.yaz12.nosh` | `nosh` |
+| development | Folio (Dev) | `com.yaz12.nosh.dev` | `nosh` |
+| preview | Folio | `com.yaz12.nosh` | `nosh` |
+| production | Folio | `com.yaz12.nosh` | `nosh` |
 
 ```bash
 npx eas-cli build --profile development --platform ios

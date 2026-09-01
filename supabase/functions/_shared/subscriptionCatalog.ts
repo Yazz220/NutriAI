@@ -21,7 +21,7 @@ export const NOSH_SUBSCRIPTION_IDS = {
 export const NOSH_PLAN_CATALOG = {
   free: {
     id: 'free',
-    name: 'Nosh Free',
+    name: 'Folio Free',
     limits: {
       cookbooks: 2,
       designedPagesLifetime: 5,
@@ -29,7 +29,7 @@ export const NOSH_PLAN_CATALOG = {
   },
   plus: {
     id: 'plus',
-    name: 'Nosh Plus',
+    name: 'Folio Plus',
     limits: {
       cookbooks: null,
       designedPagesPerPeriod: 20,

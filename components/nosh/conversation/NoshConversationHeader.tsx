@@ -18,7 +18,7 @@ export function NoshHeaderIdentity({ contextLabel, showingHistory }: { contextLa
           variant="bodySmall"
           style={styles.context}
           numberOfLines={1}
-          accessibilityLabel={`Nosh focused on ${contextLabel}`}
+          accessibilityLabel={`Folio focused on ${contextLabel}`}
         >
           {contextLabel}
         </Text>

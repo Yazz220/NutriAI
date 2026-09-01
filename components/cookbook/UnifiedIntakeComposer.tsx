@@ -293,7 +293,7 @@ export function UnifiedIntakeComposer({
     }
     Alert.alert(
       'Use a video you can process',
-      'Only add a video you made or have permission to use. Nosh keeps it private and uses it to create your recipe page.',
+      'Only add a video you made or have permission to use. Folio keeps it private and uses it to create your recipe page.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

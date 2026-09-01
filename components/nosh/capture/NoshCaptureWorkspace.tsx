@@ -336,7 +336,7 @@ export function NoshCaptureWorkspace({
       if (unclaimedStoragePaths.length > 0) {
         await removeRecipeCaptureStoragePaths(unclaimedStoragePaths).catch(() => undefined);
       }
-      setError(reason instanceof Error ? reason.message : 'Nosh could not save this recipe.');
+      setError(reason instanceof Error ? reason.message : 'Folio could not save this recipe.');
     } finally {
       submitInFlightRef.current = false;
       setIsSubmitting(false);
@@ -734,7 +734,7 @@ function CaptureDetail({
           <StateCard
             icon={<BookOpen size={21} color={Colors.primary} />}
             title="This recipe is ready for its page"
-            copy="Nosh saved and understood this recipe. Check your page allowance to continue without starting over."
+            copy="Folio saved and understood this recipe. Check your page allowance to continue without starting over."
             action={(
               <View style={styles.detailActions}>
                 {error ? <Text style={styles.errorText} accessibilityRole="alert">{error}</Text> : null}
@@ -799,7 +799,7 @@ function CaptureDetail({
         icon={<AlertTriangle size={21} color={Colors.error} />}
         iconTone="error"
         title="This page needs another try"
-        copy="Nosh saved the recipe but did not publish a finished page. Try it again from here."
+        copy="Folio saved the recipe but did not publish a finished page. Try it again from here."
         action={<Button title="Try again" onPress={onRetry} loading={isRetrying} fullWidth />}
       />
     </View>

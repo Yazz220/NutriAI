@@ -21,7 +21,7 @@ jest.mock('@/contexts/NoshSubscriptionContext', () => ({
 
 const recipe = { title: 'Tomato pasta', servings: 2 } as RecipeGraph;
 
-describe('Nosh decision cards', () => {
+describe('Folio decision cards', () => {
   beforeEach(() => {
     mockRequestPageAccess.mockReset().mockResolvedValue(true);
     mockRefreshSubscription.mockClear();

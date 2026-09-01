@@ -65,8 +65,8 @@ function makePackage(productIdentifier = 'com.yaz12.nosh.plus.monthly') {
     webCheckoutUrl: null,
     product: {
       identifier: productIdentifier,
-      title: 'Nosh Plus Monthly',
-      description: 'Nosh Plus',
+      title: 'Folio Plus Monthly',
+      description: 'Folio Plus',
       price: 9.99,
       priceString: '$9.99',
       pricePerMonthString: '$9.99',

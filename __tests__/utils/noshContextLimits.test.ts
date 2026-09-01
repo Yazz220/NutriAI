@@ -4,7 +4,7 @@ import {
   countCompletedToolCallsSinceLatestUser,
 } from '@/supabase/functions/_shared/noshContextLimits';
 
-describe('Nosh recipe context limits', () => {
+describe('Folio recipe context limits', () => {
   it('counts only completed recipe loads for the latest user request', () => {
     const messages = [
       { role: 'user', content: 'Open my noodles' },

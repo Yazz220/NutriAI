@@ -25,7 +25,7 @@ const EXTRACTION_COMMENTARY = [
   /\b(?:amount|quantity|time|temperature|yield|servings?|detail|information|ingredient|instruction|method) (?:was |is )?(?:not|wasn't|isn't) (?:explicitly )?(?:stated|specified|shown|provided|clear)\b/i,
   /\b(?:could not|couldn't|unable to) (?:determine|confirm|verify|extract|read)\b/i,
   /\b(?:inferred|assumed|estimated) (?:from|because|based on)\b/i,
-  /\bNosh (?:read|found|used|inferred|assumed|could|was unable)\b/i,
+  /\b(?:Folio|Nosh) (?:read|found|used|inferred|assumed|could|was unable)\b/i,
   /\b(?:image|photo|video|audio) (?:quality|was unclear|did not|does not)\b/i,
 ];
 

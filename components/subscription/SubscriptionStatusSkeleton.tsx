@@ -7,7 +7,7 @@ export function SubscriptionStatusSkeleton() {
     <View
       style={styles.card}
       accessibilityRole="progressbar"
-      accessibilityLabel="Checking your Nosh plan"
+      accessibilityLabel="Checking your Folio plan"
       accessibilityState={{ busy: true }}
       testID="subscription-status-skeleton"
     >

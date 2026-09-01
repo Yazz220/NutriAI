@@ -35,7 +35,7 @@ export function NativeShareIngestion() {
 
   useEffect(() => {
     if (nativeError) {
-      setReceipt({ status: 'failed', message: 'Nosh could not read the shared item. Please share it again.' });
+      setReceipt({ status: 'failed', message: 'Folio could not read the shared item. Please share it again.' });
     }
   }, [nativeError, setReceipt]);
 
@@ -89,8 +89,8 @@ export function NativeShareIngestion() {
             message: isEffectivePlusAccess(latestAccess)
               ? `This shared recipe is still waiting. Your page allowance${resetAt ? ` refreshes ${formatShareResetDate(resetAt)}` : ' will refresh with your next plan period'}.`
               : latestAccess?.planId === 'free'
-                ? 'This shared recipe is still waiting. Upgrade to Nosh Plus when you are ready to create another page.'
-                : 'This shared recipe is still waiting. Nosh could not check your plan, so reconnect and try saving again.',
+                ? 'This shared recipe is still waiting. Upgrade to Folio Plus when you are ready to create another page.'
+                : 'This shared recipe is still waiting. Folio could not check your plan, so reconnect and try saving again.',
           });
           router.replace('/(book)/share');
           return;
@@ -98,7 +98,7 @@ export function NativeShareIngestion() {
         if (!await requestConsent()) {
           setReceipt({
             status: 'failed',
-            message: 'Allow AI processing before Nosh reads this shared recipe.',
+            message: 'Allow AI processing before Folio reads this shared recipe.',
           });
           router.replace('/(book)/share');
           return;
@@ -150,7 +150,7 @@ export function NativeShareIngestion() {
         setReceipt({
           status: 'failed',
           sourceType,
-          message: error instanceof Error ? error.message : 'Nosh could not save this shared recipe.',
+          message: error instanceof Error ? error.message : 'Folio could not save this shared recipe.',
         });
       } finally {
         processing.current = false;

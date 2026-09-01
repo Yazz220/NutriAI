@@ -71,7 +71,7 @@ describe('recipe evidence decision contract', () => {
     expect(isRecipeEvidenceFailureCode('unreadable_source')).toBe(true);
     expect(isRecipeEvidenceFailureCode('none')).toBe(false);
     expect(recipeEvidenceFeedback('unreadable_source')).toBe(
-      'Nosh could not read enough of this recipe. Choose a sharper, well-lit source with the full recipe visible.',
+      'Folio could not read enough of this recipe. Choose a sharper, well-lit source with the full recipe visible.',
     );
   });
 

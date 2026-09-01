@@ -71,7 +71,7 @@ jest.mock('@/components/subscription/SubscriptionAccessUnavailableSheet', () => 
 function freeAccess(): SubscriptionAccessSnapshot {
   return {
     planId: 'free',
-    planName: 'Nosh Free',
+    planName: 'Folio Free',
     entitlementStatus: 'free',
     productId: null,
     environment: null,
@@ -98,7 +98,7 @@ function plusAccess(): SubscriptionAccessSnapshot {
   return {
     ...freeAccess(),
     planId: 'plus',
-    planName: 'Nosh Plus',
+    planName: 'Folio Plus',
     entitlementStatus: 'active',
     productId: 'nosh_plus_annual',
     periodType: 'annual',

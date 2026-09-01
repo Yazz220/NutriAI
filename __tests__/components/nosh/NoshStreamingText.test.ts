@@ -14,7 +14,7 @@ describe('parseNoshResponseBlocks', () => {
     ]);
   });
 
-  it('renders Nosh bullets as distinct response blocks', () => {
+  it('renders Folio bullets as distinct response blocks', () => {
     expect(parseNoshResponseBlocks('Try these:\n• Add lemon\n• Finish with herbs')).toEqual([
       { kind: 'paragraph', text: 'Try these:' },
       { kind: 'bullet', text: 'Add lemon' },

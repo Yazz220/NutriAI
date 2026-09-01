@@ -65,7 +65,7 @@ export async function prepareRecipeCaptureAudio(
     if (!verified.ready) {
       throw new Error(verified.reasonCode === 'audio_too_large'
         ? 'This audio file is larger than 6 MB. Choose a shorter or smaller recording.'
-        : 'Nosh could not read this audio file. Choose another recording.');
+        : 'Folio could not read this audio file. Choose another recording.');
     }
   }
 

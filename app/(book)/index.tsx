@@ -197,7 +197,7 @@ export default function MyCookbooksScreen() {
           style={({ pressed }) => [styles.captureButton, pressed && styles.captureButtonPressed]}
           onPress={() => router.push('/(book)/save')}
           accessibilityRole="button"
-          accessibilityLabel="Save a recipe with Nosh"
+          accessibilityLabel="Save a recipe with Folio"
         >
           <NotebookPen size={Spacing.values[22]} color={Colors.text} strokeWidth={1.8} />
         </Pressable>

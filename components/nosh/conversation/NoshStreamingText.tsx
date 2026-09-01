@@ -21,7 +21,7 @@ export function NoshThinkingIndicator() {
       style={styles.thinking}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel="Nosh is thinking"
+      accessibilityLabel="Folio is thinking"
     >
       <NoshActivityDots />
     </View>

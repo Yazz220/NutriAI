@@ -48,7 +48,7 @@ jest.mock('@/utils/analytics', () => ({ trackEvent: jest.fn() }));
 jest.mock('@/components/brand/NoshBrandAssets', () => {
   const mockReact = require('react');
   const { View } = require('react-native');
-  return { NoshHorizontalLockup: () => mockReact.createElement(View) };
+  return { FolioHorizontalLockup: () => mockReact.createElement(View) };
 });
 jest.mock('@/components/create/CreationStudio', () => {
   const mockReact = require('react');

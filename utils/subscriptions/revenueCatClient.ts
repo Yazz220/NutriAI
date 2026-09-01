@@ -51,7 +51,7 @@ export class RevenueCatPurchaseCancelledError extends Error {
 
 function assertSafeUserId(userId: string): void {
   if (!UUID_PATTERN.test(userId)) {
-    throw new RevenueCatUnavailableError('A signed-in Nosh account is required for purchases.');
+    throw new RevenueCatUnavailableError('A signed-in Folio account is required for purchases.');
   }
 }
 
@@ -217,7 +217,7 @@ export class RevenueCatClient {
     const offering = activeOffering(await this.sdk.getOfferings());
     const purchasePackage = offering ? packageForPeriod(offering, period) : null;
     if (!purchasePackage || purchasePackage.product.identifier !== expectedProductForPeriod(period)) {
-      throw new Error('This Nosh Plus option is not available right now.');
+      throw new Error('This Folio Plus option is not available right now.');
     }
 
     try {

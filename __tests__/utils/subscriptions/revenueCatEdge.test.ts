@@ -50,7 +50,7 @@ describe('RevenueCat server contract', () => {
     }));
   });
 
-  it('finds only a UUID-shaped Nosh identity among RevenueCat aliases', () => {
+  it('finds only a UUID-shaped Folio identity among RevenueCat aliases', () => {
     expect(findRevenueCatUserId({
       app_user_id: '$RCAnonymousID:abc',
       aliases: ['$RCAnonymousID:def', USER_ID],

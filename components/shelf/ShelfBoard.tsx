@@ -4,7 +4,7 @@ import { getShelfStyle, type ShelfStyleId } from '@/constants/shelfAppearance';
 import { Spacing } from '@/constants/spacing';
 
 /**
- * The canonical Nosh shelf board. The supplied transparent asset owns the
+ * The canonical Folio shelf board. The supplied transparent asset owns the
  * wood grain, bevel, front edge, rounded ends, and contact shadow so the shelf
  * reads as one crafted object instead of a stack of simulated UI layers.
  */

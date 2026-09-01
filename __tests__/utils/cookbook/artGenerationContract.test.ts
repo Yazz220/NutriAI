@@ -100,14 +100,14 @@ describe('complete recipe page generation contract', () => {
       notes: [
         'Serve with grated Parmesan.',
         'The source did not explicitly state the simmering time.',
-        'Nosh inferred the temperature from the image.',
+        'Folio inferred the temperature from the image.',
       ],
     }, 'illustrated');
 
     expect(payload.recipe.notes).toEqual(['Serve with grated Parmesan.']);
     expect(prompt).toContain('Serve with grated Parmesan.');
     expect(prompt).not.toContain('did not explicitly state');
-    expect(prompt).not.toContain('Nosh inferred');
+    expect(prompt).not.toContain('Folio inferred');
     expect(prompt).toContain('Never print extraction analysis');
   });
 

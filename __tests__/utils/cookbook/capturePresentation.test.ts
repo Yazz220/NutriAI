@@ -87,8 +87,8 @@ describe('capture presentation', () => {
       status: 'needs_attention',
       failureCode: 'missing_instructions',
     }))).toMatchObject({
-      title: 'Nosh needs a more complete source',
-      detail: 'Nosh found ingredients but not enough cooking instructions. Choose a source that includes the method.',
+      title: 'Folio needs a more complete source',
+      detail: 'Folio found ingredients but not enough cooking instructions. Choose a source that includes the method.',
       action: 'replace_source',
     });
 
@@ -114,7 +114,7 @@ describe('capture presentation', () => {
       status: 'needs_attention',
       failureCode: 'url_unavailable',
     }))).toMatchObject({
-      title: 'Nosh could not open this recipe page',
+      title: 'Folio could not open this recipe page',
       action: 'retry',
       actionLabel: 'Try link again',
     });
@@ -132,7 +132,7 @@ describe('capture presentation', () => {
       status: 'needs_attention',
       failureCode: 'video_unavailable',
     }))).toMatchObject({
-      title: 'Nosh could not open this video',
+      title: 'Folio could not open this video',
       action: 'retry',
       actionLabel: 'Try video again',
     });
@@ -142,7 +142,7 @@ describe('capture presentation', () => {
       sourceType: 'audio',
       failureCode: 'audio_transcription_failed',
     }))).toMatchObject({
-      title: 'Nosh could not transcribe this audio',
+      title: 'Folio could not transcribe this audio',
       action: 'retry',
       actionLabel: 'Try audio again',
     });
@@ -152,7 +152,7 @@ describe('capture presentation', () => {
       sourceType: 'audio',
       failureCode: 'audio_no_speech',
     }))).toMatchObject({
-      title: 'Nosh could not hear a recipe',
+      title: 'Folio could not hear a recipe',
       action: 'replace_source',
       actionLabel: 'Choose another source',
     });
@@ -203,7 +203,7 @@ describe('capture presentation', () => {
       failureMessage: 'new row for relation "cookbook_pages" violates check constraint "cookbook_pages_style_id_check"',
     }))).toMatchObject({
       phase: 'attention',
-      detail: 'Nosh saved your recipe, but could not finish the page. Please try again.',
+      detail: 'Folio saved your recipe, but could not finish the page. Please try again.',
     });
   });
 
@@ -223,7 +223,7 @@ describe('capture presentation', () => {
       failureCode: 'page_generation_failed',
       failureMessage: 'upstream model returned HTTP 502',
     }))).toMatchObject({
-      title: 'Nosh could not finish the cookbook page',
+      title: 'Folio could not finish the cookbook page',
       detail: 'The understood recipe is still saved. Try designing the page again.',
       action: 'retry',
     });

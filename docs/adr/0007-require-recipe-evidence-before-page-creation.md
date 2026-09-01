@@ -6,7 +6,7 @@ status: accepted
 
 Every recipe extractor must return one provider-neutral evidence decision before capture orchestration can create a Recipe Graph or cookbook page. The outcomes are `recipe`, `not_recipe`, and `insufficient_evidence`. Only `recipe` may include a Recipe Graph, and it must contain evidence for both a usable ingredient list and a usable cooking method for one recipe.
 
-`not_recipe` covers unrelated, blank, and empty sources. `insufficient_evidence` covers unreadable sources, missing ingredients, missing instructions, and multiple recipes that cannot be separated reliably. Both stop the durable capture in `needs_attention` with a stable reason code and deterministic Nosh feedback. They never enter `create_capture_page` or complete-page generation. Technical provider and generation errors also use `needs_attention`, but remain retryable.
+`not_recipe` covers unrelated, blank, and empty sources. `insufficient_evidence` covers unreadable sources, missing ingredients, missing instructions, and multiple recipes that cannot be separated reliably. Both stop the durable capture in `needs_attention` with a stable reason code and deterministic Folio feedback. They never enter `create_capture_page` or complete-page generation. Technical provider and generation errors also use `needs_attention`, but remain retryable.
 
 The active model may classify evidence and provide a short internal diagnostic. It does not own user-facing failure copy or recovery behavior. A model or provider replacement must adapt its output to the same decision envelope, and capture orchestration validates the envelope again before using it. Provider selection for unstructured extraction requires support for the declared structured-output parameters.
 

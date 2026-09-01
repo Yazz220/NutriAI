@@ -93,7 +93,7 @@ export function SignInScreen() {
       backgroundImage={require('../../assets/brand/patterns/auth-organic-botanical-concept-a-v2.png')}
       footer={
         <View style={styles.footer}>
-          <Text style={styles.footerText}>New to Nosh?</Text>
+          <Text style={styles.footerText}>New to Folio?</Text>
           <Link href="/(auth)/sign-up" asChild>
             <Pressable>
               <Text style={styles.link}>Create an account</Text>
@@ -105,7 +105,7 @@ export function SignInScreen() {
       {receipt.status === 'waiting_for_sign_in' ? (
         <View style={styles.shareNotice} accessibilityRole="alert">
           <Text style={styles.shareNoticeTitle}>Sign in to save your shared recipe</Text>
-          <Text style={styles.shareNoticeCopy}>The private handoff is waiting on this device. Nosh will save it after authentication.</Text>
+          <Text style={styles.shareNoticeCopy}>The private handoff is waiting on this device. Folio will save it after authentication.</Text>
         </View>
       ) : null}
       <Input

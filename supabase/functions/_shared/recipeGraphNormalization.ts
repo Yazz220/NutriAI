@@ -375,7 +375,7 @@ export function recipeStructuredDataToDraft(
       ...(attribution ? { sourceAttribution: attribution } : {}),
       inferredFields: sourceCategories.length > 0 ? [] : ['category'],
       extractionNotes: [
-        'Nosh used the structured recipe data supplied by this site.',
+        'Folio used the structured recipe data supplied by this site.',
       ],
       confidence,
     },

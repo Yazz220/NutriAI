@@ -28,8 +28,8 @@ jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
     const { Pressable, Text } = require('react-native');
     return ReactModule.createElement(
       Pressable,
-      { accessibilityRole: 'button', accessibilityLabel: `Ask Nosh about ${page.title}` },
-      ReactModule.createElement(Text, null, 'Ask Nosh'),
+      { accessibilityRole: 'button', accessibilityLabel: `Ask Folio about ${page.title}` },
+      ReactModule.createElement(Text, null, 'Ask Folio'),
     );
   },
 }));
@@ -241,7 +241,7 @@ describe('BookReader cover entry', () => {
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
     expect(
       screen.getByRole('button', {
-        name: `Ask Nosh about ${samplePage.title}`,
+        name: `Ask Folio about ${samplePage.title}`,
       }),
     ).toBeTruthy();
 
@@ -297,7 +297,7 @@ describe('BookReader cover entry', () => {
     expect(screen.queryByText('NOSH IS HERE, TOO')).toBeNull();
   });
 
-  it('defers the contextual Nosh introduction until a later book visit', async () => {
+  it('defers the contextual Folio introduction until a later book visit', async () => {
     await recordFirstCookbookCreated('user-1', SAMPLE_COOKBOOK.id);
     await recordFirstReadyRecipeOpened('user-1', SAMPLE_COOKBOOK.id, SAMPLE_COOKBOOK_PAGES[0].id);
     await markFirstPageReaderCueSeen('user-1');
@@ -311,7 +311,7 @@ describe('BookReader cover entry', () => {
     });
 
     expect(await screen.findByText('Your chef knows this recipe.')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Dismiss Ask Nosh introduction' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Dismiss Ask Folio introduction' }));
 
     expect(screen.queryByText('Your chef knows this recipe.')).toBeNull();
     await waitFor(async () => {
@@ -411,7 +411,7 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByRole('button', { name: 'Previous recipe' })).toBeDisabled();
     expect(
       screen.getByRole('button', {
-        name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[0].title}`,
+        name: `Ask Folio about ${SAMPLE_COOKBOOK_PAGES[0].title}`,
       }),
     ).toBeTruthy();
 
@@ -420,7 +420,7 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByText('2 / 10')).toBeTruthy();
     expect(
       screen.getByRole('button', {
-        name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[1].title}`,
+        name: `Ask Folio about ${SAMPLE_COOKBOOK_PAGES[1].title}`,
       }),
     ).toBeTruthy();
   });
@@ -512,7 +512,7 @@ describe('BookReader compact reading flow', () => {
     act(() => jest.runOnlyPendingTimers());
     expect(screen.getByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
     expect(screen.getByRole('button', { name: `Cookbook actions for ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Ask Nosh about/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Ask Folio about/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Recipe actions for/ })).toBeNull();
 
     const cookbookMenu = screen.getByTestId('cookbook-context-menu');
@@ -543,7 +543,7 @@ describe('BookReader compact reading flow', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Open recipe page' }));
 
     expect(screen.getByRole('button', { name: `Recipe actions for ${sourcedPage.title}` })).toBeTruthy();
-    expect(screen.getByRole('button', { name: `Ask Nosh about ${SAMPLE_COOKBOOK_PAGES[0].title}` })).toBeTruthy();
+    expect(screen.getByRole('button', { name: `Ask Folio about ${SAMPLE_COOKBOOK_PAGES[0].title}` })).toBeTruthy();
     expect(screen.queryByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` })).toBeNull();
 
     const recipeMenu = screen.getByTestId('recipe-context-menu');

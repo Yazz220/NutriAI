@@ -1,17 +1,17 @@
 # Monetization
 
-This is the source of truth for Nosh plans, App Store products, entitlements, and designed-page capacity. Read it before changing a price, allowance, purchase flow, cookbook limit, or page-generation entry point.
+This is the source of truth for Folio plans, App Store products, entitlements, and designed-page capacity. Read it before changing a price, allowance, purchase flow, cookbook limit, or page-generation entry point.
 
 ## Launch product
 
-Nosh launches with two plans and one paid feature tier:
+Folio launches with two plans and one paid feature tier:
 
-| Capability | Nosh Free | Nosh Plus |
+| Capability | Folio Free | Folio Plus |
 |---|---:|---:|
 | Cookbooks | 2 | Unlimited |
 | Successful designed-page creations | 5 for the life of the account | 20 per UTC calendar month |
 | URL, text, image, video, and audio capture | Included | Included |
-| Nosh chef, collection context, cooking help, and tools | Included | Included |
+| Folio chef, collection context, cooking help, and tools | Included | Included |
 | Reading, sharing, and exporting existing pages | Included | Included |
 
 Plus has monthly and annual billing for the same entitlement. The launch merchandising target is USD 9.99 monthly or USD 79.99 annually, but the app never renders those literals. StoreKit, through RevenueCat, supplies the localized price and billing period shown on the purchase screen.
@@ -20,14 +20,14 @@ There is no card-required trial, weaker Free model, paid input format, chat-mess
 
 ## What consumes capacity
 
-One unit is settled only when Nosh successfully produces a new ready designed page version. This includes:
+One unit is settled only when Folio successfully produces a new ready designed page version. This includes:
 
 - the first designed page for a captured recipe;
 - a saved recipe revision;
 - a saved copy that needs its own page;
 - a requested visual regeneration or preview.
 
-Nosh reserves capacity before calling the image provider so concurrent requests cannot exceed the plan. A provider failure, invalid output, canceled operation, or failed database completion releases that reservation. Replaying the same generation request is idempotent. Publication retry reuses an existing ready page image and consumes nothing else.
+Folio reserves capacity before calling the image provider so concurrent requests cannot exceed the plan. A provider failure, invalid output, canceled operation, or failed database completion releases that reservation. Replaying the same generation request is idempotent. Publication retry reuses an existing ready page image and consumes nothing else.
 
 Chat, collection search, timers, walkthroughs, substitutions, session-only scaling, source validation, extraction failures, destination choice, corrections, and ordinary reading do not consume designed-page capacity.
 
@@ -44,7 +44,7 @@ Existing pre-migration cookbooks and pages are grandfathered and do not consume 
 | Current usage and in-flight reservations | `nutriai.usage_periods` and `nutriai.usage_reservations` |
 | User-facing access snapshot | `nutriai.get_subscription_access()` |
 | Client purchase and identity lifecycle | `contexts/NoshSubscriptionContext.tsx` |
-| Nosh-native purchase and limit presentation | `components/subscription/` |
+| Folio-native purchase and limit presentation | `components/subscription/` |
 | Final designed-page enforcement | `generate-page-art` plus the reservation RPCs |
 | Cookbook creation enforcement | `nutriai.create_cookbook_for_current_user(...)` |
 
@@ -65,9 +65,9 @@ These identifiers are public configuration, but they are effectively permanent a
 
 Create one App Store subscription group. Put monthly and annual at the same subscription level and attach both products to the `nosh_plus` entitlement in RevenueCat. The `default` offering must expose the standard monthly and annual packages.
 
-Set the RevenueCat project restore behavior to **Transfer to new App User ID** for both production and sandbox. Nosh requires an account before purchasing, uses the Supabase UUID as the RevenueCat App User ID, and allows only one Nosh account at a time to own an App Store purchase. Do not use legacy **Share between App User IDs**: it can make one purchase authorize multiple Nosh accounts and therefore multiple independent page allowances. **Keep with original App User ID** is also a poor launch default because it turns a forgotten Nosh login into a billing-support dead end.
+Set the RevenueCat project restore behavior to **Transfer to new App User ID** for both production and sandbox. Folio requires an account before purchasing, uses the Supabase UUID as the RevenueCat App User ID, and allows only one Folio account at a time to own an App Store purchase. Do not use legacy **Share between App User IDs**: it can make one purchase authorize multiple Folio accounts and therefore multiple independent page allowances. **Keep with original App User ID** is also a poor launch default because it turns a forgotten Folio login into a billing-support dead end.
 
-Leave App Store Family Sharing **off** at launch. A shared Apple subscription would create separate Nosh accounts with separate server allowances and materially multiply generation cost. Apple does not let a developer turn Family Sharing back off after enabling it, so adding it later requires an explicit product, cost, abuse, privacy, and support design.
+Leave App Store Family Sharing **off** at launch. A shared Apple subscription would create separate Folio accounts with separate server allowances and materially multiply generation cost. Apple does not let a developer turn Family Sharing back off after enabling it, so adding it later requires an explicit product, cost, abuse, privacy, and support design.
 
 ## Access flow
 
@@ -121,7 +121,7 @@ Client-safe build variables:
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 ```
 
-Launch purchases are iOS App Store only. Leave `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` and `EXPO_PUBLIC_REVENUECAT_WEB_API_KEY` unset in every launch build. A client SDK key is an enablement switch: Android or web must not be enabled until store-specific products exist, those immutable product IDs are mapped to the correct store in `nutriai.subscription_products`, the RevenueCat offering exposes them, and the full purchase/sync/restore flow is verified. Without that server mapping a store purchase could complete while Nosh correctly refuses to grant access. Web remains read-only for subscription state at launch.
+Launch purchases are iOS App Store only. Leave `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` and `EXPO_PUBLIC_REVENUECAT_WEB_API_KEY` unset in every launch build. A client SDK key is an enablement switch: Android or web must not be enabled until store-specific products exist, those immutable product IDs are mapped to the correct store in `nutriai.subscription_products`, the RevenueCat offering exposes them, and the full purchase/sync/restore flow is verified. Without that server mapping a store purchase could complete while Folio correctly refuses to grant access. Web remains read-only for subscription state at launch.
 
 RevenueCat public SDK keys may be bundled in the app. Secret API and webhook values must remain Supabase secrets:
 
@@ -152,11 +152,11 @@ Before the purchase UI is enabled in a release build:
 6. Add the public iOS SDK key to the EAS build environment.
 7. Set all four backend secrets, deploy the migration, then deploy `sync-subscription`, `revenuecat-webhook`, `delete-account`, `generate-page-art`, and `capture-recipe`.
 8. Configure and test the authorized, HMAC-signed webhook.
-9. Verify purchase, cancellation, renewal, billing retry, grace, expiration, refund, transfer, restore, account switching, and account deletion in sandbox and TestFlight. Use a second Nosh account to prove a transfer removes the former owner's access.
+9. Verify purchase, cancellation, renewal, billing retry, grace, expiration, refund, transfer, restore, account switching, and account deletion in sandbox and TestFlight. Use a second Folio account to prove a transfer removes the former owner's access.
 10. Add `EXPO_PUBLIC_SUPPORT_EMAIL` as a monitored private billing-support inbox. Never ask users to post receipts, transaction IDs, or account details to the public issue tracker.
 11. Put the Privacy Policy and Terms of Use URLs in App Store metadata and verify the in-app links. Have launch counsel review the project-specific Terms and Privacy drafts before submission.
 12. Update the App Store Connect privacy questionnaire for linked **User ID** and **Purchase History** used for app functionality; the local privacy manifest does not replace the questionnaire.
-13. Add the first subscription group and both products to the same App Review submission as the launch build. Include reviewer steps and a screenshot showing the Nosh Plus screen.
+13. Add the first subscription group and both products to the same App Review submission as the launch build. Include reviewer steps and a screenshot showing the Folio Plus screen.
 14. Connect `utils/analytics.ts` to the approved production analytics sink before relying on conversion events. Keep the documented subscription event properties content-free.
 
 The EAS `development` profile uses bundle ID `com.yaz12.nosh.dev`, so it cannot exercise the production App Store product configuration by accident. Give that variant a separate RevenueCat app or Test Store key when local native purchase testing is needed. Preview and production must use only the `com.yaz12.nosh` App Store app key.
@@ -199,7 +199,7 @@ At minimum, verify:
 - a successful purchase or restore synchronizes before the blocked action resumes once;
 - cancellation keeps Plus through the paid-through date, and expiration falls back to Free without hiding content;
 - webhook duplicates and retries are idempotent, and transfers clear the old account before granting the new one;
-- ordinary webhook aliases resolve one Nosh account, while an explicit transfer clears the old owner before granting the new one;
+- ordinary webhook aliases resolve one Folio account, while an explicit transfer clears the old owner before granting the new one;
 - sign-out and account switching never show another user's plan;
 - account deletion warns that App Store renewal is separate, erases the RevenueCat subscriber, and still allows immediate deletion;
 - localized annual price is primary, restore works, and Terms and Privacy links open.

@@ -13,7 +13,8 @@ describe('canonical cookbook recipe', () => {
       notes: [
         'Reserve a little pasta water to loosen the sauce.',
         'The source did not explicitly state how much salt to use.',
-        'Nosh inferred the cooking time from the video.',
+        'Folio inferred the cooking time from the video.',
+        'Nosh found no transcript in this legacy capture.',
       ],
       provenance: {
         sourceType: 'video',

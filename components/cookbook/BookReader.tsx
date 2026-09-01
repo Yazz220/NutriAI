@@ -1111,7 +1111,7 @@ export function BookReader({
               style={styles.firstNoshTipClose}
               onPress={dismissFirstNoshTip}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss Ask Nosh introduction"
+              accessibilityLabel="Dismiss Ask Folio introduction"
             >
               <X size={16} color={Colors.textSecondary} />
             </Pressable>
@@ -1120,9 +1120,9 @@ export function BookReader({
             style={({ pressed }) => [styles.firstNoshTipButton, pressed && styles.actionPressed]}
             onPress={openNoshFromFirstTip}
             accessibilityRole="button"
-            accessibilityLabel={`Ask Nosh about ${selectedPage.title} now`}
+            accessibilityLabel={`Ask Folio about ${selectedPage.title} now`}
           >
-            <Text style={styles.firstNoshTipButtonText}>Ask Nosh about this recipe</Text>
+            <Text style={styles.firstNoshTipButtonText}>Ask Folio about this recipe</Text>
           </Pressable>
         </Animated.View>
       ) : null}

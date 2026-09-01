@@ -49,7 +49,7 @@ export function PageLimitSheet({
         style={({ pressed }) => [styles.manage, pressed && styles.pressed]}
         onPress={onManage}
         accessibilityRole="button"
-        accessibilityLabel="Manage Nosh Plus subscription"
+        accessibilityLabel="Manage Folio Plus subscription"
       >
         <Text style={styles.manageCopy}>Manage subscription</Text>
       </Pressable>

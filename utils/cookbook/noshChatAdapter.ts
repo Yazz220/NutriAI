@@ -263,7 +263,7 @@ export function createNoshChatAdapter(
       unstable_threadId,
     }) {
       if (requestConsent && !await requestConsent()) {
-        throw new Error('Allow AI processing to send messages to Nosh.');
+        throw new Error('Allow AI processing to send messages to Folio.');
       }
       const ctx = getContext();
       const resolvedRecipeGraph = ctx.resolveRecipeGraph
@@ -327,7 +327,7 @@ export function createNoshChatAdapter(
       }
 
       if (abortSignal.aborted) return;
-      if (!response) throw new Error('Nosh returned an incomplete response.');
+      if (!response) throw new Error('Folio returned an incomplete response.');
 
       // Build the content parts from the response
       const content: ThreadAssistantMessagePart[] = [];
@@ -390,7 +390,7 @@ export function createNoshChatAdapter(
         } else if (!registeredTool) {
           isError = true;
           toolExecutionFailed = true;
-          result = { error: `Nosh tool ${toolCall.function.name} is unavailable` };
+          result = { error: `Folio tool ${toolCall.function.name} is unavailable` };
         }
 
         if (result !== undefined) {

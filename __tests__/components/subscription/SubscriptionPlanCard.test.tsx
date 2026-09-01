@@ -35,7 +35,7 @@ jest.mock('@/components/brand/NoshBrandAssets', () => {
 function access(overrides: Partial<SubscriptionAccessSnapshot> = {}): SubscriptionAccessSnapshot {
   return {
     planId: 'free',
-    planName: 'Nosh Free',
+    planName: 'Folio Free',
     entitlementStatus: 'free',
     productId: null,
     environment: null,
@@ -68,7 +68,7 @@ describe('SubscriptionPlanCard', () => {
   it('keeps cancelled subscribers on Plus through their paid expiration date', () => {
     mockAccess = access({
       planId: 'plus',
-      planName: 'Nosh Plus',
+      planName: 'Folio Plus',
       entitlementStatus: 'cancelled',
       expiresAt: '2026-09-30T12:00:00.000Z',
       currentPeriodEndsAt: '2026-09-30T12:00:00.000Z',
@@ -87,11 +87,11 @@ describe('SubscriptionPlanCard', () => {
 
     const screen = render(<SubscriptionPlanCard />);
 
-    expect(screen.getByText('Nosh Plus')).toBeTruthy();
+    expect(screen.getByText('Folio Plus')).toBeTruthy();
     expect(screen.getByText('Unlimited cookbooks')).toBeTruthy();
     expect(screen.getByText(/^Ends /)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Manage subscription' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Upgrade to Nosh Plus' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Upgrade to Folio Plus' })).toBeNull();
   });
 
   it('offers one clear upgrade from Free without threatening existing recipes', () => {
@@ -101,7 +101,7 @@ describe('SubscriptionPlanCard', () => {
     expect(screen.getByText('3 page creations left')).toBeTruthy();
     expect(screen.getByText('1 of 2 cookbooks used')).toBeTruthy();
     expect(screen.getByText('Every recipe and page you already created stays in your cookbooks.')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Upgrade to Nosh Plus' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Upgrade to Folio Plus' }));
     expect(mockOpenPaywall).toHaveBeenCalledWith('settings');
   });
 });

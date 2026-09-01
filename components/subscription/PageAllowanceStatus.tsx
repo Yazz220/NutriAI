@@ -18,8 +18,8 @@ export function PageAllowanceStatus({ alwaysShow = false }: { alwaysShow?: boole
   if (!alwaysShow && tier === 'plus' && remaining > 5) return null;
 
   const copy = tier === 'free'
-    ? `Nosh Free · ${remaining} ${remaining === 1 ? 'page creation' : 'page creations'} left`
-    : `Nosh Plus · ${remaining} ${remaining === 1 ? 'page creation' : 'page creations'} left this month`;
+    ? `Folio Free · ${remaining} ${remaining === 1 ? 'page creation' : 'page creations'} left`
+    : `Folio Plus · ${remaining} ${remaining === 1 ? 'page creation' : 'page creations'} left this month`;
 
   const content = (
     <>

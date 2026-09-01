@@ -80,7 +80,7 @@ export function CookingPreferencesSheet({
       }
     >
       <Text style={styles.intro}>
-        Nosh uses only the preferences you have explicitly asked it to remember. Remove anything that is no longer right.
+        Folio uses only the preferences you have explicitly asked it to remember. Remove anything that is no longer right.
       </Text>
 
       <ScrollView
@@ -101,10 +101,10 @@ export function CookingPreferencesSheet({
           </View>
         ) : preferences.length === 0 ? (
           <View style={styles.emptyState}>
-            <NoshSymbol size={34} accessibilityLabel="Nosh" />
+            <NoshSymbol size={34} accessibilityLabel="Folio" />
             <Text style={styles.stateTitle}>Nothing saved yet</Text>
             <Text style={styles.stateCopy}>
-              Tell Nosh about an allergy, preferred measurements, serving size, or something else worth remembering.
+              Tell Folio about an allergy, preferred measurements, serving size, or something else worth remembering.
             </Text>
           </View>
         ) : (
@@ -148,7 +148,7 @@ export function CookingPreferencesSheet({
       </ScrollView>
 
       <Button
-        title="Tell Nosh a preference"
+        title="Tell Folio a preference"
         onPress={onOpenNosh}
         fullWidth
         icon={<NoshSymbol size={22} tone="ivory" />}

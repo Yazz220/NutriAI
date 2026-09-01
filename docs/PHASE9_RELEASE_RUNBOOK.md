@@ -1,4 +1,4 @@
-# Nosh Phase 9 Release Runbook
+# Folio Phase 9 Release Runbook
 
 This runbook separates code-complete hardening from checks that require a linked backend, physical devices, or a production rollout. Do not call Phase 9 complete until every required gate below has evidence.
 
@@ -14,7 +14,7 @@ This runbook separates code-complete hardening from checks that require a linked
 8. Complete the device matrix and inspect the monitoring signals below.
 9. Promote the same tested migration/function/client versions to production in that order.
 
-The connected production-like Nosh project was audited read-only on 2026-08-21. It had zero cookbook rows and was several migrations behind the repository. No migration or Edge Function was deployed during that audit.
+The connected production-like Folio project was audited read-only on 2026-08-21. It had zero cookbook rows and was several migrations behind the repository. No migration or Edge Function was deployed during that audit.
 
 ## Automated and database gates
 

@@ -4,11 +4,11 @@ Read [AGENTS.md](./AGENTS.md) before changing this repository. It is the canonic
 
 ## Product constraints
 
-- Nosh is a book-first personal cookbook. The bookshelf and reader are the product.
-- There is one recipe-capture pipeline. Share to Nosh, Cookbook Add, the shelf, and Nosh handoffs all enter `capture-recipe`.
+- Folio is a book-first personal cookbook. The bookshelf and reader are the product.
+- There is one recipe-capture pipeline. Share to Folio, Cookbook Add, the shelf, and Folio handoffs all enter `capture-recipe`.
 - `capture-recipe` owns extraction, destination resolution, page creation, retry, and publication. Do not build a direct extraction-to-page path in chat or another screen.
 - `generate-page-art` is a compatibility route name. It generates the complete recipe page, including visible text. Do not add an artwork-only generator for new pages.
-- The Recipe Graph is Nosh's canonical reasoning data. The selected generated page image is what the user reads.
+- The Recipe Graph is Folio's canonical reasoning data. The selected generated page image is what the user reads.
 - A cookbook owns its page style. New pages inherit the persisted cookbook style, revision, and visual references. Users do not style individual recipes.
 - New captures do not require review or approval. The only pauses are `needs_destination` and `needs_attention`.
 - The table of contents is retired. New reader work starts with the cover, bookplate, and recipe pages.

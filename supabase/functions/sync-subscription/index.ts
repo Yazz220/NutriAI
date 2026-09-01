@@ -55,6 +55,6 @@ serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Subscription sync failed';
     logError('RevenueCat subscription sync failed', { userId: user!.id, error: message });
-    return jsonError('Nosh could not refresh the subscription right now', 502, req);
+    return jsonError('Folio could not refresh the subscription right now', 502, req);
   }
 });

@@ -168,7 +168,7 @@ type RecipeGraphDraft = NormalizedRecipeGraphDraft;
 // ---------------------------------------------------------------------------
 // System prompt — hardened against prompt injection
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a recipe extraction assistant for a cookbook app called Nosh.
+const SYSTEM_PROMPT = `You are a recipe extraction assistant for a cookbook app called Folio.
 
 Your ONLY job is to decide whether the source contains enough evidence for one recipe and return the required structured JSON.
 
@@ -807,7 +807,7 @@ serve(async (req: Request) => {
         } catch (validationErr) {
           const message = validationErr instanceof Error ? validationErr.message : 'Video source failed';
           logError('extract-recipe video acquisition failed', { error: message });
-          return jsonError('Nosh could not reach this video. Try again.', 502, req);
+          return jsonError('Folio could not reach this video. Try again.', 502, req);
         }
       }
     } else if (body.type === 'url') {
@@ -1028,7 +1028,7 @@ serve(async (req: Request) => {
               { path: 'multimodal_model', model: primaryModel },
             );
           }
-          return jsonError("Nosh's video reader is temporarily unavailable. Try again later.", 502, req);
+          return jsonError("Folio's video reader is temporarily unavailable. Try again later.", 502, req);
         }
         return jsonError(message, 502, req);
       }
@@ -1098,20 +1098,20 @@ serve(async (req: Request) => {
       preserveExplicitTextServings(draft, body.input, 'number');
     }
     if (resolvedVideoEvidence?.transcriptStatus === 'supplied') {
-      const note = 'Nosh transcribed the video narration before recipe extraction.';
+      const note = 'Folio transcribed the video narration before recipe extraction.';
       draft.provenance.extractionNotes = [
         ...extractionNotesFromDraft(draft).filter((candidate) => candidate !== note),
         note,
       ];
     } else if (resolvedVideoEvidence?.transcriptStatus === 'not_supplied') {
-      const note = 'Nosh read the video directly; no separate transcript was supplied.';
+      const note = 'Folio read the video directly; no separate transcript was supplied.';
       draft.provenance.extractionNotes = [
         ...extractionNotesFromDraft(draft).filter((candidate) => candidate !== note),
         note,
       ];
     }
     if (acquiredVideoEvidence) {
-      const note = 'Nosh used bounded metadata and seen/heard observations acquired from the public social video. No external transcript was requested.';
+      const note = 'Folio used bounded metadata and seen/heard observations acquired from the public social video. No external transcript was requested.';
       draft.provenance.extractionNotes = [
         ...extractionNotesFromDraft(draft).filter((candidate) => candidate !== note),
         note,
@@ -1130,7 +1130,7 @@ serve(async (req: Request) => {
       }
     }
     if (body.type === 'audio') {
-      const note = 'Nosh transcribed the uploaded audio before recipe extraction.';
+      const note = 'Folio transcribed the uploaded audio before recipe extraction.';
       draft.provenance.extractionNotes = [
         ...extractionNotesFromDraft(draft).filter((candidate) => candidate !== note),
         note,

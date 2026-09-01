@@ -196,7 +196,7 @@ function SubscriptionHostContent({
 
   const finishEntitlement = useCallback((snapshot: SubscriptionAccessSnapshot | null, restored: boolean) => {
     if (!isEffectivePlusAccess(snapshot)) {
-      if (restored && snapshot) setActionError('No active Nosh Plus purchase was found for this Apple Account.');
+      if (restored && snapshot) setActionError('No active Folio Plus purchase was found for this Apple Account.');
       return;
     }
     setActionError(null);
@@ -204,8 +204,8 @@ function SubscriptionHostContent({
     showToast({
       type: 'success',
       message: restored
-        ? 'Nosh Plus restored.'
-        : 'Welcome to Nosh Plus. Your next page is ready when you are.',
+        ? 'Folio Plus restored.'
+        : 'Welcome to Folio Plus. Your next page is ready when you are.',
     });
     onEntitled();
   }, [onEntitled, showToast]);
@@ -238,7 +238,7 @@ function SubscriptionHostContent({
         type: 'purchase_failed',
         data: { billingPeriod: packageId, reason },
       });
-      setActionError(error instanceof Error ? error.message : 'Nosh Plus could not be started. Please try again.');
+      setActionError(error instanceof Error ? error.message : 'Folio Plus could not be started. Please try again.');
     }
   }, [finishEntitlement, paywallReason, subscription]);
 
@@ -282,7 +282,7 @@ function SubscriptionHostContent({
     try {
       await subscription.refreshOfferings();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Nosh Plus options could not be loaded.');
+      setActionError(error instanceof Error ? error.message : 'Folio Plus options could not be loaded.');
     }
   }, [subscription]);
 

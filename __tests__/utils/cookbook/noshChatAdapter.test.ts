@@ -82,11 +82,11 @@ describe('createNoshChatAdapter', () => {
   it('yields cumulative assistant text as tokens arrive', async () => {
     mockedStream.mockImplementation(async function* () {
       yield { type: 'text-delta', delta: 'Hello' };
-      yield { type: 'text-delta', delta: ' from Nosh' };
+      yield { type: 'text-delta', delta: ' from Folio' };
       yield {
         type: 'result',
         result: {
-          message: { role: 'assistant', content: 'Hello from Nosh' },
+          message: { role: 'assistant', content: 'Hello from Folio' },
           toolCalls: [],
         },
       };
@@ -97,7 +97,7 @@ describe('createNoshChatAdapter', () => {
 
     expect(results).toEqual([
       [{ type: 'text', text: 'Hello' }],
-      [{ type: 'text', text: 'Hello from Nosh' }],
+      [{ type: 'text', text: 'Hello from Folio' }],
       { status: { type: 'complete', reason: 'stop' } },
     ].map((result) => Array.isArray(result) ? { content: result } : result));
   });
@@ -169,7 +169,7 @@ describe('createNoshChatAdapter', () => {
     );
 
     await expect(runAdapter(adapter, runOptions(jest.fn()))).rejects.toThrow(
-      'Allow AI processing to send messages to Nosh.',
+      'Allow AI processing to send messages to Folio.',
     );
     expect(requestConsent).toHaveBeenCalledTimes(1);
     expect(mockedStream).not.toHaveBeenCalled();

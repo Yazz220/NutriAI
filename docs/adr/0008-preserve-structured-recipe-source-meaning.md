@@ -4,7 +4,7 @@ status: accepted
 
 # Preserve structured recipe source meaning
 
-The canonical Recipe Graph preserves a structured website's exact ingredient lines, instruction sections, source yield, and versioned provenance alongside normalized fields. Numeric `servings` is optional. Nosh sets it only when the source explicitly describes servings; yields such as "1 loaf" and "24 cookies" remain `yieldText` and cannot enter serving-based scaling.
+The canonical Recipe Graph preserves a structured website's exact ingredient lines, instruction sections, source yield, and versioned provenance alongside normalized fields. Numeric `servings` is optional. Folio sets it only when the source explicitly describes servings; yields such as "1 loaf" and "24 cookies" remain `yieldText` and cannot enter serving-based scaling.
 
 The URL adapter considers every Schema.org Recipe node expressed as JSON-LD or Microdata. It selects an explicit `mainEntity`, a URL-matched candidate, or one candidate that is substantially more complete. It does not auto-publish when multiple candidates remain equally plausible. This keeps the deterministic fast path, but removes the old first-node, JSON-LD-only, and default-one assumptions.
 
