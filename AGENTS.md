@@ -128,6 +128,7 @@ Current provider/hook reality:
 - `useRecipeCaptures`: durable capture state, polling, retry, and destination selection.
 - `NoshConversationProvider` / `useNoshConversation`: persistent chat visibility, intake state, and active cookbook/page context across shelf-to-reader navigation.
 - `NoshSubscriptionProvider` / `useNoshSubscription`: user-scoped RevenueCat identity, store offerings, server access snapshot, purchase, restore, sync, and management.
+- `AiDataConsentProvider` / `useAiDataConsent`: versioned explicit permission before Folio sends recipe sources or conversation context to external AI and acquisition providers. Bump `AI_DATA_CONSENT_VERSION`, update the in-app disclosure and `docs/privacy.html`, and add a re-consent test whenever a provider, source type, purpose, or materially different retention practice is introduced.
 - `useNoshAssistant`: removed. The Folio assistant uses `@assistant-ui/react-native` with a root-mounted `LocalRuntime` plus a device-persisted thread list bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Users can start, switch, restore, and delete conversations. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
 
 ## AI And Import Architecture

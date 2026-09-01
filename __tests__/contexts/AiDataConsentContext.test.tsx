@@ -41,14 +41,17 @@ describe('AiDataConsentProvider', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Request permission' }));
 
     expect(await screen.findByText('AI data use')).toBeTruthy();
-    expect(screen.getByText(/OpenRouter routes this content/)).toBeTruthy();
+    expect(screen.getByText(/uploaded audio and video, sampled video frames/)).toBeTruthy();
+    expect(screen.getByText(/OpenRouter routes recipe understanding/)).toBeTruthy();
+    expect(screen.getByText(/Supadata receives supported public social-video links/)).toBeTruthy();
+    expect(screen.getByText(/ElevenLabs receives uploaded or directly linked video files/)).toBeTruthy();
     expect(await loadAiDataConsent('user-1')).toBeNull();
 
     fireEvent.press(screen.getByTestId('allow-ai-data-processing'));
 
     await waitFor(() => expect(screen.getByText('granted')).toBeTruthy());
     await expect(loadAiDataConsent('user-1')).resolves.toEqual(expect.objectContaining({
-      version: 1,
+      version: 2,
       grantedAt: expect.any(String),
     }));
   });
