@@ -974,7 +974,7 @@ async function processCapture(
         if (releaseError) throw new Error(releaseError.message);
         const continuation = await callFunction('capture-recipe', authHeader, { captureId });
         if (!continuation.response.ok && continuation.response.status !== 202) {
-          throw new CaptureProcessingError(preparedSource.stage, 'Nosh could not continue this recipe capture');
+          throw new CaptureProcessingError(preparedSource.stage, 'Folio could not continue this recipe capture');
         }
         logInfo('Recipe capture continued after a checkpointed stage', {
           captureId,

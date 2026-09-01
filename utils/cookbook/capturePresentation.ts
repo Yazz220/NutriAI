@@ -36,7 +36,7 @@ const TECHNICAL_FAILURE_COPY: Record<string, { title: string; detail: string }> 
     detail: 'The source is still saved. Try reading it again.',
   },
   source_acquisition_failed: {
-    title: 'Nosh could not read this social video',
+    title: 'Folio could not read this social video',
     detail: 'The link is still saved. Try reading it again.',
   },
   extraction_failed: {
