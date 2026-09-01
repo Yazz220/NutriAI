@@ -497,6 +497,13 @@ export async function retryReaderStorageCleanup(): Promise<void> {
   await callAuthenticatedFunction('delete-reader-content', { action: 'drain' });
 }
 
+export async function discardRecipeCapture(captureId: string): Promise<void> {
+  await callAuthenticatedFunction('delete-reader-content', {
+    action: 'discardCapture',
+    captureId,
+  });
+}
+
 export async function updateCookbookTitle(cookbookId: string, title: string): Promise<void> {
   const trimmedTitle = title.trim();
   if (!trimmedTitle) throw new Error('Cookbook name cannot be empty.');

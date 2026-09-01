@@ -22,6 +22,7 @@ let mockCookbooks = [{
   coverColorId: 'sage',
 }];
 const mockRetryCapture = jest.fn();
+const mockDiscardCapture = jest.fn();
 const mockCorrectCapture = jest.fn();
 const mockStartCapture = jest.fn();
 const mockUploadRecipeCaptureImage = jest.fn();
@@ -64,12 +65,14 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
     refresh: jest.fn(),
     startCapture: (...args: unknown[]) => mockStartCapture(...args),
     retryCapture: mockRetryCapture,
+    discardCapture: mockDiscardCapture,
     correctCapture: mockCorrectCapture,
     prepareDestination: jest.fn(),
     isStarting: false,
     isRetrying: false,
     isCorrecting: false,
     isPreparingDestination: false,
+    isDiscarding: false,
   }),
 }));
 jest.mock('@/components/subscription/SubscriptionHost', () => ({
@@ -115,10 +118,11 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
   return {
-    CookbookPageGrid: ({ pageSlots, captures, onOpenPage, onMovePage }: {
+    CookbookPageGrid: ({ pageSlots, captures, onOpenPage, onOpenCapture, onMovePage }: {
       pageSlots: CookbookPage[];
       captures: RecipeCapture[];
       onOpenPage: (page: CookbookPage) => void;
+      onOpenCapture?: (capture: RecipeCapture) => void;
       onMovePage?: (input: unknown) => void;
     }) => mockReact.createElement(
       View,
@@ -136,6 +140,18 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
         },
         mockReact.createElement(Text, null, item.title),
       )),
+      ...captures
+        .filter((item) => item.status === 'needs_attention' || item.status === 'needs_destination')
+        .map((item) => mockReact.createElement(
+          Pressable,
+          {
+            key: item.id,
+            accessibilityRole: 'button',
+            accessibilityLabel: `Open capture ${item.id}`,
+            onPress: () => onOpenCapture?.(item),
+          },
+          mockReact.createElement(Text, null, item.recipeGraph?.title ?? item.id),
+        )),
     ),
   };
 });
@@ -247,7 +263,7 @@ describe('NoshCaptureWorkspace', () => {
       capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
       capture({ id: 'ready', status: 'ready', pageStatus: 'ready', pageId: 'page-1' }),
     ];
-    const screen = await renderWorkspace({ activityVisible: false });
+    const screen = await renderWorkspace();
 
     expect(screen.getByText('Recipe composer')).toBeTruthy();
     expect(screen.queryByText('Active')).toBeNull();
@@ -255,7 +271,7 @@ describe('NoshCaptureWorkspace', () => {
   });
 
   it('keeps the page workspace and reordering beneath the simplified composer', async () => {
-    const screen = await renderWorkspace({ activityVisible: false });
+    const screen = await renderWorkspace();
 
     expect(screen.getByRole('button', {
       name: 'Change destination cookbook. Currently Family Table',
@@ -279,7 +295,7 @@ describe('NoshCaptureWorkspace', () => {
       },
     ];
     mockCaptures = [capture({ status: 'ready', destinationCookbookId: 'book-1' })];
-    const screen = await renderWorkspace({ captureId: 'capture-1', activityVisible: false });
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
 
     fireEvent.press(screen.getByRole('button', {
       name: 'Change destination cookbook. Currently Family Table',
@@ -317,20 +333,35 @@ describe('NoshCaptureWorkspace', () => {
     }));
   });
 
-  it('keeps only unfinished work in recipe activity', async () => {
+  it('opens unfinished work directly from the cookbook grid', async () => {
     mockCaptures = [
-      capture({ id: 'working' }),
       capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
       capture({ id: 'ready', status: 'ready', pageStatus: 'ready', pageId: 'page-1' }),
     ];
-    const screen = await renderWorkspace({ activityVisible: true });
+    const screen = await renderWorkspace();
 
-    expect(screen.queryByText('Recipe composer')).toBeNull();
-    expect(screen.getByText('Active')).toBeTruthy();
-    expect(screen.queryByText('Recent')).toBeNull();
-    expect(screen.getByText('Reading recipe')).toBeTruthy();
-    expect(screen.getByText('Try again')).toBeTruthy();
-    expect(screen.queryByText('Ready')).toBeNull();
+    expect(screen.getByText('Recipe composer')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Open capture failed' }));
+    expect(screen.getByText('This recipe needs another try')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByText('Recipe composer')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close recipe recovery' })).toBeTruthy();
+  });
+
+  it('removes an abandoned capture from its recovery popup', async () => {
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureMessage: 'Could not read source.',
+    })];
+    mockDiscardCapture.mockResolvedValueOnce(undefined);
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.getByText('Remove this item?')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Remove recipe item permanently' }));
+
+    await waitFor(() => expect(mockDiscardCapture).toHaveBeenCalledWith('capture-1'));
+    expect(screen.getByText('Recipe composer')).toBeTruthy();
   });
 
   it('frames the first capture around a recipe the user already loves', async () => {
@@ -466,6 +497,27 @@ describe('NoshCaptureWorkspace', () => {
     expect(mockRetryCapture).not.toHaveBeenCalled();
   });
 
+  it('retires the abandoned capture after a replacement source starts', async () => {
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureCode: 'blank_or_empty_source',
+      failureMessage: 'This source appears blank.',
+    })];
+    mockUploadRecipeCaptureImage.mockResolvedValueOnce({
+      storagePath: 'user-1/replacement.jpg',
+      mimeType: 'image/jpeg',
+    });
+    mockStartCapture.mockResolvedValueOnce({ capture: capture({ id: 'capture-2', status: 'processing' }) });
+    mockDiscardCapture.mockResolvedValueOnce(undefined);
+    const screen = await renderWorkspace({ captureId: 'capture-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Choose another source' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Submit test image' }));
+
+    await waitFor(() => expect(mockStartCapture).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockDiscardCapture).toHaveBeenCalledWith('capture-1'));
+  });
+
   it('opens a focused correction surface for semantic quality issues', async () => {
     const recipeGraph = {
       title: 'Sheet Pan Chicken',
@@ -550,7 +602,7 @@ describe('NoshCaptureWorkspace', () => {
     })];
     const screen = await renderWorkspace({ captureId: 'capture-1' });
 
-    expect(screen.getByText('Tomato Pasta')).toBeTruthy();
+    expect(screen.getAllByText('Tomato Pasta')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Add recipe to Family Table' })).toBeTruthy();
   });
 

@@ -4,6 +4,7 @@ import {
   createCookbook,
   createRecipePageWithGraph,
   deleteCookbook,
+  discardRecipeCapture,
   mapRecipeCapture,
   retryReaderStorageCleanup,
   startRecipeCapture,
@@ -354,6 +355,17 @@ describe('reader deletion', () => {
     expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
       action: 'deleteCookbook',
       cookbookId: 'cookbook-1',
+    });
+  });
+
+  it('discards unfinished capture work through the authenticated cleanup function', async () => {
+    mockedCallAuthenticatedFunction.mockResolvedValue({ result: { captureId: 'capture-1' } });
+
+    await discardRecipeCapture('capture-1');
+
+    expect(mockedCallAuthenticatedFunction).toHaveBeenCalledWith('delete-reader-content', {
+      action: 'discardCapture',
+      captureId: 'capture-1',
     });
   });
 

@@ -9,7 +9,7 @@ import {
   type AccessibilityActionEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Ellipsis, Sparkles } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, Ellipsis } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import Sortable, { type SortableGridDragEndParams, type SortableGridRenderItem } from 'react-native-sortables';
@@ -32,6 +32,7 @@ interface CookbookPageGridProps {
   pageSlots: CookbookPage[];
   captures?: RecipeCapture[];
   onOpenPage?: (page: CookbookPage) => void;
+  onOpenCapture?: (capture: RecipeCapture) => void;
   onPageActions?: (page: CookbookPage) => void;
   contextActionsFor?: (page: CookbookPage) => ContextActionGroup[];
   onContextAction?: (page: CookbookPage, actionId: ContextActionId) => void;
@@ -40,6 +41,7 @@ interface CookbookPageGridProps {
   emptyTitle?: string;
   emptyDetail?: string;
   showPattern?: boolean;
+  includeUnassignedCaptures?: boolean;
   testID?: string;
 }
 
@@ -63,22 +65,32 @@ function DottedWorkspaceBackground() {
 }
 
 function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
-  const needsAttention = item.phase === 'attention';
+  const needsAction = item.phase === 'attention' || item.phase === 'destination';
+  if (needsAction) {
+    return (
+      <View style={[styles.processingPage, styles.actionablePage]}>
+        {item.phase === 'attention' ? (
+          <AlertTriangle size={20} color={Colors.error} />
+        ) : (
+          <BookOpen size={20} color={Colors.primary} />
+        )}
+        <Text style={[styles.processingLabel, styles.actionableLabel]} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+          {item.statusLabel ?? 'Needs attention'}
+        </Text>
+        <Text style={[styles.processingTitle, styles.actionableTitle]} numberOfLines={3} maxFontSizeMultiplier={1.25}>
+          {item.title}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <LinearGradient
-      colors={
-        needsAttention
-          ? [Colors.errorDark, Colors.warmUmber]
-          : [Colors.burnishedBronze, Colors.warmUmber, Colors.carbon]
-      }
+      colors={[Colors.burnishedBronze, Colors.warmUmber, Colors.carbon]}
       style={styles.processingPage}
     >
       <View style={styles.processingGlow} />
-      {needsAttention ? (
-        <Sparkles size={20} color={Colors.white} />
-      ) : (
-        <ActivityIndicator size="small" color={Colors.white} />
-      )}
+      <ActivityIndicator size="small" color={Colors.white} />
       <Text style={styles.processingLabel} numberOfLines={2} maxFontSizeMultiplier={1.25}>
         {item.statusLabel ?? 'Designing page'}
       </Text>
@@ -114,6 +126,7 @@ export function CookbookPageGrid({
   pageSlots,
   captures,
   onOpenPage,
+  onOpenCapture,
   onPageActions,
   contextActionsFor,
   onContextAction,
@@ -122,14 +135,20 @@ export function CookbookPageGrid({
   emptyTitle = 'Your cookbook pages will appear here.',
   emptyDetail = 'Add a recipe and watch the book assemble itself.',
   showPattern = true,
+  includeUnassignedCaptures = false,
   testID,
 }: CookbookPageGridProps) {
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const columns = width >= 720 ? 4 : width >= 520 ? 3 : 2;
   const items = useMemo(
-    () => buildCookbookPageGridItems({ cookbookId, pageSlots, captures }),
-    [captures, cookbookId, pageSlots],
+    () => buildCookbookPageGridItems({
+      cookbookId,
+      pageSlots,
+      captures,
+      includeUnassignedCaptures,
+    }),
+    [captures, cookbookId, includeUnassignedCaptures, pageSlots],
   );
   const [orderedItems, setOrderedItems] = useState(items);
 
@@ -169,6 +188,12 @@ export function CookbookPageGrid({
   const renderItem = useCallback<SortableGridRenderItem<CookbookPageGridItem>>(
     ({ item, index }) => {
       const canOpen = Boolean(item.page && item.phase === 'ready');
+      const canOpenCapture = Boolean(
+        item.capture
+        && (item.phase === 'attention' || item.phase === 'destination')
+        && onOpenCapture,
+      );
+      const canActivate = canOpen || canOpenCapture;
       const contextActions = item.page ? (contextActionsFor?.(item.page) ?? []) : [];
       const flatContextActions = flattenContextActions(contextActions);
       const canMoveEarlier = Boolean(
@@ -178,7 +203,7 @@ export function CookbookPageGrid({
         onMovePage && item.isDraggable && index < orderedItems.length - 1 && orderedItems[index + 1]?.isDraggable,
       );
       const actions = [
-        { name: 'activate' as const, label: canOpen ? `Open ${item.title}` : `View status for ${item.title}` },
+        { name: 'activate' as const, label: canOpen ? `Open ${item.title}` : `Resolve ${item.title}` },
         ...(canMoveEarlier ? [{ name: CUSTOM_ACTIONS.earlier, label: 'Move page earlier' }] : []),
         ...(canMoveLater ? [{ name: CUSTOM_ACTIONS.later, label: 'Move page later' }] : []),
         ...flatContextActions.map((action) => ({ name: action.id, label: action.title })),
@@ -190,6 +215,7 @@ export function CookbookPageGrid({
       function handleAccessibilityAction(event: AccessibilityActionEvent) {
         const action = event.nativeEvent.actionName;
         if (action === 'activate' && canOpen && item.page) onOpenPage?.(item.page);
+        if (action === 'activate' && canOpenCapture && item.capture) onOpenCapture?.(item.capture);
         if (action === CUSTOM_ACTIONS.earlier) moveAccessibly(item, -1);
         if (action === CUSTOM_ACTIONS.later) moveAccessibly(item, 1);
         if (action === CUSTOM_ACTIONS.actions && item.page) onPageActions?.(item.page);
@@ -205,14 +231,19 @@ export function CookbookPageGrid({
         >
           <View style={styles.tile}>
             <Pressable
-              style={({ pressed }) => [styles.pagePressable, pressed && canOpen && styles.pagePressed]}
+              style={({ pressed }) => [styles.pagePressable, pressed && canActivate && styles.pagePressed]}
               onPress={() => {
                 if (canOpen && item.page) onOpenPage?.(item.page);
+                if (canOpenCapture && item.capture) onOpenCapture?.(item.capture);
               }}
               accessible
               accessibilityRole="button"
               accessibilityLabel={`${item.title}. ${item.statusLabel ?? `Page ${index + 1}`}.`}
-              accessibilityHint={canOpen ? 'Double tap to open. Long press and drag to reorder.' : undefined}
+              accessibilityHint={canOpen
+                ? 'Double tap to open. Long press and drag to reorder.'
+                : canOpenCapture
+                  ? 'Double tap to resolve this recipe.'
+                  : undefined}
               accessibilityActions={actions}
               onAccessibilityAction={handleAccessibilityAction}
             >
@@ -234,7 +265,7 @@ export function CookbookPageGrid({
 
             <View style={styles.tileFooter}>
               <Text style={styles.pageNumber} maxFontSizeMultiplier={1.2}>
-                {index + 1}
+                {item.page?.pageNumber ?? ''}
               </Text>
               <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                 {item.title}
@@ -273,6 +304,7 @@ export function CookbookPageGrid({
       moveAccessibly,
       onContextAction,
       onMovePage,
+      onOpenCapture,
       onOpenPage,
       onPageActions,
       orderedItems,
@@ -380,6 +412,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     lineHeight: Typography.metrics.lineHeight16,
     textAlign: 'center',
+  },
+  actionablePage: {
+    backgroundColor: Colors.parchment,
+  },
+  actionableLabel: {
+    color: Colors.primary,
+  },
+  actionableTitle: {
+    color: Colors.textSecondary,
   },
   tileFooter: {
     minHeight: 26,

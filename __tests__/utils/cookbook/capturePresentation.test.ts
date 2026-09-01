@@ -213,7 +213,7 @@ describe('capture presentation', () => {
       failureCode: 'source_acquisition_failed',
       failureMessage: 'provider returned HTTP 500',
     }))).toMatchObject({
-      title: 'Nosh could not read this social video',
+      title: 'Folio could not read this social video',
       detail: 'The link is still saved. Try reading it again.',
       action: 'retry',
     });

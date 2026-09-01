@@ -62,4 +62,29 @@ describe('cookbook page grid projection', () => {
     expect(items[0].isDraggable).toBe(true);
     expect(items[1].isDraggable).toBe(false);
   });
+
+  it('includes destinationless work only in the main composer projection', () => {
+    const unassigned = {
+      ...capture('unassigned'),
+      destinationCookbookId: undefined,
+      status: 'needs_destination' as const,
+    };
+
+    expect(buildCookbookPageGridItems({
+      cookbookId: 'book-1',
+      pageSlots: [],
+      captures: [unassigned],
+    })).toHaveLength(0);
+
+    expect(buildCookbookPageGridItems({
+      cookbookId: 'book-1',
+      pageSlots: [],
+      captures: [unassigned],
+      includeUnassignedCaptures: true,
+    })[0]).toEqual(expect.objectContaining({
+      key: 'capture:capture-unassigned',
+      phase: 'destination',
+      isDraggable: false,
+    }));
+  });
 });

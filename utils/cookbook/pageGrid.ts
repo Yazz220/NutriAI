@@ -19,6 +19,7 @@ export function buildCookbookPageGridItems(input: {
   cookbookId: string;
   pageSlots: CookbookPage[];
   captures?: RecipeCapture[];
+  includeUnassignedCaptures?: boolean;
 }): CookbookPageGridItem[] {
   const captures = input.captures ?? [];
   const capturesById = new Map(captures.map((capture) => [capture.id, capture]));
@@ -51,7 +52,8 @@ export function buildCookbookPageGridItems(input: {
 
   const unplacedCaptureItems = captures
     .filter((capture) =>
-      capture.destinationCookbookId === input.cookbookId
+      (capture.destinationCookbookId === input.cookbookId
+        || (input.includeUnassignedCaptures && !capture.destinationCookbookId))
       && !placedCaptureIds.has(capture.id)
       && capture.status !== 'ready'
       && !capture.pageId,

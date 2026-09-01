@@ -5,6 +5,7 @@ import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import type { CookbookPage } from '@/types/cookbook';
 import {
   correctRecipeCapture,
+  discardRecipeCapture,
   fetchPageById,
   listRecipeCaptures,
   prepareRecipeCaptureDestination,
@@ -117,6 +118,18 @@ export function useRecipeCaptures() {
     onSuccess: mergeResult,
   });
 
+  const discardMutation = useMutation({
+    mutationFn: discardRecipeCapture,
+    onSuccess: (_, captureId) => {
+      queryClient.setQueryData<RecipeCapture[]>(queryKey, (current = []) => (
+        current.filter((capture) => capture.id !== captureId)
+      ));
+    },
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
   return {
     captures: query.data ?? [],
     isLoading: query.isLoading,
@@ -127,9 +140,11 @@ export function useRecipeCaptures() {
     retryCapture: retryMutation.mutateAsync,
     correctCapture: correctionMutation.mutateAsync,
     prepareDestination: destinationMutation.mutateAsync,
+    discardCapture: discardMutation.mutateAsync,
     isStarting: startMutation.isPending,
     isRetrying: retryMutation.isPending,
     isCorrecting: correctionMutation.isPending,
     isPreparingDestination: destinationMutation.isPending,
+    isDiscarding: discardMutation.isPending,
   };
 }

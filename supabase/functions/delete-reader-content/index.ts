@@ -13,7 +13,7 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const MAX_CLEANUP_JOBS = 1000;
 
-type DeleteAction = 'deleteCookbook' | 'removeRecipe' | 'drain';
+type DeleteAction = 'deleteCookbook' | 'removeRecipe' | 'discardCapture' | 'drain';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -80,7 +80,7 @@ serve(async (req: Request) => {
     const body = await req.json().catch(() => null);
     if (!isRecord(body)) return jsonError('Invalid JSON body', 400, req);
     const action = body.action as DeleteAction;
-    if (!['deleteCookbook', 'removeRecipe', 'drain'].includes(action)) {
+    if (!['deleteCookbook', 'removeRecipe', 'discardCapture', 'drain'].includes(action)) {
       return jsonError('Unsupported reader deletion action', 400, req);
     }
 
@@ -99,6 +99,13 @@ serve(async (req: Request) => {
       const response = await userClient
         .schema('nutriai')
         .rpc('remove_recipe_page', { p_page_id: body.pageId });
+      if (response.error) throw response.error;
+      result = response.data;
+    } else if (action === 'discardCapture') {
+      if (!isUuid(body.captureId)) return jsonError('Recipe capture is required', 400, req);
+      const response = await userClient
+        .schema('nutriai')
+        .rpc('discard_recipe_capture', { p_capture_id: body.captureId });
       if (response.error) throw response.error;
       result = response.data;
     } else if (action === 'deleteCookbook') {
