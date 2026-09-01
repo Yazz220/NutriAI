@@ -191,7 +191,7 @@ export function buildRecipePagePrompt(
     'Do not place a smaller page inside the canvas, leave blank outer padding, add a drop shadow, or show a surrounding background.',
     'Typeset every supplied line exactly once. Preserve all quantities, units, times, and temperatures.',
     'Do not invent, omit, paraphrase, duplicate, or reorder recipe content.',
-    'Never print extraction analysis, confidence, provenance, source limitations, missing-information commentary, or comments about how Nosh understood the recipe.',
+    'Never print extraction analysis, confidence, provenance, source limitations, missing-information commentary, or comments about how Folio understood the recipe.',
     'Use a clear hierarchy and text large enough to read on an iPhone.',
     'Keep all text and important artwork inside a generous safe margin.',
     'Include a compelling finished-dish visual in the exact medium required by the locked style contract.',

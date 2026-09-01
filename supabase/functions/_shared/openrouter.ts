@@ -131,7 +131,7 @@ export async function callChatCompletion(
         Authorization: `Bearer ${AI_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://nosh.app',
-        'X-Title': 'Nosh Cookbook',
+        'X-Title': 'Folio Cookbook',
       },
       body: JSON.stringify(request),
       signal: controller.signal,
@@ -178,7 +178,7 @@ export async function* streamChatCompletion(
         Authorization: `Bearer ${AI_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://nosh.app',
-        'X-Title': 'Nosh Cookbook',
+        'X-Title': 'Folio Cookbook',
       },
       body: JSON.stringify({
         ...request,

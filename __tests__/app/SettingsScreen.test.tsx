@@ -77,7 +77,7 @@ jest.mock('@/components/settings/CookingPreferencesSheet', () => ({
 jest.mock('@/components/subscription/SubscriptionPlanCard', () => {
   const mockReact = require('react');
   const { Text: MockText } = require('react-native');
-  return { SubscriptionPlanCard: () => mockReact.createElement(MockText, null, 'Nosh Free plan') };
+  return { SubscriptionPlanCard: () => mockReact.createElement(MockText, null, 'Folio Free plan') };
 });
 
 describe('SettingsScreen', () => {
@@ -97,17 +97,17 @@ describe('SettingsScreen', () => {
     ]);
   });
 
-  it('shows purposeful user controls and branded Nosh entries', async () => {
+  it('shows purposeful user controls and branded Folio entries', async () => {
     const screen = render(<SettingsScreen />);
 
     expect(screen.getByText('Email')).toBeTruthy();
-    expect(screen.getByText('Nosh Free plan')).toBeTruthy();
+    expect(screen.getByText('Folio Free plan')).toBeTruthy();
     expect(screen.getByText('Cookbooks')).toBeTruthy();
     await screen.findByRole('button', { name: 'Cooking preferences, 1 saved' });
     expect(screen.getByRole('button', { name: 'AI data use, Allowed on this device' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Terms of use' })).toBeTruthy();
     expect(screen.getAllByTestId('nosh-symbol', { includeHiddenElements: true })).toHaveLength(1);
-    expect(screen.getByText('Nosh v1.2.3')).toBeTruthy();
+    expect(screen.getByText('Folio v1.2.3')).toBeTruthy();
   });
 
   it('warns active Plus members that account deletion does not cancel App Store billing', async () => {

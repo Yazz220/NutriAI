@@ -71,7 +71,7 @@ function CompletedAssistantActions() {
     >
       <ActionBarPrimitive.Copy
         accessibilityRole="button"
-        accessibilityLabel="Copy Nosh response"
+        accessibilityLabel="Copy Folio response"
         hitSlop={8}
         copyToClipboard={async (text) => { await Clipboard.setStringAsync(text); }}
         style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
@@ -102,11 +102,11 @@ function AssistantMessage() {
         <MessagePrimitive.Parts components={ASSISTANT_MESSAGE_PARTS} />
         <ErrorPrimitive.Root style={styles.errorRow} accessibilityRole="alert">
           <ErrorPrimitive.Message style={styles.errorText}>
-            Nosh couldn’t finish that response.
+            Folio couldn’t finish that response.
           </ErrorPrimitive.Message>
           <ActionBarPrimitive.Reload
             accessibilityRole="button"
-            accessibilityLabel="Try the Nosh response again"
+            accessibilityLabel="Try the Folio response again"
             style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
           >
             <RefreshCw size={14} color={Colors.error} />
@@ -135,7 +135,7 @@ export function NoshConversationDisplay({ interaction, contextModelEnabled, send
       {sendDisabled ? (
         <View style={styles.contextLoading} accessibilityRole="progressbar">
           <NoshActivityDots size={5} />
-          <Text style={styles.contextLoadingText}>Loading this recipe for Nosh…</Text>
+          <Text style={styles.contextLoadingText}>Loading this recipe for Folio…</Text>
         </View>
       ) : null}
       <NoshComposer

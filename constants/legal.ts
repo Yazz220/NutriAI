@@ -8,5 +8,5 @@ export const OPENROUTER_PRIVACY_URL = 'https://openrouter.ai/privacy';
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim();
 
 export const SUPPORT_CONTACT_URL = supportEmail
-  ? `mailto:${supportEmail}?subject=${encodeURIComponent('Nosh support')}`
+  ? `mailto:${supportEmail}?subject=${encodeURIComponent('Folio support')}`
   : SUPPORT_URL;

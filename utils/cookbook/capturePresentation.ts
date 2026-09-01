@@ -28,27 +28,27 @@ export interface CaptureProgressStep {
   state: 'complete' | 'active' | 'upcoming';
 }
 
-const GENERIC_CAPTURE_FAILURE = 'Nosh saved your recipe, but could not finish the page. Please try again.';
+const GENERIC_CAPTURE_FAILURE = 'Folio saved your recipe, but could not finish the page. Please try again.';
 
 const TECHNICAL_FAILURE_COPY: Record<string, { title: string; detail: string }> = {
   source_read_failed: {
-    title: 'Nosh could not reopen this source',
+    title: 'Folio could not reopen this source',
     detail: 'The source is still saved. Try reading it again.',
   },
   extraction_failed: {
-    title: 'Nosh could not finish reading this recipe',
+    title: 'Folio could not finish reading this recipe',
     detail: 'The source is still saved. Try reading it again.',
   },
   quality_assessment_failed: {
-    title: 'Nosh could not verify the recipe details',
+    title: 'Folio could not verify the recipe details',
     detail: 'The understood recipe is still saved. Try the check again.',
   },
   destination_unavailable: {
-    title: 'Nosh could not open this cookbook',
+    title: 'Folio could not open this cookbook',
     detail: 'Try again, or choose another cookbook for this recipe.',
   },
   page_generation_failed: {
-    title: 'Nosh could not finish the cookbook page',
+    title: 'Folio could not finish the cookbook page',
     detail: 'The understood recipe is still saved. Try designing the page again.',
   },
   publication_failed: {
@@ -73,23 +73,23 @@ function recipeEvidenceTitle(reasonCode: RecipeEvidenceFailureCode): string {
   if (reasonCode === 'not_a_recipe' || reasonCode === 'blank_or_empty_source') {
     return 'This does not look like a recipe';
   }
-  if (reasonCode === 'unreadable_source') return 'Nosh could not read this recipe';
+  if (reasonCode === 'unreadable_source') return 'Folio could not read this recipe';
   if (reasonCode === 'blurry_or_low_resolution_image') return 'This recipe image is too blurry';
   if (reasonCode === 'cropped_recipe_image') return 'This recipe image is incomplete';
-  if (reasonCode === 'url_unavailable') return 'Nosh could not open this recipe page';
+  if (reasonCode === 'url_unavailable') return 'Folio could not open this recipe page';
   if (reasonCode === 'url_access_restricted') return 'This site blocked recipe access';
   if (reasonCode === 'url_source_unsupported') return "This link isn't a readable recipe page";
   if (reasonCode === 'url_too_large') return 'This recipe page is too large';
   if (reasonCode === 'video_source_unsupported') return 'Add the recipe another way';
   if (reasonCode === 'video_permission_required') return 'Permission is required for this video';
-  if (reasonCode === 'video_unavailable') return 'Nosh could not open this video';
+  if (reasonCode === 'video_unavailable') return 'Folio could not open this video';
   if (reasonCode === 'video_too_large') return 'This video is too large';
   if (reasonCode === 'audio_source_unsupported') return "This audio format isn't supported";
   if (reasonCode === 'audio_too_large') return 'This audio file is too large';
-  if (reasonCode === 'audio_no_speech') return 'Nosh could not hear a recipe';
-  if (reasonCode === 'audio_transcription_failed') return 'Nosh could not transcribe this audio';
+  if (reasonCode === 'audio_no_speech') return 'Folio could not hear a recipe';
+  if (reasonCode === 'audio_transcription_failed') return 'Folio could not transcribe this audio';
   if (reasonCode === 'multiple_recipes') return 'Share one recipe at a time';
-  return 'Nosh needs a more complete source';
+  return 'Folio needs a more complete source';
 }
 
 export function getCapturePresentation(
@@ -117,7 +117,7 @@ export function getCapturePresentation(
         label: 'Check details',
         title: `Check ${recipeTitle}`,
         detail: openIssues[0]?.message
-          ?? 'Check the extracted recipe details before Nosh creates the page.',
+          ?? 'Check the extracted recipe details before Folio creates the page.',
         cookbookTitle,
         action: 'correct_recipe',
         actionLabel: 'Review recipe',
@@ -195,7 +195,7 @@ export function getCapturePresentation(
       phase: 'preparing',
       label: 'Preparing page',
       title: 'Preparing your recipe',
-      detail: `${recipeTitle} has been understood. Nosh is preparing its cookbook page.`,
+      detail: `${recipeTitle} has been understood. Folio is preparing its cookbook page.`,
       cookbookTitle,
     };
   }
@@ -204,7 +204,7 @@ export function getCapturePresentation(
     phase: 'reading',
     label: 'Reading recipe',
     title: 'Reading your recipe',
-    detail: 'Nosh is finding the ingredients, timings, and cooking steps.',
+    detail: 'Folio is finding the ingredients, timings, and cooking steps.',
     cookbookTitle,
   };
 }

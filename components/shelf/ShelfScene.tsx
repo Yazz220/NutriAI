@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
 import { SpineFace } from '@/components/physical-book/SpineFace';
 import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBookVolume';
@@ -74,7 +74,7 @@ export function ShelfScene({
       <ShelfWallpaper wallpaperStyleId={scene.wallpaperStyleId} />
 
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
-        <NoshHorizontalLockup width={112} />
+        <FolioHorizontalLockup width={112} />
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}

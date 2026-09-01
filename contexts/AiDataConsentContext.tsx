@@ -175,7 +175,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.body}>
-            Nosh uses external AI to read recipes, create cookbook pages, and answer cooking questions.
+            Folio uses external AI to read recipes, create cookbook pages, and answer cooking questions.
           </Text>
           <View style={styles.disclosureCard}>
             <DisclosureRow
@@ -188,15 +188,15 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
             />
           </View>
           <Text style={styles.body}>
-            Nosh does not need this permission for browsing cookbooks, reading saved pages, or managing your account. You can withdraw permission here at any time.
+            Folio does not need this permission for browsing cookbooks, reading saved pages, or managing your account. You can withdraw permission here at any time.
           </Text>
           <View style={styles.linkRow}>
             <Pressable
               onPress={() => { void openUrl(PRIVACY_POLICY_URL); }}
               accessibilityRole="link"
-              accessibilityLabel="Open Nosh privacy policy"
+              accessibilityLabel="Open Folio privacy policy"
             >
-              <Text style={styles.link}>Nosh privacy policy</Text>
+              <Text style={styles.link}>Folio privacy policy</Text>
             </Pressable>
             <Pressable
               onPress={() => { void openUrl(OPENROUTER_PRIVACY_URL); }}

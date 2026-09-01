@@ -4,7 +4,7 @@ import {
   taskForEntryPoint,
 } from '@/types/noshInteraction';
 
-describe('Nosh interaction model', () => {
+describe('Folio interaction model', () => {
   it('maps purpose-built entry points to active tasks', () => {
     expect(taskForEntryPoint('shelf-nosh')).toBe('collection');
     expect(taskForEntryPoint('recipe-ask')).toBe('recipe-help');

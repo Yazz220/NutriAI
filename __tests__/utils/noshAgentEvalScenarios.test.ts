@@ -1,6 +1,6 @@
 import scenarios from '@/supabase/functions/nosh-chat/evals/scenarios.json';
 
-describe('Nosh agent evaluation scenarios', () => {
+describe('Folio agent evaluation scenarios', () => {
   it('keeps a unique, broad regression set for focus, retrieval, actions, and memory', () => {
     expect(scenarios).toHaveLength(24);
     expect(new Set(scenarios.map((scenario) => scenario.id)).size).toBe(scenarios.length);

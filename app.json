@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nosh",
+    "name": "Folio",
     "slug": "nosh",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "backgroundColor": "#F7F2EA",
     "primaryColor": "#65436F",
     "splash": {
-      "image": "./assets/brand/platform/splash.png",
+      "image": "./assets/brand/platform/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#F7F2EA"
     },
@@ -24,8 +24,8 @@
       "bundleIdentifier": "com.yaz12.nosh",
       "buildNumber": "13",
       "infoPlist": {
-        "NSCameraUsageDescription": "Nosh uses your camera to capture recipe images.",
-        "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes.",
+        "NSCameraUsageDescription": "Folio uses your camera to capture recipe images.",
+        "NSPhotoLibraryUsageDescription": "Folio needs access to your photo library to import images for recipes.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
@@ -126,7 +126,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Nosh uses your camera to capture recipe images.",
+          "cameraPermission": "Folio uses your camera to capture recipe images.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -135,7 +135,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nosh needs access to your photos to import images for recipes.",
+          "photosPermission": "Folio needs access to your photos to import images for recipes.",
           "microphonePermission": false
         }
       ],
@@ -147,11 +147,11 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#F7F2EA",
-          "image": "./assets/brand/platform/splash.png",
-          "imageWidth": 220,
+          "image": "./assets/brand/platform/icon.png",
+          "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
-            "image": "./assets/brand/platform/splash-dark.png",
+            "image": "./assets/brand/platform/icon-dark.png",
             "backgroundColor": "#65436F"
           }
         }
@@ -159,7 +159,7 @@
       [
         "expo-share-intent",
         {
-          "iosShareExtensionName": "ShareToNosh",
+          "iosShareExtensionName": "ShareToFolio",
           "iosShareExtensionBundleIdentifier": "com.yaz12.nosh.share",
           "iosAppGroupIdentifier": "group.com.yaz12.nosh.share",
           "iosActivationRules": {
@@ -179,8 +179,8 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/brand/platform/favicon.png",
-      "name": "Nosh",
-      "shortName": "Nosh"
+      "name": "Folio",
+      "shortName": "Folio"
     },
     "extra": {
       "eas": {

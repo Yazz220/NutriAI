@@ -47,7 +47,7 @@ describe('capture processing policy', () => {
     })).toEqual({
       accepted: false,
       failureCode: 'video_source_unsupported',
-      failureMessage: 'Nosh can read permissioned MP4, MOV, MPEG, or WebM files, but it does not download social-platform videos. Open the original, or add a supported video, screenshots, audio, or recipe text.',
+      failureMessage: 'Folio can read permissioned MP4, MOV, MPEG, or WebM files, but it does not download social-platform videos. Open the original, or add a supported video, screenshots, audio, or recipe text.',
       outcome: 'insufficient_evidence',
       diagnostic: 'The URL returned a social HTML page.',
     });
@@ -132,7 +132,7 @@ describe('capture processing policy', () => {
     expect(capturePagePolicy(true, 'ready')).toEqual({ pageStatus: 'ready', pageWarning: null });
     expect(capturePagePolicy(true, 'failed')).toEqual({
       pageStatus: 'failed',
-      pageWarning: 'Nosh could not finish this recipe page. Try again.',
+      pageWarning: 'Folio could not finish this recipe page. Try again.',
     });
   });
 
@@ -140,7 +140,7 @@ describe('capture processing policy', () => {
     expect(captureFailure(new Error('Provider timeout'), 'extraction')).toEqual({
       status: 'needs_attention',
       failureCode: 'extraction_failed',
-      failureMessage: 'Nosh could not understand this recipe right now. Try again.',
+      failureMessage: 'Folio could not understand this recipe right now. Try again.',
       failedStage: 'extraction',
       diagnostic: 'Provider timeout',
     });

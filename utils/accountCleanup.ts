@@ -84,7 +84,7 @@ export async function purgeLocalUserData(
     ['cookbook pages', () => clearCachedPages(cookbookIds)],
     ['recipe activity', () => clearCachedCaptures(request.userId)],
     ['cookbook shelf', () => clearCachedShelf(request.userId)],
-    ['Nosh conversations', () => clearNoshThreadStorage(request.userId)],
+    ['Folio conversations', () => clearNoshThreadStorage(request.userId)],
     ['AI data permission', () => withdrawAiDataConsent(request.userId)],
     ['onboarding state', () => clearFirstRunOnboardingState(request.userId)],
     ['shelf appearance', () => clearBookshelfScene(request.userId)],

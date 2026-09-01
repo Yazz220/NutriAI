@@ -100,7 +100,7 @@ serve(async (req: Request) => {
     const userIds = findRevenueCatUserIds(event);
     if (userIds.length === 0) {
       await completeEvent(eventId, 'ignored');
-      logWarn('RevenueCat webhook has no Nosh user identity', { eventId, eventType });
+      logWarn('RevenueCat webhook has no Folio user identity', { eventId, eventType });
       return jsonResponse({ received: true, ignored: true });
     }
 

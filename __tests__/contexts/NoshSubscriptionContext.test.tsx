@@ -58,7 +58,7 @@ jest.mock('@/utils/subscriptions/revenueCatClient', () => {
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const FREE_ACCESS: SubscriptionAccessSnapshot = {
   planId: 'free',
-  planName: 'Nosh Free',
+  planName: 'Folio Free',
   entitlementStatus: 'free',
   productId: null,
   environment: null,
@@ -82,7 +82,7 @@ const FREE_ACCESS: SubscriptionAccessSnapshot = {
 const PLUS_ACCESS: SubscriptionAccessSnapshot = {
   ...FREE_ACCESS,
   planId: 'plus',
-  planName: 'Nosh Plus',
+  planName: 'Folio Plus',
   entitlementStatus: 'active',
   productId: 'com.yaz12.nosh.plus.monthly',
   environment: 'sandbox',
@@ -96,8 +96,8 @@ const MONTHLY_PACKAGE: SubscriptionPackage = {
   id: 'monthly',
   identifier: '$rc_monthly',
   productIdentifier: 'com.yaz12.nosh.plus.monthly',
-  title: 'Nosh Plus Monthly',
-  description: 'Nosh Plus',
+  title: 'Folio Plus Monthly',
+  description: 'Folio Plus',
   localizedPrice: '$9.99',
   localizedPricePerMonth: '$9.99',
   price: 9.99,
@@ -220,7 +220,7 @@ describe('NoshSubscriptionProvider outcomes', () => {
 
     await act(async () => {
       await expect(result.current.restore()).rejects.toThrow(
-        'purchase was found, but Nosh could not update your plan yet',
+        'purchase was found, but Folio could not update your plan yet',
       );
     });
     expect(result.current.actionState).toBe('idle');
@@ -238,11 +238,11 @@ describe('NoshSubscriptionProvider outcomes', () => {
 
     await act(async () => {
       await expect(result.current.purchase('monthly')).rejects.toThrow(
-        'Nosh Plus was not attached',
+        'Folio Plus was not attached',
       );
     });
     expect(result.current.actionState).toBe('idle');
-    expect(result.current.error).toContain('contact Nosh support');
+    expect(result.current.error).toContain('contact Folio support');
     expect(mockSyncAccess).not.toHaveBeenCalled();
   });
 });

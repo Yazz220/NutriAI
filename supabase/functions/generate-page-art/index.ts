@@ -4,7 +4,7 @@
  * Generates the complete, flat recipe page that the cookbook reader displays.
  * The page includes the exact recipe copy, food imagery, typography, paper,
  * and decoration. The RecipeGraph remains the canonical reasoning data for
- * Nosh while this image is the user-facing reading artifact.
+ * Folio while this image is the user-facing reading artifact.
  *
  * Required Supabase Function secrets:
  *   AI_API_KEY            — OpenRouter API key
@@ -158,7 +158,7 @@ async function generatePageImage(
         Authorization: `Bearer ${AI_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://nosh.app',
-        'X-Title': 'Nosh Cookbook',
+        'X-Title': 'Folio Cookbook',
       },
       body: JSON.stringify(body),
       signal: controller.signal,
@@ -336,7 +336,7 @@ async function finalizeCapturePage(
     const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture_publication', {
       p_user_id: userId,
       p_page_id: pageId,
-      p_failure_message: 'Nosh finished the page, but could not add it to the cookbook. Try again.',
+      p_failure_message: 'Folio finished the page, but could not add it to the cookbook. Try again.',
       p_page_generation_version: RECIPE_PAGE_GENERATION_STAGE_VERSION,
     });
     if (failureError) {

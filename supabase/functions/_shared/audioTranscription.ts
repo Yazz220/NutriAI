@@ -48,7 +48,7 @@ export async function transcribeAudioRecipeEvidence(
             Authorization: `Bearer ${options.apiKey}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://nosh.app',
-            'X-Title': 'Nosh Cookbook',
+            'X-Title': 'Folio Cookbook',
           },
           body: JSON.stringify({
             model: options.model,

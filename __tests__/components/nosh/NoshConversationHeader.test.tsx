@@ -12,7 +12,7 @@ jest.mock('@assistant-ui/react-native', () => ({
   }),
 }));
 
-describe('Nosh conversation header', () => {
+describe('Folio conversation header', () => {
   it('shows one concise conversation identity', () => {
     const screen = render(
       <NoshHeaderIdentity contextLabel="Your cookbook collection" showingHistory={false} />,
@@ -20,7 +20,7 @@ describe('Nosh conversation header', () => {
 
     expect(screen.getByText('Dinner ideas')).toBeTruthy();
     expect(screen.getByText('Your cookbook collection')).toBeTruthy();
-    expect(screen.queryByText(/Nosh ·/)).toBeNull();
+    expect(screen.queryByText(/Folio ·/)).toBeNull();
   });
 
   it('keeps one new-conversation action in history', () => {

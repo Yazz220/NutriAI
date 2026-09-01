@@ -1,5 +1,5 @@
 /**
- * The product-owned physical geometry of every Nosh cookbook.
+ * The product-owned physical geometry of every Folio cookbook.
  *
  * Ratios describe the trimmed paper leaf. Renderers may add cover-board
  * overhang, spine thickness, shadows, and responsive stage padding, but they

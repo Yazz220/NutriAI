@@ -1,10 +1,13 @@
 {
   "schemaVersion": 1,
-  "brand": "Nosh",
-  "version": "1.0.0",
+  "brand": "Folio",
+  "version": "1.2.0",
   "status": "approved-production",
   "suppliedAt": "2026-08-29",
   "approvedAt": "2026-08-29",
+  "renamedAt": "2026-08-31",
+  "folioAssetsAddedAt": "2026-09-01",
+  "folioLockupCorrectedAt": "2026-09-01",
   "geometry": {
     "symbol": {
       "viewBox": [0, 0, 1017, 763],
@@ -13,25 +16,42 @@
       "sourceThreshold": 128,
       "pixelOverlap": 0.9980195109
     },
-    "wordmark": {
+    "legacyWordmark": {
       "viewBox": [0, 0, 1860, 585],
       "aspectRatio": 3.1795,
       "reference": "references/supplied/07-wordmark-production-reference.png",
       "sourceThreshold": 128,
       "pixelOverlap": 0.9949706823
+    },
+    "folioWordmark": {
+      "canvas": [2172, 724],
+      "contentBounds": [226, 51, 1728, 600]
+    },
+    "folioHorizontalLockup": {
+      "canvas": [2172, 724],
+      "contentBounds": [119, 121, 1952, 485]
     }
   },
   "masters": {
     "symbol": "masters/symbol/nosh-symbol-plum.svg",
-    "wordmark": "masters/wordmark/nosh-wordmark-plum.svg",
-    "horizontalLockup": "masters/lockups/nosh-lockup-horizontal-plum.svg",
-    "stackedLockup": "masters/lockups/nosh-lockup-stacked-plum.svg",
+    "wordmark": "masters/wordmark/folio-wordmark-plum.png",
+    "horizontalLockup": "masters/lockups/folio-lockup-horizontal-plum.png",
     "appIconLight": "masters/app-icon/nosh-app-icon-light.svg",
     "appIconDark": "masters/app-icon/nosh-app-icon-dark.svg",
     "adaptiveForeground": "masters/app-icon/nosh-adaptive-foreground.svg",
     "adaptiveBackground": "masters/app-icon/nosh-adaptive-background.svg",
     "adaptiveMonochrome": "masters/app-icon/nosh-adaptive-monochrome.svg"
   },
+  "masterSha256": {
+    "wordmark": "0D6C01F96DFBAF7A1620A5E17B5D04ECC7245ED1E47135B110342E530D63D011",
+    "horizontalLockup": "D3A3B348641A269EAA506B02D8EE1CA81F28C36256FCE7EDABFB6FB697C3B766"
+  },
+  "legacyWorkingName": "Nosh",
+  "retiredWordmarks": [
+    "masters/wordmark/nosh-wordmark-plum.svg",
+    "masters/lockups/nosh-lockup-horizontal-plum.svg",
+    "masters/lockups/nosh-lockup-stacked-plum.svg"
+  ],
   "characterStates": ["signature", "happy", "listening", "thinking", "confused", "oops", "idle", "welcoming"],
   "canonicalColors": {
     "plum": "#65436F",

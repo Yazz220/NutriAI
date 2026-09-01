@@ -507,7 +507,7 @@ async function processCapture(
       activeStage = 'extraction';
       const extraction = await callFunction('extract-recipe', authHeader, preparedSource.payload);
       if (!extraction.response.ok) {
-        throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Nosh could not read this recipe');
+        throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Folio could not read this recipe');
       }
 
       await recordCaptureCheckpoint(
@@ -693,7 +693,7 @@ async function processCapture(
           }
           throw new Error(typeof pageGeneration.data.error === 'string'
             ? pageGeneration.data.error
-            : 'Nosh could not generate this recipe page');
+            : 'Folio could not generate this recipe page');
         }
       }
     }
@@ -813,7 +813,7 @@ async function prepareCaptureDestination(
         }
         throw new Error(typeof pageGeneration.data.error === 'string'
           ? pageGeneration.data.error
-          : 'Nosh could not generate this recipe page');
+          : 'Folio could not generate this recipe page');
       }
     }
     logInfo('Recipe capture destination selected and page production started', {

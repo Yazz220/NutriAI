@@ -1,5 +1,5 @@
 /**
- * Tool definitions and guided cards for Nosh actions.
+ * Tool definitions and guided cards for Folio actions.
  *
  * Each tool has:
  *   - A zod parameter schema (matches the nosh-chat Edge Function definitions)
@@ -350,7 +350,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               <Text style={styles.handoffTitle}>Start recipe capture?</Text>
             </View>
             <Text style={styles.handoffCopy}>
-              Nosh will read this source and create a complete page in the right cookbook.
+              Folio will read this source and create a complete page in the right cookbook.
             </Text>
             <Pressable
               style={({ pressed }) => [styles.handoffPrimary, pressed && styles.pressed]}

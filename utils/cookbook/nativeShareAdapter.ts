@@ -50,7 +50,7 @@ export function normalizeNativeShareIntent(intent: ShareIntent): NormalizedNativ
   }
   if (url) return { type: 'url', input: url, title };
   if (text) return { type: 'text', input: text, title };
-  throw new Error('Nosh can receive one recipe link, text selection, or image at a time.');
+  throw new Error('Folio can receive one recipe link, text selection, or image at a time.');
 }
 
 function fingerprint(value: NormalizedNativeShare): string {

@@ -71,7 +71,7 @@ function normalizeEntitlementStatus(value: unknown): SubscriptionEntitlementStat
 }
 
 export function normalizeSubscriptionAccess(value: unknown): SubscriptionAccessSnapshot {
-  if (!isRecord(value)) throw new Error('Nosh returned an invalid subscription status.');
+  if (!isRecord(value)) throw new Error('Folio returned an invalid subscription status.');
   const features = isRecord(value.features) ? value.features : {};
   const planId = normalizePlanId(value.planId);
   const currentPeriodEndsAt = nullableDate(value.currentPeriodEndsAt);
@@ -79,7 +79,7 @@ export function normalizeSubscriptionAccess(value: unknown): SubscriptionAccessS
     planId,
     planName: typeof value.planName === 'string'
       ? value.planName
-      : planId === 'plus' ? 'Nosh Plus' : 'Nosh Free',
+      : planId === 'plus' ? 'Folio Plus' : 'Folio Free',
     entitlementStatus: value.entitlementStatus == null && planId === 'free'
       ? 'free'
       : normalizeEntitlementStatus(value.entitlementStatus),

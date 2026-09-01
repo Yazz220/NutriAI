@@ -127,5 +127,5 @@ export async function prepareRecipeCaptureImage(input: {
   }
 
   assertRecipeCaptureUploadSize(RECIPE_CAPTURE_IMAGE_UPLOAD_MAX_BYTES + 1);
-  throw new Error('Nosh could not prepare this image for recipe reading.');
+  throw new Error('Folio could not prepare this image for recipe reading.');
 }

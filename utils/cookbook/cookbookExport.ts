@@ -60,7 +60,7 @@ async function loadPrintModule(): Promise<typeof import('expo-print')> {
   try {
     return require('expo-print') as typeof import('expo-print');
   } catch {
-    throw new Error('Cookbook export needs a newer Nosh development build. Rebuild the app once, then try again.');
+    throw new Error('Cookbook export needs a newer Folio development build. Rebuild the app once, then try again.');
   }
 }
 
@@ -68,7 +68,7 @@ async function loadSharingModule(): Promise<typeof import('expo-sharing')> {
   try {
     return require('expo-sharing') as typeof import('expo-sharing');
   } catch {
-    throw new Error('Cookbook export needs a newer Nosh development build. Rebuild the app once, then try again.');
+    throw new Error('Cookbook export needs a newer Folio development build. Rebuild the app once, then try again.');
   }
 }
 

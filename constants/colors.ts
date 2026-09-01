@@ -1,11 +1,11 @@
 import { BrandPalette, BrandThemeLight } from './brandTheme';
 
 /**
- * Nosh product color system.
+ * Folio product color system.
  *
  * Canonical brand values come from brandTheme. Physical-book compatibility
  * values remain here so existing covers and generated pages keep their intended
- * material appearance while the surrounding product adopts the Nosh identity.
+ * material appearance while the surrounding product adopts the Folio identity.
  */
 
 const carbon = BrandPalette.black;
@@ -54,7 +54,7 @@ export const Colors = {
   paperIvory: alabaster,
   ink: charcoal,
 
-  // Legacy Nosh palette aliases
+  // Legacy Folio palette aliases
   paperCream: alabaster,
   inkBlack: charcoal,
   warmGray: duskGrey,

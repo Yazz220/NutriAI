@@ -22,11 +22,11 @@ const capture: NoshInteractionSession = {
   focus: { kind: 'cookbook', cookbookId: 'book-1', title: 'Dinner' },
 };
 
-describe('purpose-built Nosh conversation wrappers', () => {
+describe('purpose-built Folio conversation wrappers', () => {
   it('gives an empty shelf conversation collection jobs instead of capture prompts', () => {
     const config = getNoshStartConfig(collection, true);
 
-    expect(config.title).toBe('What can Nosh help with?');
+    expect(config.title).toBe('What can Folio help with?');
     expect(config.prompts).toEqual(expect.arrayContaining([
       'Find a recipe I saved',
       'Save or check a recipe',
@@ -46,7 +46,7 @@ describe('purpose-built Nosh conversation wrappers', () => {
   it('removes capture attachments and mixed copy from general conversation', () => {
     expect(getNoshComposerMode(collection, true)).toEqual({
       allowsRecipePhoto: false,
-      placeholder: 'Ask Nosh about your cookbooks…',
+      placeholder: 'Ask Folio about your cookbooks…',
     });
     expect(getNoshComposerMode(recipe, true)).toEqual({
       allowsRecipePhoto: false,
@@ -66,7 +66,7 @@ describe('purpose-built Nosh conversation wrappers', () => {
   it('keeps the legacy everything-box behavior while the flag is off', () => {
     expect(getNoshComposerMode(collection, false)).toEqual({
       allowsRecipePhoto: true,
-      placeholder: 'Drop a recipe link or ask Nosh…',
+      placeholder: 'Drop a recipe link or ask Folio…',
     });
   });
 });

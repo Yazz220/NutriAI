@@ -23,7 +23,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   retry. A failed/stuck generation leaves a silent blank page.
 - [x] **Empty book reader is undesigned** — Fixed: a newly created book opens
   into its real reader with a focused "Add my first recipe" prompt routed
-  through the existing Nosh capture workspace; the duplicate floating add
+  through the existing Folio capture workspace; the duplicate floating add
   action stays hidden until the book has pages.
 - [x] **New cookbook page styles break first capture** — Fixed the live
   `cookbook_pages_style_id_check` drift so `illustrated`, `studio-editorial`,
@@ -46,7 +46,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   disclosed detail controls; an explicit read-only sample; and a direct handoff
   to the real empty book's first-recipe action. The state now continues through
   the first real capture, durable processing, ready-page open, and a one-time
-  reader introduction. A small in-book Nosh tip is deferred until a later visit,
+  reader introduction. A small in-book Folio tip is deferred until a later visit,
   can be dismissed permanently, and opens the existing recipe-aware conversation.
   Native share receipts take precedence so onboarding never interrupts inbound work.
   Reader transitions now honor Reduce Motion, capture progress exposes spoken
@@ -87,7 +87,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
   but no reconnect/retry path.
 - [ ] **Focus-change prompt may confuse** — opening chat on a different recipe
   mid-conversation triggers a focus prompt (`NoshConversationContext`).
-- [x] **Open-ready-page action leaves Nosh sheet covering the reader** — Fixed:
+- [x] **Open-ready-page action leaves Folio sheet covering the reader** — Fixed:
   opening a completed capture now closes the persistent sheet before replacing
   the reader route.
 
@@ -96,7 +96,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [ ] No markdown rendering in chat messages (plain `Text` only).
 - [ ] Analytics/Sentry are stubs — `utils/analytics.ts` TODOs (lines 23, 39, 55).
   First-book creation, first capture start, and first ready recipe open now emit
-  stable event names through the shim; opening Nosh from its contextual tip is
+  stable event names through the shim; opening Folio from its contextual tip is
   also identified. No production analytics transport exists.
 - [ ] Settings footer hardcodes `v0.1` — read from `Constants.expoConfig.version`.
 - [ ] `app.json` declares `userInterfaceStyle: "automatic"` but there is no dark
@@ -111,7 +111,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` fixed
 - [ ] Long cookbook titles truncate without ellipsis affordance (shelf meta,
   spine).
 - [x] Create-book volume on shelf has a distinct accessibility label.
-- [x] Welcome and Nosh sheets isolate the background accessibility tree; iOS no
+- [x] Welcome and Folio sheets isolate the background accessibility tree; iOS no
   longer exposes hidden shelf/reader controls through VoiceOver.
 - [x] Retryable capture failures sanitize database implementation details before
   presenting user-facing copy.

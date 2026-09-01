@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "Nosh canonical ingestion corpus",
+  "name": "Folio canonical ingestion corpus",
   "description": "Human-authored fixtures for evidence classification, critical recipe facts, semantic quality, and source-adapter behavior. Release cases are automated gates; diagnostic cases preserve known hard problems without hiding them.",
   "cases": [
     {

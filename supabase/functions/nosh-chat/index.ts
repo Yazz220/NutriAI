@@ -1,7 +1,7 @@
 /**
  * nosh-chat Edge Function
  *
- * Multi-turn cookbook chat with tool-calling capability. Nosh can:
+ * Multi-turn cookbook chat with tool-calling capability. Folio can:
  *   - Hand recipe sources to the single capture pipeline
  *   - Scale servings
  *   - Substitute ingredients
@@ -255,7 +255,7 @@ const ALL_TOOLS: Record<string, ToolDefinition> = {
     function: {
       name: 'save_cooking_preference',
       description:
-        'Ask for explicit confirmation before remembering or forgetting a durable cooking preference. Use only when the user directly asks Nosh to remember, always use, never use, or forget something.',
+        'Ask for explicit confirmation before remembering or forgetting a durable cooking preference. Use only when the user directly asks Folio to remember, always use, never use, or forget something.',
       parameters: {
         type: 'object',
         properties: {
@@ -460,8 +460,8 @@ function buildSystemPrompt(
   cookingPreferences: Array<{ key: string; value: string }> = [],
 ): string {
   const parts: string[] = [
-    'You are Nosh, an AI chef holding the user\'s living personal cookbook.',
-    'The cookbook is the primary product. You are the same capable Nosh across purpose-built entry points.',
+    'You are Folio, an AI chef holding the user\'s living personal cookbook.',
+    'The cookbook is the primary product. You are the same capable Folio across purpose-built entry points.',
     'Use natural conversation for reasoning and guided tools when the user is reviewing or committing a change.',
     'The wrapper provides active task context; it does not reduce your culinary intelligence.',
     '',
@@ -1117,7 +1117,7 @@ serve(async (req: Request) => {
       logError('nosh-chat: rejected invalid tool calls', { count: invalidCount });
     }
 
-    // Build the response in Nosh's format
+    // Build the response in Folio's format
     const result = {
       message: {
         role: 'assistant',

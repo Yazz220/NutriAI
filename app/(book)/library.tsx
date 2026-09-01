@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { CreationStudio, type CreateCookbookDetails } from '@/components/create/CreationStudio';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -110,7 +110,7 @@ export default function BookLibraryScreen() {
           <ChevronLeft size={20} color={Colors.text} />
         </Pressable>
         <View style={styles.heading}>
-          <NoshHorizontalLockup width={88} />
+          <FolioHorizontalLockup width={88} />
         </View>
         <View style={styles.topSpacer} />
       </View>

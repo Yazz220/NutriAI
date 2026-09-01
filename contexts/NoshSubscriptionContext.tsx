@@ -104,7 +104,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       return setAccess(access);
     } catch (syncError) {
       if (activeUserId.current === expectedUserId) {
-        setError(errorMessage(syncError, 'Nosh could not refresh your plan right now.'));
+        setError(errorMessage(syncError, 'Folio could not refresh your plan right now.'));
       }
       return null;
     } finally {
@@ -143,7 +143,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
           ? 'unavailable'
           : 'error');
         if (!(identityError instanceof RevenueCatUnavailableError)) {
-          setError(errorMessage(identityError, 'Nosh Plus options could not be loaded.'));
+          setError(errorMessage(identityError, 'Folio Plus options could not be loaded.'));
         }
         return;
       }
@@ -156,7 +156,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
           if (!cancelled && activeUserId.current === userId) {
             setCustomerInfo(next);
             // StoreKit renewals, billing recovery, refunds, and transfers can
-            // arrive while Nosh is open. Re-verify them server-side before
+            // arrive while Folio is open. Re-verify them server-side before
             // changing authoritative access or usage.
             void syncInternal(userId, false);
           }
@@ -176,14 +176,14 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
         setOfferings(nextPackages);
         setOfferingsStatus(nextPackages.length > 0 ? 'ready' : 'error');
         if (nextPackages.length === 0) {
-          setError('Nosh Plus options could not be loaded. Please try again later.');
+          setError('Folio Plus options could not be loaded. Please try again later.');
         }
       } catch (offeringsError) {
         if (cancelled || generation !== identityGeneration.current) return;
         // The native SDK is still configured, so Restore and Manage can remain
         // useful even when cached CustomerInfo or offerings cannot be loaded.
         setOfferingsStatus('error');
-        setError(errorMessage(offeringsError, 'Nosh Plus options could not be loaded.'));
+        setError(errorMessage(offeringsError, 'Folio Plus options could not be loaded.'));
       }
 
       // Reconcile a reinstall or cross-device purchase. The server verifies
@@ -216,7 +216,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
   const refreshOfferings = useCallback(async (): Promise<SubscriptionPackage[]> => {
     const expectedUserId = activeUserId.current;
     if (!expectedUserId) {
-      throw new RevenueCatUnavailableError('A signed-in Nosh account is required for purchases.');
+      throw new RevenueCatUnavailableError('A signed-in Folio account is required for purchases.');
     }
 
     setOfferingsStatus('loading');
@@ -230,7 +230,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       const nextPackages = await revenueCatClient.getPackages(expectedUserId);
       if (activeUserId.current !== expectedUserId) return [];
       if (nextPackages.length === 0) {
-        throw new Error('Nosh Plus options could not be loaded. Please try again later.');
+        throw new Error('Folio Plus options could not be loaded. Please try again later.');
       }
       setOfferings(nextPackages);
       setOfferingsStatus('ready');
@@ -240,7 +240,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
         const unavailable = offeringsError instanceof RevenueCatUnavailableError;
         if (unavailable) setPurchasesAvailable(false);
         setOfferingsStatus(unavailable ? 'unavailable' : 'error');
-        setError(errorMessage(offeringsError, 'Nosh Plus options could not be loaded.'));
+        setError(errorMessage(offeringsError, 'Folio Plus options could not be loaded.'));
       }
       throw offeringsError;
     }
@@ -260,7 +260,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       const unavailableError = new RevenueCatUnavailableError(
         expectedUserId
           ? 'Purchases are not available right now.'
-          : 'A signed-in Nosh account is required for purchases.',
+          : 'A signed-in Folio account is required for purchases.',
       );
       setError(unavailableError.message);
       throw unavailableError;
@@ -274,13 +274,13 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       setCustomerInfo(nextCustomerInfo);
       setActionState('syncing');
       if (!customerHasNoshPlus(nextCustomerInfo)) {
-        const entitlementMessage = 'Your purchase completed, but Nosh Plus was not attached to it. Please contact Nosh support before trying again.';
+        const entitlementMessage = 'Your purchase completed, but Folio Plus was not attached to it. Please contact Folio support before trying again.';
         setError(entitlementMessage);
         throw new Error(entitlementMessage);
       }
       const access = await syncInternal(expectedUserId, false);
       if (!isEffectivePlusAccess(access)) {
-        setError('Your purchase completed. Nosh is still updating your plan. Please try again in a moment.');
+        setError('Your purchase completed. Folio is still updating your plan. Please try again in a moment.');
         return null;
       }
       return access;
@@ -290,7 +290,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       // error silently; analytics can then classify the two outcomes safely.
       if (purchaseError instanceof RevenueCatPurchaseCancelledError) throw purchaseError;
       if (activeUserId.current === expectedUserId) {
-        setError(errorMessage(purchaseError, 'Nosh could not complete the purchase.'));
+        setError(errorMessage(purchaseError, 'Folio could not complete the purchase.'));
       }
       throw purchaseError;
     } finally {
@@ -304,7 +304,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       const unavailableError = new RevenueCatUnavailableError(
         expectedUserId
           ? 'Restore Purchases is not available right now.'
-          : 'A signed-in Nosh account is required to restore purchases.',
+          : 'A signed-in Folio account is required to restore purchases.',
       );
       setError(unavailableError.message);
       throw unavailableError;
@@ -319,14 +319,14 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       const restoredPlus = customerHasNoshPlus(nextCustomerInfo);
       const access = await syncInternal(expectedUserId, false);
       if (restoredPlus && !isEffectivePlusAccess(access)) {
-        const pendingMessage = 'Your Nosh Plus purchase was found, but Nosh could not update your plan yet. Please try again.';
+        const pendingMessage = 'Your Folio Plus purchase was found, but Folio could not update your plan yet. Please try again.';
         setError(pendingMessage);
         throw new Error(pendingMessage);
       }
       return access;
     } catch (restoreError) {
       if (activeUserId.current === expectedUserId) {
-        setError(errorMessage(restoreError, 'Nosh could not restore purchases.'));
+        setError(errorMessage(restoreError, 'Folio could not restore purchases.'));
       }
       throw restoreError;
     } finally {
@@ -342,7 +342,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
       if (!opened) setError('Subscription management is not available right now.');
       return opened;
     } catch (manageError) {
-      setError(errorMessage(manageError, 'Nosh could not open subscription management.'));
+      setError(errorMessage(manageError, 'Folio could not open subscription management.'));
       return false;
     }
   }, [customerInfo]);
@@ -371,7 +371,7 @@ export function NoshSubscriptionProvider({ children }: React.PropsWithChildren) 
     managementUrl: customerInfo?.managementURL
       ?? (Platform.OS === 'ios' ? APPLE_SUBSCRIPTION_MANAGEMENT_URL : null),
     error: error ?? (accessQuery.error
-      ? errorMessage(accessQuery.error, 'Nosh could not check your plan right now.')
+      ? errorMessage(accessQuery.error, 'Folio could not check your plan right now.')
       : null),
     refresh,
     refreshOfferings,

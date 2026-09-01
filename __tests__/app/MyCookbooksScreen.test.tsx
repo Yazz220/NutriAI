@@ -76,7 +76,7 @@ jest.mock('@/components/cookbook/NoshAssistantChat', () => {
     NoshShelfChatButton: () =>
       mockReact.createElement(MockPressable, {
         accessibilityRole: 'button',
-        accessibilityLabel: 'Ask Nosh about your cookbooks',
+        accessibilityLabel: 'Ask Folio about your cookbooks',
       }),
   };
 });
@@ -105,8 +105,8 @@ describe('MyCookbooksScreen first-run accessibility', () => {
       expect(shelf.props.accessibilityElementsHidden).toBe(true);
       expect(shelf.props.importantForAccessibility).toBe('no-hide-descendants');
       expect(screen.queryByRole('button', { name: 'Create a new cookbook' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Ask Nosh about your cookbooks' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Save a recipe with Nosh' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Ask Folio about your cookbooks' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Save a recipe with Folio' })).toBeNull();
     });
   });
 

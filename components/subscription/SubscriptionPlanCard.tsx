@@ -77,12 +77,12 @@ export function SubscriptionPlanCard() {
           data: { reason: 'settings' },
         });
         setActionError(restored
-          ? 'No active Nosh Plus purchase was found for this Apple Account.'
-          : 'Nosh could not confirm restored purchases. Please try again.');
+          ? 'No active Folio Plus purchase was found for this Apple Account.'
+          : 'Folio could not confirm restored purchases. Please try again.');
         return;
       }
       trackEvent({ type: 'restore_succeeded', data: { reason: 'settings' } });
-      showToast({ type: 'success', message: 'Nosh Plus restored.' });
+      showToast({ type: 'success', message: 'Folio Plus restored.' });
     } catch (error) {
       trackEvent({ type: 'restore_failed', data: { reason: 'settings' } });
       setActionError(error instanceof Error ? error.message : 'Purchases could not be restored.');
@@ -118,7 +118,7 @@ export function SubscriptionPlanCard() {
         </View>
         <View style={styles.headingCopy}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{isPlus ? 'Nosh Plus' : 'Nosh Free'}</Text>
+            <Text style={styles.title}>{isPlus ? 'Folio Plus' : 'Folio Free'}</Text>
             {isPlus ? (
               <View style={styles.plusBadge}><Text style={styles.plusBadgeText}>PLUS</Text></View>
             ) : null}
@@ -180,7 +180,7 @@ export function SubscriptionPlanCard() {
         />
       ) : (
         <Button
-          title="Upgrade to Nosh Plus"
+          title="Upgrade to Folio Plus"
           onPress={() => { void openPaywall('settings'); }}
           fullWidth
           size="lg"

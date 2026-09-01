@@ -1,6 +1,6 @@
 import { NOSH_BOOK_MATERIAL, resolveNoshBookMaterialGeometry } from '@/constants/cookbookMaterial';
 
-describe('canonical Nosh cookbook material', () => {
+describe('canonical Folio cookbook material', () => {
   it('keeps one clothbound material identity', () => {
     expect(NOSH_BOOK_MATERIAL.id).toBe('nosh-clothbound-v1');
     expect(NOSH_BOOK_MATERIAL.revision).toBe(1);

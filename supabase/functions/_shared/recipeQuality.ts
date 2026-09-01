@@ -318,7 +318,7 @@ export function assessRecipeQuality(candidate: RecipeQualityCandidate): RecipeQu
     issues.push(makeIssue(
       'critical_field_inferred',
       'warning',
-      'Nosh normalized a cooking detail that was not explicit in the source.',
+      'Folio normalized a cooking detail that was not explicit in the source.',
       criticalInferences,
       confirmed,
     ));

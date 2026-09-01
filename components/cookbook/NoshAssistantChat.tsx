@@ -1,5 +1,5 @@
 /**
- * The persistent Nosh conversation.
+ * The persistent Folio conversation.
  *
  * The runtime is mounted once at the app root. Routes only update its active
  * cookbook/page context, so creating a page never resets the conversation.
@@ -502,11 +502,11 @@ export function NoshConversationHost() {
     },
     onStartTimer: (durationMinutes, label) => {
       setTimeout(() => {
-        Alert.alert(label ?? 'Nosh timer', `${durationMinutes}-minute timer is done.`);
+        Alert.alert(label ?? 'Folio timer', `${durationMinutes}-minute timer is done.`);
       }, durationMinutes * 60_000);
     },
     onGuideStep: (stepId) => {
-      console.info('[Nosh] Guide to recipe step', stepId);
+      console.info('[Folio] Guide to recipe step', stepId);
     },
     onSetWalkthrough: (active) => {
       const focus = interactionRef.current.focus;
@@ -618,7 +618,7 @@ export function NoshConversationHost() {
         contentStyle={styles.sheet}
         handleStyle={styles.handle}
         closeButtonStyle={styles.closeButton}
-        closeAccessibilityLabel="Close Nosh conversation"
+        closeAccessibilityLabel="Close Folio conversation"
         header={
           <>
             {showingHistory ? (

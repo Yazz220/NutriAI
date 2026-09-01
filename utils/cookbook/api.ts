@@ -859,7 +859,7 @@ export async function fetchPageById(pageId: string): Promise<CookbookPage | null
 
 /**
  * Update the recipe_graph JSONB on a cookbook page.
- * Used by Nosh tools (scale_servings, substitute_ingredient, update_page_data)
+ * Used by Folio tools (scale_servings, substitute_ingredient, update_page_data)
  * to persist RecipeGraph mutations from the assistant.
  */
 export async function updatePageRecipeGraph(

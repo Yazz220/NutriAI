@@ -91,7 +91,7 @@ function normalizeStore(value: unknown): string {
   if (typeof value !== 'string') return 'unknown';
   const store = value.toLowerCase();
   if (store === 'play_store') return 'play_store';
-  // Nosh's current products are App Store products. RevenueCat's Test Store
+  // Folio's current products are App Store products. RevenueCat's Test Store
   // uses the same configured product identifiers in sandbox builds.
   if (store === 'app_store' || store === 'mac_app_store' || store === 'test_store') {
     return 'app_store';
@@ -293,7 +293,7 @@ export function findRevenueCatUserIds(event: unknown): string[] {
   if (!isRecord(event)) return [];
 
   // Aliases are every identifier ever merged into the same RevenueCat
-  // customer. A normal event must therefore reconcile one canonical Nosh
+  // customer. A normal event must therefore reconcile one canonical Folio
   // account, never fan the same entitlement out to every UUID alias.
   if (typeof event.type !== 'string' || event.type.toUpperCase() !== 'TRANSFER') {
     return uniqueUuidCandidates([

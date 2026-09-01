@@ -1,6 +1,6 @@
 # Recipe page styles
 
-Nosh has one canonical recipe, one 4:5 page geometry, and one complete-page generation pipeline. A recipe-page style changes only art direction and visual composition. It never changes extraction, recipe data, page dimensions, publication, or reader behavior.
+Folio has one canonical recipe, one 4:5 page geometry, and one complete-page generation pipeline. A recipe-page style changes only art direction and visual composition. It never changes extraction, recipe data, page dimensions, publication, or reader behavior.
 
 ## Version contract
 

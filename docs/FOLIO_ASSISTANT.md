@@ -1,6 +1,6 @@
-# Nosh agent context
+# Folio assistant context
 
-Nosh assembles a fresh, bounded context for every assistant run. The model is
+Folio assembles a fresh, bounded context for every assistant run. The model is
 not expected to infer which recipe is open from transcript history.
 
 ## Context precedence
@@ -12,7 +12,7 @@ not expected to infer which recipe is open from transcript history.
 4. Explicit cooking preferences saved by the user.
 5. Recent conversational text.
 
-Opening Nosh from a recipe immediately makes that recipe the conversation
+Opening Folio from a recipe immediately makes that recipe the conversation
 focus. The composer stays disabled while its graph is being resolved. A
 background `load_recipe` call never changes focus or navigation; only
 `open_recipe` may do that after an explicit request.
@@ -30,7 +30,7 @@ request.
 
 ## Preferences and traces
 
-Nosh never infers durable preferences from ordinary conversation.
+Folio never infers durable preferences from ordinary conversation.
 `save_cooking_preference` presents a confirmation card before saving or
 removing a preference. `nosh_agent_runs` stores identifiers, routing details,
 tool names, token counts, latency, and outcome, but not prompt or response

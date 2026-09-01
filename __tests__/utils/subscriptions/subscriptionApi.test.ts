@@ -29,7 +29,7 @@ describe('subscription access normalization', () => {
       },
     })).toEqual({
       planId: 'plus',
-      planName: 'Nosh Plus',
+      planName: 'Folio Plus',
       entitlementStatus: 'active',
       productId: null,
       environment: null,

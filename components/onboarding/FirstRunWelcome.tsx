@@ -273,7 +273,7 @@ export function FirstRunWelcome({
         <StoryPage
           active={activeIndex === 0}
           background={SOURCES_BACKGROUND}
-          body="Bring in a link, photo, video, or note. Nosh keeps every recipe together."
+          body="Bring in a link, photo, video, or note. Folio keeps every recipe together."
           index={0}
           onNext={() => goToPage(1)}
           title={'Your recipes.\nYour story.'}

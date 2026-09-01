@@ -1,4 +1,4 @@
-// Shared layout scale for the Nosh product system.
+// Shared layout scale for the Folio product system.
 export const Spacing = {
   xxs: 4,
   xs: 4,

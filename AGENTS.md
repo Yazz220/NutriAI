@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-**Nosh** is a React Native mobile app built with Expo. It is a book-first personal cookbook with a persistent conversational chef: users talk to Nosh from the shelf or reader, share links, text, images, or video, and receive a complete AI-designed recipe page inside the appropriate book. The extracted RecipeGraph remains available to Nosh for reasoning and edits. The conversation follows the user into the open book and can act on the active recipe.
+**Folio** is a React Native mobile app built with Expo. It is a book-first personal cookbook with a persistent conversational chef: users talk to Folio from the shelf or reader, share links, text, images, or video, and receive a complete AI-designed recipe page inside the appropriate book. The extracted RecipeGraph remains available to Folio for reasoning and edits. The conversation follows the user into the open book and can act on the active recipe.
+
+Folio is the current product name and the assistant's name. Nosh was the early working name. Keep `Nosh`, `nosh`, and `NOSH` only where they are stable technical identifiers such as file names, exported symbols, storage keys, URL schemes, bundle identifiers, Edge Function names, database objects, migrations, and provider product IDs. Do not use Nosh in new user-facing copy.
 
 Do not frame the app as a legacy non-cookbook product or a chat-first recipe manager. The active product is the cookbook shelf and reader.
 
@@ -49,7 +51,7 @@ npx eas-cli submit --platform ios
 
 ### Local Simulator Loop
 
-The `ios/` project is prebuilt and gitignored. Build once with `xcodebuild -workspace ios/Nosh.xcworkspace -scheme Nosh -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`, then launch with `xcrun simctl launch booted com.yaz12.nosh --initialUrl http://localhost:8081` to skip the dev-client launcher UI. Fast Refresh notifications are unreliable on this machine (no watchman); force a fresh bundle with `curl 'http://localhost:8081/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&lazy=true'` and relaunch the app to pick up changes.
+The `ios/` project is prebuilt and gitignored. Build once with `xcodebuild -workspace ios/Folio.xcworkspace -scheme Folio -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`, then launch with `xcrun simctl launch booted com.yaz12.nosh --initialUrl http://localhost:8081` to skip the dev-client launcher UI. Fast Refresh notifications are unreliable on this machine (no watchman); force a fresh bundle with `curl 'http://localhost:8081/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&lazy=true'` and relaunch the app to pick up changes.
 
 ### Supabase Edge Functions
 
@@ -92,7 +94,7 @@ Key route behavior:
 - `app/(book)/index.tsx`: authenticated shelf.
 - `app/(book)/library.tsx`: single-book customization studio and cookbook creation.
 - `app/(book)/imports.tsx`: recipe-capture history, destination choice, retry, and completed-page links.
-- `app/(book)/share.tsx`: native Share to Nosh receipt and retry surface.
+- `app/(book)/share.tsx`: native Share to Folio receipt and retry surface.
 - `app/(book)/settings.tsx`: account, library stats, sign out.
 - `app/(book)/[cookbookId]/index.tsx`: book reader.
 - `app/(book)/[cookbookId]/add.tsx`: add source for a new recipe page.
@@ -126,11 +128,11 @@ Current provider/hook reality:
 - `useRecipeCaptures`: durable capture state, polling, retry, and destination selection.
 - `NoshConversationProvider` / `useNoshConversation`: persistent chat visibility, intake state, and active cookbook/page context across shelf-to-reader navigation.
 - `NoshSubscriptionProvider` / `useNoshSubscription`: user-scoped RevenueCat identity, store offerings, server access snapshot, purchase, restore, sync, and management.
-- `useNoshAssistant`: removed. The Nosh assistant uses `@assistant-ui/react-native` with a root-mounted `LocalRuntime` plus a device-persisted thread list bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Users can start, switch, restore, and delete conversations. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
+- `useNoshAssistant`: removed. The Folio assistant uses `@assistant-ui/react-native` with a root-mounted `LocalRuntime` plus a device-persisted thread list bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Users can start, switch, restore, and delete conversations. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
 
 ## AI And Import Architecture
 
-There is exactly one recipe-capture pipeline. Every recipe source, including a Nosh conversation handoff, must enter `capture-recipe`. Do not call extraction and page creation directly from a screen or assistant tool.
+There is exactly one recipe-capture pipeline. Every recipe source, including a Folio conversation handoff, must enter `capture-recipe`. Do not call extraction and page creation directly from a screen or assistant tool.
 
 ```text
 User shares or submits a link, text, photo, video, or existing audio file
@@ -147,7 +149,7 @@ User shares or submits a link, text, photo, video, or existing audio file
   -> generate-page-art creates the complete designed page with visible recipe text
   -> the versioned cookbook style and reference anchors condition the page
   -> the finished image and capture publish atomically into the reader
-  -> the same Nosh conversation remains available in the reader
+  -> the same Folio conversation remains available in the reader
 ```
 
 Active functions:
@@ -227,9 +229,9 @@ Only RevenueCat public SDK keys belong in `EXPO_PUBLIC_*`; keep all secret provi
 | `utils/cookbook/cache.ts` | AsyncStorage shelf/page cache |
 | `utils/cookbook/noshChatAdapter.ts` | bridges assistant-ui to nosh-chat Edge Function |
 | `utils/cookbook/noshThreadStorage.ts` | user-scoped device persistence for conversation threads and messages |
-| `utils/cookbook/noshToolkit.tsx` | Nosh tool definitions with execute + render |
+| `utils/cookbook/noshToolkit.tsx` | Folio tool definitions with execute + render |
 | `contexts/NoshSubscriptionContext.tsx` | RevenueCat and server access lifecycle |
-| `components/subscription/` | Nosh-native plan, paywall, allowance, and limit presentation |
+| `components/subscription/` | Folio-native plan, paywall, allowance, and limit presentation |
 | `docs/MONETIZATION.md` | Canonical plan, identifier, accounting, setup, and extension contract |
 | `utils/cookbook/sampleCookbook.ts` | offline sample book fixtures |
 | `constants/cookbookStyles.ts` | persisted cookbook style contracts and the curated creation set |

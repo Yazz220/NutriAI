@@ -1,4 +1,4 @@
-# Nosh documentation
+# Folio documentation
 
 Start here when the code, a plan, and an old screenshot seem to disagree.
 
@@ -8,7 +8,7 @@ Read these in order:
 
 | Document | Answers |
 |---|---|
-| [../CONTEXT.md](../CONTEXT.md) | What Nosh terms mean |
+| [../CONTEXT.md](../CONTEXT.md) | What Folio terms mean |
 | [PRODUCT_FLOW.md](./PRODUCT_FLOW.md) | What the user does and how a recipe reaches a book |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | How the current app implements that flow |
 | [DATABASE.md](./DATABASE.md) | Which tables, states, RPCs, and ownership rules support it |
@@ -16,6 +16,8 @@ Read these in order:
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | How to run, test, build, and debug the app |
 | [INGESTION_EVALS.md](./INGESTION_EVALS.md) | How recipe-import quality is measured before changing models, prompts, or adapters |
 | [PHASE9_RELEASE_RUNBOOK.md](./PHASE9_RELEASE_RUNBOOK.md) | What must pass before staging or production |
+| [BRAND_RENAME.md](./BRAND_RENAME.md) | Which Folio names are current and which legacy identifiers remain for compatibility |
+| [FOLIO_ASSISTANT.md](./FOLIO_ASSISTANT.md) | How the in-app Folio assistant builds context and uses tools |
 | [adr/](./adr/) | Accepted decisions and the reasons behind them |
 
 `AGENTS.md` is the coding-agent operating manual. `CLAUDE.md` points agents back to the same sources so the repository has one set of rules.

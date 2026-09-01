@@ -106,7 +106,7 @@ serve(async (req: Request) => {
     }
 
     // Erase provider data before other destructive steps. If RevenueCat is
-    // unreachable the Nosh account and Apple authorization remain intact.
+    // unreachable the Folio account and Apple authorization remain intact.
     try {
       await deleteRevenueCatSubscriber(userId, REVENUECAT_SECRET_API_KEY);
     } catch (revenueCatError) {
