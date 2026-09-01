@@ -33,12 +33,21 @@ const mockCloseNoshConversation = jest.fn();
 const mockRequestConsent = jest.fn().mockResolvedValue(true);
 const mockRequestPageAccess = jest.fn().mockResolvedValue(true);
 const mockRefreshSubscription = jest.fn().mockResolvedValue(null);
+const mockShowToast = jest.fn();
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('@/utils/cookbook/api', () => ({
+  applyRecipePageRevision: jest.fn(),
+  fetchPageById: jest.fn(),
   removeRecipeCaptureStoragePaths: (...args: unknown[]) => mockRemoveRecipeCaptureStoragePaths(...args),
+  updatePageSelectedVersion: jest.fn(),
   uploadRecipeCaptureImage: (...args: unknown[]) => mockUploadRecipeCaptureImage(...args),
   uploadRecipeCaptureImages: (...args: unknown[]) => mockUploadRecipeCaptureImages(...args),
+}));
+jest.mock('@/utils/cookbook/collectionActions', () => ({
+  createCollectionActionRequestKey: () => 'collection:test',
+  organizeRecipePage: jest.fn(),
+  removeRecipePage: jest.fn(),
 }));
 jest.mock('@/utils/analytics', () => ({ trackEvent: (...args: unknown[]) => mockTrackEvent(...args) }));
 jest.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
@@ -51,9 +60,13 @@ jest.mock('@/contexts/AiDataConsentContext', () => ({
 jest.mock('@/contexts/NoshSubscriptionContext', () => ({
   useNoshSubscription: () => ({ refresh: mockRefreshSubscription }),
 }));
+jest.mock('@/contexts/ToastContext', () => ({
+  useToast: () => ({ showToast: mockShowToast }),
+}));
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => ({
     cookbooks: mockCookbooks,
+    refresh: jest.fn().mockResolvedValue(undefined),
   }),
 }));
 jest.mock('@/hooks/useRecipeCaptures', () => ({
@@ -109,6 +122,9 @@ jest.mock('@/hooks/useCookbook', () => ({
   useCookbook: () => ({
     cookbook: { id: 'book-1', title: 'Family Table' },
     pageSlots: mockPageSlots,
+    hasPageData: true,
+    refresh: jest.fn().mockResolvedValue(undefined),
+    upsertPage: jest.fn(),
   }),
 }));
 jest.mock('@/hooks/useCookbookPageOrder', () => ({
@@ -118,11 +134,23 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
   return {
-    CookbookPageGrid: ({ pageSlots, captures, onOpenPage, onOpenCapture, onMovePage }: {
+    CookbookPageGrid: ({
+      pageSlots,
+      captures,
+      onOpenPage,
+      onPageActions,
+      contextActionsFor,
+      onOpenCapture,
+      onCaptureActions,
+      onMovePage,
+    }: {
       pageSlots: CookbookPage[];
       captures: RecipeCapture[];
       onOpenPage: (page: CookbookPage) => void;
+      onPageActions?: (page: CookbookPage) => void;
+      contextActionsFor?: (page: CookbookPage) => { actions: { title: string }[] }[];
       onOpenCapture?: (capture: RecipeCapture) => void;
+      onCaptureActions?: (capture: RecipeCapture) => void;
       onMovePage?: (input: unknown) => void;
     }) => mockReact.createElement(
       View,
@@ -131,28 +159,91 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
       mockReact.createElement(Text, null, `Grid activity: ${captures.map((item) => item.status).join(',')}`),
       mockReact.createElement(Text, null, `Reordering: ${onMovePage ? 'enabled' : 'disabled'}`),
       ...pageSlots.map((item) => mockReact.createElement(
-        Pressable,
-        {
-          key: item.id,
-          accessibilityRole: 'button',
-          accessibilityLabel: `Open grid page ${item.title}`,
-          onPress: () => onOpenPage(item),
-        },
-        mockReact.createElement(Text, null, item.title),
+        View,
+        { key: item.id },
+        mockReact.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: `Open grid page ${item.title}`,
+            onPress: () => onOpenPage(item),
+          },
+          mockReact.createElement(Text, null, item.title),
+        ),
+        onPageActions ? mockReact.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: `Actions for grid page ${item.title}`,
+            onPress: () => onPageActions(item),
+          },
+          mockReact.createElement(Text, null, 'Page actions'),
+        ) : null,
+        ...(contextActionsFor?.(item).flatMap((group) => group.actions).map((action) =>
+          mockReact.createElement(Text, { key: action.title }, action.title)
+        ) ?? []),
       )),
       ...captures
         .filter((item) => item.status === 'needs_attention' || item.status === 'needs_destination')
         .map((item) => mockReact.createElement(
-          Pressable,
-          {
-            key: item.id,
-            accessibilityRole: 'button',
-            accessibilityLabel: `Open capture ${item.id}`,
-            onPress: () => onOpenCapture?.(item),
-          },
-          mockReact.createElement(Text, null, item.recipeGraph?.title ?? item.id),
+          View,
+          { key: item.id },
+          mockReact.createElement(
+            Pressable,
+            {
+              accessibilityRole: 'button',
+              accessibilityLabel: `Open capture ${item.id}`,
+              onPress: () => onOpenCapture?.(item),
+            },
+            mockReact.createElement(Text, null, item.recipeGraph?.title ?? item.id),
+          ),
+          onCaptureActions ? mockReact.createElement(
+            Pressable,
+            {
+              accessibilityRole: 'button',
+              accessibilityLabel: `Quick actions for capture ${item.id}`,
+              onPress: () => onCaptureActions(item),
+            },
+            mockReact.createElement(Text, null, 'Quick actions'),
+          ) : null,
         )),
     ),
+  };
+});
+jest.mock('@/components/cookbook/ReaderActionSheets', () => {
+  const mockReact = require('react');
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    RecipeActionsSheet: ({ visible, page, onClose, onEdit }: {
+      visible: boolean;
+      page: CookbookPage | null;
+      onClose: () => void;
+      onEdit?: (page: CookbookPage) => void;
+    }) => visible && page ? mockReact.createElement(
+      View,
+      null,
+      mockReact.createElement(Text, null, `Recipe actions for ${page.title}`),
+      onEdit ? mockReact.createElement(
+        Pressable,
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: 'Edit recipe from actions',
+          onPress: () => {
+            onClose();
+            onEdit(page);
+          },
+        },
+        mockReact.createElement(Text, null, 'Edit recipe'),
+      ) : null,
+    ) : null,
+  };
+});
+jest.mock('@/components/cookbook/RecipeRevisionSheet', () => {
+  const mockReact = require('react');
+  const { Text } = require('react-native');
+  return {
+    RecipeRevisionSheet: ({ visible, mode }: { visible: boolean; mode: string }) =>
+      visible ? mockReact.createElement(Text, null, `Revision mode: ${mode}`) : null,
   };
 });
 jest.mock('@/components/cookbook/UnifiedIntakeComposer', () => {
@@ -362,6 +453,23 @@ describe('NoshCaptureWorkspace', () => {
 
     await waitFor(() => expect(mockDiscardCapture).toHaveBeenCalledWith('capture-1'));
     expect(screen.getByText('Recipe composer')).toBeTruthy();
+  });
+
+  it('opens terse quick actions for a failed capture without opening its detail card', async () => {
+    mockCaptures = [capture({
+      status: 'needs_attention',
+      failureCode: 'blank_or_empty_source',
+      failureMessage: 'This source appears blank.',
+    })];
+    const screen = await renderWorkspace();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Quick actions for capture capture-1' }));
+
+    expect(screen.getByRole('button', { name: 'Choose another source' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
+    expect(screen.queryByText(
+      'This source appears blank or contains too little visible information. Choose a clearer source.',
+    )).toBeNull();
   });
 
   it('frames the first capture around a recipe the user already loves', async () => {
@@ -592,6 +700,50 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.queryByText('Your page is ready')).toBeNull();
     expect(screen.getByRole('button', { name: 'Open grid page Tomato Pasta' })).toBeTruthy();
     expect(screen.getByText('Recipe composer')).toBeTruthy();
+  });
+
+  it('gives ready Composer pages the cookbook organizer action system', async () => {
+    mockCookbooks = [
+      mockCookbooks[0],
+      {
+        id: 'book-2',
+        userId: 'user-1',
+        title: 'Weeknight Book',
+        coverStyle: 'sage-linen',
+        coverFinishId: 'fine-cloth',
+        coverColorId: 'sage',
+      },
+    ];
+    mockPageSlots = [{
+      id: 'page-1',
+      cookbookId: 'book-1',
+      recipeId: 'recipe-1',
+      title: 'Tomato Pasta',
+      section: 'dinner',
+      pageNumber: 1,
+      sortOrder: 0,
+      lifecycleStatus: 'approved',
+      imageUrl: 'https://example.com/page.jpg',
+      recipeGraph: {
+        title: 'Tomato Pasta',
+        provenance: { sourceUrl: 'https://example.com/recipe' },
+      } as CookbookPage['recipeGraph'],
+    }];
+
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+
+    expect(screen.getByText('Edit recipe')).toBeTruthy();
+    expect(screen.getByText('Try another design')).toBeTruthy();
+    expect(screen.getByText('Visit original source')).toBeTruthy();
+    expect(screen.getByText('Save page image')).toBeTruthy();
+    expect(screen.getByText('Share recipe')).toBeTruthy();
+    expect(screen.getByText('Move to another cookbook')).toBeTruthy();
+    expect(screen.getByText('Remove from cookbook')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Actions for grid page Tomato Pasta' }));
+    expect(screen.getByText('Recipe actions for Tomato Pasta')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Edit recipe from actions' }));
+    expect(screen.getByText('Revision mode: edit')).toBeTruthy();
   });
 
   it('offers cookbook choice only when destination resolution needs it', async () => {

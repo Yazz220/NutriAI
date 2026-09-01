@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { type AnimatedRef } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import {
@@ -15,6 +15,9 @@ import {
   type UnifiedIntakePayload,
 } from '@/components/cookbook/UnifiedIntakeComposer';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
+import { CaptureActionSheet } from '@/components/cookbook/CaptureActionSheets';
+import { RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
+import { RecipeRevisionSheet, type RecipeRevisionMode } from '@/components/cookbook/RecipeRevisionSheet';
 import { RecipeCorrectionSheet } from '@/components/nosh/capture/RecipeCorrectionSheet';
 import { PageAllowanceStatus } from '@/components/subscription/PageAllowanceStatus';
 import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
@@ -29,12 +32,19 @@ import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
 import { useCookbook } from '@/hooks/useCookbook';
 import { useCookbookPageOrder } from '@/hooks/useCookbookPageOrder';
+import { useUnseenCookbookPages } from '@/hooks/useUnseenCookbookPages';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
-import type { Cookbook, CookbookPage } from '@/types/cookbook';
+import { useToast } from '@/contexts/ToastContext';
+import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
+import type { RecipeGraph } from '@/types/recipeGraph';
+import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import {
+  applyRecipePageRevision,
+  fetchPageById,
   removeRecipeCaptureStoragePaths,
+  updatePageSelectedVersion,
   uploadRecipeCaptureAudio,
   uploadRecipeCaptureImage,
   uploadRecipeCaptureImages,
@@ -47,13 +57,28 @@ import {
   type RecipeCaptureSource,
 } from '@/utils/cookbook/captureLifecycle';
 import {
+  createCollectionActionRequestKey,
+  organizeRecipePage,
+  removeRecipePage,
+} from '@/utils/cookbook/collectionActions';
+import {
+  buildCaptureContextActions,
+  buildRecipeContextActions,
+  type ContextActionId,
+} from '@/utils/cookbook/contextActions';
+import {
   getCapturePresentation,
+  getCapturePrimaryActionLabel,
 } from '@/utils/cookbook/capturePresentation';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudio';
 import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVideo';
 import { trackEvent } from '@/utils/analytics';
 import { classifyVideoSourceUrl } from '@/supabase/functions/_shared/videoSource';
+import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { finishRecipePageCandidate } from '@/utils/cookbook/pageProduction';
+import { getRecipeSourceUrl, openRecipeSource } from '@/utils/cookbook/readerActions';
+import { exportCookbookPageImage, shareCookbookPage } from '@/utils/cookbook/share';
 import {
   defaultFirstRunOnboardingState,
   isFirstRunCapture,
@@ -66,6 +91,7 @@ import {
 interface NoshCaptureWorkspaceProps {
   destinationCookbookId?: string;
   captureId?: string;
+  initialCaptureAction?: 'replace_source' | 'correct_recipe';
   initialSource?: NoshCaptureHandoffSource | null;
   scrollableRef?: AnimatedRef<Animated.ScrollView>;
 }
@@ -79,14 +105,16 @@ export interface NoshCaptureHandoffSource {
 export function NoshCaptureWorkspace({
   destinationCookbookId,
   captureId: initialCaptureId,
+  initialCaptureAction,
   initialSource,
   scrollableRef,
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
   const { close: closeNoshConversation } = useNoshConversation();
+  const { showToast } = useToast();
   const { requestConsent } = useAiDataConsent();
   const { user } = useAuth();
-  const { cookbooks } = useCookbooks();
+  const { cookbooks, refresh: refreshCookbooks } = useCookbooks();
   const captureState = useRecipeCaptures();
   const { requestPageAccess } = useSubscriptionUi();
   const { refresh: refreshSubscription } = useNoshSubscription();
@@ -101,6 +129,11 @@ export function NoshCaptureWorkspace({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [correctionVisible, setCorrectionVisible] = useState(false);
+  const [pageActionPage, setPageActionPage] = useState<CookbookPage | null>(null);
+  const [recipeActionsVisible, setRecipeActionsVisible] = useState(false);
+  const [recipeSheetInitialView, setRecipeSheetInitialView] = useState<'actions' | 'move'>('actions');
+  const [revisionMode, setRevisionMode] = useState<RecipeRevisionMode | null>(null);
+  const [quickActionCapture, setQuickActionCapture] = useState<RecipeCapture | null>(null);
   const [replacementCaptureId, setReplacementCaptureId] = useState<string>();
   const [selectedDestinationCookbookId, setSelectedDestinationCookbookId] = useState(
     destinationCookbookId,
@@ -110,6 +143,7 @@ export function NoshCaptureWorkspace({
   );
   const [firstRunReady, setFirstRunReady] = useState(false);
   const handoffStartedRef = useRef(false);
+  const initialCaptureActionHandledRef = useRef<string | undefined>(undefined);
   const submitInFlightRef = useRef(false);
   const availableCookbooks = useMemo(
     () => cookbooks.filter((cookbook) => cookbook.userId === user?.id),
@@ -124,15 +158,44 @@ export function NoshCaptureWorkspace({
     ?? destinationCookbookId
     ?? selectedDestinationCookbookId;
   const cookbookState = useCookbook(activeDestinationCookbookId);
+  const { unseenPageIds, markPageSeen } = useUnseenCookbookPages({
+    userId: user?.id,
+    cookbookId: activeDestinationCookbookId,
+    pages: cookbookState.pageSlots,
+    enabled: cookbookState.hasPageData,
+  });
   const pageOrder = useCookbookPageOrder(activeDestinationCookbookId);
   const destination = availableCookbooks.find(
     (cookbook) => cookbook.id === activeDestinationCookbookId,
   );
+  const activeCookbook = destination ?? cookbookState.cookbook;
   const isFirstCaptureExperience = firstRunReady && isFirstRunCapture(
     firstRunState,
     activeDestinationCookbookId,
     capture?.id,
   );
+
+  const recipeContextActionsFor = useCallback((page: CookbookPage) => {
+    const hasPageImage = getCookbookPageImageSource(page) !== null;
+    const canRevise = Boolean(page.recipeGraph && activeCookbook);
+    const hasMoveDestination = availableCookbooks.some(
+      (candidate) => candidate.id !== activeDestinationCookbookId,
+    );
+
+    return buildRecipeContextActions({
+      canEdit: canRevise,
+      canRedesign: canRevise,
+      canVisitSource: Boolean(getRecipeSourceUrl(page)),
+      canSaveImage: hasPageImage,
+      canShare: hasPageImage,
+      canMove: hasMoveDestination,
+      canRemove: true,
+    });
+  }, [activeCookbook, activeDestinationCookbookId, availableCookbooks]);
+
+  const captureContextActionsFor = useCallback((candidate: RecipeCapture) => {
+    return buildCaptureContextActions(getCapturePrimaryActionLabel(candidate));
+  }, []);
 
   useEffect(() => {
     if (destinationCookbookId) {
@@ -178,6 +241,21 @@ export function NoshCaptureWorkspace({
   useEffect(() => {
     if (initialCaptureId) setCaptureId(initialCaptureId);
   }, [initialCaptureId]);
+
+  useEffect(() => {
+    if (!initialCaptureId || !initialCaptureAction || capture?.id !== initialCaptureId) return;
+    const actionKey = `${initialCaptureId}:${initialCaptureAction}`;
+    if (initialCaptureActionHandledRef.current === actionKey) return;
+    initialCaptureActionHandledRef.current = actionKey;
+    if (initialCaptureAction === 'replace_source') {
+      setReplacementCaptureId(capture.id);
+      setCaptureId(undefined);
+      setError(null);
+    } else {
+      setError(null);
+      setCorrectionVisible(true);
+    }
+  }, [capture, initialCaptureAction, initialCaptureId]);
 
   const submit = useCallback(async (payload: UnifiedIntakePayload) => {
     if (!user || submitInFlightRef.current) return;
@@ -343,11 +421,11 @@ export function NoshCaptureWorkspace({
     }
   }
 
-  async function retryCapture() {
-    if (!capture || !await requestConsent()) return;
+  async function retryCapture(target: RecipeCapture | undefined = capture) {
+    if (!target || !await requestConsent()) return;
     setError(null);
     try {
-      await captureState.retryCapture(capture.id);
+      await captureState.retryCapture(target.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not continue this recipe page.');
     } finally {
@@ -355,14 +433,14 @@ export function NoshCaptureWorkspace({
     }
   }
 
-  async function continueAfterPageLimit() {
-    if (!capture) return;
+  async function continueAfterPageLimit(target: RecipeCapture | undefined = capture) {
+    if (!target) return;
     const allowed = await requestPageAccess(pageAccessReason, { refresh: true });
     if (!allowed) return;
 
     // Retry this durable capture once. Its extracted recipe and destination
     // checkpoints remain intact, so the user never has to submit it again.
-    await retryCapture();
+    await retryCapture(target);
   }
 
   const captureGenerationSettled = capture?.status === 'ready' || capture?.status === 'needs_attention';
@@ -388,26 +466,241 @@ export function NoshCaptureWorkspace({
     setError(null);
   }
 
-  function replaceSource() {
-    if (!capture) return;
-    setReplacementCaptureId(capture.id);
+  function replaceSource(target: RecipeCapture | undefined = capture) {
+    if (!target) return;
+    setReplacementCaptureId(target.id);
     setCaptureId(undefined);
     setError(null);
   }
 
-  async function discardCapture() {
-    if (!capture) return;
+  async function discardCapture(target: RecipeCapture | undefined = capture) {
+    if (!target) return;
     setError(null);
     try {
-      await captureState.discardCapture(capture.id);
-      setCaptureId(undefined);
-      if (replacementCaptureId === capture.id) setReplacementCaptureId(undefined);
+      await captureState.discardCapture(target.id);
+      if (captureId === target.id) setCaptureId(undefined);
+      if (replacementCaptureId === target.id) setReplacementCaptureId(undefined);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not remove this recipe.');
     }
   }
 
+  function confirmDiscardCapture(target: RecipeCapture) {
+    setQuickActionCapture(null);
+    Alert.alert(
+      'Remove unfinished recipe?',
+      'This removes the failed item and its saved source.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => { void discardCapture(target); },
+        },
+      ],
+    );
+  }
+
+  function runCaptureContextAction(target: RecipeCapture, actionId: ContextActionId) {
+    if (actionId === 'remove_capture') {
+      confirmDiscardCapture(target);
+      return;
+    }
+    if (actionId !== 'resolve_capture') return;
+
+    setQuickActionCapture(null);
+    setError(null);
+    if (target.status === 'needs_destination') {
+      setCaptureId(target.id);
+      return;
+    }
+    if (target.failureCode === 'designed_page_limit_reached') {
+      void continueAfterPageLimit(target);
+      return;
+    }
+
+    const presentation = getCapturePresentation(target);
+    if (presentation.action === 'replace_source') {
+      replaceSource(target);
+      return;
+    }
+    if (presentation.action === 'correct_recipe') {
+      setCaptureId(target.id);
+      setCorrectionVisible(true);
+      return;
+    }
+    void retryCapture(target);
+  }
+
+  async function sharePage(page: CookbookPage) {
+    try {
+      await shareCookbookPage(page);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'This page is not ready to share yet.';
+      Alert.alert('Share unavailable', message);
+    }
+  }
+
+  async function savePageImage(page: CookbookPage) {
+    try {
+      await exportCookbookPageImage(page);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'This page is not ready to save yet.';
+      Alert.alert('Save unavailable', message);
+    }
+  }
+
+  async function visitPageSource(page: CookbookPage) {
+    try {
+      await openRecipeSource(page);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'The original source could not be opened.';
+      Alert.alert('Source unavailable', message);
+    }
+  }
+
+  async function refreshRecipeCollections() {
+    await Promise.all([
+      cookbookState.refresh(),
+      captureState.refresh(),
+      refreshCookbooks(),
+    ]);
+  }
+
+  async function moveRecipe(page: CookbookPage, nextCookbook: Cookbook) {
+    const result = await organizeRecipePage({
+      action: 'move',
+      pageId: page.id,
+      destinationCookbookId: nextCookbook.id,
+      idempotencyKey: createCollectionActionRequestKey(),
+    });
+
+    await refreshRecipeCollections();
+    setPageActionPage(null);
+    showToast({
+      message: `Moved to ${result.destinationCookbookTitle}.`,
+      type: 'success',
+      action: {
+        label: 'Open',
+        onPress: () => router.push({
+          pathname: '/(book)/[cookbookId]',
+          params: {
+            cookbookId: result.destinationCookbookId,
+            pageId: result.resultPageId,
+          },
+        }),
+      },
+    });
+  }
+
+  function removeRecipe(page: CookbookPage) {
+    Alert.alert(
+      'Remove recipe?',
+      `This permanently removes ${page.title} from ${activeCookbook?.title ?? 'this cookbook'}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove recipe',
+          style: 'destructive',
+          onPress: () => {
+            void removeRecipePage(page.id)
+              .then(async () => {
+                await refreshRecipeCollections();
+                setPageActionPage(null);
+                showToast({ message: `${page.title} was removed.`, type: 'success' });
+              })
+              .catch((reason) => {
+                const message = reason instanceof Error ? reason.message : 'The recipe could not be removed.';
+                Alert.alert('Remove failed', message);
+              });
+          },
+        },
+      ],
+    );
+  }
+
+  async function generatePageCandidate(
+    page: CookbookPage,
+    recipeGraph: RecipeGraph,
+    instruction: string | undefined,
+    idempotencyKey: string,
+  ): Promise<GeneratedRecipePage> {
+    if (!activeCookbook || !activeDestinationCookbookId) throw new Error('Cookbook not found.');
+    const allowed = await requestConsent();
+    if (!allowed) throw new Error('AI processing permission is required to create a new recipe page.');
+    const styleReferences = activeCookbook.pageStyleReferences?.length
+      ? activeCookbook.pageStyleReferences
+      : getCookbookPageStyleReferences(activeCookbook.pageStyleId, activeCookbook.styleRevision);
+
+    return finishRecipePageCandidate({
+      cookbookId: activeDestinationCookbookId,
+      pageId: page.id,
+      recipeGraph,
+      styleId: activeCookbook.pageStyleId,
+      styleRevision: activeCookbook.styleRevision,
+      styleReferences: styleReferences?.length ? [...styleReferences] : undefined,
+      idempotencyKey,
+      artDirection: instruction,
+      referenceArtUrl: page.pageImage?.imageUrl ?? page.artAsset?.artUrl,
+    });
+  }
+
+  async function usePageCandidate(
+    page: CookbookPage,
+    candidate: GeneratedRecipePage,
+    recipeGraph?: RecipeGraph,
+  ) {
+    if (recipeGraph) {
+      await applyRecipePageRevision(page.id, recipeGraph, candidate.id);
+    } else {
+      await updatePageSelectedVersion(page.id, candidate.id);
+    }
+
+    const updatedPage = await fetchPageById(page.id);
+    if (!updatedPage) throw new Error('Recipe page not found after the update.');
+    cookbookState.upsertPage(updatedPage);
+    await captureState.refresh();
+    showToast({
+      message: recipeGraph ? 'Recipe and page updated.' : 'New page design applied.',
+      type: 'success',
+    });
+  }
+
+  function openPageActions(page: CookbookPage) {
+    setPageActionPage(page);
+    setRecipeSheetInitialView('actions');
+    setRecipeActionsVisible(true);
+  }
+
+  function runRecipeContextAction(page: CookbookPage, actionId: ContextActionId) {
+    if (actionId === 'edit_recipe' || actionId === 'redesign_recipe') {
+      setPageActionPage(page);
+      setRevisionMode(actionId === 'edit_recipe' ? 'edit' : 'design');
+      return;
+    }
+    if (actionId === 'visit_source') {
+      void visitPageSource(page);
+      return;
+    }
+    if (actionId === 'save_page_image') {
+      void savePageImage(page);
+      return;
+    }
+    if (actionId === 'share_recipe') {
+      void sharePage(page);
+      return;
+    }
+    if (actionId === 'move_recipe') {
+      setPageActionPage(page);
+      setRecipeSheetInitialView('move');
+      setRecipeActionsVisible(true);
+      return;
+    }
+    if (actionId === 'remove_recipe') removeRecipe(page);
+  }
+
   async function openCookbookPage(page: CookbookPage) {
+    void markPageSeen(page.id).catch(() => undefined);
     const pageCapture = captureState.captures.find((candidate) =>
       candidate.id === page.captureId || candidate.pageId === page.id
     );
@@ -505,12 +798,19 @@ export function NoshCaptureWorkspace({
             cookbookId={activeDestinationCookbookId}
             pageSlots={cookbookState.pageSlots}
             captures={captureState.captures}
+            unseenPageIds={unseenPageIds}
             onOpenPage={(page) => { void openCookbookPage(page); }}
+            onPageActions={openPageActions}
+            contextActionsFor={recipeContextActionsFor}
+            onContextAction={runRecipeContextAction}
             onOpenCapture={(selectedCapture) => {
               setReplacementCaptureId(undefined);
               setError(null);
               setCaptureId(selectedCapture.id);
             }}
+            onCaptureActions={setQuickActionCapture}
+            captureActionsFor={captureContextActionsFor}
+            onCaptureContextAction={runCaptureContextAction}
             onMovePage={pageOrder.isReordering ? undefined : pageOrder.movePage}
             includeUnassignedCaptures={!destinationCookbookId}
             scrollableRef={scrollableRef}
@@ -523,6 +823,57 @@ export function NoshCaptureWorkspace({
       ) : null}
 
       </View>
+
+      <CaptureActionSheet
+        capture={quickActionCapture}
+        visible={Boolean(quickActionCapture)}
+        compact
+        onClose={() => setQuickActionCapture(null)}
+        onResolve={(selectedCapture) => runCaptureContextAction(selectedCapture, 'resolve_capture')}
+        onRemove={(selectedCapture) => runCaptureContextAction(selectedCapture, 'remove_capture')}
+      />
+
+      {pageActionPage ? (
+        <RecipeActionsSheet
+          visible={recipeActionsVisible}
+          page={pageActionPage}
+          cookbookId={activeDestinationCookbookId ?? ''}
+          cookbooks={availableCookbooks}
+          initialView={recipeSheetInitialView}
+          onClose={() => {
+            setRecipeActionsVisible(false);
+            setRecipeSheetInitialView('actions');
+            setPageActionPage(null);
+          }}
+          onVisitSource={visitPageSource}
+          onExport={savePageImage}
+          onShare={sharePage}
+          onEdit={(page) => {
+            setPageActionPage(page);
+            setRevisionMode('edit');
+          }}
+          onRedesign={(page) => {
+            setPageActionPage(page);
+            setRevisionMode('design');
+          }}
+          onMove={moveRecipe}
+          onRemove={removeRecipe}
+        />
+      ) : null}
+
+      {pageActionPage ? (
+        <RecipeRevisionSheet
+          visible={revisionMode !== null}
+          mode={revisionMode ?? 'edit'}
+          page={pageActionPage}
+          onClose={() => {
+            setRevisionMode(null);
+            setPageActionPage(null);
+          }}
+          onGenerate={generatePageCandidate}
+          onUse={usePageCandidate}
+        />
+      ) : null}
 
       <Sheet
         visible={Boolean(recoveryCapture)}

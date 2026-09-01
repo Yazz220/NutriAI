@@ -113,6 +113,7 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | `useCookbooks` | Shelf list, create/delete cookbook, and shelf cache hydration |
 | `useCookbook(cookbookId)` | One cookbook, its pages, selected page, refresh, and optimistic page upsert |
 | `useRecipeCaptures` | Durable capture list, polling, retry, and destination selection |
+| `useUnseenCookbookPages` | Device-local New markers for pages that become ready after a cookbook baseline is established |
 | `useNoshConversation` | Persistent conversation visibility, intake state, and active book/page context |
 | `useNetworkStatus` | Connectivity state for the offline banner |
 | `useNoshSubscription` | Server-authoritative plan and usage plus RevenueCat offering, purchase, restore, and management state |
@@ -167,6 +168,7 @@ Capture from Share to Folio, Add page, or assistant handoff
   -> generate-page-art receives only cookbook copy and creates one complete 4:5 recipe page including visible text
   -> finalize_recipe_capture_page publishes the page and marks the capture ready
   -> React Query polling adds the published page to the reader cache
+  -> user-scoped AsyncStorage marks the newly ready page unseen until its first open
 
 Assistant
   -> root-mounted NoshConversationHost (assistant-ui LocalRuntime)
@@ -228,7 +230,7 @@ Collection retrieval is lexical by design. `cookbook_pages.recipe_graph` produce
 
 Collection organization follows the same conversation-for-reasoning, guided-UI-for-commitment boundary. Folio resolves an exact page and destination before rendering `CollectionActionCard`. Cancel returns to conversation without a write. Confirm calls the idempotent `organize_recipe_page` RPC, reloads the shelf and affected books from Supabase, writes React Query and AsyncStorage, then opens the moved or copied page. The client does not expose conversational delete, bulk, or reorder actions.
 
-Reader and unfinished-capture deletion use the authenticated `delete-reader-content` Edge Function. Ownership-checked RPCs delete a recipe page, cookbook, or settled `needs_attention` / `needs_destination` capture and write unreferenced generated-page and capture-source paths to `storage_cleanup_jobs` in the same database transaction. Discarding a capture also removes its unpublished processing page and orphan recipe row when present. Active processing captures and completed pages cannot use this discard path. The function removes queued paths through the Storage API and deletes completed jobs. A shelf session retries pending jobs after a transient Storage failure. Copied pages may share one generated object, so the database queues a page path only after its last `page_versions` reference is gone. Deleting a cookbook keeps its capture history and source upload; removing one recipe deletes its capture and queues that source upload.
+Reader and unfinished-capture deletion use the authenticated `delete-reader-content` Edge Function. Ownership-checked RPCs delete a recipe page, cookbook, or settled `needs_attention` / `needs_destination` capture and write unreferenced generated-page and capture-source paths to `storage_cleanup_jobs` in the same database transaction. In Composer and the reader's page overview, unfinished cards open the shared detailed recovery sheet on tap and expose their presentation-specific primary action plus destructive Remove through the shared context-action presenter on hold; non-iOS surfaces use the shared terse fallback sheet. Discarding a capture also removes its unpublished processing page and orphan recipe row when present. Active processing captures and completed pages cannot use this discard path. The function removes queued paths through the Storage API and deletes completed jobs. A shelf session retries pending jobs after a transient Storage failure. Copied pages may share one generated object, so the database queues a page path only after its last `page_versions` reference is gone. Deleting a cookbook keeps its capture history and source upload; removing one recipe deletes its capture and queues that source upload.
 
 Account deletion obtains a fresh native Apple authorization code for Apple-linked users. `delete-account` exchanges that code and revokes the returned refresh token through Apple's REST API before it removes Storage objects or the Supabase user. Apple private-key material remains in Edge Function secrets.
 
@@ -273,7 +275,7 @@ AI_MODEL
 
 `generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the clean canonical cooking-data projection, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` and `complete-recipe-page-4x5-v3` so geometry and generation contracts remain identifiable. Before upload, the function reads the generated PNG dimensions and rejects any output that is not physically 4:5. Publication retries reuse a ready image only when its recorded geometry matches the current contract, preventing an older deployment from silently restoring a 3:4 page or source-analysis copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, outer padding, or extraction commentary. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
 
-The reader exposes this flow through two compact recipe actions: `Edit recipe` and `Try another design`. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Folio. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
+The reader and Composer expose this flow through the same compact recipe action system, including `Edit recipe` and `Try another design`. Both surfaces reuse `buildRecipeContextActions`, `RecipeActionsSheet`, and `RecipeRevisionSheet`; processing and recovery items do not receive ready-page controls. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Folio. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 
 Book settings exposes `Download cookbook PDF` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a canonical 8 × 10 inch PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Recipe images fill the matching 4:5 page canvas without aspect-ratio cropping. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
 
@@ -320,6 +322,7 @@ Page requests include the exact visible recipe copy and structured visual ingred
 
 - `nosh:cookbook-shelf:v2:<userId>`: cached `Cookbook[]` for the shelf.
 - `nosh:cookbook-pages:v2:<cookbookId>`: cached `CookbookPage[]` for one book.
+- `nosh:unseen-cookbook-pages:v1:<userId>`: per-cookbook known and unseen ready-page IDs used by the local New marker.
 
 The caches are hydrated before network responses and then updated from React Query results.
 

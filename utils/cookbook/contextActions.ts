@@ -9,7 +9,9 @@ export type ContextActionId =
   | 'save_page_image'
   | 'share_recipe'
   | 'move_recipe'
-  | 'remove_recipe';
+  | 'remove_recipe'
+  | 'resolve_capture'
+  | 'remove_capture';
 
 export interface ContextAction {
   id: ContextActionId;
@@ -38,6 +40,19 @@ interface RecipeActionCapabilities {
   canShare?: boolean;
   canMove?: boolean;
   canRemove?: boolean;
+}
+
+export function buildCaptureContextActions(primaryTitle: string): ContextActionGroup[] {
+  return [
+    {
+      id: 'capture-primary',
+      actions: [{ id: 'resolve_capture', title: primaryTitle, systemImage: 'arrow.clockwise' }],
+    },
+    {
+      id: 'capture-destructive',
+      actions: [{ id: 'remove_capture', title: 'Remove', systemImage: 'trash', destructive: true }],
+    },
+  ];
 }
 
 export function buildCookbookContextActions({

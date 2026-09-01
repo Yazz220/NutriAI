@@ -30,6 +30,8 @@ import {
 import { finishRecipePageCandidate } from '@/utils/cookbook/pageProduction';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
+import { getCapturePresentation } from '@/utils/cookbook/capturePresentation';
 
 export default function BookReaderScreen() {
   const { showToast } = useToast();
@@ -53,7 +55,8 @@ export default function BookReaderScreen() {
     isStale,
     refresh,
   } = useCookbook(cookbookId);
-  const { captures } = useRecipeCaptures();
+  const captureState = useRecipeCaptures();
+  const { captures } = captureState;
   const pageOrder = useCookbookPageOrder(cookbookId);
 
   // The shelf already has the cookbook metadata cached. Use it to render
@@ -183,6 +186,50 @@ export default function BookReaderScreen() {
     );
   };
 
+  const handleResolveCapture = async (capture: RecipeCapture) => {
+    const presentation = getCapturePresentation(capture);
+    if (presentation.action === 'retry' && capture.failureCode !== 'designed_page_limit_reached') {
+      if (!await requestConsent()) return;
+      try {
+        await captureState.retryCapture(capture.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The recipe could not be retried.';
+        Alert.alert('Retry failed', message);
+      }
+      return;
+    }
+
+    router.push({
+      pathname: '/(book)/save',
+      params: {
+        captureId: capture.id,
+        ...(presentation.action === 'replace_source' || presentation.action === 'correct_recipe'
+          ? { captureAction: presentation.action }
+          : {}),
+      },
+    });
+  };
+
+  const handleRemoveCapture = (capture: RecipeCapture) => {
+    Alert.alert(
+      'Remove unfinished recipe?',
+      'This removes the failed item and its saved source.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            void captureState.discardCapture(capture.id).catch((error) => {
+              const message = error instanceof Error ? error.message : 'The unfinished recipe could not be removed.';
+              Alert.alert('Remove failed', message);
+            });
+          },
+        },
+      ],
+    );
+  };
+
   const handleGeneratePageCandidate = async (
     page: CookbookPage,
     recipeGraph: RecipeGraph,
@@ -305,6 +352,8 @@ export default function BookReaderScreen() {
       availableCookbooks={movableCookbooks}
       onMoveRecipe={handleMoveRecipe}
       onRemoveRecipe={handleRemoveRecipe}
+      onResolveCapture={readOnly ? undefined : handleResolveCapture}
+      onRemoveCapture={readOnly ? undefined : handleRemoveCapture}
       onReorderPage={readOnly || pageOrder.isReordering ? undefined : pageOrder.movePage}
       reorderError={Boolean(pageOrder.error)}
       onGeneratePageCandidate={handleGeneratePageCandidate}

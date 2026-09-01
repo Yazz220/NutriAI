@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
+import { CaptureActionSheet } from '@/components/cookbook/CaptureActionSheets';
 import type { CookbookTurnRequest } from '@/components/cookbook/Cookbook3DScene.types';
 import { CookbookSettingsSheet, RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
 import { RecipeRevisionSheet, type RecipeRevisionMode } from '@/components/cookbook/RecipeRevisionSheet';
@@ -26,6 +27,7 @@ import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnseenCookbookPages } from '@/hooks/useUnseenCookbookPages';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
@@ -50,9 +52,11 @@ import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import { trackEvent } from '@/utils/analytics';
 import {
   buildCookbookContextActions,
+  buildCaptureContextActions,
   buildRecipeContextActions,
   type ContextActionId,
 } from '@/utils/cookbook/contextActions';
+import { getCapturePrimaryActionLabel } from '@/utils/cookbook/capturePresentation';
 import {
   defaultFirstRunOnboardingState,
   loadFirstRunOnboardingState,
@@ -75,6 +79,8 @@ interface BookReaderProps {
   availableCookbooks?: Cookbook[];
   onMoveRecipe?: (page: CookbookPage, destination: Cookbook) => Promise<void> | void;
   onRemoveRecipe?: (page: CookbookPage) => Promise<void> | void;
+  onResolveCapture?: (capture: RecipeCapture) => Promise<void> | void;
+  onRemoveCapture?: (capture: RecipeCapture) => Promise<void> | void;
   onReorderPage?: (input: { pageId: string; beforePageId: string | null }) => Promise<unknown> | void;
   reorderError?: boolean;
   onGeneratePageCandidate?: (
@@ -126,6 +132,8 @@ export function BookReader({
   availableCookbooks = [],
   onMoveRecipe,
   onRemoveRecipe,
+  onResolveCapture,
+  onRemoveCapture,
   onReorderPage,
   reorderError = false,
   onGeneratePageCandidate,
@@ -175,6 +183,8 @@ export function BookReader({
   const [recipeSheetInitialView, setRecipeSheetInitialView] = useState<'actions' | 'move'>('actions');
   const [overviewActionPage, setOverviewActionPage] = useState<CookbookPage | null>(null);
   const [revisionMode, setRevisionMode] = useState<RecipeRevisionMode | null>(null);
+  const [recoveryActionCapture, setRecoveryActionCapture] = useState<RecipeCapture | null>(null);
+  const [quickActionCapture, setQuickActionCapture] = useState<RecipeCapture | null>(null);
   const [firstRunState, setFirstRunState] = useState<FirstRunOnboardingState>(defaultFirstRunOnboardingState);
   const [firstRunReady, setFirstRunReady] = useState(false);
   const [firstPageCueDismissedThisSession, setFirstPageCueDismissedThisSession] = useState(false);
@@ -192,6 +202,30 @@ export function BookReader({
   const chromeIdle = useSharedValue(1);
   const [chromeVisible, setChromeVisible] = useState(true);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { unseenPageIds, markPageSeen } = useUnseenCookbookPages({
+    userId: user?.id,
+    cookbookId: cookbook?.id,
+    pages: pageSlots,
+    enabled: Boolean(cookbook),
+  });
+
+  useEffect(() => {
+    if (!isOpen || isOverview) return;
+
+    const visiblePageIds = new Set<string>();
+    if (focusedPage) visiblePageIds.add(focusedPage.id);
+    if (usesTouchPaging && readingView === 'page' && readingPageId) {
+      visiblePageIds.add(readingPageId);
+    } else {
+      const spread = spreads[spreadIndex];
+      if (spread?.left.type === 'recipe') visiblePageIds.add(spread.left.id);
+      if (spread?.right.type === 'recipe') visiblePageIds.add(spread.right.id);
+    }
+
+    visiblePageIds.forEach((pageId) => {
+      void markPageSeen(pageId).catch(() => undefined);
+    });
+  }, [focusedPage, isOpen, isOverview, markPageSeen, readingPageId, readingView, spreadIndex, spreads, usesTouchPaging]);
 
   const pokeChrome = useCallback(() => {
     // Set directly (no withTiming) so this works from any JS context,
@@ -272,6 +306,10 @@ export function BookReader({
       onVisitSource,
       readOnly,
     ],
+  );
+  const captureContextActionsFor = useCallback(
+    (capture: RecipeCapture) => buildCaptureContextActions(getCapturePrimaryActionLabel(capture)),
+    [],
   );
   const selectedRecipeActions = selectedPage ? recipeContextActionsFor(selectedPage) : [];
   const cookbookContextActions = useMemo(
@@ -755,6 +793,16 @@ export function BookReader({
     }
   }
 
+  function runCaptureContextAction(capture: RecipeCapture, actionId: ContextActionId) {
+    setQuickActionCapture(null);
+    setRecoveryActionCapture(null);
+    if (actionId === 'resolve_capture') {
+      void onResolveCapture?.(capture);
+    } else if (actionId === 'remove_capture') {
+      void onRemoveCapture?.(capture);
+    }
+  }
+
   function runCookbookContextAction(actionId: ContextActionId) {
     if (actionId === 'add_recipe') {
       openAddPage();
@@ -939,7 +987,12 @@ export function BookReader({
               cookbookId={cookbookId ?? ''}
               pageSlots={pageSlots}
               captures={captures}
+              unseenPageIds={unseenPageIds}
               onOpenPage={openPageFromOverview}
+              onOpenCapture={onResolveCapture ? setRecoveryActionCapture : undefined}
+              onCaptureActions={onResolveCapture || onRemoveCapture ? setQuickActionCapture : undefined}
+              captureActionsFor={onResolveCapture || onRemoveCapture ? captureContextActionsFor : undefined}
+              onCaptureContextAction={onResolveCapture || onRemoveCapture ? runCaptureContextAction : undefined}
               onPageActions={openOverviewPageActions}
               contextActionsFor={recipeContextActionsFor}
               onContextAction={runRecipeContextAction}
@@ -1150,6 +1203,23 @@ export function BookReader({
           readOnly={readOnly}
         />
       ) : null}
+
+      <CaptureActionSheet
+        capture={recoveryActionCapture}
+        visible={Boolean(recoveryActionCapture)}
+        onClose={() => setRecoveryActionCapture(null)}
+        onResolve={(capture) => runCaptureContextAction(capture, 'resolve_capture')}
+        onRemove={(capture) => runCaptureContextAction(capture, 'remove_capture')}
+      />
+
+      <CaptureActionSheet
+        capture={quickActionCapture}
+        visible={Boolean(quickActionCapture)}
+        compact
+        onClose={() => setQuickActionCapture(null)}
+        onResolve={(capture) => runCaptureContextAction(capture, 'resolve_capture')}
+        onRemove={(capture) => runCaptureContextAction(capture, 'remove_capture')}
+      />
 
       {actionPage && onGeneratePageCandidate && onUsePageCandidate ? (
         <RecipeRevisionSheet

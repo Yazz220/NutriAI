@@ -87,4 +87,23 @@ describe('cookbook page grid projection', () => {
       isDraggable: false,
     }));
   });
+
+  it('keeps active generation beside ready pages before recovery items', () => {
+    const failedCapture = {
+      ...capture('failed'),
+      status: 'needs_attention' as const,
+    };
+
+    const items = buildCookbookPageGridItems({
+      cookbookId: 'book-1',
+      pageSlots: [page('pasta', 0, 'approved')],
+      captures: [capture('pasta', 'pasta'), failedCapture, capture('working')],
+    });
+
+    expect(items.map((item) => item.key)).toEqual([
+      'capture:capture-pasta',
+      'capture:capture-working',
+      'capture:capture-failed',
+    ]);
+  });
 });

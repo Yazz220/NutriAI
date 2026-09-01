@@ -23,6 +23,7 @@ describe('local account cleanup', () => {
       ['nosh:ai-data-consent:user-a:v1', '{}'],
       ['nosh:first-run:user-a:v1', '{}'],
       ['nosh:bookshelf-scene:v1:user-a', '{}'],
+      ['nosh:unseen-cookbook-pages:v1:user-a', '{}'],
       ['@nosh:assistant:user-b:threads', 'keep'],
       ['nosh:first-run:user-b:v1', 'keep'],
       ['unrelated-device-setting', 'keep'],
@@ -49,6 +50,7 @@ describe('local account cleanup', () => {
       'nosh:ai-data-consent:user-a:v1',
       'nosh:first-run:user-a:v1',
       'nosh:bookshelf-scene:v1:user-a',
+      'nosh:unseen-cookbook-pages:v1:user-a',
       'nosh:pending-user-data-purges:v1',
     ]));
   });

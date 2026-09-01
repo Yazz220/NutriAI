@@ -1,4 +1,5 @@
 import {
+  buildCaptureContextActions,
   buildCookbookContextActions,
   buildRecipeContextActions,
   flattenContextActions,
@@ -52,5 +53,13 @@ describe('context actions', () => {
     expect(model.ids).toEqual(['add_recipe', 'rename_cookbook', 'delete_cookbook']);
     expect(model.destructiveButtonIndices).toEqual([2]);
     expect(model.cancelButtonIndex).toBe(3);
+  });
+
+  it('keeps unfinished capture recovery terse and destructive removal last', () => {
+    const model = buildContextActionSheetModel(buildCaptureContextActions('Choose another source'));
+
+    expect(model.options).toEqual(['Choose another source', 'Remove', 'Cancel']);
+    expect(model.ids).toEqual(['resolve_capture', 'remove_capture']);
+    expect(model.destructiveButtonIndices).toEqual([1]);
   });
 });

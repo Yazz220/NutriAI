@@ -12,6 +12,7 @@ import {
   recordFirstReadyRecipeOpened,
 } from '@/utils/cookbook/firstRunOnboarding';
 import { shouldUseTouchPaging } from '@/utils/cookbook/reader';
+import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
@@ -127,11 +128,17 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
   return {
     CookbookPageGrid: ({
       pageSlots,
+      captures = [],
       onOpenPage,
+      onOpenCapture,
+      onCaptureActions,
       onMovePage,
     }: {
       pageSlots: Array<{ id: string; title: string }>;
+      captures?: RecipeCapture[];
       onOpenPage: (page: { id: string; title: string }) => void;
+      onOpenCapture?: (capture: RecipeCapture) => void;
+      onCaptureActions?: (capture: RecipeCapture) => void;
       onMovePage?: (input: { pageId: string; beforePageId: string | null }) => void;
     }) =>
       ReactModule.createElement(
@@ -149,6 +156,30 @@ jest.mock('@/components/cookbook/CookbookPageGrid', () => {
             ReactModule.createElement(Text, null, page.title),
           ),
         ),
+        ...captures
+          .filter((capture) => capture.status === 'needs_attention' || capture.status === 'needs_destination')
+          .map((capture) => ReactModule.createElement(
+            View,
+            { key: capture.id },
+            ReactModule.createElement(
+              Pressable,
+              {
+                accessibilityRole: 'button',
+                accessibilityLabel: `Open capture ${capture.id} from overview`,
+                onPress: () => onOpenCapture?.(capture),
+              },
+              ReactModule.createElement(Text, null, capture.recipeGraph?.title ?? capture.id),
+            ),
+            ReactModule.createElement(
+              Pressable,
+              {
+                accessibilityRole: 'button',
+                accessibilityLabel: `Quick capture actions ${capture.id}`,
+                onPress: () => onCaptureActions?.(capture),
+              },
+              ReactModule.createElement(Text, null, 'Quick actions'),
+            ),
+          )),
         onMovePage && pageSlots[0]
           ? ReactModule.createElement(
               Pressable,
@@ -352,6 +383,53 @@ describe('BookReader compact reading flow', () => {
 
     expect(screen.getByText('Recipe reading page')).toBeTruthy();
     expect(onSelectPage).toHaveBeenCalledWith(SAMPLE_COOKBOOK_PAGES[1].id);
+  });
+
+  it('keeps failed capture recovery actionable inside the page overview', async () => {
+    const failedCapture: RecipeCapture = {
+      id: 'failed-capture',
+      userId: 'user-1',
+      destinationCookbookId: SAMPLE_COOKBOOK.id,
+      sourceType: 'url',
+      sourcePayload: { input: 'https://example.com/recipe' },
+      status: 'needs_attention',
+      extractionNotes: [],
+      inferredFields: [],
+      pageStatus: 'not_started',
+      failureCode: 'url_access_restricted',
+      idempotencyKey: 'failed-capture',
+      processingAttempt: 1,
+      createdAt: '2026-09-02T12:00:00.000Z',
+      updatedAt: '2026-09-02T12:00:00.000Z',
+    };
+    const onResolveCapture = jest.fn();
+    const onRemoveCapture = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      pageSlots: SAMPLE_COOKBOOK_PAGES,
+      captures: [failedCapture],
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+      onResolveCapture,
+      onRemoveCapture,
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Open page overview' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Open capture failed-capture from overview' }));
+
+    expect(screen.getByText('Recipe needs attention')).toBeTruthy();
+    expect(screen.getByText('This site blocked recipe access')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Choose another source' })).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+    expect(onRemoveCapture).toHaveBeenCalledWith(failedCapture);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Quick capture actions failed-capture' }));
+    expect(screen.getByRole('button', { name: 'Choose another source' })).toBeTruthy();
+    expect(screen.queryByText(
+      'This site blocked automated recipe access. Open the original and add screenshots or paste the recipe text.',
+    )).toBeNull();
   });
 
   it('opens a linked recipe directly in reading mode', async () => {

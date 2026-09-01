@@ -71,5 +71,12 @@ export function buildCookbookPageGridItems(input: {
       };
     });
 
-  return [...pageItems, ...unplacedCaptureItems];
+  const activeCaptureItems = unplacedCaptureItems.filter(
+    (item) => item.capture?.status === 'processing',
+  );
+  const recoveryCaptureItems = unplacedCaptureItems.filter(
+    (item) => item.capture?.status !== 'processing',
+  );
+
+  return [...pageItems, ...activeCaptureItems, ...recoveryCaptureItems];
 }

@@ -12,6 +12,7 @@ import { Fonts } from '@/utils/fonts';
 interface RecipeCaptureScreenProps {
   destinationCookbookId?: string;
   captureId?: string;
+  initialCaptureAction?: 'replace_source' | 'correct_recipe';
   cookbookTitle?: string;
   onExit: () => void;
   exitAccessibilityLabel: string;
@@ -20,6 +21,7 @@ interface RecipeCaptureScreenProps {
 export function RecipeCaptureScreen({
   destinationCookbookId,
   captureId,
+  initialCaptureAction,
   cookbookTitle,
   onExit,
   exitAccessibilityLabel,
@@ -56,6 +58,7 @@ export function RecipeCaptureScreen({
         <NoshCaptureWorkspace
           destinationCookbookId={destinationCookbookId}
           captureId={captureId}
+          initialCaptureAction={initialCaptureAction}
           scrollableRef={scrollableRef}
         />
       </Animated.ScrollView>

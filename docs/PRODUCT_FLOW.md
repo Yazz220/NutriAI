@@ -68,8 +68,8 @@ processing
 |---|---|---|
 | `processing` | Folio is extracting the recipe or generating its page. | The user may leave. Work continues and the app polls for updates. |
 | `needs_destination` | The Recipe Graph exists, but no cookbook can supply a visual identity. | Choose or create a cookbook from the Composer recovery popup, or remove the unfinished item. |
-| `needs_attention` | The source lacks usable recipe evidence, a critical recipe detail needs correction, or a technical stage failed. | Replace an unusable source, correct the flagged details, retry a technical failure, or remove the unfinished item. A successful replacement retires the abandoned capture. |
-| `ready` | The complete page is published in its cookbook. | Open the recipe or continue browsing. |
+| `needs_attention` | The source lacks usable recipe evidence, a critical recipe detail needs correction, or a technical stage failed. | In both Composer and the cookbook page overview, tap for the detailed recovery popup or hold the card for the relevant quick action and Remove. A successful replacement retires the abandoned capture. |
+| `ready` | The complete page is published in its cookbook. A quiet New marker remains until the page is first opened on this device. | Open the recipe or continue browsing. |
 
 There is no general review, approval, or provisional-page state. A focused recipe correction appears only when deterministic checks find an actionable cooking-critical problem.
 
@@ -126,6 +126,8 @@ From a recipe page, the user can:
 - request a visual regeneration and choose whether to use the candidate.
 - open the recipe menu to edit extracted details or try another page design. Both actions create a preview while the current page stays selected.
 - export the complete cookbook from book settings as a cover plus every finished recipe page in reading order.
+
+Ready pages expose this same compact action system in both the Composer workspace and the cookbook organizer. Processing and recovery items keep their focused generation or resolution actions instead of pretending to be finished pages.
 
 Folio keeps stable conversation focus even if the visible reader page changes. Opening Ask Folio from another recipe asks whether to move the current conversation or start a new one.
 

@@ -28,6 +28,12 @@ export interface CaptureProgressStep {
   state: 'complete' | 'active' | 'upcoming';
 }
 
+export function getCapturePrimaryActionLabel(capture: RecipeCapture): string {
+  if (capture.failureCode === 'designed_page_limit_reached') return 'Continue page creation';
+  if (capture.status === 'needs_destination') return 'Choose cookbook';
+  return getCapturePresentation(capture).actionLabel ?? 'Try again';
+}
+
 const GENERIC_CAPTURE_FAILURE = 'Folio saved your recipe, but could not finish the page. Please try again.';
 
 const TECHNICAL_FAILURE_COPY: Record<string, { title: string; detail: string }> = {

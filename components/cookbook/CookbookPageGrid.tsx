@@ -1,19 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-  type AccessibilityActionEvent,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
 import { AlertTriangle, BookOpen, Ellipsis } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import Sortable, { type SortableGridDragEndParams, type SortableGridRenderItem } from 'react-native-sortables';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
+import { PageGenerationPreview, PageGenerationStatus } from '@/components/cookbook/PageGenerationState';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -26,6 +18,7 @@ import { getBeforePageId } from '@/utils/cookbook/pageOrder';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import { Fonts } from '@/utils/fonts';
 import { flattenContextActions, type ContextActionGroup, type ContextActionId } from '@/utils/cookbook/contextActions';
+import { presentContextActions } from '@/utils/cookbook/contextActionPresenter';
 
 interface CookbookPageGridProps {
   cookbookId: string;
@@ -33,6 +26,10 @@ interface CookbookPageGridProps {
   captures?: RecipeCapture[];
   onOpenPage?: (page: CookbookPage) => void;
   onOpenCapture?: (capture: RecipeCapture) => void;
+  onCaptureActions?: (capture: RecipeCapture) => void;
+  captureActionsFor?: (capture: RecipeCapture) => ContextActionGroup[];
+  onCaptureContextAction?: (capture: RecipeCapture, actionId: ContextActionId) => void;
+  unseenPageIds?: ReadonlySet<string>;
   onPageActions?: (page: CookbookPage) => void;
   contextActionsFor?: (page: CookbookPage) => ContextActionGroup[];
   onContextAction?: (page: CookbookPage, actionId: ContextActionId) => void;
@@ -84,21 +81,7 @@ function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
     );
   }
 
-  return (
-    <LinearGradient
-      colors={[Colors.burnishedBronze, Colors.warmUmber, Colors.carbon]}
-      style={styles.processingPage}
-    >
-      <View style={styles.processingGlow} />
-      <ActivityIndicator size="small" color={Colors.white} />
-      <Text style={styles.processingLabel} numberOfLines={2} maxFontSizeMultiplier={1.25}>
-        {item.statusLabel ?? 'Designing page'}
-      </Text>
-      <Text style={styles.processingTitle} numberOfLines={3} maxFontSizeMultiplier={1.25}>
-        {item.title}
-      </Text>
-    </LinearGradient>
-  );
+  return <PageGenerationPreview />;
 }
 
 function PageThumbnail({ page }: { page: CookbookPage }) {
@@ -127,6 +110,10 @@ export function CookbookPageGrid({
   captures,
   onOpenPage,
   onOpenCapture,
+  onCaptureActions,
+  captureActionsFor,
+  onCaptureContextAction,
+  unseenPageIds,
   onPageActions,
   contextActionsFor,
   onContextAction,
@@ -142,15 +129,17 @@ export function CookbookPageGrid({
   const reduceMotion = useReducedMotion();
   const columns = width >= 720 ? 4 : width >= 520 ? 3 : 2;
   const items = useMemo(
-    () => buildCookbookPageGridItems({
-      cookbookId,
-      pageSlots,
-      captures,
-      includeUnassignedCaptures,
-    }),
+    () =>
+      buildCookbookPageGridItems({
+        cookbookId,
+        pageSlots,
+        captures,
+        includeUnassignedCaptures,
+      }),
     [captures, cookbookId, includeUnassignedCaptures, pageSlots],
   );
   const [orderedItems, setOrderedItems] = useState(items);
+  const captureLongPressRef = useRef<{ key: string; pressedAt: number } | null>(null);
 
   useEffect(() => {
     setOrderedItems(items);
@@ -188,14 +177,15 @@ export function CookbookPageGrid({
   const renderItem = useCallback<SortableGridRenderItem<CookbookPageGridItem>>(
     ({ item, index }) => {
       const canOpen = Boolean(item.page && item.phase === 'ready');
+      const isUnseen = Boolean(canOpen && item.page && unseenPageIds?.has(item.page.id));
       const canOpenCapture = Boolean(
-        item.capture
-        && (item.phase === 'attention' || item.phase === 'destination')
-        && onOpenCapture,
+        item.capture && (item.phase === 'attention' || item.phase === 'destination') && onOpenCapture,
       );
       const canActivate = canOpen || canOpenCapture;
       const contextActions = item.page ? (contextActionsFor?.(item.page) ?? []) : [];
       const flatContextActions = flattenContextActions(contextActions);
+      const captureContextActions = item.capture ? (captureActionsFor?.(item.capture) ?? []) : [];
+      const flatCaptureContextActions = flattenContextActions(captureContextActions);
       const canMoveEarlier = Boolean(
         onMovePage && item.isDraggable && index > 0 && orderedItems[index - 1]?.isDraggable,
       );
@@ -207,6 +197,7 @@ export function CookbookPageGrid({
         ...(canMoveEarlier ? [{ name: CUSTOM_ACTIONS.earlier, label: 'Move page earlier' }] : []),
         ...(canMoveLater ? [{ name: CUSTOM_ACTIONS.later, label: 'Move page later' }] : []),
         ...flatContextActions.map((action) => ({ name: action.id, label: action.title })),
+        ...flatCaptureContextActions.map((action) => ({ name: action.id, label: action.title })),
         ...(item.page && !contextActionsFor && flatContextActions.length === 0 && onPageActions
           ? [{ name: CUSTOM_ACTIONS.actions, label: 'Show page actions' }]
           : []),
@@ -222,6 +213,20 @@ export function CookbookPageGrid({
         if (item.page && flatContextActions.some((contextAction) => contextAction.id === action)) {
           onContextAction?.(item.page, action as ContextActionId);
         }
+        if (item.capture && flatCaptureContextActions.some((contextAction) => contextAction.id === action)) {
+          onCaptureContextAction?.(item.capture, action as ContextActionId);
+        }
+      }
+
+      function openCaptureActions() {
+        if (!item.capture || captureContextActions.length === 0 || !onCaptureContextAction) return;
+        captureLongPressRef.current = { key: item.key, pressedAt: Date.now() };
+        presentContextActions({
+          actions: captureContextActions,
+          onSelect: (actionId) => onCaptureContextAction(item.capture!, actionId),
+          fallback: onCaptureActions ? () => onCaptureActions(item.capture!) : undefined,
+          title: item.title,
+        });
       }
 
       return (
@@ -233,17 +238,30 @@ export function CookbookPageGrid({
             <Pressable
               style={({ pressed }) => [styles.pagePressable, pressed && canActivate && styles.pagePressed]}
               onPress={() => {
+                const recentLongPress = captureLongPressRef.current;
+                if (
+                  recentLongPress?.key === item.key
+                  && Date.now() - recentLongPress.pressedAt < 1_000
+                ) {
+                  captureLongPressRef.current = null;
+                  return;
+                }
                 if (canOpen && item.page) onOpenPage?.(item.page);
                 if (canOpenCapture && item.capture) onOpenCapture?.(item.capture);
               }}
+              onLongPress={flatCaptureContextActions.length > 0 ? openCaptureActions : undefined}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={`${item.title}. ${item.statusLabel ?? `Page ${index + 1}`}.`}
-              accessibilityHint={canOpen
-                ? 'Double tap to open. Long press and drag to reorder.'
-                : canOpenCapture
-                  ? 'Double tap to resolve this recipe.'
-                  : undefined}
+              accessibilityLabel={`${item.title}. ${isUnseen ? 'New page. ' : ''}${item.statusLabel ?? `Page ${index + 1}`}.`}
+              accessibilityHint={
+                canOpen
+                  ? 'Double tap to open. Long press and drag to reorder.'
+                  : canOpenCapture
+                    ? flatCaptureContextActions.length > 0
+                      ? 'Double tap to resolve this recipe. Long press for quick actions.'
+                      : 'Double tap to resolve this recipe.'
+                    : undefined
+              }
               accessibilityActions={actions}
               onAccessibilityAction={handleAccessibilityAction}
             >
@@ -260,48 +278,69 @@ export function CookbookPageGrid({
                 ) : (
                   <ProcessingPage item={item} />
                 )}
+                {isUnseen && item.page ? (
+                  <Animated.View
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                    entering={reduceMotion ? undefined : FadeIn.duration(180)}
+                    style={styles.newPageMarker}
+                    testID={`new-page-marker-${item.page.id}`}
+                  >
+                    <View style={styles.newPageMarkerDot} />
+                    <Text style={styles.newPageMarkerText} maxFontSizeMultiplier={1.1}>
+                      New
+                    </Text>
+                  </Animated.View>
+                ) : null}
               </View>
             </Pressable>
 
-            <View style={styles.tileFooter}>
-              <Text style={styles.pageNumber} maxFontSizeMultiplier={1.2}>
-                {item.page?.pageNumber ?? ''}
-              </Text>
-              <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-                {item.title}
-              </Text>
-              {item.page && contextActions.length > 0 && onContextAction ? (
-                <ContextActionMenu
-                  actions={contextActions}
-                  onSelect={(actionId) => onContextAction(item.page!, actionId)}
-                  fallbackOnPress={onPageActions ? () => onPageActions(item.page!) : undefined}
-                  accessibilityLabel={`Actions for ${item.title}`}
-                  style={styles.moreButton}
-                  title={item.title}
-                  testID={`page-context-menu-${item.page.id}`}
-                >
-                  <Ellipsis size={18} color={Colors.textSecondary} />
-                </ContextActionMenu>
-              ) : item.page && !contextActionsFor && onPageActions ? (
-                <Pressable
-                  style={({ pressed }) => [styles.moreButton, pressed && styles.moreButtonPressed]}
-                  onPress={() => onPageActions(item.page!)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Actions for ${item.title}`}
-                >
-                  <Ellipsis size={18} color={Colors.textSecondary} />
-                </Pressable>
-              ) : (
-                <View style={styles.moreButton} />
-              )}
-            </View>
+            {item.phase === 'reading' || item.phase === 'preparing' || item.phase === 'designing' ? (
+              <PageGenerationStatus statusLabel={item.statusLabel ?? 'Designing page'} title={item.title} />
+            ) : (
+              <View style={styles.tileFooter}>
+                <Text style={styles.pageNumber} maxFontSizeMultiplier={1.2}>
+                  {item.page?.pageNumber ?? ''}
+                </Text>
+                <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                  {item.title}
+                </Text>
+                {item.page && contextActions.length > 0 && onContextAction ? (
+                  <ContextActionMenu
+                    actions={contextActions}
+                    onSelect={(actionId) => onContextAction(item.page!, actionId)}
+                    fallbackOnPress={onPageActions ? () => onPageActions(item.page!) : undefined}
+                    accessibilityLabel={`Actions for ${item.title}`}
+                    style={styles.moreButton}
+                    title={item.title}
+                    testID={`page-context-menu-${item.page.id}`}
+                  >
+                    <Ellipsis size={18} color={Colors.textSecondary} />
+                  </ContextActionMenu>
+                ) : item.page && !contextActionsFor && onPageActions ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.moreButton, pressed && styles.moreButtonPressed]}
+                    onPress={() => onPageActions(item.page!)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Actions for ${item.title}`}
+                  >
+                    <Ellipsis size={18} color={Colors.textSecondary} />
+                  </Pressable>
+                ) : (
+                  <View style={styles.moreButton} />
+                )}
+              </View>
+            )}
           </View>
         </Sortable.Handle>
       );
     },
     [
       contextActionsFor,
+      captureActionsFor,
       moveAccessibly,
+      onCaptureActions,
+      onCaptureContextAction,
       onContextAction,
       onMovePage,
       onOpenCapture,
@@ -309,6 +348,7 @@ export function CookbookPageGrid({
       onPageActions,
       orderedItems,
       reduceMotion,
+      unseenPageIds,
     ],
   );
 
@@ -386,19 +426,37 @@ const styles = StyleSheet.create({
     boxShadow: Shadows.md.boxShadow,
   },
   pageImage: { width: '100%', height: '100%' },
+  newPageMarker: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.primary,
+    boxShadow: '0 4px 12px rgba(101, 67, 111, 0.24)',
+  },
+  newPageMarkerDot: {
+    width: 5,
+    height: 5,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.onPrimary,
+  },
+  newPageMarkerText: {
+    color: Colors.onPrimary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.xs,
+    lineHeight: Typography.metrics.lineHeight14,
+  },
   processingPage: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-  },
-  processingGlow: {
-    position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(232, 170, 66, 0.12)',
   },
   processingLabel: {
     color: Colors.white,
