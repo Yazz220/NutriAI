@@ -1,6 +1,5 @@
 import { File } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as VideoThumbnails from 'expo-video-thumbnails';
 import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVideo';
 
 export const MAX_VIDEO_FRAME_COUNT = 8;
@@ -13,6 +12,18 @@ const FALLBACK_FRAME_TIMESTAMPS = [0.5, 1.5, 3, 5, 8, 12, 20, 30];
 export interface PreparedVideoFrame {
   bytes: Uint8Array;
   mimeType: 'image/jpeg';
+}
+
+type VideoThumbnailModule = typeof import('expo-video-thumbnails');
+
+async function loadVideoThumbnailModule(): Promise<VideoThumbnailModule | null> {
+  try {
+    return await import('expo-video-thumbnails');
+  } catch {
+    // Older development builds may not contain this optional native module.
+    // Frame evidence is supplementary, so preserve transcript/video ingestion.
+    return null;
+  }
 }
 
 /**
@@ -50,13 +61,16 @@ function durationSecondsFromAsset(video: RecipeCaptureVideoAsset): number | null
  */
 export async function collectRecipeCaptureVideoFrames(
   video: RecipeCaptureVideoAsset,
+  loadThumbnailModule = loadVideoThumbnailModule,
 ): Promise<PreparedVideoFrame[]> {
+  const videoThumbnails = await loadThumbnailModule();
+  if (!videoThumbnails) return [];
   const timestamps = sampleVideoFrameTimestamps(durationSecondsFromAsset(video));
   const frames: PreparedVideoFrame[] = [];
   for (const timestamp of timestamps) {
     if (frames.length >= MAX_VIDEO_FRAME_COUNT) break;
     try {
-      const thumbnail = await VideoThumbnails.getThumbnailAsync(video.uri, {
+      const thumbnail = await videoThumbnails.getThumbnailAsync(video.uri, {
         time: Math.round(timestamp * 1000),
         quality: 0.6,
       });

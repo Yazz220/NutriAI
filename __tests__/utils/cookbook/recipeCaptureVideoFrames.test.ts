@@ -3,6 +3,7 @@ jest.mock('expo-image-manipulator', () => ({ manipulateAsync: jest.fn(), SaveFor
 jest.mock('expo-video-thumbnails', () => ({ getThumbnailAsync: jest.fn() }));
 
 import {
+  collectRecipeCaptureVideoFrames,
   MAX_VIDEO_FRAME_COUNT,
   sampleVideoFrameTimestamps,
 } from '@/utils/cookbook/recipeCaptureVideoFrames';
@@ -37,5 +38,16 @@ describe('sampleVideoFrameTimestamps', () => {
 
   it('returns a single frame at 0 for sub-second videos', () => {
     expect(sampleVideoFrameTimestamps(0.5, 8)).toEqual([0]);
+  });
+});
+
+describe('collectRecipeCaptureVideoFrames', () => {
+  it('degrades to no frame evidence when the native thumbnail module is unavailable', async () => {
+    const frames = await collectRecipeCaptureVideoFrames(
+      { uri: 'file:///recipe.mp4', mimeType: 'video/mp4', fileName: 'recipe.mp4' },
+      async () => null,
+    );
+
+    expect(frames).toEqual([]);
   });
 });
