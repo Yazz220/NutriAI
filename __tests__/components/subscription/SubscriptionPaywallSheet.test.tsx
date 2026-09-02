@@ -81,6 +81,8 @@ describe('SubscriptionPaywallSheet', () => {
 
     const yearly = screen.getByRole('radio', { name: /Yearly, SAR 299.99 per year/ });
     expect(yearly.props.accessibilityState.selected).toBe(true);
+    expect(screen.getByText('FOLIO PLUS')).toBeTruthy();
+    expect(screen.queryByText('NOSH PLUS')).toBeNull();
     expect(screen.getByText('SAR 25.00 per month')).toBeTruthy();
     expect(screen.getByText('1 week free')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Subscribe for SAR 299.99/year' }));

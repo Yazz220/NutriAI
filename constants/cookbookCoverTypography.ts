@@ -20,6 +20,8 @@ export interface CoverTitlePlacementOption {
   studioOrder: number;
   /** Center of the title block as a proportion of the front board height. */
   centerRatio: number;
+  /** The composition is intentionally more than a positional change. */
+  treatment: 'editorial' | 'classic' | 'modern' | 'bookplate';
 }
 
 export const DEFAULT_COVER_TITLE_COLOR_ID: CookbookCoverTitleColorId = 'auto';
@@ -73,10 +75,23 @@ export const COVER_TITLE_PLACEMENTS: Record<
   CookbookCoverTitlePlacementId,
   CoverTitlePlacementOption
 > = {
-  upper: { id: 'upper', name: 'Upper', studioOrder: 0, centerRatio: 0.31 },
-  center: { id: 'center', name: 'Center', studioOrder: 1, centerRatio: 0.47 },
-  lower: { id: 'lower', name: 'Lower', studioOrder: 2, centerRatio: 0.64 },
+  upper: { id: 'upper', name: 'Editorial', studioOrder: 0, centerRatio: 0.29, treatment: 'editorial' },
+  center: { id: 'center', name: 'Classic', studioOrder: 1, centerRatio: 0.47, treatment: 'classic' },
+  lower: { id: 'lower', name: 'Modern', studioOrder: 2, centerRatio: 0.68, treatment: 'modern' },
+  bookplate: {
+    id: 'bookplate',
+    name: 'Bookplate',
+    studioOrder: 3,
+    centerRatio: 0.49,
+    treatment: 'bookplate',
+  },
 };
+
+export function resolveCoverTitleTreatment(
+  placementId: CookbookCoverTitlePlacementId | string | null | undefined,
+): CoverTitlePlacementOption['treatment'] {
+  return COVER_TITLE_PLACEMENTS[normalizeCoverTitlePlacementId(placementId)].treatment;
+}
 
 const TITLE_COLOR_IDS = new Set<string>(Object.keys(COVER_TITLE_COLORS));
 const TITLE_PLACEMENT_IDS = new Set<string>(Object.keys(COVER_TITLE_PLACEMENTS));

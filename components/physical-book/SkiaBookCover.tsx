@@ -73,6 +73,31 @@ function getGrainEffect(): SkRuntimeEffect | null {
 function buildWeavePath(binding: CookbookBinding, width: number, height: number) {
   const path = Skia.Path.Make();
   const pattern = binding.weavePattern;
+  if (binding.material === 'paper') {
+    const gap = Math.max(10, width / 18);
+    for (let y = gap, index = 0; y < height; y += gap * 1.35, index += 1) {
+      const offset = (index % 3) * gap * 0.7;
+      for (let x = -gap + offset; x < width; x += gap * 2.7) {
+        path.moveTo(x, y);
+        path.lineTo(x + gap * 1.35, y - gap * 0.48);
+      }
+    }
+    return path;
+  }
+  if (binding.material === 'grain') {
+    const gap = Math.max(8, width / 18);
+    for (let y = gap; y < height; y += gap * 1.25) {
+      for (let x = gap; x < width; x += gap * 1.5) {
+        const drift = ((Math.round(y / gap) + Math.round(x / gap)) % 3) * 0.7;
+        path.moveTo(x - gap * 0.28, y + drift);
+        path.lineTo(x, y - gap * 0.2 + drift);
+        path.lineTo(x + gap * 0.32, y + drift);
+        path.lineTo(x, y + gap * 0.24 + drift);
+        path.lineTo(x - gap * 0.28, y + drift);
+      }
+    }
+    return path;
+  }
   const verticalGap = Math.max(pattern.verticalGapMin, width / pattern.verticalGapRatio);
   const horizontalGap = Math.max(pattern.horizontalGapMin, width / pattern.horizontalGapRatio);
   const isLinen = binding.material === 'linen';
@@ -155,7 +180,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         />
       </RoundedRect>
 
-      {/* Material weave, clipped to the board shape by the group clip */}
+        {/* Each finish has a deliberately legible phone-scale surface pattern. */}
       <Group clip={boardClip}>
         <Path
           path={weavePath}

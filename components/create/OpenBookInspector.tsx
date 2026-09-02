@@ -233,7 +233,7 @@ function QuotePage({
         <View style={[styles.ornamentRule, { backgroundColor: withAlpha(foilColor, 0.5) }]} />
       </View>
 
-      <Text style={[styles.eyebrow, { fontSize: eyebrowSize }]}>NOSH BINDERY</Text>
+      <Text style={[styles.eyebrow, { fontSize: eyebrowSize }]}>FOLIO BINDERY</Text>
     </View>
   );
 }

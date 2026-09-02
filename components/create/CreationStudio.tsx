@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Check } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
+import { PageStyleCarousel } from '@/components/create/PageStyleCarousel';
 import { ShelfWallpaper } from '@/components/shelf/ShelfWallpaper';
 import { Text } from '@/components/ui/Text';
 import {
@@ -279,16 +280,6 @@ export function CreationStudio({
                   setError(null);
                 }}
               />
-              <TitleStyleSelector
-                colorValue={coverTitleColorId}
-                placementValue={coverTitlePlacementId}
-                coverColorId={coverColorId}
-                colorOptions={coverTitleColors}
-                placementOptions={coverTitlePlacements}
-                disabled={submitting}
-                onColorChange={selectCoverTitleColor}
-                onPlacementChange={selectCoverTitlePlacement}
-              />
               <CoverFinishSelector
                 value={coverFinishId}
                 options={coverFinishes}
@@ -300,6 +291,16 @@ export function CreationStudio({
                 options={coverColors}
                 disabled={submitting}
                 onChange={selectCoverColor}
+              />
+              <TitleStyleSelector
+                colorValue={coverTitleColorId}
+                placementValue={coverTitlePlacementId}
+                coverColorId={coverColorId}
+                colorOptions={coverTitleColors}
+                placementOptions={coverTitlePlacements}
+                disabled={submitting}
+                onColorChange={selectCoverTitleColor}
+                onPlacementChange={selectCoverTitlePlacement}
               />
               {!isEditing ? (
                 <PageStyleSelector
@@ -766,13 +767,13 @@ function CoverFinishSelector({
               disabled={disabled}
               accessibilityRole="button"
               accessibilityState={{ selected, disabled }}
-              accessibilityLabel={`${option.name} cover texture: ${option.description}`}
+              accessibilityLabel={`${option.name} cover finish`}
             >
               <View style={styles.finishSample} pointerEvents="none">
                 <SkiaBookCover
                   binding={binding}
-                  width={64}
-                  height={64}
+                  width={108}
+                  height={66}
                   spineWidth={0}
                   presentation="swatch"
                 />
@@ -819,9 +820,9 @@ function TitleStyleSelector({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Title style</Text>
+      <Text style={styles.sectionTitle}>Title treatment</Text>
       <View style={styles.titleStyleGroup}>
-        <Text style={styles.controlLabel}>Color</Text>
+        <Text style={styles.controlLabel}>Stamp</Text>
         <OptionRail testID="title-color-rail">
           {colorOptions.map((option) => {
             const selected = colorValue === option.id;
@@ -857,7 +858,7 @@ function TitleStyleSelector({
       </View>
 
       <View style={styles.titleStyleGroup}>
-        <Text style={styles.controlLabel}>Position</Text>
+        <Text style={styles.controlLabel}>Treatment</Text>
         <OptionRail testID="title-position-rail">
           {placementOptions.map((option) => {
             const selected = placementValue === option.id;
@@ -869,18 +870,27 @@ function TitleStyleSelector({
                 disabled={disabled}
                 accessibilityRole="button"
                 accessibilityState={{ selected, disabled }}
-                accessibilityLabel={`${option.name} title position`}
+                accessibilityLabel={`${option.name} title treatment`}
               >
                 <View style={[styles.titlePlacementBook, { backgroundColor: binding.cloth }]}>
-                  <View
+                  {option.treatment === 'editorial' ? (
+                    <View style={[styles.editorialSampleRule, { backgroundColor: selectedFoil[1] }]} />
+                  ) : null}
+                  {option.treatment === 'bookplate' ? (
+                    <View style={[styles.bookplateSampleFrame, { borderColor: selectedFoil[1] }]} />
+                  ) : null}
+                  <Text
+                    numberOfLines={2}
                     style={[
-                      styles.titlePlacementLine,
-                      {
-                        top: option.centerRatio * 54 - 2,
-                        backgroundColor: selectedFoil[1],
-                      },
+                      styles.titleTreatmentSample,
+                      option.treatment === 'editorial' && styles.titleTreatmentEditorial,
+                      option.treatment === 'modern' && styles.titleTreatmentModern,
+                      option.treatment === 'bookplate' && styles.titleTreatmentBookplate,
+                      { top: option.centerRatio * 72 - 8, color: selectedFoil[1] },
                     ]}
-                  />
+                  >
+                    {option.treatment === 'modern' ? 'FOLIO' : 'Folio'}
+                  </Text>
                 </View>
                 <Text style={[styles.colorName, selected && styles.colorNameSelected]}>{option.name}</Text>
               </Pressable>
@@ -921,12 +931,7 @@ function CoverColorSelector({
               accessibilityLabel={`${option.name} cover color`}
             >
               <View style={[styles.colorSwatchFrame, selected && styles.colorSwatchFrameSelected]}>
-                <View
-                  style={[
-                    styles.colorSwatch,
-                    { backgroundColor: binding.cloth, borderColor: binding.weave },
-                  ]}
-                />
+                <SkiaBookCover binding={binding} width={42} height={52} spineWidth={0} presentation="swatch" />
                 {selected ? (
                   <View style={styles.selectedMark}>
                     <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
@@ -962,43 +967,12 @@ function PageStyleSelector({
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Page style</Text>
-      <OptionRail testID="page-style-rail">
-        {options.map((option) => {
-          const selected = value === option.id;
-          return (
-            <Pressable
-              key={option.id}
-              style={[styles.pageStyleCard, selected && styles.pageStyleCardSelected]}
-              onPress={() => onChange(option.id)}
-              disabled={disabled}
-              accessibilityRole="button"
-              accessibilityState={{ selected, disabled }}
-              accessibilityLabel={`${option.name} recipe page style: ${option.description}`}
-            >
-              <Image
-                source={option.samples.brownies}
-                resizeMode="cover"
-                style={styles.pageStyleSample}
-                testID={`page-style-sample-${option.id}`}
-                accessible={false}
-              />
-              <View style={styles.pageStyleCopy}>
-                <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
-                  {option.name}
-                </Text>
-                <Text numberOfLines={2} style={styles.pageStyleDescription}>
-                  {option.description}
-                </Text>
-              </View>
-              {selected ? (
-                <View style={styles.pageStyleSelectedMark}>
-                  <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </OptionRail>
+      <PageStyleCarousel
+        value={value}
+        options={options}
+        disabled={disabled}
+        onChange={onChange}
+      />
     </View>
   );
 }
@@ -1162,8 +1136,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.lg,
   },
   finishCard: {
-    width: 108,
-    minHeight: 100,
+    width: 132,
+    minHeight: 104,
     padding: Spacing.sm,
     borderRadius: Radii.md,
     borderWidth: 1,
@@ -1206,8 +1180,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.legacySurface.v62,
   },
   titlePlacementOption: {
-    width: 82,
-    minHeight: 86,
+    width: 96,
+    minHeight: 106,
     borderRadius: Radii.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1217,27 +1191,63 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceMuted,
   },
   titlePlacementBook: {
-    width: 42,
-    height: 54,
+    width: 58,
+    height: 72,
     borderRadius: Radii.numeric[4],
     position: 'relative',
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.legacySurface.v62,
   },
-  titlePlacementLine: {
+  titleTreatmentSample: {
     position: 'absolute',
-    left: 9,
+    left: 8,
     right: 7,
-    height: 4,
-    borderRadius: Radii.full,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 10,
+    lineHeight: 10,
+    textAlign: 'center',
+  },
+  titleTreatmentEditorial: {
+    fontFamily: Fonts.display.bold,
+    fontSize: 11,
+    lineHeight: 11,
+    textAlign: 'left',
+  },
+  titleTreatmentModern: {
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 7,
+    lineHeight: 8,
+    letterSpacing: 0.8,
+    textAlign: 'left',
+  },
+  titleTreatmentBookplate: {
+    fontSize: 8,
+    lineHeight: 9,
+    paddingHorizontal: 5,
+  },
+  editorialSampleRule: {
+    position: 'absolute',
+    left: 8,
+    top: 16,
+    width: 18,
+    height: 1,
+  },
+  bookplateSampleFrame: {
+    position: 'absolute',
+    left: 7,
+    right: 6,
+    top: 19,
+    bottom: 18,
+    borderWidth: 0.8,
+    borderRadius: 1,
   },
   finishCardSelected: {
     backgroundColor: Colors.surfaceMuted,
   },
   finishSample: {
-    width: 64,
-    height: 64,
+    width: 108,
+    height: 66,
     overflow: 'hidden',
     borderRadius: Radii.md,
   },
@@ -1361,9 +1371,9 @@ const styles = StyleSheet.create({
     gap: Spacing.values[6],
   },
   colorSwatchFrame: {
-    width: 46,
-    height: 46,
-    borderRadius: Radii.full,
+    width: 52,
+    height: 62,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1374,13 +1384,6 @@ const styles = StyleSheet.create({
   colorSwatchFrameSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.surfaceMuted,
-  },
-  colorSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    boxShadow: Shadows.custom.studioSmall,
   },
   selectedMark: {
     position: 'absolute',
@@ -1405,60 +1408,6 @@ const styles = StyleSheet.create({
   colorNameSelected: {
     color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
-  },
-  pageStyleHeading: {
-    gap: Spacing.values[2],
-  },
-  pageStyleCard: {
-    width: 196,
-    minHeight: 116,
-    padding: Spacing.sm,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    position: 'relative',
-    gap: Spacing.values[6],
-  },
-  pageStyleCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  pageStyleSample: {
-    width: '100%',
-    height: 112,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.book.page,
-  },
-  pageStyleCopy: {
-    gap: Spacing.values[2],
-  },
-  pageStyleName: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight17,
-  },
-  pageStyleNameSelected: {
-    color: Colors.primary,
-    fontFamily: Fonts.ui.semibold,
-  },
-  pageStyleDescription: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.xs,
-    lineHeight: Typography.metrics.lineHeight14,
-  },
-  pageStyleSelectedMark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
   },
   finishButton: {
     minHeight: 54,

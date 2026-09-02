@@ -1,12 +1,18 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import SaveRecipeScreen from '@/app/(book)/save';
 
 const mockReplace = jest.fn();
+const mockBack = jest.fn();
+let mockCanGoBack = true;
 let mockParams: { captureId?: string } = {};
 
 jest.mock('expo-router', () => ({
-  router: { replace: (...args: unknown[]) => mockReplace(...args) },
+  router: {
+    back: (...args: unknown[]) => mockBack(...args),
+    canGoBack: () => mockCanGoBack,
+    replace: (...args: unknown[]) => mockReplace(...args),
+  },
   useLocalSearchParams: () => mockParams,
 }));
 
@@ -31,6 +37,7 @@ jest.mock('@/components/nosh/capture/NoshCaptureWorkspace', () => {
 describe('SaveRecipeScreen composer workspace', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCanGoBack = true;
     mockParams = {};
   });
 
@@ -42,5 +49,25 @@ describe('SaveRecipeScreen composer workspace', () => {
     expect(screen.queryByText(/needs attention/)).toBeNull();
     expect(screen.queryByText('Recipe activity')).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('returns through navigation history after replacement-source recovery', () => {
+    mockParams = { captureId: 'capture-1' };
+    const screen = render(<SaveRecipeScreen />);
+
+    fireEvent.press(screen.getByRole('button'));
+
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the bookshelf when the Composer was opened directly', () => {
+    mockCanGoBack = false;
+    const screen = render(<SaveRecipeScreen />);
+
+    fireEvent.press(screen.getByRole('button'));
+
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith('/(book)');
   });
 });

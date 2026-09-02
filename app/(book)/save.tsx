@@ -12,12 +12,21 @@ export default function SaveRecipeScreen() {
   const initialCaptureAction = rawCaptureAction === 'replace_source' || rawCaptureAction === 'correct_recipe'
     ? rawCaptureAction
     : undefined;
+
+  function exitComposer() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(book)');
+  }
+
   return (
     <RecipeCaptureScreen
       captureId={captureId}
       initialCaptureAction={initialCaptureAction}
-      onExit={() => router.replace('/(book)')}
-      exitAccessibilityLabel="Back to my cookbooks"
+      onExit={exitComposer}
+      exitAccessibilityLabel="Back"
     />
   );
 }

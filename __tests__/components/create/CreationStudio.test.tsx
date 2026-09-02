@@ -37,18 +37,24 @@ describe('CreationStudio', () => {
     expect(screen.getByTestId('title-color-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('title-position-rail').props.horizontal).toBe(true);
     expect(screen.getByTestId('page-style-rail').props.horizontal).toBe(true);
-    expect(StyleSheet.flatten(screen.getByTestId('page-style-sample-studio').props.style)).toMatchObject({
-      width: '100%',
-      height: 112,
-    });
+    expect(StyleSheet.flatten(screen.getByTestId('page-style-rail').props.style).overflow)
+      .not.toBe('visible');
+    const pageSampleStyle = StyleSheet.flatten(
+      screen.getByTestId('page-style-sample-studio').props.style,
+    );
+    expect(pageSampleStyle).toMatchObject({ aspectRatio: 4 / 5 });
+    expect(pageSampleStyle.height).toBeCloseTo(pageSampleStyle.width / (4 / 5));
+    expect(screen.getByTestId('page-style-sample-studio').props.resizeMode).toBe('contain');
+    expect(screen.getByText('Studio')).toBeTruthy();
+    expect(screen.getByText('Clean, modern, and quietly precise')).toBeTruthy();
 
     fireEvent.changeText(screen.getByPlaceholderText('Sunday Suppers'), 'Desserts');
     fireEvent.press(screen.getByRole('button', {
-      name: 'Natural linen cover texture: A warmer, more open woven texture',
+      name: 'Natural linen cover finish',
     }));
     fireEvent.press(screen.getByRole('button', { name: 'Midnight cover color' }));
     fireEvent.press(screen.getByRole('button', { name: 'Plum title color' }));
-    fireEvent.press(screen.getByRole('button', { name: 'Lower title position' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Modern title treatment' }));
     fireEvent.press(screen.getByRole('button', {
       name: 'Editorial recipe page style: Dramatic food-magazine art direction',
     }));
@@ -79,6 +85,20 @@ describe('CreationStudio', () => {
     await waitFor(() => expect(onCreateBook).toHaveBeenCalledTimes(1));
     expect(screen.getByDisplayValue('My Baking Book')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Add this cookbook to my shelf' }).props.accessibilityState?.disabled).not.toBe(true);
+  });
+
+  it('selects the page style after the carousel settles', () => {
+    const screen = render(
+      <CreationStudio canCreate onCreateBook={jest.fn()} onSignIn={jest.fn()} />,
+    );
+    const rail = screen.getByTestId('page-style-rail');
+
+    fireEvent(rail, 'momentumScrollEnd', {
+      nativeEvent: { contentOffset: { x: rail.props.snapToInterval, y: 0 } },
+    });
+
+    expect(screen.getAllByText('Editorial').length).toBeGreaterThan(0);
+    expect(screen.getByText('Dramatic food-magazine art direction')).toBeTruthy();
   });
 
   it('opens the selected sample directly from the book without nested preview tabs', () => {
@@ -121,7 +141,7 @@ describe('CreationStudio', () => {
     expect(screen.getByDisplayValue('My Cookbook')).toBeTruthy();
     expect(screen.getByText('Cover finish')).toBeTruthy();
     expect(screen.getByText('Cover color')).toBeTruthy();
-    expect(screen.getByText('Title style')).toBeTruthy();
+    expect(screen.getByText('Title treatment')).toBeTruthy();
     expect(screen.getByText('Page style')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
@@ -202,7 +222,7 @@ describe('CreationStudio', () => {
 
     fireEvent.changeText(screen.getByDisplayValue('Weeknight Table'), 'Weeknight Favorites');
     fireEvent.press(screen.getByRole('button', { name: 'Clay cover color' }));
-    fireEvent.press(screen.getByRole('button', { name: 'Lower title position' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Modern title treatment' }));
     fireEvent.press(screen.getByRole('button', { name: 'Save cookbook changes' }));
 
     await waitFor(() => {

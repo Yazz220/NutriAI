@@ -157,7 +157,7 @@ export function buildCookbookPdfHtml(
       <div class="mark"></div>
       <h1>${safeTitle}</h1>
       <div class="count">${recipeLabel}</div>
-      <div class="brand">NOSH</div>
+      <div class="brand">FOLIO</div>
     </section>${recipePages}
   </body>
 </html>`;
@@ -188,7 +188,7 @@ async function imageToDataUri(imageUrl: string, pageId: string): Promise<string>
 async function namePdfFile(uri: string, title: string): Promise<string> {
   if (!FileSystem.cacheDirectory) return uri;
   const safeTitle = slugify(title) || 'cookbook';
-  const destination = `${FileSystem.cacheDirectory}nosh-${safeTitle}.pdf`;
+  const destination = `${FileSystem.cacheDirectory}folio-${safeTitle}.pdf`;
   await FileSystem.deleteAsync(destination, { idempotent: true });
   await FileSystem.moveAsync({ from: uri, to: destination });
   return destination;

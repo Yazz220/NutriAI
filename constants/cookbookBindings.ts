@@ -24,7 +24,7 @@ export type CookbookBindingId =
   | 'alabaster-linen'
   | 'umber-leather';
 
-export type BindingMaterial = 'cloth' | 'linen';
+export type BindingMaterial = 'cloth' | 'linen' | 'paper' | 'grain';
 
 export interface CookbookCoverFinish {
   id: CookbookCoverFinishId;
@@ -120,6 +120,38 @@ export const COOKBOOK_COVER_FINISHES: Record<CookbookCoverFinishId, CookbookCove
       opacity: 0.25,
     },
   },
+  'pressed-paper': {
+    id: 'pressed-paper',
+    name: 'Pressed paper',
+    description: 'A softly mottled artisan paper surface',
+    material: 'paper',
+    studioOrder: 2,
+    grain: { frequency: 0.2, amplitude: 0.095 },
+    weave: {
+      verticalGapRatio: 18,
+      verticalGapMin: 12,
+      horizontalGapRatio: 16,
+      horizontalGapMin: 14,
+      strokeWidth: 1.15,
+      opacity: 0.18,
+    },
+  },
+  'soft-grain': {
+    id: 'soft-grain',
+    name: 'Soft grain',
+    description: 'A smooth pebbled surface with gentle depth',
+    material: 'grain',
+    studioOrder: 3,
+    grain: { frequency: 0.18, amplitude: 0.11 },
+    weave: {
+      verticalGapRatio: 16,
+      verticalGapMin: 11,
+      horizontalGapRatio: 15,
+      horizontalGapMin: 12,
+      strokeWidth: 0.8,
+      opacity: 0.2,
+    },
+  },
 };
 
 export const COOKBOOK_COVER_COLORS: Record<CookbookCoverColorId, CookbookCoverColor> = {
@@ -128,24 +160,28 @@ export const COOKBOOK_COVER_COLORS: Record<CookbookCoverColorId, CookbookCoverCo
     foil: FOIL_RAMPS.gold, band: '#5c624f', legacyStyleId: 'sage-linen',
   },
   clay: {
-    id: 'clay', name: 'Clay', studioOrder: 1, cloth: Colors.peach, weave: '#8f3823',
-    foil: FOIL_RAMPS.copper, band: '#7c3120', legacyStyleId: 'terracotta-cloth',
+    id: 'clay', name: 'Clay', studioOrder: 1, cloth: '#B9654D', weave: '#8D493A',
+    foil: FOIL_RAMPS.copper, band: '#733B31', legacyStyleId: 'terracotta-cloth',
+  },
+  ochre: {
+    id: 'ochre', name: 'Ochre', studioOrder: 2, cloth: '#B88A31', weave: '#826225',
+    foil: FOIL_RAMPS.gold, band: '#674C1C', legacyStyleId: 'terracotta-cloth',
   },
   midnight: {
-    id: 'midnight', name: 'Midnight', studioOrder: 2, cloth: '#2f3b52', weave: '#27334a',
+    id: 'midnight', name: 'Midnight', studioOrder: 3, cloth: '#263A59', weave: '#1C2C45',
     foil: FOIL_RAMPS.silver, band: '#232c3e', legacyStyleId: 'navy-leather',
   },
   alabaster: {
-    id: 'alabaster', name: 'Alabaster', studioOrder: 3, cloth: Colors.alabaster, weave: '#e6e1d5',
+    id: 'alabaster', name: 'Alabaster', studioOrder: 4, cloth: Colors.alabaster, weave: '#d8d0c0',
     foil: FOIL_RAMPS.copper, band: '#ded8cb', legacyStyleId: 'alabaster-linen',
   },
-  charcoal: {
-    id: 'charcoal', name: 'Charcoal', studioOrder: 4, cloth: Colors.charcoal, weave: '#262420',
-    foil: FOIL_RAMPS.gold, band: '#0f0e0c', legacyStyleId: 'charcoal-cloth',
-  },
   umber: {
-    id: 'umber', name: 'Umber', studioOrder: 5, cloth: Colors.warmUmber, weave: '#241f1c',
-    foil: FOIL_RAMPS.gold, band: '#1c1815', legacyStyleId: 'umber-leather',
+    id: 'umber', name: 'Plum', studioOrder: 5, cloth: '#65436F', weave: '#49304F',
+    foil: FOIL_RAMPS.gold, band: '#38243E', legacyStyleId: 'umber-leather',
+  },
+  charcoal: {
+    id: 'charcoal', name: 'Ink', studioOrder: 6, cloth: '#202124', weave: '#111214',
+    foil: FOIL_RAMPS.silver, band: '#090A0B', legacyStyleId: 'charcoal-cloth',
   },
 };
 

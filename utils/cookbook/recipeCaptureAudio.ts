@@ -28,7 +28,7 @@ export async function prepareRecipeCaptureAudio(
   if (Platform.OS === 'web') {
     if (asset.size == null) {
       const response = await fetch(asset.uri);
-      if (!response.ok) throw new Error('Nosh could not read this audio file. Choose another recording.');
+      if (!response.ok) throw new Error('Folio could not read this audio file. Choose another recording.');
       bytes = new Uint8Array(await response.arrayBuffer());
     }
     byteSize = asset.size ?? bytes?.byteLength ?? 0;
@@ -50,7 +50,7 @@ export async function prepareRecipeCaptureAudio(
   if (!bytes) {
     if (Platform.OS === 'web') {
       const response = await fetch(asset.uri);
-      if (!response.ok) throw new Error('Nosh could not read this audio file. Choose another recording.');
+      if (!response.ok) throw new Error('Folio could not read this audio file. Choose another recording.');
       bytes = new Uint8Array(await response.arrayBuffer());
     } else {
       bytes = await new File(asset.uri).bytes();

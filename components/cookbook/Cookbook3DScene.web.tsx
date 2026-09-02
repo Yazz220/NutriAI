@@ -31,6 +31,7 @@ import {
   normalizeCoverTitlePlacementId,
   resolveCoverTitleCenterRatio,
   resolveCoverTitleFoil,
+  resolveCoverTitleTreatment,
   type CoverTitleFoil,
 } from '@/constants/cookbookCoverTypography';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
@@ -905,13 +906,38 @@ function createCoverTitleTexture(
   if (!context) throw new Error('Could not create cover title texture');
 
   const centerY = canvas.height * resolveCoverTitleCenterRatio(placementId);
-  const lineHeight = canvas.height * 0.067;
-  context.textAlign = 'center';
+  const treatment = resolveCoverTitleTreatment(placementId);
+  const isEditorial = treatment === 'editorial';
+  const isModern = treatment === 'modern';
+  const isBookplate = treatment === 'bookplate';
+  const displayTitle = isModern ? title.toLocaleUpperCase() : title;
+  const lineHeight = canvas.height * (isEditorial ? 0.075 : isModern ? 0.048 : 0.067);
+  const titleX = isEditorial || isModern ? canvas.width * 0.2 : canvas.width / 2;
+  const maxWidth = canvas.width * (isEditorial || isModern ? 0.64 : 0.7);
+  context.textAlign = isEditorial || isModern ? 'left' : 'center';
   context.textBaseline = 'middle';
-  context.font = `bold ${Math.round(canvas.width * 0.09)}px Georgia`;
-  drawCenteredWrappedText(context, title, canvas.width / 2, centerY - 1.5, canvas.width * 0.7, lineHeight, foil[2]);
-  drawCenteredWrappedText(context, title, canvas.width / 2, centerY + 1.8, canvas.width * 0.7, lineHeight, foil[0]);
-  drawCenteredWrappedText(context, title, canvas.width / 2, centerY, canvas.width * 0.7, lineHeight, foil[1]);
+  context.font = isModern
+    ? `600 ${Math.round(canvas.width * 0.054)}px Arial`
+    : `bold ${Math.round(canvas.width * (isEditorial ? 0.105 : isBookplate ? 0.068 : 0.09))}px Georgia`;
+  if (isEditorial) {
+    context.fillStyle = foil[1];
+    context.fillRect(titleX, centerY - lineHeight * 1.55, canvas.width * 0.22, 3);
+    context.font = `bold ${Math.round(canvas.width * 0.105)}px Georgia`;
+  }
+  if (isBookplate) {
+    const frameX = canvas.width * 0.2;
+    const frameWidth = canvas.width * 0.6;
+    const frameHeight = canvas.height * 0.2;
+    context.strokeStyle = foil[1];
+    context.lineWidth = 3;
+    context.strokeRect(frameX, centerY - frameHeight / 2, frameWidth, frameHeight);
+    context.font = `bold ${Math.round(canvas.width * 0.068)}px Georgia`;
+  }
+  if (!isEditorial && !isModern && !isBookplate) {
+    drawCenteredWrappedText(context, displayTitle, titleX, centerY - 1.5, maxWidth, lineHeight, foil[2]);
+    drawCenteredWrappedText(context, displayTitle, titleX, centerY + 1.8, maxWidth, lineHeight, foil[0]);
+  }
+  drawCenteredWrappedText(context, displayTitle, titleX, centerY, maxWidth, lineHeight, foil[1]);
 
   drawEmbossedNoshMark(context, canvas.width, canvas.height, clothColor);
 

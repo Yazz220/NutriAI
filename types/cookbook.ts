@@ -34,12 +34,17 @@ export type CookbookStyleId =
   | 'umber-leather';
 
 /** Surface finish applied to the one canonical Folio cover construction. */
-export type CookbookCoverFinishId = 'fine-cloth' | 'natural-linen';
+export type CookbookCoverFinishId =
+  | 'fine-cloth'
+  | 'natural-linen'
+  | 'pressed-paper'
+  | 'soft-grain';
 
 /** Curated cover color, independent from the surface finish. */
 export type CookbookCoverColorId =
   | 'sage'
   | 'clay'
+  | 'ochre'
   | 'midnight'
   | 'alabaster'
   | 'charcoal'
@@ -55,7 +60,7 @@ export type CookbookCoverTitleColorId =
   | 'silver';
 
 /** Editorial title positions that stay consistent at every book size. */
-export type CookbookCoverTitlePlacementId = 'upper' | 'center' | 'lower';
+export type CookbookCoverTitlePlacementId = 'upper' | 'center' | 'lower' | 'bookplate';
 
 /** The versioned, book-owned visual language used by complete-page generation. */
 export type CookbookPageStyleId = RecipePageStyleId;

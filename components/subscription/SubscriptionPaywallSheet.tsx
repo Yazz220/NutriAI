@@ -114,7 +114,7 @@ export function SubscriptionPaywallSheet({
             <NoshSymbol size={25} />
           </View>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>NOSH PLUS</Text>
+            <Text style={styles.eyebrow}>FOLIO PLUS</Text>
             <Text style={styles.headerTitle}>Subscription</Text>
           </View>
         </View>

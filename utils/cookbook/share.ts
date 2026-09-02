@@ -40,7 +40,7 @@ async function downloadPageImage(page: CookbookPage, imageUrl: string): Promise<
   if (!FileSystem.cacheDirectory) throw new Error('A temporary export folder is unavailable.');
   const extension = getImageExtension(imageUrl);
   const safeTitle = page.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'recipe';
-  const destination = `${FileSystem.cacheDirectory}nosh-${safeTitle}-${page.id}.${extension}`;
+  const destination = `${FileSystem.cacheDirectory}folio-${safeTitle}-${page.id}.${extension}`;
   const result = await FileSystem.downloadAsync(imageUrl, destination);
   return result.uri;
 }

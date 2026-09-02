@@ -38,4 +38,15 @@ describe('prepareRecipeCaptureAudio', () => {
 
     expect(mockFile).not.toHaveBeenCalled();
   });
+
+  it('uses the Folio name when a browser audio file cannot be read', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await expect(prepareRecipeCaptureAudio({
+      uri: 'blob:http://localhost/missing-stew',
+      name: 'missing-stew.wav',
+      mimeType: 'audio/wav',
+    })).rejects.toThrow('Folio could not read this audio file. Choose another recording.');
+  });
 });

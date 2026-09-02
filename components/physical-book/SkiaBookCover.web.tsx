@@ -42,6 +42,7 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
 }: SkiaBookCoverProps) {
   const { cloth, weave, band } = binding;
   const isLinen = binding.material === 'linen';
+  const isWoven = binding.material === 'cloth' || isLinen;
   const isSwatch = presentation === 'swatch';
   const geometry = resolveNoshBookMaterialGeometry(width);
   const boardCornerRadius = isSwatch ? Math.min(10, width * 0.16) : geometry.boardCornerRadius;
@@ -65,8 +66,8 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
         style={[StyleSheet.absoluteFill, styles.face, { borderRadius: boardCornerRadius }]}
       />
 
-      {/* Tight cloth stays regular; linen uses broader, uneven cross-fibers. */}
-      {verticalFibers.map((position, index) => {
+      {/* Woven, paper, and pebbled finishes remain distinct at shelf size. */}
+      {isWoven ? verticalFibers.map((position, index) => {
         const isSlub = isLinen && index % 5 === 2;
         return (
         <View
@@ -85,8 +86,8 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
           ]}
         />
         );
-      })}
-      {horizontalFibers.map((position, index) => (
+      }) : null}
+      {isWoven ? horizontalFibers.map((position, index) => (
         <View
           key={`horizontal-${index}`}
           style={[
@@ -99,7 +100,38 @@ export const SkiaBookCover = React.memo(function SkiaBookCover({
             },
           ]}
         />
-      ))}
+      )) : null}
+      {binding.material === 'paper'
+        ? Array.from({ length: 14 }, (_, index) => (
+            <View
+              key={`paper-${index}`}
+              style={[
+                styles.paperFiber,
+                {
+                  left: ((index * 37) % 105) / 100 * width - 8,
+                  top: ((index * 61) % 100) / 100 * height,
+                  width: Math.max(14, width * (0.16 + (index % 3) * 0.04)),
+                  backgroundColor: withAlpha(weave, binding.weavePattern.opacity),
+                },
+              ]}
+            />
+          ))
+        : null}
+      {binding.material === 'grain'
+        ? Array.from({ length: 28 }, (_, index) => (
+            <View
+              key={`grain-${index}`}
+              style={[
+                styles.grainCell,
+                {
+                  left: ((index * 31) % 97) / 100 * width,
+                  top: ((index * 47) % 97) / 100 * height,
+                  borderColor: withAlpha(weave, binding.weavePattern.opacity * 0.9),
+                },
+              ]}
+            />
+          ))
+        : null}
 
       {!isSwatch ? (
         <>
@@ -149,6 +181,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+  },
+  paperFiber: {
+    position: 'absolute',
+    height: 1.2,
+    borderRadius: 2,
+    transform: [{ rotate: '-18deg' }],
+  },
+  grainCell: {
+    position: 'absolute',
+    width: 8,
+    height: 6,
+    borderWidth: 0.8,
+    borderRadius: 4,
+    transform: [{ rotate: '-8deg' }],
   },
   spine: {
     position: 'absolute',

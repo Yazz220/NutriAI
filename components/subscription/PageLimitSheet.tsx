@@ -35,7 +35,7 @@ export function PageLimitSheet({
             <CalendarClock size={21} color={Colors.warning} />
           </View>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>NOSH PLUS</Text>
+            <Text style={styles.eyebrow}>FOLIO PLUS</Text>
             <Text style={styles.title}>More pages are coming</Text>
           </View>
         </View>

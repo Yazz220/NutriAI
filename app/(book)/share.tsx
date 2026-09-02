@@ -37,7 +37,7 @@ export default function NativeShareReceiptScreen() {
             <View style={styles.icon}><Share2 size={24} color={Colors.text} /></View>
             <Text style={styles.title}>Confirm this video</Text>
             <Text style={styles.copy}>
-              Only add a video you made or have permission to use. Nosh keeps it private and uses it to create your recipe page.
+              Only add a video you made or have permission to use. Folio keeps it private and uses it to create your recipe page.
             </Text>
             <Button title="I have permission" onPress={confirmVideoPermission} fullWidth />
             <Button title="Cancel shared item" variant="ghost" onPress={cancel} fullWidth />

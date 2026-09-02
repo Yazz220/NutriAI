@@ -160,6 +160,10 @@ Deploy migrations before deploying Edge Functions that depend on new columns, co
 
 Apply `20260831011239_subscription_foundation.sql` before deploying subscription-aware `generate-page-art`, `capture-recipe`, `sync-subscription`, or `revenuecat-webhook`. Follow [MONETIZATION.md](./MONETIZATION.md) for App Store Connect, RevenueCat, webhook, EAS environment, and sandbox setup. Use TestFlight to exercise the real launch products. The `development` profile has bundle ID `com.yaz12.nosh.dev`; it needs its own matching RevenueCat app/Test Store configuration and profile-specific public key. Never put a test key in preview or production. Expo Go can preview only unavailable/loading presentation, not native purchasing.
 
+### Temporary pre-launch capacity override
+
+The currently linked pre-launch database temporarily gives Folio Free accounts 100 cookbooks and 100 lifetime designed pages so end-to-end development is not blocked by the purchase flow. This is operational test data, not a migration or launch-plan change. Before a production release, restore `nutriai.subscription_plan_features` to the canonical values in [MONETIZATION.md](./MONETIZATION.md): 2 Free cookbooks and 5 lifetime Free designed pages. Refresh `get_subscription_access()` after either change so clients do not retain a stale allowance snapshot.
+
 `APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 
 ## EAS Builds

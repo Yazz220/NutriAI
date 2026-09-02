@@ -73,7 +73,7 @@ export function CookingPreferencesSheet({
             <NoshSymbol size={25} />
           </View>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>NOSH</Text>
+            <Text style={styles.eyebrow}>FOLIO</Text>
             <Text style={styles.title}>Cooking preferences</Text>
           </View>
         </View>
