@@ -135,10 +135,10 @@ REVENUECAT_ACCEPT_SANDBOX_EVENTS=true
 Configure the RevenueCat webhook URL as:
 
 ```text
-https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook
+https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook?forceFunctionRegion=<project-region>
 ```
 
-Set its Authorization value to `Bearer <REVENUECAT_WEBHOOK_AUTH_TOKEN>` and enable HMAC signing. Verified sandbox snapshots are accepted by default because TestFlight and App Review purchases use Apple’s sandbox against the production binary. The environment remains persisted on the entitlement and webhook event for audit. `REVENUECAT_ACCEPT_SANDBOX_EVENTS=false` is an emergency kill switch, not the production default; enabling it during review would make Apple’s purchase test fail.
+Pin the project's actual Supabase region because webhook senders cannot add Supabase's `x-region` routing header. Set the Authorization value to `Bearer <REVENUECAT_WEBHOOK_AUTH_TOKEN>` and enable HMAC signing. The handler authenticates dashboard `TEST` events and acknowledges them before database or subscriber reconciliation because RevenueCat supplies synthetic purchase and user identifiers for that delivery check. Verified sandbox snapshots are accepted by default because TestFlight and App Review purchases use Apple’s sandbox against the production binary. The environment remains persisted on real entitlement and webhook events for audit. `REVENUECAT_ACCEPT_SANDBOX_EVENTS=false` is an emergency kill switch, not the production default; enabling it during review would make Apple’s purchase test fail.
 
 ## App Store Connect and RevenueCat checklist
 

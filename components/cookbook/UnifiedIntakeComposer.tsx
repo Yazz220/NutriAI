@@ -14,7 +14,7 @@
  */
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { FileAudio, NotebookPen, Paperclip, X } from 'lucide-react-native';
@@ -29,8 +29,6 @@ import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVide
 import {
   classifyVideoSourceUrl,
   isRecognizedVideoSourceUrl,
-  socialVideoPlatformSupportsExternalAcquisition,
-  socialVideoPlatformLabel,
 } from '@/supabase/functions/_shared/videoSource';
 import {
   MAX_RECIPE_TEXT_CHARACTERS,
@@ -274,20 +272,7 @@ export function UnifiedIntakeComposer({
     if (!('video' in payload)) {
       const classification = classifyVideoSourceUrl(payload.input);
       if (classification?.kind === 'platform_link') {
-        if (socialVideoPlatformSupportsExternalAcquisition(classification.platform)) {
-          await onSubmit(payload);
-          return;
-        }
-        const platformLabel = socialVideoPlatformLabel(classification.platform);
-        Alert.alert(
-          `${platformLabel} videos need one more step`,
-          `Nosh cannot download ${platformLabel} videos. To save this recipe, open the original, save or share the video file, then attach it here — or paste the caption text or a screenshot.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open original', onPress: () => { void Linking.openURL(payload.input); } },
-            { text: 'Save link anyway', onPress: () => { void onSubmit(payload); } },
-          ],
-        );
+        await onSubmit(payload);
         return;
       }
     }
@@ -308,13 +293,6 @@ export function UnifiedIntakeComposer({
   const hasImage = imageCount > 0;
   const hasAudio = Boolean(audioAttachment);
   const hasVideo = Boolean(videoAttachment);
-  const pastedVideoSource = hasImage || hasAudio || hasVideo
-    ? null
-    : classifyVideoSourceUrl(input.trim());
-  const pastedPlatformLabel = pastedVideoSource?.kind === 'platform_link'
-    && !socialVideoPlatformSupportsExternalAcquisition(pastedVideoSource.platform)
-    ? socialVideoPlatformLabel(pastedVideoSource.platform)
-    : null;
   const canSubmit = Boolean(hasImage || hasAudio || hasVideo || input.trim()) && !isSubmitting;
 
   const submitIcon = isSubmitting ? (
@@ -347,15 +325,6 @@ export function UnifiedIntakeComposer({
           accessibilityLabel="Recipe source"
         />
       </View>
-
-      {pastedPlatformLabel ? (
-        <View style={styles.sourceGuidance} accessibilityLiveRegion="polite">
-          <Text style={styles.sourceGuidanceTitle}>{pastedPlatformLabel} video recipe</Text>
-          <Text style={styles.sourceGuidanceBody}>
-            Save or share the video file, then attach it here — or paste the caption or a screenshot.
-          </Text>
-        </View>
-      ) : null}
 
       {hasImage || hasAudio || hasVideo ? (
         <View style={styles.attachmentChip}>
@@ -527,24 +496,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: Fonts.ui.medium,
     fontSize: Typography.sizes.sm,
-  },
-  sourceGuidance: {
-    gap: Spacing.xs,
-    borderRadius: Radii.md,
-    backgroundColor: Colors.parchment,
-    padding: Spacing.md,
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  sourceGuidanceTitle: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.medium,
-    fontSize: Typography.sizes.sm,
-  },
-  sourceGuidanceBody: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight18,
   },
   footer: {
     minHeight: 64,

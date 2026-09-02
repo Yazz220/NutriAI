@@ -55,21 +55,44 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     }));
   });
 
-  it('keeps the guided file fallback for an unsupported social platform', () => {
+  it('submits a pasted recipe page without an intermediate prompt', async () => {
+    const onSubmit = jest.fn();
+    const screen = render(
+      <UnifiedIntakeComposer
+        input="https://example.com/recipes/roast-chicken"
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create recipe page' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      type: 'url',
+      input: 'https://example.com/recipes/roast-chicken',
+    }));
+  });
+
+  it('attempts every pasted social-video link before showing recovery', async () => {
+    const onSubmit = jest.fn();
     const screen = render(
       <UnifiedIntakeComposer
         input="https://www.pinterest.com/pin/1234567890"
         imageBase64={null}
         onInputChange={jest.fn()}
         onImageBase64Change={jest.fn()}
-        onSubmit={jest.fn()}
+        onSubmit={onSubmit}
       />,
     );
 
-    expect(screen.getByText('Pinterest video recipe')).toBeTruthy();
-    expect(screen.getByText(
-      'Save or share the video file, then attach it here — or paste the caption or a screenshot.',
-    )).toBeTruthy();
+    expect(screen.queryByText('Pinterest video recipe')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Create recipe page' }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      type: 'video',
+      input: 'https://www.pinterest.com/pin/1234567890',
+      rightsConfirmed: false,
+    }));
   });
 
   it('keeps large recipe text inside a scrollable fixed-height input', () => {

@@ -15,8 +15,10 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import {
+  ELEVENLABS_PRIVACY_URL,
   OPENROUTER_PRIVACY_URL,
   PRIVACY_POLICY_URL,
+  SUPADATA_PRIVACY_URL,
 } from '@/constants/legal';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
@@ -175,20 +177,28 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.body}>
-            Folio uses external AI to read recipes, create cookbook pages, and answer cooking questions.
+            Folio uses external services to read recipes, transcribe recipe media, create cookbook pages, and answer cooking questions.
           </Text>
           <View style={styles.disclosureCard}>
             <DisclosureRow
               icon={<NoshSymbol size={22} />}
-              text="Recipe links, pasted text, photos, video links, chat messages, and the active recipe context may be sent."
+              text="Recipe links, pasted text, photos, uploaded audio and video, sampled video frames, chat messages, and the active cookbook or recipe context may be sent."
             />
             <DisclosureRow
               icon={<ExternalLink size={18} color={Colors.primary} />}
-              text="OpenRouter routes this content to the selected Qwen model provider. Provider retention and training rules may differ."
+              text="OpenRouter routes recipe understanding, chat, page design, and audio transcription requests to selected Qwen or speech-to-text model providers."
+            />
+            <DisclosureRow
+              icon={<ExternalLink size={18} color={Colors.primary} />}
+              text="Supadata receives supported public social-video links and analyzes available video content for recipe evidence."
+            />
+            <DisclosureRow
+              icon={<ExternalLink size={18} color={Colors.primary} />}
+              text="ElevenLabs receives uploaded or directly linked video files to produce speech-to-text when video transcription is available."
             />
           </View>
           <Text style={styles.body}>
-            Folio does not need this permission for browsing cookbooks, reading saved pages, or managing your account. You can withdraw permission here at any time.
+            Folio sends only the content needed for the action you request. Provider retention and training rules may differ. Folio does not need this permission for browsing cookbooks, reading saved pages, or managing your account. You can withdraw permission here at any time.
           </Text>
           <View style={styles.linkRow}>
             <Pressable
@@ -204,6 +214,20 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
               accessibilityLabel="Open OpenRouter privacy policy"
             >
               <Text style={styles.link}>OpenRouter privacy</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { void openUrl(SUPADATA_PRIVACY_URL); }}
+              accessibilityRole="link"
+              accessibilityLabel="Open Supadata privacy policy"
+            >
+              <Text style={styles.link}>Supadata privacy</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { void openUrl(ELEVENLABS_PRIVACY_URL); }}
+              accessibilityRole="link"
+              accessibilityLabel="Open ElevenLabs privacy policy"
+            >
+              <Text style={styles.link}>ElevenLabs privacy</Text>
             </Pressable>
           </View>
           {isRequest ? (

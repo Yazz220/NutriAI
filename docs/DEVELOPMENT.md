@@ -62,6 +62,9 @@ Supabase Edge Function secrets:
 | `AUDIO_TRANSCRIPTION_MODEL` | speech-to-text model used by `capture-recipe`; defaults to `openai/whisper-large-v3` |
 | `AUDIO_TRANSCRIPTION_API_BASE` | optional OpenAI-compatible speech-to-text base URL; defaults to `AI_API_BASE` |
 | `AUDIO_TRANSCRIPTION_API_KEY` | optional speech-to-text provider key; defaults to `AI_API_KEY` |
+| `VIDEO_TRANSCRIPTION_MODEL` | direct-media speech-to-text model used for uploaded and direct-file video; defaults to ElevenLabs `scribe_v2` |
+| `VIDEO_TRANSCRIPTION_API_BASE` | optional direct-media speech-to-text base URL; defaults to `https://api.elevenlabs.io/v1` |
+| `VIDEO_TRANSCRIPTION_API_KEY` | server-only direct-media speech-to-text credential required for narrated uploaded and direct-file video |
 | `SOCIAL_VIDEO_ACQUISITION_PROVIDER` | optional external social-video evidence adapter; `guided` by default, `supadata` enables the current adapter |
 | `SUPADATA_API_KEY` | server-only Supadata credential used only when the provider is `supadata` |
 | `SUPADATA_API_BASE` | optional Supadata base URL; defaults to `https://api.supadata.ai/v1` |
@@ -203,7 +206,7 @@ npx eas-cli submit --platform ios
 | Generated image exists but the page is absent | capture publication failed after page generation | confirm `failed_stage = publication`, `art_status = ready`, and a ready `selected_version_id`; retry the same capture to publish that version |
 | Recipe image fails before capture starts | source exceeds 15 MB, native decoder cannot read it, or normalization cannot produce an artifact below 8 MB | reproduce through `recipeCaptureImage.ts`; inspect the original dimensions/size and the adaptive normalization attempts |
 | Image capture asks for another source | extractor classified it as blank, unreadable, blurry/low-resolution, cropped, or incomplete | inspect `extract-recipe` logs for the provider-neutral `reasonCode` and internal `diagnostic`; keep user-facing copy in `recipeEvidence.ts` |
-| Social link immediately asks for another source | the external provider is `guided`/disabled, the platform is not enabled, or the link is Pinterest | open the original, then add a video file, screenshots, audio, or pasted recipe text; never pass a social page URL straight to the model |
+| Social link fails before extraction | the external provider is disabled, the platform is not enabled, or the provider does not support the link | retry the saved link or open the original and choose another source; the composer should never interrupt a pasted link before this durable failure |
 | Social capture reaches technical retry | provider configuration, rate limiting, timeout, or temporary acquisition failure | inspect the `acquisition` checkpoint and `capture-recipe` logs; retry the same capture so a saved provider job resumes instead of starting another one |
 | Social capture reports unavailable | the public post is missing, private, restricted, or unsupported by the provider | keep the saved link and use Open original to add a video file, screenshots, audio, or recipe text |
 | Video capture asks for permission | the source did not pass through the Composer confirmation | add the video again and confirm that the user made it or has permission to process it |

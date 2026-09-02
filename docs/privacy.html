@@ -14,14 +14,14 @@
       <header class="hero">
         <p class="eyebrow">Folio</p>
         <h1>Privacy policy</h1>
-        <p class="meta">Effective August 31, 2026</p>
+        <p class="meta">Effective September 2, 2026</p>
         <p class="lede">Folio is a personal cookbook with an AI chef. This policy explains what information Folio handles and the choices available to you.</p>
       </header>
 
       <h2>Information Folio handles</h2>
       <ul>
         <li><strong>Account information.</strong> Your email address, user ID, authentication provider, and any name returned by Sign in with Apple.</li>
-        <li><strong>Cookbook content.</strong> Cookbook titles and styles, recipes, recipe links, pasted text, photos, video links, RecipeGraphs, generated pages, and import history.</li>
+        <li><strong>Cookbook and recipe-source content.</strong> Cookbook titles and styles, recipes, recipe links, pasted text, photos, uploaded audio and video, sampled video frames, transcripts, provider observations from public social videos, RecipeGraphs, generated pages, and import history.</li>
         <li><strong>Conversation content.</strong> Messages sent to Folio, attached images, and the active cookbook or recipe context needed to answer.</li>
         <li><strong>AI response reports.</strong> When you choose Report beneath a Folio response, Folio stores that response text, its device-local message identifier, your user ID, and report status for private safety and quality review.</li>
         <li><strong>Purchase information.</strong> Your Folio plan, subscription product, renewal state, purchase and expiration dates, and an app-specific customer identifier. Folio does not receive your full payment-card number.</li>
@@ -35,22 +35,30 @@
       <div class="notice">
         <p>Folio asks for permission before it sends personal content to external AI.</p>
       </div>
-      <p>If you allow AI processing, recipe links, pasted text, photos, video links, chat messages, and relevant cookbook or recipe context may be sent to OpenRouter. OpenRouter routes requests to the selected Qwen model provider for recipe extraction, conversation, and page generation.</p>
-      <p>OpenRouter states that it does not train on API inputs or outputs, but model providers have their own retention and training practices. Review the <a href="https://openrouter.ai/privacy">OpenRouter privacy policy</a> and its linked model-provider information before allowing AI processing. Do not submit another person's private information or image without their permission.</p>
+      <p>If you allow AI processing, Folio sends only the content needed for the action you request. This may include recipe links, pasted text, photos, uploaded audio and video, sampled video frames, transcripts, chat messages, and relevant cookbook or recipe context.</p>
+      <ul>
+        <li><strong>OpenRouter and selected model providers.</strong> OpenRouter routes recipe extraction, conversation, cookbook-page generation, and configured audio transcription requests to selected Qwen or speech-to-text model providers. Prompts may include the applicable source content, recipe data, cookbook style references, or conversation context.</li>
+        <li><strong>Supadata.</strong> For a supported public social-video link, Supadata receives the link and analyzes available public video content. Folio receives bounded metadata and seen or heard recipe observations, then performs its own recipe extraction.</li>
+        <li><strong>ElevenLabs.</strong> For uploaded or directly linked video files, Folio may send the inspected video file to ElevenLabs to create a speech-to-text transcript used as recipe evidence.</li>
+      </ul>
+      <p>Provider retention and training practices differ. Review the <a href="https://openrouter.ai/privacy">OpenRouter privacy policy</a>, <a href="https://supadata.ai/privacy">Supadata privacy policy</a>, and <a href="https://elevenlabs.io/privacy-policy">ElevenLabs privacy policy</a> before allowing AI processing. Do not submit another person's private information, photo, voice, audio, or video without permission.</p>
       <p>You can decline AI processing and continue reading saved cookbooks and managing your account. You can withdraw permission from Settings under AI data use. Withdrawing permission stops new AI requests on that device; it does not undo processing that already occurred.</p>
 
       <h2>Service providers</h2>
       <ul>
         <li><strong>Supabase</strong> provides authentication, database, storage, and Edge Function infrastructure.</li>
         <li><strong>RevenueCat</strong> receives an app-specific user identifier and App Store purchase information so Folio can verify Folio Plus, restore purchases, and keep access in sync across supported devices.</li>
-        <li><strong>OpenRouter and selected model providers</strong> process content only after you allow AI processing.</li>
+        <li><strong>OpenRouter and selected model providers</strong> process recipe sources, recipe data, style references, conversations, and configured audio-transcription requests only after you allow AI processing.</li>
+        <li><strong>Supadata</strong> processes supported public social-video links and available video content to return bounded recipe observations only after you allow AI processing.</li>
+        <li><strong>ElevenLabs</strong> processes uploaded or directly linked video files to return speech-to-text only after you allow AI processing.</li>
         <li><strong>Apple</strong> processes Sign in with Apple when you choose that login method and processes App Store purchases.</li>
       </ul>
       <p>Folio does not sell your personal information. Folio does not use your cookbook or conversation content for advertising.</p>
 
       <h2>Storage and retention</h2>
-      <p>Account and cookbook records remain in cloud storage while your account is active. Recipe source media is retained so you can review and retry imports. Generated cookbook pages remain until you delete the related content or account. AI response reports remain while needed for safety review and follow-up, or until your account is deleted. Conversation threads and cookbook caches are also stored on your device.</p>
-    <p>Generated page images are stored privately and delivered through short-lived links after Folio verifies your signed-in account. Avoid placing sensitive personal information in recipe content. Infrastructure and AI providers may retain service data under their own policies or legal obligations.</p>
+      <p>Account and cookbook records remain in cloud storage while your account is active. Recipe source media, sampled frames, transcripts, and acquired observations are retained with the capture so Folio can finish or retry the import. Generated cookbook pages remain until you delete the related content or account. AI response reports remain while needed for safety review and follow-up, or until your account is deleted. Conversation threads and cookbook caches are also stored on your device.</p>
+      <p>Deleting the related recipe or cookbook removes its retained Folio storage through the app's cleanup process. Deleting your account removes Folio's cloud records and stored media. External providers may retain service data under their own policies or legal obligations, so withdrawing Folio permission or deleting your Folio account does not by itself delete records already held by those providers.</p>
+      <p>Generated page images are stored privately and delivered through short-lived links after Folio verifies your signed-in account. Avoid placing sensitive personal information in recipe content.</p>
 
       <h2>Your choices</h2>
       <ul>

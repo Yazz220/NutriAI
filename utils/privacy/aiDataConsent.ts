@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const AI_DATA_CONSENT_VERSION = 1;
+export const AI_DATA_CONSENT_VERSION = 2;
+const AI_DATA_CONSENT_STORAGE_VERSIONS = [1, AI_DATA_CONSENT_VERSION] as const;
 
 export interface AiDataConsentRecord {
   version: number;
@@ -43,5 +44,7 @@ export async function grantAiDataConsent(userId: string): Promise<AiDataConsentR
 }
 
 export async function withdrawAiDataConsent(userId: string): Promise<void> {
-  await AsyncStorage.removeItem(storageKey(userId));
+  await Promise.all(AI_DATA_CONSENT_STORAGE_VERSIONS.map((version) => (
+    AsyncStorage.removeItem(`nosh:ai-data-consent:${userId}:v${version}`)
+  )));
 }

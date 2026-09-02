@@ -27,12 +27,14 @@ import {
 import { selectRecipeLayoutStrategy } from '../_shared/recipeLayout.ts';
 import { resolveAudioRecipeEvidence } from '../_shared/audioRecipeEvidence.ts';
 import { transcribeAudioRecipeEvidence } from '../_shared/audioTranscription.ts';
+import { transcribeVideoRecipeEvidence } from '../_shared/videoTranscription.ts';
 import {
+  acquireDirectVideoRecipeSource,
   canReuseSavedVideoTranscript,
   inspectUploadedVideoRecipeSource,
   MAX_VIDEO_FRAMES,
-  videoTranscriptionFormat,
 } from '../_shared/videoRecipeEvidence.ts';
+import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
 import {
   recipeTextSourceIsTooLarge,
   recipeEvidenceFeedback,
@@ -82,6 +84,9 @@ const AI_API_BASE = Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1
 const AUDIO_TRANSCRIPTION_API_KEY = Deno.env.get('AUDIO_TRANSCRIPTION_API_KEY') || AI_API_KEY;
 const AUDIO_TRANSCRIPTION_API_BASE = Deno.env.get('AUDIO_TRANSCRIPTION_API_BASE') || AI_API_BASE;
 const AUDIO_TRANSCRIPTION_MODEL = Deno.env.get('AUDIO_TRANSCRIPTION_MODEL') || 'openai/whisper-large-v3';
+const VIDEO_TRANSCRIPTION_API_KEY = Deno.env.get('VIDEO_TRANSCRIPTION_API_KEY') || '';
+const VIDEO_TRANSCRIPTION_API_BASE = Deno.env.get('VIDEO_TRANSCRIPTION_API_BASE') || 'https://api.elevenlabs.io/v1';
+const VIDEO_TRANSCRIPTION_MODEL = Deno.env.get('VIDEO_TRANSCRIPTION_MODEL') || 'scribe_v2';
 const SOCIAL_VIDEO_ACQUISITION_PROVIDER = (Deno.env.get('SOCIAL_VIDEO_ACQUISITION_PROVIDER') || 'guided')
   .trim()
   .toLowerCase();
@@ -389,6 +394,104 @@ async function prepareSocialVideoSource(
   }
 }
 
+async function videoTranscriptForSource(
+  admin: SupabaseClient,
+  capture: JsonRecord,
+  payload: JsonRecord,
+  input: {
+    bytes: Uint8Array;
+    mimeType: 'video/mp4' | 'video/mov' | 'video/mpeg' | 'video/webm';
+    byteSize: number;
+    fileName: string;
+    sourceAdapterVersion: string;
+    sourceKind: 'owned_upload' | 'direct_file';
+  },
+): Promise<string | undefined> {
+  const savedTranscript = typeof payload.transcript === 'string' ? payload.transcript.trim() : '';
+  if (savedTranscript && canReuseSavedVideoTranscript(capture, payload)) {
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'transcription',
+      VIDEO_TRANSCRIPTION_STAGE_VERSION,
+      isRecord(payload.transcription) ? payload.transcription : { recoveredLegacyMetadata: true },
+    );
+    logInfo('Recipe capture reused saved video transcript', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      transcriptCharacters: savedTranscript.length,
+    });
+    return savedTranscript;
+  }
+
+  const transcription = await transcribeVideoRecipeEvidence(
+    {
+      bytes: input.bytes,
+      mimeType: input.mimeType,
+      fileName: input.fileName,
+    },
+    {
+      apiBase: VIDEO_TRANSCRIPTION_API_BASE,
+      apiKey: VIDEO_TRANSCRIPTION_API_KEY,
+      model: VIDEO_TRANSCRIPTION_MODEL,
+    },
+  );
+  if (!transcription.ready) {
+    logInfo('Recipe capture video transcription unavailable; continuing with whole-video evidence', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      reasonCode: transcription.reasonCode,
+      diagnostic: transcription.diagnostic,
+    });
+    return undefined;
+  }
+
+  const transcriptionMetadata = {
+    model: transcription.model,
+    provider: transcription.provider,
+    sourceAdapterVersion: input.sourceAdapterVersion,
+    transcriptionAdapterVersion: VIDEO_TRANSCRIPTION_STAGE_VERSION,
+    speechToTextAdapterVersion: transcription.adapterVersion,
+    sourceKind: input.sourceKind,
+    mimeType: input.mimeType,
+    byteSize: input.byteSize,
+    transcribedAt: new Date().toISOString(),
+  };
+  const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
+    source_payload: {
+      ...payload,
+      transcript: transcription.transcript,
+      transcription: transcriptionMetadata,
+    },
+  }).eq('id', capture.id).eq('user_id', capture.user_id);
+  if (transcriptSaveError) {
+    logInfo('Recipe capture saved the video transcript for this attempt only', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      error: transcriptSaveError.message,
+    });
+  } else {
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'transcription',
+      VIDEO_TRANSCRIPTION_STAGE_VERSION,
+      transcriptionMetadata,
+    );
+  }
+  logInfo('Recipe capture video audio transcribed', {
+    captureId: capture.id,
+    sourceKind: input.sourceKind,
+    byteSize: input.byteSize,
+    mimeType: input.mimeType,
+    transcriptCharacters: transcription.transcript.length,
+    transcriptionModel: transcription.model,
+  });
+  return transcription.transcript;
+}
+
 async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<PreparedExtractionSource> {
   const sourceType = String(capture.source_type);
   const payload = isRecord(capture.source_payload) ? capture.source_payload : {};
@@ -402,27 +505,19 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
     const videoClassification = sourceType === 'url' || sourceType === 'video'
       ? classifyVideoSourceUrl(input)
       : null;
-    await recordCaptureCheckpoint(
-      admin,
-      String(capture.user_id),
-      String(capture.id),
-      'source',
-      sourceStageVersion(sourceType),
-      videoClassification?.kind === 'platform_link'
-        ? {
-            sourceType,
-            sourceKind: 'platform_link',
-            platform: videoClassification.platform,
-          }
-        : sourceType === 'video'
-        ? {
-            sourceType,
-            sourceKind: 'url',
-            rightsConfirmed: payload.rightsConfirmed === true,
-          }
-        : { sourceType },
-    );
     if (videoClassification?.kind === 'platform_link') {
+      await recordCaptureCheckpoint(
+        admin,
+        String(capture.user_id),
+        String(capture.id),
+        'source',
+        sourceStageVersion(sourceType),
+        {
+          sourceType,
+          sourceKind: 'platform_link',
+          platform: videoClassification.platform,
+        },
+      );
       return prepareSocialVideoSource(
         admin,
         capture,
@@ -430,15 +525,73 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
         videoClassification.canonicalUrl,
       );
     }
+
+    if (sourceType === 'video') {
+      const directVideo = await acquireDirectVideoRecipeSource(input, {
+        rightsConfirmed: payload.rightsConfirmed === true,
+        checkPublicUrl: async (url) => {
+          validatePublicHttpUrl(url.toString());
+          await assertPublicDnsHostname(url.hostname);
+        },
+      });
+      if (!directVideo.ready) return { status: 'rejected', ...directVideo, failedStage: 'source' };
+
+      const directVideoFileName = (() => {
+        try {
+          const name = new URL(directVideo.canonicalUrl).pathname.split('/').filter(Boolean).at(-1);
+          return name ? decodeURIComponent(name) : 'direct-video';
+        } catch {
+          return 'direct-video';
+        }
+      })();
+      await recordCaptureCheckpoint(
+        admin,
+        String(capture.user_id),
+        String(capture.id),
+        'source',
+        directVideo.adapterVersion,
+        {
+          sourceType,
+          sourceKind: 'direct_file',
+          canonicalUrl: directVideo.canonicalUrl,
+          byteSize: directVideo.byteSize,
+          mimeType: directVideo.mimeType,
+          rightsConfirmed: true,
+        },
+      );
+      const videoTranscript = await videoTranscriptForSource(admin, capture, payload, {
+        bytes: directVideo.bytes,
+        mimeType: directVideo.mimeType,
+        byteSize: directVideo.byteSize,
+        fileName: directVideoFileName,
+        sourceAdapterVersion: directVideo.adapterVersion,
+        sourceKind: 'direct_file',
+      });
+      return {
+        status: 'ready',
+        payload: {
+          type: 'video',
+          videoBase64: toBase64(directVideo.bytes),
+          videoMimeType: directVideo.mimeType,
+          videoFileName: directVideoFileName,
+          videoRightsConfirmed: true,
+          notes: typeof payload.notes === 'string' ? payload.notes : undefined,
+          ...(videoTranscript ? { videoTranscript } : {}),
+        },
+      };
+    }
+
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'source',
+      sourceStageVersion(sourceType),
+      { sourceType },
+    );
     return {
       status: 'ready',
-      payload: sourceType === 'video'
-        ? {
-            type: 'video',
-            videoUrl: input,
-            videoRightsConfirmed: payload.rightsConfirmed === true,
-          }
-        : { type: sourceType, input },
+      payload: { type: sourceType, input },
     };
   }
 
@@ -549,91 +702,14 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       },
     );
 
-    // Narration transcript: reuse a compatible saved transcript, otherwise
-    // attempt one through the speech-to-text adapter. A video without a
-    // transcript still proceeds on whole-video evidence, so transcription
-    // problems degrade instead of failing the capture.
-    let videoTranscript: string | undefined;
-    const savedTranscript = typeof payload.transcript === 'string' ? payload.transcript.trim() : '';
-    if (savedTranscript && canReuseSavedVideoTranscript(capture, payload)) {
-      await recordCaptureCheckpoint(
-        admin,
-        String(capture.user_id),
-        String(capture.id),
-        'transcription',
-        VIDEO_TRANSCRIPTION_STAGE_VERSION,
-        isRecord(payload.transcription) ? payload.transcription : { recoveredLegacyMetadata: true },
-      );
-      videoTranscript = savedTranscript;
-      logInfo('Recipe capture reused saved video transcript', {
-        captureId: capture.id,
-        transcriptCharacters: savedTranscript.length,
-      });
-    } else {
-      const transcriptionFormat = videoTranscriptionFormat(inspection.mimeType);
-      if (!transcriptionFormat) {
-        logInfo('Recipe capture video container is not transcribable; continuing with whole-video evidence', {
-          captureId: capture.id,
-          mimeType: inspection.mimeType,
-        });
-      } else {
-        const transcription = await transcribeAudioRecipeEvidence(
-          { base64Audio: toBase64(bytes), format: transcriptionFormat },
-          {
-            apiBase: AUDIO_TRANSCRIPTION_API_BASE,
-            apiKey: AUDIO_TRANSCRIPTION_API_KEY,
-            model: AUDIO_TRANSCRIPTION_MODEL,
-          },
-        );
-        if (transcription.ready) {
-          const transcriptionMetadata = {
-            model: transcription.model,
-            sourceAdapterVersion: inspection.adapterVersion,
-            transcriptionAdapterVersion: VIDEO_TRANSCRIPTION_STAGE_VERSION,
-            speechToTextAdapterVersion: transcription.adapterVersion,
-            format: transcriptionFormat,
-            byteSize: inspection.byteSize,
-            transcribedAt: new Date().toISOString(),
-          };
-          const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
-            source_payload: {
-              ...payload,
-              transcript: transcription.transcript,
-              transcription: transcriptionMetadata,
-            },
-          }).eq('id', capture.id).eq('user_id', capture.user_id);
-          if (transcriptSaveError) {
-            logInfo('Recipe capture saved the video transcript for this attempt only', {
-              captureId: capture.id,
-              error: transcriptSaveError.message,
-            });
-          } else {
-            await recordCaptureCheckpoint(
-              admin,
-              String(capture.user_id),
-              String(capture.id),
-              'transcription',
-              VIDEO_TRANSCRIPTION_STAGE_VERSION,
-              transcriptionMetadata,
-            );
-          }
-          videoTranscript = transcription.transcript;
-          logInfo('Recipe capture video audio transcribed', {
-            captureId: capture.id,
-            byteSize: inspection.byteSize,
-            format: transcriptionFormat,
-            transcriptCharacters: transcription.transcript.length,
-            transcriptionModel: transcription.model,
-          });
-        } else {
-          logInfo('Recipe capture video transcription unavailable; continuing with whole-video evidence', {
-            captureId: capture.id,
-            reasonCode: transcription.reasonCode,
-            diagnostic: transcription.diagnostic,
-          });
-        }
-      }
-    }
+    const videoTranscript = await videoTranscriptForSource(admin, capture, payload, {
+      bytes,
+      mimeType: inspection.mimeType,
+      byteSize: inspection.byteSize,
+      fileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
+      sourceAdapterVersion: inspection.adapterVersion,
+      sourceKind: 'owned_upload',
+    });
 
     return {
       status: 'ready',
@@ -898,7 +974,7 @@ async function processCapture(
         if (releaseError) throw new Error(releaseError.message);
         const continuation = await callFunction('capture-recipe', authHeader, { captureId });
         if (!continuation.response.ok && continuation.response.status !== 202) {
-          throw new CaptureProcessingError(preparedSource.stage, 'Nosh could not continue this recipe capture');
+          throw new CaptureProcessingError(preparedSource.stage, 'Folio could not continue this recipe capture');
         }
         logInfo('Recipe capture continued after a checkpointed stage', {
           captureId,

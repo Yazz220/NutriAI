@@ -75,6 +75,14 @@ serve(async (req: Request) => {
     return jsonError('Invalid webhook environment', 400, req);
   }
 
+  // RevenueCat's dashboard test is a signed delivery check with synthetic
+  // purchase and user data. Acknowledge it before any database or subscriber
+  // work so the dashboard does not time out waiting on irrelevant reconciliation.
+  if (eventType.toUpperCase() === 'TEST') {
+    logInfo('RevenueCat dashboard test webhook received', { eventId });
+    return jsonResponse({ received: true, test: true });
+  }
+
   let claimed = false;
   try {
     // The signed raw payload is passed to the RPC only in memory. The database

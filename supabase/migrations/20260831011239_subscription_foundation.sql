@@ -223,8 +223,8 @@ alter table nutriai.generation_requests
 
 insert into nutriai.subscription_plans (id, display_name)
 values
-  ('free', 'Nosh Free'),
-  ('plus', 'Nosh Plus');
+  ('free', 'Folio Free'),
+  ('plus', 'Folio Plus');
 
 insert into nutriai.subscription_plan_features (
   plan_id, feature_key, enabled, allowance, reset_period
@@ -1462,11 +1462,11 @@ grant execute on function nutriai.create_cookbook_for_current_user(
 ) to authenticated;
 
 comment on table nutriai.subscription_plans is
-  'Stable Nosh plan identities. Store pricing is deliberately not persisted here.';
+  'Stable Folio plan identities. Store pricing is deliberately not persisted here.';
 comment on table nutriai.subscription_plan_features is
   'Server-authoritative plan capabilities and capacity policy.';
 comment on table nutriai.subscription_products is
-  'App Store product identifiers mapped to Nosh plans and RevenueCat entitlements.';
+  'App Store product identifiers mapped to Folio plans and RevenueCat entitlements.';
 comment on table nutriai.user_entitlements is
   'Latest normalized subscription entitlement snapshot from RevenueCat.';
 comment on table nutriai.subscription_webhook_events is

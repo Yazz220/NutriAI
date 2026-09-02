@@ -128,6 +128,7 @@ Current provider/hook reality:
 - `useRecipeCaptures`: durable capture state, polling, retry, and destination selection.
 - `NoshConversationProvider` / `useNoshConversation`: persistent chat visibility, intake state, and active cookbook/page context across shelf-to-reader navigation.
 - `NoshSubscriptionProvider` / `useNoshSubscription`: user-scoped RevenueCat identity, store offerings, server access snapshot, purchase, restore, sync, and management.
+- `AiDataConsentProvider` / `useAiDataConsent`: versioned explicit permission before Folio sends recipe sources or conversation context to external AI and acquisition providers. Bump `AI_DATA_CONSENT_VERSION`, update the in-app disclosure and `docs/privacy.html`, and add a re-consent test whenever a provider, source type, purpose, or materially different retention practice is introduced.
 - `useNoshAssistant`: removed. The Folio assistant uses `@assistant-ui/react-native` with a root-mounted `LocalRuntime` plus a device-persisted thread list bridging to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Users can start, switch, restore, and delete conversations. Tools are defined in `utils/cookbook/noshToolkit.tsx`.
 
 ## AI And Import Architecture
@@ -141,11 +142,11 @@ User shares or submits a link, text, photo, video, or existing audio file
      -> URL with schema.org Recipe JSON-LD or Microdata: deterministic normalization
      -> image: normalized bounded image evidence with signature and dimension preflight
      -> video: permissioned private upload or permission-confirmed bounded direct-video evidence
-        -> supported containers (MP4, WebM, MPEG) submitted to the speech-to-text adapter in capture-recipe
+        -> supported containers (MP4, MOV, WebM, MPEG) submitted to the direct-media speech-to-text adapter in capture-recipe
         -> client samples up to eight frames and uploads them as supplementary JPEG evidence
         -> extract-recipe merges transcript + frames + whole video; degraded retry drops whole video
      -> supported public social-video link: replaceable acquisition adapter -> bounded metadata and seen/heard observations
-        -> transcription remains Nosh-owned and Supadata's transcript endpoint is not used
+        -> transcription remains Folio-owned and Supadata's transcript endpoint is not used
      -> audio: private bounded file -> replaceable speech-to-text adapter -> transcript evidence
      -> unstructured text/image/video with merged signals/audio transcript: replaceable strict-schema multimodal model
   -> destination resolves from the active, explicit, default, or sole cookbook
@@ -159,7 +160,7 @@ User shares or submits a link, text, photo, video, or existing audio file
 
 Active functions:
 
-- `extract-recipe`: URL, text, image, resolved video evidence with merged transcript and frame signals, acquired social-video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. For supported containers, `capture-recipe` submits the video container to Nosh's speech-to-text adapter and the client uploads up to eight sampled frames; `extract-recipe` merges transcript, frames, and whole video into one multimodal call, with a degraded retry that drops the whole video if the first attempt fails. Public YouTube, TikTok, Instagram, and Facebook links may use the configured replaceable acquisition adapter, which returns bounded metadata and seen/heard observations rather than a RecipeGraph. Pinterest retains the guided file, screenshot, audio, or text fallback. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
+- `extract-recipe`: URL, text, image, resolved video evidence with merged transcript and frame signals, acquired social-video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. For supported containers, `capture-recipe` submits the inspected video file to Folio's direct-media speech-to-text adapter and the client uploads up to eight sampled frames; `extract-recipe` merges transcript, frames, and whole video into one multimodal call, with a degraded retry that drops the whole video if the first attempt fails. Public YouTube, TikTok, Instagram, and Facebook links use the configured replaceable acquisition adapter when enabled, which returns bounded metadata and seen/heard observations rather than a RecipeGraph. Every pasted social-video link enters the durable capture immediately; unsupported or unavailable sources show saved-link recovery only after acquisition fails. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
 - `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
@@ -174,7 +175,7 @@ Pipeline invariants:
 - `recipe_graph` is the canonical reasoning record. The selected `page_versions` image is the reading artifact.
 - Source provenance, confidence, inferred fields, and quality diagnostics remain on the durable capture. Project clean cooking data before creating a cookbook page or generation prompt; never render extraction commentary as recipe copy.
 - New captures do not use review or approval. Their states are `processing`, `needs_destination`, `needs_attention`, and `ready`.
-- `recipe_captures.stage_checkpoints` versions source, optional external acquisition, optional Nosh-owned transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
+- `recipe_captures.stage_checkpoints` versions source, optional external acquisition, optional Folio-owned transcription, extraction, normalization, quality, page generation, and publication. Retry resumes from compatible saved artifacts. A publication retry must reuse the ready selected page image rather than generate another page.
 - `recipe_captures.failed_stage` identifies where work stopped. `failure_code` decides the user recovery action; provider and database diagnostics stay in server logs.
 - Ingestion model, provider, prompt, parser, transcription, or normalization changes must run the versioned corpus in `supabase/functions/extract-recipe/evals/`; release cases fail closed and diagnostic cases record hard-source coverage still awaiting stable fixtures.
 - The cookbook row owns an independent physical `cover_style` and generated-page `page_style_id`; page style revision and visual references belong to `page_style_id`. Never accept a caller-defined per-recipe style as canonical.
@@ -208,6 +209,8 @@ AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
 VIDEO_MODEL                               optional extract-recipe video override
 AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
 AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
+VIDEO_TRANSCRIPTION_MODEL                 optional direct-media speech-to-text model override
+VIDEO_TRANSCRIPTION_API_BASE/API_KEY       direct-media speech-to-text provider used for uploaded and direct-file video
 SOCIAL_VIDEO_ACQUISITION_PROVIDER          guided (default) or supadata
 SUPADATA_API_KEY                           server-only Supadata credential
 SUPADATA_API_BASE                          optional Supadata base URL
