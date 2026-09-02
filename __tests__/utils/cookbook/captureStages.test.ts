@@ -39,7 +39,7 @@ describe('recipe capture stage checkpoints', () => {
     expect(sourceStageVersion('audio')).toBe('audio-source-v1');
     expect(sourceStageVersion('video')).toBe('video-source-v2');
     expect(AUDIO_TRANSCRIPTION_STAGE_VERSION).toBe('audio-transcription-v1');
-    expect(RECIPE_EXTRACTION_STAGE_VERSION).toBe('recipe-extraction-v2');
+    expect(RECIPE_EXTRACTION_STAGE_VERSION).toBe('recipe-extraction-v3');
     expect(recipeQualityStageVersion(3)).toBe('recipe-quality-v3');
   });
 

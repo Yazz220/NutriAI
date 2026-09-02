@@ -111,6 +111,40 @@ describe('recipe graph normalization', () => {
     });
   });
 
+  it('removes a publisher summary method when complete directions are also present', () => {
+    const fallback = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'One-pan dinner',
+      recipeIngredient: ['2 chicken thighs', '500 g potatoes'],
+      recipeInstructions: [
+        {
+          '@type': 'HowToSection',
+          name: 'Abbreviated Recipe',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Season and roast everything.' },
+          ],
+        },
+        {
+          '@type': 'HowToSection',
+          name: 'Full Recipe',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Season the chicken and potatoes.' },
+            { '@type': 'HowToStep', text: 'Roast until the chicken is cooked through.' },
+          ],
+        },
+      ],
+    }, sourceUrl);
+
+    expect(fallback?.stepGroups).toEqual([{
+      id: 'full-recipe',
+      label: '',
+      steps: [
+        { id: 'step-2', text: 'Season the chicken and potatoes.' },
+        { id: 'step-3', text: 'Roast until the chicken is cooked through.' },
+      ],
+    }]);
+  });
+
   it('sets numeric servings only when the structured yield means servings', () => {
     const servingsRecipe = recipeJsonLdToDraft({
       '@type': 'Recipe',

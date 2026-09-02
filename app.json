@@ -153,6 +153,14 @@
       "expo-router",
       "expo-asset",
       [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "all-ot",
+          "project": "folio-mobile"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F7F2EA",

@@ -88,7 +88,7 @@ describe('capture presentation', () => {
       failureCode: 'missing_instructions',
     }))).toMatchObject({
       title: 'Folio needs a more complete source',
-      detail: 'Folio found ingredients but not enough cooking instructions. Choose a source that includes the method.',
+      detail: 'Folio could not find a usable cooking method in this source. Choose another source, or add images that show the method.',
       action: 'replace_source',
     });
 

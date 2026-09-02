@@ -665,6 +665,7 @@ export function NoshConversationHost() {
                 showsVerticalScrollIndicator={false}
               >
                 <NoshCaptureWorkspace
+                  pageReturnTo="previous"
                   initialSource={captureHandoffSource}
                   destinationCookbookId={interaction.focus.kind === 'cookbook'
                     ? interaction.focus.cookbookId

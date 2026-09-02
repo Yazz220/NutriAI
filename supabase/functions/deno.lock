@@ -1,5 +1,37 @@
 {
   "version": "5",
+  "specifiers": {
+    "npm:@sentry/deno@10.73.0": "10.73.0"
+  },
+  "npm": {
+    "@opentelemetry/api@1.9.1": {
+      "integrity": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
+    },
+    "@sentry/conventions@0.16.0": {
+      "integrity": "sha512-fO9PLmHdVURcSPUpWCItWAtgKiMwGdJHbovoSEyLplX5sxs2ugvI4CBPTrkkgqhObnZOD0CnWBKDzSVQYBKEyQ=="
+    },
+    "@sentry/core@10.73.0": {
+      "integrity": "sha512-FLO1UgH19RyasVpofu612WCOgb2nEH0dZy+R72d7p65XU9i0wxlMKm3+sgfwKmiSJp1Qhilaaxs4Jg6BbiM5HA==",
+      "dependencies": [
+        "@sentry/conventions"
+      ]
+    },
+    "@sentry/deno@10.73.0": {
+      "integrity": "sha512-v35dJrxPE+psDm/DQeqxE1SX4kQr2MxNUXKATXhwqIe39ocuZVl+vXaV8SzYtYf+ru3M1WHUacsxcPEmMHnYnw==",
+      "dependencies": [
+        "@opentelemetry/api",
+        "@sentry/core",
+        "@sentry/server-utils"
+      ]
+    },
+    "@sentry/server-utils@10.73.0": {
+      "integrity": "sha512-QskripdKFbM/+gipC6mpa2crLwL7+VbkX84IpHg2z9UlYQ1kNKd3aMT+Qk9NLRSw/zu1rSIAvlbWfx4D3rgNAA==",
+      "dependencies": [
+        "@sentry/conventions",
+        "@sentry/core"
+      ]
+    }
+  },
   "redirects": {
     "https://esm.sh/@supabase/phoenix@^0.4.1?target=denonext": "https://esm.sh/@supabase/phoenix@0.4.5?target=denonext",
     "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.105.1",

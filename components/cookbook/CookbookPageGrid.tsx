@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
 import { AlertTriangle, BookOpen, Ellipsis } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
@@ -84,7 +84,7 @@ function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
   return <PageGenerationPreview />;
 }
 
-function PageThumbnail({ page }: { page: CookbookPage }) {
+const PageThumbnail = memo(function PageThumbnail({ page }: { page: CookbookPage }) {
   const source = getCookbookPageImageSource(page);
   if (source !== null) {
     return (
@@ -102,7 +102,7 @@ function PageThumbnail({ page }: { page: CookbookPage }) {
       <PageCanvas page={page} bookMode />
     </View>
   );
-}
+});
 
 export function CookbookPageGrid({
   cookbookId,

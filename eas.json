@@ -15,7 +15,9 @@
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",
-        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro"
+        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://7ed9e01259ca208744258a0936774a73@o4509052812263424.ingest.us.sentry.io/4512018024562688",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "development"
       },
       "ios": {
         "simulator": false
@@ -33,7 +35,9 @@
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",
-        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro"
+        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://7ed9e01259ca208744258a0936774a73@o4509052812263424.ingest.us.sentry.io/4512018024562688",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview"
       }
     },
     "production": {
@@ -48,7 +52,9 @@
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",
-        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro"
+        "EXPO_PUBLIC_ART_MODEL": "qwen/qwen-image-3-pro",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://7ed9e01259ca208744258a0936774a73@o4509052812263424.ingest.us.sentry.io/4512018024562688",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production"
       }
     }
   },

@@ -318,9 +318,110 @@ describe('BookReader cover entry', () => {
 
     act(() => jest.runAllTimers());
 
-    expect(screen.getByRole('button', { name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
+    const addFirstRecipe = screen.getByRole('button', {
+      name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}`,
+    });
+    expect(addFirstRecipe).toBeTruthy();
     expect(screen.getByText('Turn a recipe you love into its first page.').props.maxFontSizeMultiplier).toBe(1.35);
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
+    fireEvent.press(addFirstRecipe);
+    const { router } = require('expo-router');
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(book)/[cookbookId]/add',
+      params: { cookbookId: SAMPLE_COOKBOOK.id },
+    });
+    jest.useRealTimers();
+  });
+
+  it('waits for page and capture data before declaring a cookbook empty', async () => {
+    jest.useFakeTimers();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [],
+      pageDataReady: false,
+      captureDataReady: false,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    act(() => jest.runAllTimers());
+
+    expect(screen.queryByRole('button', {
+      name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}`,
+    })).toBeNull();
+    jest.useRealTimers();
+  });
+
+  it('shows the existing first capture instead of offering a duplicate', async () => {
+    jest.useFakeTimers();
+    const processingCapture: RecipeCapture = {
+      id: 'processing-first-capture',
+      userId: 'user-1',
+      destinationCookbookId: SAMPLE_COOKBOOK.id,
+      sourceType: 'url',
+      sourcePayload: { input: 'https://example.com/recipe' },
+      status: 'processing',
+      recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
+      extractionNotes: [],
+      inferredFields: [],
+      pageStatus: 'generating',
+      idempotencyKey: 'processing-first-capture',
+      processingAttempt: 1,
+      createdAt: '2026-09-02T12:00:00.000Z',
+      updatedAt: '2026-09-02T12:00:00.000Z',
+    };
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [],
+      captures: [processingCapture],
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    act(() => jest.runAllTimers());
+
+    expect(screen.queryByRole('button', {
+      name: `Add the first recipe to ${SAMPLE_COOKBOOK.title}`,
+    })).toBeNull();
+    expect(screen.getByLabelText('Designing page. Tomato Pasta.')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'View first recipe progress' }));
+    expect(screen.getByTestId('cookbook-page-grid')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('keeps an unfinished first capture actionable from the open book', async () => {
+    jest.useFakeTimers();
+    const failedCapture: RecipeCapture = {
+      id: 'failed-first-capture',
+      userId: 'user-1',
+      destinationCookbookId: SAMPLE_COOKBOOK.id,
+      sourceType: 'url',
+      sourcePayload: { input: 'https://example.com/recipe' },
+      status: 'needs_attention',
+      extractionNotes: [],
+      inferredFields: [],
+      pageStatus: 'not_started',
+      failureCode: 'url_access_restricted',
+      idempotencyKey: 'failed-first-capture',
+      processingAttempt: 1,
+      createdAt: '2026-09-02T12:00:00.000Z',
+      updatedAt: '2026-09-02T12:00:00.000Z',
+    };
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: [],
+      captures: [failedCapture],
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+      onResolveCapture: jest.fn(),
+      onRemoveCapture: jest.fn(),
+    });
+
+    act(() => jest.runAllTimers());
+
+    fireEvent.press(screen.getByText('Choose another source'));
+    expect(screen.getByText('Recipe needs attention')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeTruthy();
     jest.useRealTimers();
   });
 
@@ -489,6 +590,42 @@ describe('BookReader compact reading flow', () => {
     expect(screen.getByText('2 / 10')).toBeTruthy();
   });
 
+  it('keeps the committed page selected when an unrelated page refreshes', async () => {
+    const onSelectPage = jest.fn();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[0].id,
+      onSelectPage,
+      onShare: jest.fn(),
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Next recipe' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Complete native page turn' }));
+    expect(screen.getByText('2 / 10')).toBeTruthy();
+    onSelectPage.mockClear();
+
+    const refreshedPages = SAMPLE_COOKBOOK_PAGES.map((page, index) => (
+      index === 0 ? { ...page, title: `${page.title} refreshed` } : page
+    ));
+    await act(async () => {
+      screen.rerender(
+        <NoshConversationProvider>
+          <BookReader
+            cookbook={SAMPLE_COOKBOOK}
+            pages={refreshedPages}
+            initialPageId={SAMPLE_COOKBOOK_PAGES[0].id}
+            onSelectPage={onSelectPage}
+            onShare={jest.fn()}
+          />
+        </NoshConversationProvider>,
+      );
+    });
+
+    expect(screen.getByText('2 / 10')).toBeTruthy();
+    expect(onSelectPage).not.toHaveBeenCalled();
+  });
+
   it('keeps direct navigation inside the focused one-page reader', async () => {
     jest.mocked(shouldUseTouchPaging).mockReturnValue(false);
     const onSelectPage = jest.fn();
@@ -603,7 +740,14 @@ describe('BookReader compact reading flow', () => {
     });
 
     act(() => jest.runOnlyPendingTimers());
-    expect(screen.getByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
+    const addPage = screen.getByRole('button', { name: `Add a page to ${SAMPLE_COOKBOOK.title}` });
+    expect(addPage).toBeTruthy();
+    fireEvent.press(addPage);
+    const { router } = require('expo-router');
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/(book)/[cookbookId]/add',
+      params: { cookbookId: SAMPLE_COOKBOOK.id },
+    });
     expect(screen.getByRole('button', { name: `Cookbook actions for ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Ask Folio about/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Recipe actions for/ })).toBeNull();

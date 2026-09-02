@@ -45,10 +45,6 @@ import {
   isRecipePageStyleVersion,
 } from '../_shared/artGeneration.ts';
 import { assertCanonicalCookbookPageImage } from '../_shared/cookbookPageGeometry.ts';
-import {
-  RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
-  RECIPE_PAGE_GENERATION_STAGE_VERSION,
-} from '../_shared/captureStages.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -318,36 +314,6 @@ async function deleteGeneratedVersion(admin: SupabaseAdmin, versionId?: string):
   if (!versionId) return;
   const { error } = await admin.schema('nutriai').from('page_versions').delete().eq('id', versionId);
   if (error) logError('Generated art version cleanup failed', { error: error.message });
-}
-
-async function finalizeCapturePage(
-  admin: SupabaseAdmin,
-  userId: string,
-  pageId: string,
-): Promise<boolean> {
-  const { error } = await admin.schema('nutriai').rpc('finalize_recipe_capture_page', {
-    p_user_id: userId,
-    p_page_id: pageId,
-    p_page_generation_version: RECIPE_PAGE_GENERATION_STAGE_VERSION,
-    p_publication_version: RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
-  });
-  if (error) {
-    logError('Recipe capture page could not be published', { pageId, error: error.message });
-    const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture_publication', {
-      p_user_id: userId,
-      p_page_id: pageId,
-      p_failure_message: 'Folio finished the page, but could not add it to the cookbook. Try again.',
-      p_page_generation_version: RECIPE_PAGE_GENERATION_STAGE_VERSION,
-    });
-    if (failureError) {
-      logError('Recipe capture publication failure could not be recorded', {
-        pageId,
-        error: failureError.message,
-      });
-    }
-    return false;
-  }
-  return true;
 }
 
 async function failCapturePage(
@@ -651,10 +617,6 @@ serve(async (req: Request) => {
         if (versionError) throw new Error(versionError.message);
         versionId = String(versionRow.id);
 
-        await updateGenerationRequest(admin, generationRequestId, user!.id, {
-          version_id: versionId,
-        });
-
         const responsePayload = {
           pageImage: {
             id: versionId,
@@ -681,7 +643,6 @@ serve(async (req: Request) => {
           selectOnComplete !== false,
           cost,
         );
-        await finalizeCapturePage(admin, user!.id, pageId);
 
         logInfo('generate recipe page completed', {
           cookbookId,

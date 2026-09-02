@@ -844,6 +844,40 @@ async function recordCaptureCheckpoint(
   if (error) throw new CaptureProcessingError(stage, error.message);
 }
 
+async function persistCaptureAnalysis(
+  admin: SupabaseClient,
+  input: {
+    userId: string;
+    captureId: string;
+    recipeGraph: JsonRecord;
+    confidence: number;
+    extractionNotes: unknown[];
+    inferredFields: unknown[];
+    extractionVersion: string;
+    extractionMetadata: JsonRecord;
+    normalizationVersion: string;
+    normalizationMetadata: JsonRecord;
+    qualityVersion: string;
+    qualityMetadata: JsonRecord;
+  },
+): Promise<void> {
+  const { error } = await admin.schema('nutriai').rpc('persist_recipe_capture_analysis', {
+    p_user_id: input.userId,
+    p_capture_id: input.captureId,
+    p_recipe_graph: input.recipeGraph,
+    p_confidence: input.confidence,
+    p_extraction_notes: input.extractionNotes,
+    p_inferred_fields: input.inferredFields,
+    p_extraction_version: input.extractionVersion,
+    p_extraction_metadata: input.extractionMetadata,
+    p_normalization_version: input.normalizationVersion,
+    p_normalization_metadata: input.normalizationMetadata,
+    p_quality_version: input.qualityVersion,
+    p_quality_metadata: input.qualityMetadata,
+  });
+  if (error) throw new CaptureProcessingError('quality', error.message);
+}
+
 function extractionStageVersion(data: JsonRecord, stage: 'extraction' | 'normalization'): string {
   const versions = isRecord(data.stageVersions) ? data.stageVersions : {};
   return typeof versions[stage] === 'string'
@@ -937,6 +971,14 @@ async function processCapture(
     let confidence: number;
     let extractionNotes: unknown[];
     let inferredFields: unknown[];
+    let qualityAssessment: ReturnType<typeof assessRecipeQuality>;
+    const expectedQualityVersion = recipeQualityStageVersion(RECIPE_QUALITY_ASSESSMENT_VERSION);
+    let freshAnalysis: {
+      extractionVersion: string;
+      extractionMetadata: JsonRecord;
+      normalizationVersion: string;
+      normalizationMetadata: JsonRecord;
+    } | null = null;
 
     if (savedExtraction) {
       ({ recipeGraph, confidence, extractionNotes, inferredFields } = savedExtraction);
@@ -989,19 +1031,23 @@ async function processCapture(
         throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Folio could not read this recipe');
       }
 
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'extraction',
-        extractionStageVersion(extraction.data, 'extraction'),
-        extractionStageMetadata(extraction.data, 'extraction'),
-      );
+      const extractionVersion = extractionStageVersion(extraction.data, 'extraction');
+      const extractionMetadata = extractionStageMetadata(extraction.data, 'extraction');
+      const normalizationVersion = extractionStageVersion(extraction.data, 'normalization');
+      const normalizationMetadata = extractionStageMetadata(extraction.data, 'normalization');
 
       // During rolling deployments, captureEvidencePolicy accepts the previous
       // success shape but requires the evidence envelope for every rejection.
       const evidence = captureEvidencePolicy(extraction.data);
       if (!evidence.accepted) {
+        await recordCaptureCheckpoint(
+          admin,
+          userId,
+          captureId,
+          'extraction',
+          extractionVersion,
+          extractionMetadata,
+        );
         const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture', {
           p_user_id: userId,
           p_capture_id: captureId,
@@ -1025,56 +1071,57 @@ async function processCapture(
       confidence = typeof extraction.data.confidence === 'number' ? extraction.data.confidence : 0;
       extractionNotes = Array.isArray(extraction.data.extractionNotes) ? extraction.data.extractionNotes : [];
       inferredFields = Array.isArray(extraction.data.inferredFields) ? extraction.data.inferredFields : [];
-
-      activeStage = 'normalization';
-      const { error: graphSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
-        recipe_graph: recipeGraph,
-        confidence,
-        extraction_notes: extractionNotes,
-        inferred_fields: inferredFields,
-      }).eq('id', captureId).eq('user_id', userId);
-      if (graphSaveError) throw new Error(graphSaveError.message);
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'normalization',
-        extractionStageVersion(extraction.data, 'normalization'),
-        extractionStageMetadata(extraction.data, 'normalization'),
-      );
+      freshAnalysis = {
+        extractionVersion,
+        extractionMetadata,
+        normalizationVersion,
+        normalizationMetadata,
+      };
     }
 
     activeStage = 'quality';
-    const expectedQualityVersion = recipeQualityStageVersion(RECIPE_QUALITY_ASSESSMENT_VERSION);
     const savedQualityAssessment = readRecipeQualityAssessment(recipeGraph);
-    const reuseSavedQuality = Boolean(savedQualityAssessment) && captureCheckpointIsCompatible(
-      capture,
-      'quality',
-      expectedQualityVersion,
-    );
-    const qualityAssessment = reuseSavedQuality
+    const reuseSavedQuality = !freshAnalysis
+      && Boolean(savedQualityAssessment)
+      && captureCheckpointIsCompatible(capture, 'quality', expectedQualityVersion);
+    qualityAssessment = reuseSavedQuality
       ? savedQualityAssessment!
       : assessRecipeQuality(recipeGraph);
     if (!reuseSavedQuality) {
       recipeGraph = withRecipeQualityAssessment(recipeGraph, qualityAssessment);
-      const { error: qualitySaveError } = await admin.schema('nutriai').from('recipe_captures').update({
-        recipe_graph: recipeGraph,
-        confidence,
-        extraction_notes: extractionNotes,
-        inferred_fields: inferredFields,
-      }).eq('id', captureId).eq('user_id', userId);
-      if (qualitySaveError) throw new Error(qualitySaveError.message);
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'quality',
-        expectedQualityVersion,
-        {
-          decision: qualityAssessment.decision,
-          issueCodes: qualityAssessment.issues.map((issue) => issue.code),
-        },
-      );
+      const qualityMetadata = {
+        decision: qualityAssessment.decision,
+        issueCodes: qualityAssessment.issues.map((issue) => issue.code),
+      };
+      if (freshAnalysis) {
+        await persistCaptureAnalysis(admin, {
+          userId,
+          captureId,
+          recipeGraph,
+          confidence,
+          extractionNotes,
+          inferredFields,
+          ...freshAnalysis,
+          qualityVersion: expectedQualityVersion,
+          qualityMetadata,
+        });
+      } else {
+        const { error: qualitySaveError } = await admin.schema('nutriai').from('recipe_captures').update({
+          recipe_graph: recipeGraph,
+          confidence,
+          extraction_notes: extractionNotes,
+          inferred_fields: inferredFields,
+        }).eq('id', captureId).eq('user_id', userId);
+        if (qualitySaveError) throw new Error(qualitySaveError.message);
+        await recordCaptureCheckpoint(
+          admin,
+          userId,
+          captureId,
+          'quality',
+          expectedQualityVersion,
+          qualityMetadata,
+        );
+      }
     } else {
       logInfo('Recipe capture retry reused saved quality assessment', {
         captureId,

@@ -446,6 +446,29 @@ describe('NoshCaptureWorkspace', () => {
     }));
   });
 
+  it('releases the composer when the durable capture appears before the request returns', async () => {
+    mockUploadRecipeCaptureImage.mockResolvedValueOnce({
+      storagePath: 'user-1/request.jpg',
+      mimeType: 'image/jpeg',
+    });
+    mockStartCapture.mockImplementationOnce(() => new Promise(() => {}));
+    const screen = await renderWorkspace({ destinationCookbookId: 'book-1' });
+
+    fireEvent.press(screen.getByRole('button', { name: 'Submit test image' }));
+    await waitFor(() => expect(mockStartCapture).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('Starting page')).toBeTruthy();
+
+    const request = mockStartCapture.mock.calls[0][0];
+    mockCaptures = [capture({
+      id: 'capture-observed',
+      idempotencyKey: request.idempotencyKey,
+      pageStatus: 'generating',
+    })];
+    screen.rerender(<NoshCaptureWorkspace destinationCookbookId="book-1" />);
+
+    await waitFor(() => expect(screen.getByText('Create page')).toBeTruthy());
+  });
+
   it('opens unfinished work directly from the cookbook grid', async () => {
     mockCaptures = [
       capture({ id: 'failed', status: 'needs_attention', failureMessage: 'Could not read source.' }),
@@ -804,6 +827,7 @@ describe('NoshCaptureWorkspace', () => {
     const screen = await renderWorkspace({
       destinationCookbookId: 'book-1',
       captureId: 'capture-1',
+      pageReturnTo: 'previous',
     });
 
     expect(await screen.findByText('Start with a recipe you already love.')).toBeTruthy();
@@ -816,7 +840,7 @@ describe('NoshCaptureWorkspace', () => {
         params: {
           cookbookId: 'book-1',
           pageId: 'page-1',
-          returnTo: 'composer',
+          returnTo: 'previous',
         },
       });
     });

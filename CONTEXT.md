@@ -77,7 +77,7 @@ The written evidence derived from an audio source before recipe interpretation. 
 _Avoid_: Recipe Graph, voice recipe
 
 **Recipe evidence**:
-The source-derived facts Folio uses to decide whether one complete recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions.
+The source-derived facts Folio uses to decide whether one usable recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions. Evidence can be imperfect: missing optional details or some quantities do not make an otherwise usable recipe insufficient.
 _Avoid_: Model guess, generated recipe
 
 **Extraction diagnostics**:
@@ -85,7 +85,7 @@ Internal source provenance, confidence, inferred-field, and quality information 
 _Avoid_: Recipe notes, source commentary, page warnings
 
 **Insufficient recipe evidence**:
-A source that is not a recipe, is blank or unreadable, lacks core ingredients or instructions, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
+A source that is not a recipe, is blank or unreadable, has no usable ingredient list or actionable cooking method, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
 _Avoid_: Failed page, low-quality recipe
 
 **Recipe capture**:

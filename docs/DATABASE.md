@@ -199,6 +199,7 @@ Run the SQL and migration files in timestamp order. Do not skip historical migra
 | `supabase/migrations/20260830210000_add_permissioned_video_captures.sql` | Expands private capture Storage and row constraints for permissioned video files while preserving URL-only video bookmarks |
 | `supabase/migrations/20260831194027_cleanup_video_frame_storage.sql` | Extends recipe-page removal so the main capture object and sampled video frames enter the same retryable Storage cleanup queue |
 | `supabase/migrations/20260901045939_add_recipe_evidence_acquisition_checkpoint.sql` | Adds the pending/ready/failed external-acquisition checkpoint and acquisition-stage failure support without changing the capture state machine |
+| `supabase/migrations/20260902050515_optimize_recipe_capture_pipeline.sql` | Persists accepted analysis and three compatible checkpoints atomically, and publishes a selected v4 page inside generation settlement |
 | `supabase/migrations/20260830231805_version_recipe_page_styles.sql` | Replaces duplicated style-id checks with an immutable style/version catalog and activates the six-style creation family |
 | `supabase/migrations/20260830234436_harden_recipe_page_style_catalog.sql` | Adds covering indexes for style-version foreign keys and an explicit service-role read policy |
 | `supabase/migrations/20260825214540_make_cookbook_pages_private.sql` | Makes generated recipe artwork private, removes durable public URLs, and grants authenticated reads only to owner-prefixed object paths |

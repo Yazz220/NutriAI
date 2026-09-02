@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
@@ -17,9 +17,13 @@ interface PageCanvasProps {
   onRenderReady?: () => void;
 }
 
-function PageSkeleton({ page }: { page: CookbookPage }) {
+function PageSkeleton({ page, hidden = false }: { page: CookbookPage; hidden?: boolean }) {
   return (
-    <View style={styles.skeleton}>
+    <View
+      style={styles.skeleton}
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
+    >
       <View style={styles.skeletonInner}>
         <Text style={styles.skeletonTitle} numberOfLines={2} adjustsFontSizeToFit>
           {page.title}
@@ -83,8 +87,9 @@ export function resolveFocusedPageWidth(viewportWidth: number, viewportHeight: n
   return Math.min(availableWidth, availableHeight * COOKBOOK_GEOMETRY.page.aspectRatio, 560);
 }
 
-export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
+export const PageCanvas = React.memo(function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
+  const [failedImageUrl, setFailedImageUrl] = useState<string>();
   const pageWidth = bookMode ? '100%' : resolveFocusedPageWidth(width, height);
   const maxHeight = bookMode ? undefined : Math.max(240, height - 210);
 
@@ -95,17 +100,36 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
 
   if (completePageSource) {
     const accessibilityLabel = buildRecipePageAccessibilityLabel(page);
+    const sourceUri = typeof completePageSource === 'object' && !Array.isArray(completePageSource)
+      ? completePageSource.uri
+      : undefined;
+    const imageFailed = Boolean(sourceUri && failedImageUrl === sourceUri);
     return (
       <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
-        <Image
-          source={completePageSource}
-          style={styles.image}
-          resizeMode="contain"
-          onLoad={onRenderReady}
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={accessibilityLabel}
-        />
+        <PageSkeleton page={page} hidden={!imageFailed} />
+        {!imageFailed ? (
+          <Image
+            key={sourceUri ?? page.id}
+            source={completePageSource}
+            style={[StyleSheet.absoluteFill, styles.image]}
+            resizeMode="contain"
+            onLoad={onRenderReady}
+            onError={() => {
+              if (sourceUri) setFailedImageUrl(sourceUri);
+            }}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={accessibilityLabel}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
+  if (page.selectedVersionId && !page.artAsset) {
+    return (
+      <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
+        <PageSkeleton page={page} />
       </View>
     );
   }
@@ -131,7 +155,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
       <PageSkeleton page={page} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   frame: {

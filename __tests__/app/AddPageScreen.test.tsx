@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import AddPageScreen from '@/app/(book)/[cookbookId]/add';
 
 jest.mock('expo-router', () => ({
-  router: { replace: jest.fn() },
+  router: { dismissTo: jest.fn() },
   useLocalSearchParams: () => ({ cookbookId: 'cookbook-1' }),
 }));
 
@@ -43,6 +43,6 @@ describe('AddPageScreen durable capture flow', () => {
     expect(screen.queryByText('Recipe activity')).toBeNull();
 
     fireEvent.press(screen.getByLabelText('Back to cookbook'));
-    expect(router.replace).toHaveBeenCalledWith('/(book)/cookbook-1');
+    expect(router.dismissTo).toHaveBeenCalledWith('/(book)/cookbook-1');
   });
 });

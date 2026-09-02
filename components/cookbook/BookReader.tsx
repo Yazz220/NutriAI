@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Cookbook3DScene } from '@/components/cookbook/Cookbook3DScene';
 import { CookbookPageGrid } from '@/components/cookbook/CookbookPageGrid';
+import { PageGenerationStatus } from '@/components/cookbook/PageGenerationState';
 import { CaptureActionSheet } from '@/components/cookbook/CaptureActionSheets';
 import type { CookbookTurnRequest } from '@/components/cookbook/Cookbook3DScene.types';
 import { CookbookSettingsSheet, RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
@@ -56,7 +57,7 @@ import {
   buildRecipeContextActions,
   type ContextActionId,
 } from '@/utils/cookbook/contextActions';
-import { getCapturePrimaryActionLabel } from '@/utils/cookbook/capturePresentation';
+import { getCapturePresentation, getCapturePrimaryActionLabel } from '@/utils/cookbook/capturePresentation';
 import {
   defaultFirstRunOnboardingState,
   loadFirstRunOnboardingState,
@@ -71,6 +72,8 @@ interface BookReaderProps {
   pages: CookbookPage[];
   pageSlots?: CookbookPage[];
   captures?: RecipeCapture[];
+  pageDataReady?: boolean;
+  captureDataReady?: boolean;
   initialPageId?: string;
   onExit?: () => void;
   exitAccessibilityLabel?: string;
@@ -126,6 +129,8 @@ export function BookReader({
   pages,
   pageSlots = pages,
   captures,
+  pageDataReady = true,
+  captureDataReady = true,
   initialPageId,
   onExit,
   exitAccessibilityLabel = 'Back to my collection',
@@ -165,6 +170,8 @@ export function BookReader({
     [pages, recipePreview],
   );
   const pageIds = useMemo(() => pages.map((page) => page.id), [pages]);
+  const pageOrderKey = pageIds.join(':');
+  const previousPageOrderKey = useRef(pageOrderKey);
   const spreads = useMemo(() => buildCookbookSpreads(pageIds), [pageIds]);
   const recipeLeaves = useMemo(() => buildRecipeLeaves(pageIds), [pageIds]);
   const requestedSpread = getSpreadIndexForPage(spreads, initialPageId) ?? 0;
@@ -274,6 +281,18 @@ export function BookReader({
   const topSideWidth = 44;
   const cookbookId = cookbook?.id;
   const cookbookTitle = cookbook?.title ?? 'My Cookbook';
+  const unfinishedFirstCapture = (captures ?? []).find((capture) => (
+    capture.destinationCookbookId === cookbookId && capture.status !== 'ready'
+  ));
+  const pendingFirstPage = pageSlots.find((page) => page.lifecycleStatus === 'processing');
+  const firstPageInProgress = pages.length === 0 && Boolean(unfinishedFirstCapture || pendingFirstPage);
+  const firstPageDataReady = pageDataReady && captureDataReady;
+  const firstPageProgress = unfinishedFirstCapture
+    ? getCapturePresentation(unfinishedFirstCapture)
+    : null;
+  const firstPageProgressTitle = unfinishedFirstCapture?.recipeGraph?.title
+    ?? pendingFirstPage?.title
+    ?? 'Your recipe';
   const activeSpread = spreads[spreadIndex] ?? spreads[0];
   const preferredSpreadPage = getPreferredRecipe(activeSpread?.left, activeSpread?.right, pages);
   const readingPage = pages.find((page) => page.id === readingPageId) ?? preferredSpreadPage;
@@ -441,12 +460,14 @@ export function BookReader({
   // reader is following. Keep that page anchored while the canonical order
   // changes underneath the overview.
   useEffect(() => {
+    if (previousPageOrderKey.current === pageOrderKey) return;
+    previousPageOrderKey.current = pageOrderKey;
     if (!readingPageId || !pages.some((page) => page.id === readingPageId)) return;
     const nextLeafIndex = getLeafIndexForPage(recipeLeaves, readingPageId);
     if (nextLeafIndex >= 0 && nextLeafIndex !== leafIndex) setLeafIndex(nextLeafIndex);
     const nextSpreadIndex = getSpreadIndexForPage(spreads, readingPageId);
     if (nextSpreadIndex !== null && nextSpreadIndex !== spreadIndex) setSpreadIndex(nextSpreadIndex);
-  }, [leafIndex, pages, readingPageId, recipeLeaves, spreadIndex, spreads]);
+  }, [leafIndex, pageOrderKey, pages, readingPageId, recipeLeaves, spreadIndex, spreads]);
 
   // A phone can cross the compact breakpoint when it rotates. Preserve the
   // active recipe in the non-compact focused reader instead of leaving the
@@ -612,10 +633,11 @@ export function BookReader({
       const page = getPreferredRecipe(next.left, next.right, pages);
       if (page) {
         setReadingPageId(page.id);
+        setLeafIndex(getLeafIndexForPage(recipeLeaves, page.id));
         onSelectPage(page.id);
       }
     },
-    [onSelectPage, pages, pokeChrome, spreadIndex, spreads],
+    [onSelectPage, pages, pokeChrome, recipeLeaves, spreadIndex, spreads],
   );
 
   function goToLeaf(offset: -1 | 1) {
@@ -665,7 +687,10 @@ export function BookReader({
   function openAddPage() {
     if (!cookbook) return;
     setVisibleBookContext({ cookbook, pages, page: selectedPage ?? pages[0] ?? null });
-    open('cookbook-add', { kind: 'cookbook', cookbookId: cookbook.id, title: cookbook.title });
+    router.push({
+      pathname: '/(book)/[cookbookId]/add',
+      params: { cookbookId: cookbook.id },
+    });
     pokeChrome();
   }
 
@@ -1040,7 +1065,46 @@ export function BookReader({
               onEnterReadingView={enterReadingView}
               onOpenRecipe={handleOpenRecipe}
             />
-            {!readOnly && isOpen && pages.length === 0 ? (
+            {!readOnly && isOpen && firstPageDataReady && firstPageInProgress ? (
+              <View style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}>
+                {unfinishedFirstCapture?.status === 'processing' || !unfinishedFirstCapture ? (
+                  <View style={styles.firstCaptureProgressStatus}>
+                    <PageGenerationStatus
+                      statusLabel={firstPageProgress?.label ?? 'Designing page'}
+                      title={firstPageProgressTitle}
+                    />
+                  </View>
+                ) : (
+                  <View accessible accessibilityLiveRegion="polite" style={styles.firstCaptureStatus}>
+                    <Text style={styles.firstCaptureStatusLabel} maxFontSizeMultiplier={1.25}>
+                      {firstPageProgress?.label ?? 'Needs attention'}
+                    </Text>
+                    <Text style={styles.firstCaptureStatusTitle} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+                      {firstPageProgressTitle}
+                    </Text>
+                  </View>
+                )}
+                <Pressable
+                  style={({ pressed }) => [styles.firstCaptureProgressButton, pressed && styles.actionPressed]}
+                  onPress={() => {
+                    if (unfinishedFirstCapture && unfinishedFirstCapture.status !== 'processing' && onResolveCapture) {
+                      setRecoveryActionCapture(unfinishedFirstCapture);
+                      return;
+                    }
+                    openOverview();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="View first recipe progress"
+                >
+                  <Text style={styles.firstCaptureProgressButtonText} maxFontSizeMultiplier={1.25}>
+                    {unfinishedFirstCapture && unfinishedFirstCapture.status !== 'processing' && onResolveCapture
+                      ? getCapturePrimaryActionLabel(unfinishedFirstCapture)
+                      : 'View progress'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {!readOnly && isOpen && firstPageDataReady && pages.length === 0 && !firstPageInProgress ? (
               <View style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]} accessibilityLiveRegion="polite">
                 <Text style={styles.emptyBookTitle} maxFontSizeMultiplier={1.35}>
                   Turn a recipe you love into its first page.
@@ -1567,6 +1631,42 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     lineHeight: Typography.metrics.lineHeight23,
     textAlign: 'center',
+  },
+  firstCaptureStatus: {
+    width: '100%',
+    alignItems: 'center',
+    gap: Spacing.values[3],
+  },
+  firstCaptureProgressStatus: {
+    width: '100%',
+  },
+  firstCaptureStatusLabel: {
+    color: Colors.primary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight16,
+    textAlign: 'center',
+  },
+  firstCaptureStatusTitle: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight18,
+    textAlign: 'center',
+  },
+  firstCaptureProgressButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.alpha.primary[10],
+  },
+  firstCaptureProgressButtonText: {
+    color: Colors.primary,
+    fontFamily: Fonts.ui.semibold,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight18,
   },
   emptyBookButton: {
     minHeight: 48,

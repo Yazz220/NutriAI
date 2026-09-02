@@ -32,7 +32,8 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
-    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v3');
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v4');
+    expect(payload.pageInstructions.length).toBeLessThan(1000);
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',
@@ -109,6 +110,38 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).not.toContain('did not explicitly state');
     expect(prompt).not.toContain('Folio inferred');
     expect(prompt).toContain('Never print extraction analysis');
+  });
+
+  it('keeps blog prose and duplicate abbreviated methods off the finished page', () => {
+    const { prompt, payload } = buildRecipePagePrompt({
+      ...recipe,
+      description: 'A long publisher introduction about why this dish is fabulous, what to serve with it, and the story behind the recipe.',
+      stepGroups: [
+        {
+          label: 'ABBREVIATED RECIPE:',
+          steps: [{ text: 'Roast the tomatoes, then toss everything together.' }],
+        },
+        {
+          label: 'FULL RECIPE:',
+          steps: [
+            { text: 'Roast the tomatoes.' },
+            { text: 'Toss with the rigatoni and basil.' },
+          ],
+        },
+      ],
+    }, 'bold');
+
+    expect(payload.recipe.description).toBeUndefined();
+    expect(payload.recipe.stepGroups).toEqual([{
+      label: undefined,
+      steps: [
+        '1. Roast the tomatoes.',
+        '2. Toss with the rigatoni and basil.',
+      ],
+    }]);
+    expect(prompt).not.toContain('publisher introduction');
+    expect(prompt).not.toContain('ABBREVIATED RECIPE');
+    expect(prompt).not.toContain('FULL RECIPE');
   });
 
   it('supports a stable seed for tests without forcing one in production', () => {

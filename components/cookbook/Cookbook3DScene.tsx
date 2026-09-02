@@ -581,11 +581,16 @@ export function Cookbook3DScene({
 
   const commitTurn = useCallback(
     (direction: -1 | 1) => {
+      if (isPhysicalPageReading) {
+        setDisplayLeafIndex(Math.max(0, Math.min((leaves?.length ?? 1) - 1, leafIndex + direction)));
+      } else {
+        setDisplaySpreadIndex(Math.max(0, Math.min(spreads.length - 1, spreadIndex + direction)));
+      }
       void Haptics.selectionAsync();
       if (direction === 1) onNext();
       else onPrevious();
     },
-    [onNext, onPrevious],
+    [isPhysicalPageReading, leafIndex, leaves?.length, onNext, onPrevious, spreadIndex, spreads.length],
   );
 
   const notifyTurnGrabbed = useCallback(() => {

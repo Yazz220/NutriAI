@@ -14,11 +14,16 @@ import {
 } from '@/constants/recipePageStyles';
 
 describe('cookbook customization catalog', () => {
-  it('offers two ordered finishes without changing book construction', () => {
+  it('offers four ordered finishes without changing book construction', () => {
     const finishes = listCookbookCoverFinishes();
 
-    expect(finishes.map((option) => option.id)).toEqual(['fine-cloth', 'natural-linen']);
-    expect(Object.keys(COOKBOOK_COVER_FINISHES)).toHaveLength(2);
+    expect(finishes.map((option) => option.id)).toEqual([
+      'fine-cloth',
+      'natural-linen',
+      'pressed-paper',
+      'soft-grain',
+    ]);
+    expect(Object.keys(COOKBOOK_COVER_FINISHES)).toHaveLength(4);
   });
 
   it('offers one ordered palette of cover colors', () => {
@@ -27,10 +32,11 @@ describe('cookbook customization catalog', () => {
     expect(colors.map((option) => option.name)).toEqual([
       'Sage',
       'Clay',
+      'Ochre',
       'Midnight',
       'Alabaster',
-      'Charcoal',
-      'Umber',
+      'Plum',
+      'Ink',
     ]);
     expect(new Set(Object.values(COOKBOOK_COVER_COLORS).map((option) => option.id)).size)
       .toBe(Object.keys(COOKBOOK_COVER_COLORS).length);

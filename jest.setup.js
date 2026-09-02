@@ -9,6 +9,17 @@ jest.mock('react-native-worklets', () => require('react-native-worklets/lib/modu
 // Mock @shopify/react-native-skia native module (JSI bindings unavailable in Jest)
 jest.mock('@shopify/react-native-skia', () => require('@shopify/react-native-skia/lib/module/mock'));
 
+// Sentry's native bridge is unavailable in Jest. Keep the public integration
+// surface intact so error-boundary and analytics tests exercise app behavior.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: (Component) => Component,
+  captureException: jest.fn(),
+  setUser: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  reactNavigationIntegration: () => ({ registerNavigationContainer: jest.fn() }),
+}));
+
 // Silence non-critical console warnings in tests
 const originalWarn = console.warn;
 console.warn = (...args) => {

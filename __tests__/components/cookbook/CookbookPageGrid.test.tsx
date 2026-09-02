@@ -7,6 +7,8 @@ import { buildCaptureContextActions, buildRecipeContextActions } from '@/utils/c
 import { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } from '@/utils/cookbook/sampleCookbook';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 
+const mockPageCanvas = jest.fn(() => null);
+
 jest.mock('react-native-sortables', () => {
   const ReactModule = require('react');
   const { View } = require('react-native');
@@ -31,10 +33,14 @@ jest.mock('react-native-sortables', () => {
 });
 
 jest.mock('@/components/cookbook/PageCanvas', () => ({
-  PageCanvas: () => null,
+  PageCanvas: (props: unknown) => mockPageCanvas(props),
 }));
 
 describe('CookbookPageGrid contextual actions', () => {
+  beforeEach(() => {
+    mockPageCanvas.mockClear();
+  });
+
   it('uses the canonical action list and keeps a visible 44-point More target', () => {
     const page = SAMPLE_COOKBOOK_PAGES[0];
     const onContextAction = jest.fn();
@@ -171,5 +177,36 @@ describe('CookbookPageGrid contextual actions', () => {
     });
     fireEvent.press(newPage);
     expect(onOpenPage).toHaveBeenCalledWith(page);
+  });
+
+  it('does not rerender unaffected page artwork when one page changes', () => {
+    const firstPage = {
+      ...SAMPLE_COOKBOOK_PAGES[0],
+      imageAsset: undefined,
+      imageUrl: undefined,
+    };
+    const secondPage = {
+      ...SAMPLE_COOKBOOK_PAGES[1],
+      imageAsset: undefined,
+      imageUrl: undefined,
+    };
+    const screen = render(
+      <CookbookPageGrid
+        cookbookId={SAMPLE_COOKBOOK.id}
+        pageSlots={[firstPage, secondPage]}
+      />,
+    );
+    mockPageCanvas.mockClear();
+
+    const updatedSecondPage = { ...secondPage, title: 'Updated second recipe' };
+    screen.rerender(
+      <CookbookPageGrid
+        cookbookId={SAMPLE_COOKBOOK.id}
+        pageSlots={[firstPage, updatedSecondPage]}
+      />,
+    );
+
+    expect(mockPageCanvas).toHaveBeenCalledTimes(1);
+    expect(mockPageCanvas).toHaveBeenCalledWith(expect.objectContaining({ page: updatedSecondPage }));
   });
 });

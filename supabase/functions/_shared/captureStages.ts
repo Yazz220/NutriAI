@@ -24,9 +24,9 @@ export const CAPTURE_SOURCE_STAGE_VERSIONS = {
 export const AUDIO_TRANSCRIPTION_STAGE_VERSION = 'audio-transcription-v1';
 export const VIDEO_TRANSCRIPTION_STAGE_VERSION = 'video-transcription-v2';
 export const RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION = 'recipe-evidence-acquisition-v1';
-export const RECIPE_EXTRACTION_STAGE_VERSION = 'recipe-extraction-v2';
-export const RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION = 'recipe-graph-normalization-v1';
-export const RECIPE_PAGE_GENERATION_STAGE_VERSION = 'complete-recipe-page-4x5-v3';
+export const RECIPE_EXTRACTION_STAGE_VERSION = 'recipe-extraction-v3';
+export const RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION = 'recipe-graph-normalization-v2';
+export const RECIPE_PAGE_GENERATION_STAGE_VERSION = 'complete-recipe-page-4x5-v4';
 export const RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION = 'recipe-capture-publication-v1';
 
 export type CaptureSourceType = keyof typeof CAPTURE_SOURCE_STAGE_VERSIONS;

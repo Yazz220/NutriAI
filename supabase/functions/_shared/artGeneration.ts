@@ -8,8 +8,9 @@ import {
   type RecipePageDensity,
   type RecipePageStyleId,
 } from '../../../constants/recipePageStyles.ts';
-import { cookbookRecipeDescription, cookbookRecipeNotes } from './canonicalRecipe.ts';
+import { cookbookRecipeNotes } from './canonicalRecipe.ts';
 import { RECIPE_PAGE_GENERATION_STAGE_VERSION } from './captureStages.ts';
+import { compactRecipeStepGroups } from './recipeGraphNormalization.ts';
 
 export { isRecipePageStyleId, isRecipePageStyleVersion } from '../../../constants/recipePageStyles.ts';
 
@@ -115,7 +116,6 @@ export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCop
 
   return {
     title: graph.title.trim(),
-    description: cookbookRecipeDescription(graph.description),
     metadata,
     ingredientGroups: (graph.ingredientGroups ?? []).map((group) => ({
       label: clean(group.label),
@@ -123,7 +123,7 @@ export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCop
         .map(ingredientLine)
         .filter((value): value is string => Boolean(value)),
     })).filter((group) => group.lines.length > 0),
-    stepGroups: (graph.stepGroups ?? []).map((group) => ({
+    stepGroups: (compactRecipeStepGroups(graph.stepGroups) as unknown as RecipePageStepGroup[]).map((group) => ({
       label: clean(group.label),
       steps: (group.steps ?? [])
         .map(stepLine)
@@ -185,20 +185,13 @@ export function buildRecipePagePrompt(
     .slice(0, 4);
   const styleDescriptor = compileRecipePageStyleDescriptor(style, density);
   const pageInstructions = [
-    `Create one finished, flat, portrait cookbook page in the canonical ${COOKBOOK_GEOMETRY.generation.aspectRatio} aspect ratio.`,
-    'The result is the page itself, not a photograph, mockup, open book, loose sheet, or framed poster.',
-    'Fill the entire output canvas; the canvas edges are the physical page edges.',
-    'Do not place a smaller page inside the canvas, leave blank outer padding, add a drop shadow, or show a surrounding background.',
-    'Typeset every supplied line exactly once. Preserve all quantities, units, times, and temperatures.',
-    'Do not invent, omit, paraphrase, duplicate, or reorder recipe content.',
-    'Never print extraction analysis, confidence, provenance, source limitations, missing-information commentary, or comments about how Folio understood the recipe.',
-    'Use a clear hierarchy and text large enough to read on an iPhone.',
-    'Keep all text and important artwork inside a generous safe margin.',
-    'Include a compelling finished-dish visual in the exact medium required by the locked style contract.',
-    'Treat the locked style contract as a publishing system: follow its typography, palette, image medium, spacing, graphic language, signature cue, composition, and exclusions.',
-    'Do not drift toward a generic warm-paper serif cookbook aesthetic when the style contract specifies another direction.',
-    'The style changes presentation only. It must never change the recipe copy or canonical page geometry.',
-    'Do not print a page number because recipes may be reordered later.',
+    `Create one finished, flat, portrait cookbook page in the canonical ${COOKBOOK_GEOMETRY.generation.aspectRatio} aspect ratio, filling the canvas edge to edge; the canvas edges are the physical page edges.`,
+    'Show the page itself—not a photograph, mockup, open book, loose sheet, or framed poster. Do not place a smaller page inside the canvas or add outer padding, shadow, or surrounding background.',
+    'Typeset every supplied line exactly once; preserve quantities, units, times, temperatures, and order without inventing, omitting, paraphrasing, or duplicating content.',
+    'Never print extraction analysis, provenance, source limitations, or a page number.',
+    'Use an iPhone-readable hierarchy and keep all text and important artwork inside a generous safe margin.',
+    'Include a finished-dish visual in the exact medium required by the locked style contract, following its typography, palette, spacing, graphic language, composition, and exclusions.',
+    'The style changes presentation only, never the recipe copy or canonical page geometry.',
     visualDirection ? `Requested visual adjustment: ${visualDirection}. Keep the cookbook identity unchanged.` : '',
   ].filter(Boolean).join(' ');
 

@@ -4,7 +4,7 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from 'expo-linking';
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { ShareIntentProvider } from 'expo-share-intent';
@@ -32,6 +32,7 @@ import { loadFonts, Fonts } from '@/utils/fonts';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { LocalUserDataCleanupResume } from '@/components/account/LocalUserDataCleanupResume';
 import { supabase } from '@/lib/supabase';
+import { Sentry, sentryNavigationIntegration } from '@/utils/observability/sentry';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -297,7 +298,13 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    sentryNavigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
+
   return (
     <ShareIntentProvider options={shareIntentOptions}>
       <NoshNativeShareProvider>
@@ -324,3 +331,5 @@ export default function RootLayout() {
     </ShareIntentProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

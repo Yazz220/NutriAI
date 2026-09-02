@@ -93,6 +93,7 @@ interface NoshCaptureWorkspaceProps {
   initialCaptureAction?: 'replace_source' | 'correct_recipe';
   initialSource?: NoshCaptureHandoffSource | null;
   scrollableRef?: AnimatedRef<Animated.ScrollView>;
+  pageReturnTo?: 'composer' | 'previous';
 }
 
 export interface NoshCaptureHandoffSource {
@@ -107,6 +108,7 @@ export function NoshCaptureWorkspace({
   initialCaptureAction,
   initialSource,
   scrollableRef,
+  pageReturnTo = 'composer',
 }: NoshCaptureWorkspaceProps) {
   const router = useRouter();
   const { close: closeNoshConversation } = useNoshConversation();
@@ -126,6 +128,10 @@ export function NoshCaptureWorkspace({
   const [audioAttachment, setAudioAttachment] = useState<RecipeCaptureAudioAsset | null>(null);
   const [videoAttachment, setVideoAttachment] = useState<RecipeCaptureVideoAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const captureAcknowledgementRef = useRef<{
+    requestKey: string;
+    resolve: (capture: RecipeCapture) => void;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [correctionVisible, setCorrectionVisible] = useState(false);
   const [pageActionPage, setPageActionPage] = useState<CookbookPage | null>(null);
@@ -256,12 +262,24 @@ export function NoshCaptureWorkspace({
     }
   }, [capture, initialCaptureAction, initialCaptureId]);
 
+  useEffect(() => {
+    const acknowledgement = captureAcknowledgementRef.current;
+    if (!acknowledgement) return;
+    const observedCapture = captureState.captures.find(
+      (item) => item.idempotencyKey === acknowledgement.requestKey,
+    );
+    if (!observedCapture) return;
+    captureAcknowledgementRef.current = null;
+    acknowledgement.resolve(observedCapture);
+  }, [captureState.captures]);
+
   const submit = useCallback(async (payload: UnifiedIntakePayload) => {
     if (!user || submitInFlightRef.current) return;
     submitInFlightRef.current = true;
     setIsSubmitting(true);
     setError(null);
     let unclaimedStoragePaths: string[] = [];
+    let activeRequestKey: string | undefined;
     try {
       if (!await requestPageAccess(pageAccessReason)) {
         setInput(payload.input ?? '');
@@ -279,6 +297,7 @@ export function NoshCaptureWorkspace({
       }
       if (!await requestConsent()) return;
       const requestKey = createCaptureRequestKey();
+      activeRequestKey = requestKey;
       let source: RecipeCaptureSource;
       if (payload.type === 'image') {
         const images = [
@@ -335,11 +354,20 @@ export function NoshCaptureWorkspace({
       } else {
         source = { type: payload.type, input: payload.input };
       }
-      const result = await captureState.startCapture({
-        source,
-        destinationCookbookId: normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
-        idempotencyKey: requestKey,
+      const observedCapture = new Promise<RecipeCapture>((resolve) => {
+        captureAcknowledgementRef.current = { requestKey, resolve };
       });
+      const result = await Promise.race([
+        captureState.startCapture({
+          source,
+          destinationCookbookId: normalizeCaptureDestinationCookbookId(activeDestinationCookbookId),
+          idempotencyKey: requestKey,
+        }),
+        observedCapture.then((capture) => ({ capture, status: 'processing' as const })),
+      ]);
+      if (captureAcknowledgementRef.current?.requestKey === requestKey) {
+        captureAcknowledgementRef.current = null;
+      }
       unclaimedStoragePaths = [];
       if (replacementCaptureId && replacementCaptureId !== result.capture.id) {
         try {
@@ -383,6 +411,9 @@ export function NoshCaptureWorkspace({
       }
       setError(reason instanceof Error ? reason.message : 'Folio could not save this recipe.');
     } finally {
+      if (activeRequestKey && captureAcknowledgementRef.current?.requestKey === activeRequestKey) {
+        captureAcknowledgementRef.current = null;
+      }
       submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
@@ -586,7 +617,7 @@ export function NoshCaptureWorkspace({
           params: {
             cookbookId: result.destinationCookbookId,
             pageId: result.resultPageId,
-            returnTo: 'composer',
+            returnTo: pageReturnTo,
           },
         }),
       },
@@ -729,7 +760,7 @@ export function NoshCaptureWorkspace({
       params: {
         cookbookId: page.cookbookId,
         pageId: page.id,
-        returnTo: 'composer',
+        returnTo: pageReturnTo,
       },
     });
   }

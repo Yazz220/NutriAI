@@ -30,4 +30,14 @@ describe('cookbook page order', () => {
     expect(getBeforePageId(['third', 'first', 'second'], 'first')).toBe('second');
     expect(getBeforePageId(['third', 'first', 'second'], 'second')).toBeNull();
   });
+
+  it('preserves page objects whose physical position did not change', () => {
+    const first = page('first', 0);
+    const second = page('second', 1);
+
+    const ordered = applyCookbookPageOrder([first, second], ['first', 'second']);
+
+    expect(ordered[0]).toBe(first);
+    expect(ordered[1]).toBe(second);
+  });
 });

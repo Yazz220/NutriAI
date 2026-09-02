@@ -6,7 +6,6 @@ import type { CookbookPage } from '@/types/cookbook';
 import {
   correctRecipeCapture,
   discardRecipeCapture,
-  fetchPageById,
   listRecipeCaptures,
   prepareRecipeCaptureDestination,
   retryRecipeCapture,
@@ -77,19 +76,6 @@ export function useRecipeCaptures() {
     void saveCachedCaptures(user.id, query.data);
   }, [query.data, user?.id]);
 
-  useEffect(() => {
-    const placedCaptures = (query.data ?? []).filter((capture) => capture.pageId);
-    for (const capture of placedCaptures) {
-      void fetchPageById(capture.pageId!).then((page) => {
-        if (!page) return;
-        queryClient.setQueryData<CookbookPage[]>(
-          COOKBOOK_PAGES_QUERY_KEY(page.cookbookId),
-          (current = []) => reconcileCapturePage(current, page),
-        );
-      }).catch(() => {});
-    }
-  }, [query.data, queryClient]);
-
   function mergeResult(result: { capture: RecipeCapture; pendingPage?: CookbookPage }) {
     queryClient.setQueryData<RecipeCapture[]>(queryKey, (current = []) => [
       result.capture,
@@ -98,7 +84,7 @@ export function useRecipeCaptures() {
     if (result.pendingPage) {
       queryClient.setQueryData<CookbookPage[]>(
         COOKBOOK_PAGES_QUERY_KEY(result.pendingPage.cookbookId),
-        (current = []) => reconcileCapturePage(current, result.pendingPage),
+        (current) => current ? reconcileCapturePage(current, result.pendingPage) : current,
       );
     }
   }

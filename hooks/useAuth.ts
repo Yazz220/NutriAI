@@ -22,7 +22,7 @@ export function useAuth() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
-      identifyUser(s?.user?.id ?? null, { email: s?.user?.email });
+      identifyUser(s?.user?.id ?? null);
     });
 
     return () => {

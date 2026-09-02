@@ -40,6 +40,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
 EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
 EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
+EXPO_PUBLIC_SENTRY_DSN=
+EXPO_PUBLIC_SENTRY_ENVIRONMENT=development
 EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
@@ -70,6 +72,8 @@ Supabase Edge Function secrets:
 | `SUPADATA_API_BASE` | optional Supadata base URL; defaults to `https://api.supadata.ai/v1` |
 | `SUPADATA_ENABLED_PLATFORMS` | optional comma-separated allowlist; defaults to `youtube,tiktok,instagram,facebook` |
 | `ART_MODEL` | `generate-page-art` |
+| `SENTRY_DSN` | privacy-scrubbed Edge Function errors and provider failure diagnostics |
+| `SENTRY_ENVIRONMENT` | optional environment label; defaults to `production` |
 | `APPLE_CLIENT_ID` | `delete-account` |
 | `APPLE_TEAM_ID` | `delete-account` |
 | `APPLE_KEY_ID` | `delete-account` |
@@ -80,6 +84,8 @@ Supabase Edge Function secrets:
 | `REVENUECAT_ACCEPT_SANDBOX_EVENTS` | subscription functions; verified sandbox is accepted by default for TestFlight and App Review; set `false` only as an emergency kill switch |
 
 Supabase also provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to functions that need them.
+
+Sentry uses separate `folio-mobile` and `folio-backend` projects in the `all-ot` organization. The mobile DSN is client-safe; `SENTRY_AUTH_TOKEN` is build-only and must be stored as a protected EAS environment secret so release source maps and native symbols can be uploaded. Never commit the token. See [OBSERVABILITY.md](./OBSERVABILITY.md) for privacy, verification, and incident-triage details.
 
 ## Routes To Know
 

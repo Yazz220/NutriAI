@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { router, usePathname } from 'expo-router';
 import { useToast } from '@/contexts/ToastContext';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
+import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { useRecipeCaptureFeed } from '@/hooks/useRecipeCaptures';
-import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
+import type { CookbookPage } from '@/types/cookbook';
+import { fetchPageById } from '@/utils/cookbook/api';
+import { reconcileCapturePage, type RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 
 const READY_SIGNATURE = 'ready:ready';
 
@@ -17,10 +22,19 @@ function captureTitle(capture: RecipeCapture): string {
 }
 
 export function RecipeCaptureCompletionObserver() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { cookbooks } = useCookbooks();
   const { captures, hasData, isLoading } = useRecipeCaptureFeed();
   const { showToast } = useToast();
+  const pathname = usePathname();
+  const { visible: conversationVisible, interaction } = useNoshConversation();
+  const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
+  const captureWorkspaceVisible = (
+    normalizedPathname === '/save'
+    || normalizedPathname.endsWith('/add')
+    || (conversationVisible && interaction.task === 'capture')
+  );
   const tracker = useRef<{
     userId?: string;
     initialized: boolean;
@@ -60,6 +74,22 @@ export function RecipeCaptureCompletionObserver() {
     tracker.current.signatures = nextSignatures;
     if (completed.length === 0) return;
 
+    for (const capture of completed) {
+      const destinationId = capture.destinationCookbookId;
+      if (!destinationId) continue;
+      const destinationPagesKey = COOKBOOK_PAGES_QUERY_KEY(destinationId);
+      if (queryClient.getQueryData(destinationPagesKey) === undefined) continue;
+      void fetchPageById(capture.pageId!).then((page) => {
+        if (!page) return;
+        queryClient.setQueryData<CookbookPage[]>(
+          destinationPagesKey,
+          (current) => current ? reconcileCapturePage(current, page) : current,
+        );
+      }).catch(() => undefined);
+    }
+
+    if (captureWorkspaceVisible) return;
+
     // Keep the notification quiet when several captures settle in one poll.
     // The newest page gets the direct action; every other page retains its New marker.
     const readyCapture = completed[0];
@@ -89,7 +119,7 @@ export function RecipeCaptureCompletionObserver() {
             onPress: () => router.push('/(book)/save'),
           },
     });
-  }, [captures, cookbooks, hasData, isLoading, showToast, user?.id]);
+  }, [captureWorkspaceVisible, captures, cookbooks, hasData, isLoading, queryClient, showToast, user?.id]);
 
   return null;
 }

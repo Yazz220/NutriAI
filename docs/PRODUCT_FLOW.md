@@ -85,7 +85,7 @@ Before a Recipe Graph or cookbook page can be created, extraction returns one pr
 |---|---|---|
 | `recipe` | One usable ingredient list and cooking method are supported by the source. | Continue with the canonical Recipe Graph. |
 | `not_recipe` | The source is unrelated to recipes or blank/empty. | Stop in `needs_attention`; ask for another source. |
-| `insufficient_evidence` | The source may concern a recipe but is unreadable, incomplete, or contains multiple inseparable recipes. | Stop in `needs_attention`; explain what is missing and ask for another source. |
+| `insufficient_evidence` | The source may concern a recipe but is unreadable, has no usable ingredient list or actionable method, or contains multiple inseparable recipes. Missing optional details or some quantities do not trigger this outcome. | Stop in `needs_attention`; explain what is missing and ask for another source. |
 
 The model supplies the classification and an internal diagnostic. Folio owns the reason codes, user-facing copy, and recovery action. Rejected evidence never reaches page creation, and provider wording is never shown directly to the user.
 

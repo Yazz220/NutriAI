@@ -146,7 +146,13 @@ export async function callChatCompletion(
           : typeof data?.error === 'string'
             ? data.error
             : `OpenRouter request failed (${res.status})`;
-      logError('OpenRouter chat completion failed', { status: res.status, message });
+      logError('OpenRouter chat completion failed', {
+        provider: 'openrouter',
+        operation: 'chat_completion',
+        model: request.model,
+        status: res.status,
+        error: message,
+      });
       throw new Error(message);
     }
 
@@ -196,7 +202,13 @@ export async function* streamChatCompletion(
           : typeof data?.error === 'string'
             ? data.error
             : `OpenRouter request failed (${res.status})`;
-      logError('OpenRouter chat stream failed', { status: res.status, message });
+      logError('OpenRouter chat stream failed', {
+        provider: 'openrouter',
+        operation: 'chat_stream',
+        model: request.model,
+        status: res.status,
+        error: message,
+      });
       throw new Error(message);
     }
 

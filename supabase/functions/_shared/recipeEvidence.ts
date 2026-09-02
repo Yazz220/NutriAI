@@ -111,8 +111,8 @@ const FEEDBACK_BY_REASON: Record<RecipeEvidenceFailureCode, string> = {
   audio_too_large: 'This audio file is too large. Choose a recording under 6 MB or paste the recipe text.',
   audio_no_speech: 'Folio could not find clear spoken recipe details in this audio. Choose a clearer recording or paste the recipe text.',
   audio_transcription_failed: 'Folio could not transcribe this audio right now. The recording is saved, so you can try again.',
-  missing_ingredients: 'Folio found recipe instructions but not a complete ingredient list. Choose a source that includes the ingredients.',
-  missing_instructions: 'Folio found ingredients but not enough cooking instructions. Choose a source that includes the method.',
+  missing_ingredients: 'Folio could not find a usable ingredient list in this source. Choose another source, or add images that show the ingredients.',
+  missing_instructions: 'Folio could not find a usable cooking method in this source. Choose another source, or add images that show the method.',
   multiple_recipes: 'This source appears to contain more than one recipe. Share one recipe at a time.',
 };
 

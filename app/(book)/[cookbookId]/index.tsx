@@ -32,6 +32,7 @@ import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbo
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
 import { getCapturePresentation } from '@/utils/cookbook/capturePresentation';
+import { applyCookbookPageOrder } from '@/utils/cookbook/pageOrder';
 
 export default function BookReaderScreen() {
   const { showToast } = useToast();
@@ -79,18 +80,20 @@ export default function BookReaderScreen() {
 
     queryClient.setQueryData<CookbookPage[]>(
       COOKBOOK_PAGES_QUERY_KEY(cookbookId),
-      (current = []) => current.filter((page) => page.id !== removedPageId),
+      (current = []) => {
+        const remaining = current.filter((page) => page.id !== removedPageId);
+        return applyCookbookPageOrder(remaining, remaining.map((page) => page.id));
+      },
     );
     setSelectedPageId(fallbackPage?.id ?? null);
   };
 
   const refreshRecipeCollections = async (destinationCookbookId?: string) => {
     const invalidations = [
-      queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId) }),
       queryClient.invalidateQueries({ queryKey: ['cookbook-shelf'] }),
       queryClient.invalidateQueries({ queryKey: ['recipe-captures'] }),
     ];
-    if (destinationCookbookId) {
+    if (destinationCookbookId && destinationCookbookId !== cookbookId) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(destinationCookbookId) }),
       );
@@ -345,6 +348,8 @@ export default function BookReaderScreen() {
       pages={pages}
       pageSlots={pageSlots}
       captures={captures}
+      pageDataReady={hasPageData}
+      captureDataReady={!captureState.isLoading}
       initialPageId={normalizedPageId}
       onExit={normalizedReturnTo ? () => {
         if (router.canGoBack()) router.back();

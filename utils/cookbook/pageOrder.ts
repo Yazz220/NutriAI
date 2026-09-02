@@ -17,9 +17,9 @@ export function applyCookbookPageOrder(
     })
     .map((page) => {
       const position = positions.get(page.id);
-      return position === undefined
-        ? page
-        : { ...page, sortOrder: position, pageNumber: position + 1 };
+      if (position === undefined) return page;
+      if (page.sortOrder === position && page.pageNumber === position + 1) return page;
+      return { ...page, sortOrder: position, pageNumber: position + 1 };
     });
 }
 

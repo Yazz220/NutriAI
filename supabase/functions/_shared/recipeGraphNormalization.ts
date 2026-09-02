@@ -241,6 +241,62 @@ function structuredIngredientGroups(value: unknown): JsonRecord[] {
   return ingredients.length > 0 ? [{ id: 'default', label: '', ingredients }] : [];
 }
 
+function normalizedStepGroupLabel(value: unknown): string {
+  return (cleanText(value) ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+const SUMMARY_STEP_GROUP_LABELS = new Set([
+  'abbreviated recipe',
+  'abridged recipe',
+  'condensed recipe',
+  'quick recipe',
+  'quick summary',
+  'recipe overview',
+  'recipe summary',
+  'short version',
+  'at a glance',
+]);
+
+const GENERIC_COMPLETE_STEP_GROUP_LABELS = new Set([
+  'complete recipe',
+  'directions',
+  'full recipe',
+  'instructions',
+  'method',
+  'recipe directions',
+  'recipe instructions',
+]);
+
+/**
+ * Remove publisher-provided summary directions when the complete directions are
+ * also present. Named cooking phases such as "Sauce" or "Assembly" are kept.
+ */
+export function compactRecipeStepGroups(value: unknown): JsonRecord[] {
+  if (!Array.isArray(value)) return [];
+  const groups = value.flatMap((group) => {
+    const groupRecord = record(group);
+    return groupRecord ? [groupRecord] : [];
+  });
+  const hasSummary = groups.some((group) => SUMMARY_STEP_GROUP_LABELS.has(
+    normalizedStepGroupLabel(group.label),
+  ));
+  const hasCompleteGroup = groups.some((group) => !SUMMARY_STEP_GROUP_LABELS.has(
+    normalizedStepGroupLabel(group.label),
+  ));
+  const compacted = hasSummary && hasCompleteGroup
+    ? groups.filter((group) => !SUMMARY_STEP_GROUP_LABELS.has(normalizedStepGroupLabel(group.label)))
+    : groups;
+
+  if (compacted.length !== 1) return compacted;
+  const [onlyGroup] = compacted;
+  return GENERIC_COMPLETE_STEP_GROUP_LABELS.has(normalizedStepGroupLabel(onlyGroup.label))
+    ? [{ ...onlyGroup, label: '' }]
+    : compacted;
+}
+
 function structuredStepGroups(value: unknown): JsonRecord[] {
   const entries = Array.isArray(value) ? value : [value];
   const groups: JsonRecord[] = [];
@@ -280,7 +336,7 @@ function structuredStepGroups(value: unknown): JsonRecord[] {
     });
   });
   flushUngrouped();
-  return groups;
+  return compactRecipeStepGroups(groups);
 }
 
 function structuredConfidence(input: {
@@ -489,7 +545,7 @@ export function normalizeRecipeGraphDraft(
   }
 
   draft.ingredientGroups = normalizeIngredientGroupIds(draft.ingredientGroups);
-  draft.stepGroups = normalizeStepGroupIds(draft.stepGroups);
+  draft.stepGroups = normalizeStepGroupIds(compactRecipeStepGroups(draft.stepGroups));
 
   draft.title = typeof source.title === 'string' && source.title.trim()
     ? source.title.trim()

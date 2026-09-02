@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   isRecipeEvidenceFailureCode,
   MAX_RECIPE_TEXT_CHARACTERS,
@@ -8,6 +10,23 @@ import {
 } from '@/supabase/functions/_shared/recipeEvidence';
 
 describe('recipe evidence decision contract', () => {
+  it('accepts usable recipe images without demanding publication-perfect completeness', () => {
+    const extractorSource = fs.readFileSync(
+      path.resolve(__dirname, '../../../supabase/functions/extract-recipe/index.ts'),
+      'utf8',
+    );
+
+    expect(extractorSource).toContain(
+      'Use "missing_ingredients" only when there is no usable ingredient list',
+    );
+    expect(extractorSource).toContain(
+      'Missing some quantities or optional details is not a reason to reject a usable recipe',
+    );
+    expect(extractorSource).toContain(
+      'combine ingredient evidence from lists, labels, captions, and method text',
+    );
+  });
+
   it('bounds pasted recipe text before persistence or model extraction', () => {
     expect(recipeTextSourceIsTooLarge('a'.repeat(MAX_RECIPE_TEXT_CHARACTERS))).toBe(false);
     expect(recipeTextSourceIsTooLarge('a'.repeat(MAX_RECIPE_TEXT_CHARACTERS + 1))).toBe(true);
@@ -72,6 +91,12 @@ describe('recipe evidence decision contract', () => {
     expect(isRecipeEvidenceFailureCode('none')).toBe(false);
     expect(recipeEvidenceFeedback('unreadable_source')).toBe(
       'Folio could not read enough of this recipe. Choose a sharper, well-lit source with the full recipe visible.',
+    );
+    expect(recipeEvidenceFeedback('missing_ingredients')).toBe(
+      'Folio could not find a usable ingredient list in this source. Choose another source, or add images that show the ingredients.',
+    );
+    expect(recipeEvidenceFeedback('missing_instructions')).toBe(
+      'Folio could not find a usable cooking method in this source. Choose another source, or add images that show the method.',
     );
   });
 
@@ -174,7 +199,7 @@ describe('recipe evidence decision contract', () => {
           content: JSON.stringify({
             outcome: 'insufficient_evidence',
             reasonCode: 'missing_ingredients',
-            diagnostic: 'The method is present but quantities are not.',
+            diagnostic: 'The method is present but no ingredient list is visible.',
             recipeGraph: null,
           }),
         },
