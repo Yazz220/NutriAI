@@ -17,7 +17,9 @@
  * Required Supabase Function secrets:
  *   AI_API_KEY   — OpenRouter API key
  *   AI_API_BASE  — Provider base URL (default: https://openrouter.ai/api/v1)
- *   AI_MODEL     — Extraction model (default: qwen/qwen3.6-35b-a3b)
+ *   EXTRACTION_MODEL — Extraction model (default: qwen/qwen3.6-35b-a3b)
+ *   VIDEO_UNDERSTANDING_MODEL — Optional whole-video model override
+ *   EXTRACTION_FALLBACK_MODEL — Optional eval-approved fallback
  *
  * Request body:
  *   { type: "url" | "text" | "image" | "video" | "audio",
@@ -130,8 +132,13 @@ import {
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-const AI_MODEL = Deno.env.get('AI_MODEL') || 'qwen/qwen3.6-35b-a3b';
-const VIDEO_MODEL = Deno.env.get('VIDEO_MODEL') || AI_MODEL;
+const EXTRACTION_MODEL = Deno.env.get('EXTRACTION_MODEL')
+  || Deno.env.get('AI_MODEL')
+  || 'qwen/qwen3.6-35b-a3b';
+const VIDEO_UNDERSTANDING_MODEL = Deno.env.get('VIDEO_UNDERSTANDING_MODEL')
+  || Deno.env.get('VIDEO_MODEL')
+  || EXTRACTION_MODEL;
+const EXTRACTION_FALLBACK_MODEL = Deno.env.get('EXTRACTION_FALLBACK_MODEL');
 const MAX_URL_BYTES = 1_000_000;
 const MAX_IMAGE_BASE64_BYTES = 8_000_000;
 const MAX_IMAGE_COUNT = 4;
@@ -928,7 +935,9 @@ serve(async (req: Request) => {
     // Call the model with structured output enforcement
     const systemContent = `${SYSTEM_PROMPT}\n\nREQUIRED OUTPUT SCHEMA:\n${JSON.stringify(EXTRACTION_RESULT_SCHEMA.json_schema?.schema)}`;
     const acquiredVideoIsTextEvidence = Boolean(acquiredVideoEvidence);
-    const primaryModel = body.type === 'video' && !acquiredVideoIsTextEvidence ? VIDEO_MODEL : AI_MODEL;
+    const primaryModel = body.type === 'video' && !acquiredVideoIsTextEvidence
+      ? VIDEO_UNDERSTANDING_MODEL
+      : EXTRACTION_MODEL;
     const primaryTimeoutMs = body.type === 'video' && !acquiredVideoIsTextEvidence
       ? EXTRACTION_VIDEO_TIMEOUT_MS
       : EXTRACTION_TIMEOUT_MS;
@@ -940,7 +949,7 @@ serve(async (req: Request) => {
     try {
       const usesModelFallback = acquiredVideoIsTextEvidence || recipeSourceUsesModelFallback(body.type);
       const models = usesModelFallback
-        ? resilientModelOrder(primaryModel, VIDEO_MODEL)
+        ? resilientModelOrder(primaryModel, EXTRACTION_FALLBACK_MODEL)
         : [primaryModel];
       const attempted = await tryModelsInOrder(models, async (model, index) => {
         if (index > 0) {
@@ -990,7 +999,7 @@ serve(async (req: Request) => {
         try {
           response = await callChatCompletion(
             {
-              model: AI_MODEL,
+              model: EXTRACTION_MODEL,
               messages: [
                 { role: 'system', content: systemContent },
                 {
@@ -1012,7 +1021,7 @@ serve(async (req: Request) => {
           );
           decision = parseRecipeEvidenceCompletion(response);
           videoEvidenceDegraded = true;
-          extractionModel = AI_MODEL;
+          extractionModel = EXTRACTION_MODEL;
         } catch (fallbackErr) {
           logError('extract-recipe degraded video retry failed', {
             error: fallbackErr instanceof Error ? fallbackErr.message : 'Extraction failed',

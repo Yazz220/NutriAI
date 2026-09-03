@@ -1,8 +1,20 @@
+import { privateOpenRouterProviderPolicy } from './openRouterProviderPolicy.ts';
+
+export interface TranscriptionUsage {
+  seconds?: number;
+  cost?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
 export type AudioTranscriptionResult =
   | {
       ready: true;
       transcript: string;
       model: string;
+      provider: 'openrouter';
+      usage?: TranscriptionUsage;
       adapterVersion: 'audio-transcription-v1';
     }
   | {
@@ -14,6 +26,18 @@ export type AudioTranscriptionResult =
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
 export const MAX_AUDIO_TRANSCRIPT_CHARACTERS = 40_000;
+
+export function readTranscriptionUsage(value: unknown): TranscriptionUsage | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const usage = value as Record<string, unknown>;
+  const result: TranscriptionUsage = {};
+  if (typeof usage.seconds === 'number') result.seconds = usage.seconds;
+  if (typeof usage.cost === 'number') result.cost = usage.cost;
+  if (typeof usage.input_tokens === 'number') result.inputTokens = usage.input_tokens;
+  if (typeof usage.output_tokens === 'number') result.outputTokens = usage.output_tokens;
+  if (typeof usage.total_tokens === 'number') result.totalTokens = usage.total_tokens;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 export async function transcribeAudioRecipeEvidence(
   evidence: { base64Audio: string; format: string },
@@ -54,6 +78,8 @@ export async function transcribeAudioRecipeEvidence(
               data: evidence.base64Audio,
               format: evidence.format,
             },
+            temperature: 0,
+            provider: privateOpenRouterProviderPolicy(),
           }),
           signal: controller.signal,
         },
@@ -102,6 +128,8 @@ export async function transcribeAudioRecipeEvidence(
       ready: true,
       transcript,
       model: options.model,
+      provider: 'openrouter',
+      usage: readTranscriptionUsage(data?.usage),
       adapterVersion: 'audio-transcription-v1',
     };
   } finally {

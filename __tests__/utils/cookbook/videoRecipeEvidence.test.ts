@@ -225,10 +225,9 @@ describe('video recipe evidence adapter', () => {
     const fetchImpl = jest.fn().mockImplementation(async (_input, init?: RequestInit) => {
       const form = init?.body as FormData;
       expect(form).toBeInstanceOf(FormData);
-      expect(form.get('model_id')).toBe('scribe_v2');
-      expect(form.get('tag_audio_events')).toBe('false');
-      expect(form.get('diarize')).toBe('false');
-      expect(form.get('timestamps_granularity')).toBe('none');
+      expect(form.get('model')).toBe('mistralai/voxtral-small-24b-2507-stt');
+      expect(form.get('response_format')).toBe('json');
+      expect(form.get('temperature')).toBe('0');
       const file = form.get('file');
       expect(file).toBeInstanceOf(Blob);
       expect((file as Blob).type).toBe(mimeType);
@@ -240,22 +239,22 @@ describe('video recipe evidence adapter', () => {
       mimeType,
       fileName,
     }, {
-      apiBase: 'https://api.elevenlabs.io/v1',
+      apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      model: 'scribe_v2',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl,
     })).resolves.toMatchObject({
       ready: true,
       transcript: 'Add two eggs, then whisk and fry.',
-      provider: 'elevenlabs',
-      adapterVersion: 'video-transcription-adapter-v1',
+      provider: 'openrouter',
+      adapterVersion: 'video-transcription-openrouter-v1',
     });
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://api.elevenlabs.io/v1/speech-to-text',
+      'https://openrouter.ai/api/v1/audio/transcriptions',
       expect.objectContaining({
         method: 'POST',
-        headers: { 'xi-api-key': 'test-key' },
+        headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }),
     );
   });
@@ -267,9 +266,9 @@ describe('video recipe evidence adapter', () => {
       mimeType: 'video/mp4',
       fileName: 'recipe.mp4',
     }, {
-      apiBase: 'https://api.elevenlabs.io/v1',
+      apiBase: 'https://openrouter.ai/api/v1',
       apiKey: '',
-      model: 'scribe_v2',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl,
     })).resolves.toMatchObject({
       ready: false,

@@ -18,7 +18,7 @@
  * Required Supabase Function secrets:
  *   AI_API_KEY   — OpenRouter API key
  *   AI_API_BASE  — Provider base URL (default: https://openrouter.ai/api/v1)
- *   AI_MODEL     — Chat model (default: qwen/qwen3.6-35b-a3b:exacto)
+ *   CHAT_MODEL   — Chat model (default: qwen/qwen3.6-35b-a3b)
  *
  * Request body:
  *   { messages: ChatMessage[],
@@ -63,9 +63,9 @@ import {
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-// Use :exacto suffix for tool-calling reliability — OpenRouter routes to
-// providers with the best tool-calling success rates.
-const AI_MODEL = Deno.env.get('AI_MODEL') || 'qwen/qwen3.6-35b-a3b:exacto';
+const CHAT_MODEL = Deno.env.get('CHAT_MODEL')
+  || Deno.env.get('AI_MODEL')
+  || 'qwen/qwen3.6-35b-a3b';
 const CHAT_TIMEOUT_MS = 60_000;
 const PROMPT_VERSION = '2026-08-26.v1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
@@ -802,7 +802,7 @@ async function startAgentRun(input: {
     thread_id: safeIdentifier(input.body.threadId),
     user_message_id: safeIdentifier(input.body.userMessageId),
     prompt_version: PROMPT_VERSION,
-    model: AI_MODEL,
+    model: CHAT_MODEL,
     task: input.body.interactionContext?.task,
     focus_kind: typeof focus?.kind === 'string' ? focus.kind : null,
     focus_page_id: focusedRecipePageId(input.body.interactionContext) ?? null,
@@ -950,7 +950,7 @@ serve(async (req: Request) => {
           try {
             for await (const chunk of streamChatCompletion(
               {
-                model: AI_MODEL,
+                model: CHAT_MODEL,
                 messages,
                 ...modelTuning(),
                 max_tokens: body.max_tokens ?? 2000,
@@ -1070,7 +1070,7 @@ serve(async (req: Request) => {
     try {
       response = await callChatCompletion(
         {
-          model: AI_MODEL,
+          model: CHAT_MODEL,
           messages,
           ...modelTuning(),
           max_tokens: body.max_tokens ?? 2000,

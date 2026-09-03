@@ -81,12 +81,10 @@ const MAX_CAPTURE_IMAGE_COUNT = 4;
 const MAX_CAPTURE_IMAGE_TOTAL_BYTES = 16_000_000;
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
 const AI_API_BASE = Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1';
-const AUDIO_TRANSCRIPTION_API_KEY = Deno.env.get('AUDIO_TRANSCRIPTION_API_KEY') || AI_API_KEY;
-const AUDIO_TRANSCRIPTION_API_BASE = Deno.env.get('AUDIO_TRANSCRIPTION_API_BASE') || AI_API_BASE;
-const AUDIO_TRANSCRIPTION_MODEL = Deno.env.get('AUDIO_TRANSCRIPTION_MODEL') || 'openai/whisper-large-v3';
-const VIDEO_TRANSCRIPTION_API_KEY = Deno.env.get('VIDEO_TRANSCRIPTION_API_KEY') || '';
-const VIDEO_TRANSCRIPTION_API_BASE = Deno.env.get('VIDEO_TRANSCRIPTION_API_BASE') || 'https://api.elevenlabs.io/v1';
-const VIDEO_TRANSCRIPTION_MODEL = Deno.env.get('VIDEO_TRANSCRIPTION_MODEL') || 'scribe_v2';
+const TRANSCRIPTION_API_KEY = Deno.env.get('TRANSCRIPTION_API_KEY') || AI_API_KEY;
+const TRANSCRIPTION_API_BASE = Deno.env.get('TRANSCRIPTION_API_BASE') || AI_API_BASE;
+const TRANSCRIPTION_MODEL = Deno.env.get('TRANSCRIPTION_MODEL')
+  || 'mistralai/voxtral-small-24b-2507-stt';
 const SOCIAL_VIDEO_ACQUISITION_PROVIDER = (Deno.env.get('SOCIAL_VIDEO_ACQUISITION_PROVIDER') || 'guided')
   .trim()
   .toLowerCase();
@@ -425,6 +423,7 @@ async function videoTranscriptForSource(
     return savedTranscript;
   }
 
+  const transcriptionStartedAt = Date.now();
   const transcription = await transcribeVideoRecipeEvidence(
     {
       bytes: input.bytes,
@@ -432,20 +431,38 @@ async function videoTranscriptForSource(
       fileName: input.fileName,
     },
     {
-      apiBase: VIDEO_TRANSCRIPTION_API_BASE,
-      apiKey: VIDEO_TRANSCRIPTION_API_KEY,
-      model: VIDEO_TRANSCRIPTION_MODEL,
+      apiBase: TRANSCRIPTION_API_BASE,
+      apiKey: TRANSCRIPTION_API_KEY,
+      model: TRANSCRIPTION_MODEL,
     },
   );
   if (!transcription.ready) {
-    logInfo('Recipe capture video transcription unavailable; continuing with whole-video evidence', {
+    const logTranscriptionFailure = transcription.reasonCode === 'audio_transcription_failed'
+      ? logError
+      : logInfo;
+    logTranscriptionFailure('Recipe capture video transcription unavailable; continuing with whole-video evidence', {
       captureId: capture.id,
       sourceKind: input.sourceKind,
+      provider: 'openrouter',
+      operation: 'speech_to_text',
+      model: TRANSCRIPTION_MODEL,
       reasonCode: transcription.reasonCode,
-      diagnostic: transcription.diagnostic,
+      error: transcription.diagnostic,
+      durationMs: Date.now() - transcriptionStartedAt,
     });
     return undefined;
   }
+
+  logInfo('Recipe capture video transcription completed', {
+    captureId: capture.id,
+    sourceKind: input.sourceKind,
+    provider: transcription.provider,
+    operation: 'speech_to_text',
+    model: transcription.model,
+    durationMs: Date.now() - transcriptionStartedAt,
+    providerDurationSeconds: transcription.usage?.seconds,
+    providerCostUsd: transcription.usage?.cost,
+  });
 
   const transcriptionMetadata = {
     model: transcription.model,
@@ -456,6 +473,8 @@ async function videoTranscriptForSource(
     sourceKind: input.sourceKind,
     mimeType: input.mimeType,
     byteSize: input.byteSize,
+    providerDurationSeconds: transcription.usage?.seconds,
+    providerCostUsd: transcription.usage?.cost,
     transcribedAt: new Date().toISOString(),
   };
   const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
@@ -772,21 +791,45 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       };
     }
 
+    const transcriptionStartedAt = Date.now();
     const transcription = await transcribeAudioRecipeEvidence(evidence, {
-      apiBase: AUDIO_TRANSCRIPTION_API_BASE,
-      apiKey: AUDIO_TRANSCRIPTION_API_KEY,
-      model: AUDIO_TRANSCRIPTION_MODEL,
+      apiBase: TRANSCRIPTION_API_BASE,
+      apiKey: TRANSCRIPTION_API_KEY,
+      model: TRANSCRIPTION_MODEL,
     });
     if (!transcription.ready) {
+      if (transcription.reasonCode === 'audio_transcription_failed') {
+        logError('Recipe capture audio transcription failed', {
+          captureId: capture.id,
+          provider: 'openrouter',
+          operation: 'speech_to_text',
+          model: TRANSCRIPTION_MODEL,
+          error: transcription.diagnostic,
+          durationMs: Date.now() - transcriptionStartedAt,
+        });
+      }
       return { status: 'rejected', ...transcription, failedStage: 'transcription' };
     }
 
+    logInfo('Recipe capture audio transcription completed', {
+      captureId: capture.id,
+      provider: transcription.provider,
+      operation: 'speech_to_text',
+      model: transcription.model,
+      durationMs: Date.now() - transcriptionStartedAt,
+      providerDurationSeconds: transcription.usage?.seconds,
+      providerCostUsd: transcription.usage?.cost,
+    });
+
     const transcriptionMetadata = {
       model: transcription.model,
+      provider: transcription.provider,
       sourceAdapterVersion: evidence.adapterVersion,
       transcriptionAdapterVersion: transcription.adapterVersion,
       format: evidence.format,
       byteSize: evidence.byteSize,
+      providerDurationSeconds: transcription.usage?.seconds,
+      providerCostUsd: transcription.usage?.cost,
       transcribedAt: new Date().toISOString(),
     };
     const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({

@@ -205,12 +205,12 @@ EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=
 Edge Function secrets in Supabase:
 
 ```text
-AI_API_KEY, AI_API_BASE, AI_MODEL          extract-recipe and nosh-chat
-VIDEO_MODEL                               optional extract-recipe video override
-AUDIO_TRANSCRIPTION_MODEL                 optional capture-recipe speech-to-text override
-AUDIO_TRANSCRIPTION_API_BASE/API_KEY       optional independent speech-to-text provider
-VIDEO_TRANSCRIPTION_MODEL                 optional direct-media speech-to-text model override
-VIDEO_TRANSCRIPTION_API_BASE/API_KEY       direct-media speech-to-text provider used for uploaded and direct-file video
+AI_API_KEY, AI_API_BASE                    shared OpenRouter gateway credentials
+EXTRACTION_MODEL                           extract-recipe; legacy fallback is AI_MODEL
+CHAT_MODEL                                 nosh-chat; legacy fallback is AI_MODEL
+VIDEO_UNDERSTANDING_MODEL                  optional whole-video extraction override; legacy fallback is VIDEO_MODEL
+TRANSCRIPTION_MODEL                        capture-recipe audio/video speech-to-text; defaults to mistralai/voxtral-small-24b-2507-stt
+TRANSCRIPTION_API_BASE/API_KEY             optional speech override; defaults to the shared OpenRouter gateway
 SOCIAL_VIDEO_ACQUISITION_PROVIDER          guided (default) or supadata
 SUPADATA_API_KEY                           server-only Supadata credential
 SUPADATA_API_BASE                          optional Supadata base URL

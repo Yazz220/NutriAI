@@ -152,9 +152,9 @@ See [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md) for th
 | Retry repeats expensive work | Capture `stage_checkpoints`, the saved artifact for the last completed stage, and `_shared/captureStages.ts` |
 | Valid source is classified incorrectly | `supabase/functions/_shared/recipeEvidence.ts`, `extract-recipe` evidence diagnostics, and the capture `failure_code` |
 | Recipe image is oversized, blurry, or incomplete | `recipeCaptureImage.ts`, `recipeCaptureImageContract.ts`, `imageRecipeEvidence.ts`, and image-specific evidence failure codes |
-| Video is unavailable, unsupported, unconfirmed, or too large | `_shared/videoUploadContract.ts`, `_shared/videoRecipeEvidence.ts`, `_shared/audioTranscription.ts` (video audio track), `recipeCaptureVideoFrames.ts`, `VIDEO_MODEL`, `extract-recipe` video-resolution logs, and video-specific failure codes |
+| Video is unavailable, unsupported, unconfirmed, or too large | `_shared/videoUploadContract.ts`, `_shared/videoRecipeEvidence.ts`, `_shared/videoTranscription.ts`, `recipeCaptureVideoFrames.ts`, `TRANSCRIPTION_MODEL`, `VIDEO_UNDERSTANDING_MODEL`, provider logs, and video-specific failure codes |
 | Social-video acquisition fails or restarts | `_shared/recipeEvidenceAcquisition.ts`, `_shared/supadataVideoEvidence.ts`, the capture's `acquisition` checkpoint, `SOCIAL_VIDEO_ACQUISITION_PROVIDER`, and `source_acquisition_failed` |
-| Audio cannot be read | `_shared/audioRecipeEvidence.ts`, `_shared/audioTranscription.ts`, `AUDIO_TRANSCRIPTION_MODEL`, and audio-specific failure codes |
+| Audio cannot be read | `_shared/audioRecipeEvidence.ts`, `_shared/audioTranscription.ts`, `TRANSCRIPTION_MODEL`, provider logs, and audio-specific failure codes |
 | Recipe extraction is wrong | `supabase/functions/extract-recipe/index.ts`, URL evidence helpers, and the stored Recipe Graph |
 | Wrong cookbook selected | `begin_recipe_capture`, the cookbook `is_default` field, and the explicit destination passed by the entry point |
 | Page style does not match the book | Cookbook `page_style_id`, `style_revision`, `page_style_references`, then `_shared/artGeneration.ts` |

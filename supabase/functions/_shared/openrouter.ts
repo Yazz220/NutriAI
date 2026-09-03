@@ -11,6 +11,10 @@
 
 import { fetchWithRetry } from './fetchRetry.ts';
 import { logError } from './log.ts';
+import {
+  privateOpenRouterProviderPolicy,
+  type OpenRouterProviderPolicy,
+} from './openRouterProviderPolicy.ts';
 
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
 const AI_API_BASE = (Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
@@ -69,9 +73,7 @@ export interface ChatCompletionRequest {
     effort?: 'low' | 'medium' | 'high';
     exclude?: boolean;
   };
-  provider?: {
-    require_parameters?: boolean;
-  };
+  provider?: OpenRouterProviderPolicy;
 }
 
 export interface ChatCompletionResponse {
@@ -133,7 +135,10 @@ export async function callChatCompletion(
         'HTTP-Referer': 'https://nosh.app',
         'X-Title': 'Folio Cookbook',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        ...request,
+        provider: privateOpenRouterProviderPolicy(request.provider),
+      }),
       signal: controller.signal,
     });
 
@@ -188,6 +193,7 @@ export async function* streamChatCompletion(
       },
       body: JSON.stringify({
         ...request,
+        provider: privateOpenRouterProviderPolicy(request.provider),
         stream: true,
         stream_options: { include_usage: true },
       }),

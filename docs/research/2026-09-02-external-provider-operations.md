@@ -25,9 +25,8 @@ Sentry has first-party Expo support, including its config plugin, Expo Router tr
 | Service | Current responsibility | Current configuration |
 | --- | --- | --- |
 | Supabase | Auth, Postgres, Storage, Edge Functions, Cron, durable capture state | Project URL, anon key, service role, function deployments |
-| OpenRouter | Recipe extraction, Folio chat, recipe-page image generation, default audio transcription route | `AI_API_BASE`, `AI_API_KEY`, `AI_MODEL`, `ART_MODEL`, `AUDIO_TRANSCRIPTION_MODEL` |
+| OpenRouter | Recipe extraction, Folio chat, recipe-page image generation, and audio/video transcription | `AI_API_BASE`, `AI_API_KEY`, workload-specific model settings, `ART_MODEL`, and `TRANSCRIPTION_MODEL` |
 | OpenRouter upstream model providers | Actual Qwen and speech-to-text inference | Selected by OpenRouter routing and model availability |
-| ElevenLabs | Direct-media speech-to-text for uploaded video | `VIDEO_TRANSCRIPTION_API_BASE`, key, and model |
 | Supadata | Optional public social-video acquisition | Provider switch, API base, key, and platform allowlist |
 | RevenueCat | Store entitlement synchronization and subscription webhooks | Public iOS SDK key plus server API and webhook secrets |
 

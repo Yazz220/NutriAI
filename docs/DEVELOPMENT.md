@@ -57,16 +57,14 @@ Supabase Edge Function secrets:
 
 | Secret | Used by |
 |---|---|
-| `AI_API_KEY` | `extract-recipe`, `nosh-chat` |
-| `AI_API_BASE` | `extract-recipe`, `nosh-chat` |
-| `AI_MODEL` | `extract-recipe`, `nosh-chat` |
-| `VIDEO_MODEL` | optional video-specific override for `extract-recipe`; defaults to `AI_MODEL` |
-| `AUDIO_TRANSCRIPTION_MODEL` | speech-to-text model used by `capture-recipe`; defaults to `openai/whisper-large-v3` |
-| `AUDIO_TRANSCRIPTION_API_BASE` | optional OpenAI-compatible speech-to-text base URL; defaults to `AI_API_BASE` |
-| `AUDIO_TRANSCRIPTION_API_KEY` | optional speech-to-text provider key; defaults to `AI_API_KEY` |
-| `VIDEO_TRANSCRIPTION_MODEL` | direct-media speech-to-text model used for uploaded and direct-file video; defaults to ElevenLabs `scribe_v2` |
-| `VIDEO_TRANSCRIPTION_API_BASE` | optional direct-media speech-to-text base URL; defaults to `https://api.elevenlabs.io/v1` |
-| `VIDEO_TRANSCRIPTION_API_KEY` | server-only direct-media speech-to-text credential required for narrated uploaded and direct-file video |
+| `AI_API_KEY` | shared OpenRouter credential for extraction, chat, transcription, and page art |
+| `AI_API_BASE` | shared OpenRouter-compatible base URL; defaults to `https://openrouter.ai/api/v1` |
+| `EXTRACTION_MODEL` | strict-schema recipe extraction; legacy fallback is `AI_MODEL`, then `qwen/qwen3.6-35b-a3b` |
+| `CHAT_MODEL` | Folio chat and tool calling; legacy fallback is `AI_MODEL`, then `qwen/qwen3.6-35b-a3b` |
+| `VIDEO_UNDERSTANDING_MODEL` | optional whole-video extraction override; legacy fallback is `VIDEO_MODEL`, then `EXTRACTION_MODEL` |
+| `TRANSCRIPTION_MODEL` | audio and video speech-to-text; defaults to `mistralai/voxtral-small-24b-2507-stt` |
+| `TRANSCRIPTION_API_BASE` | optional speech-to-text base URL; defaults to `AI_API_BASE` |
+| `TRANSCRIPTION_API_KEY` | optional independent speech credential; defaults to `AI_API_KEY` |
 | `SOCIAL_VIDEO_ACQUISITION_PROVIDER` | optional external social-video evidence adapter; `guided` by default, `supadata` enables the current adapter |
 | `SUPADATA_API_KEY` | server-only Supadata credential used only when the provider is `supadata` |
 | `SUPADATA_API_BASE` | optional Supadata base URL; defaults to `https://api.supadata.ai/v1` |
@@ -220,9 +218,9 @@ npx eas-cli submit --platform ios
 | Social capture reaches technical retry | provider configuration, rate limiting, timeout, or temporary acquisition failure | inspect the `acquisition` checkpoint and `capture-recipe` logs; retry the same capture so a saved provider job resumes instead of starting another one |
 | Social capture reports unavailable | the public post is missing, private, restricted, or unsupported by the provider | keep the saved link and use Open original to add a video file, screenshots, audio, or recipe text |
 | Video capture asks for permission | the source did not pass through the Composer confirmation | add the video again and confirm that the user made it or has permission to process it |
-| Uploaded video reaches technical retry | `VIDEO_MODEL` does not accept the selected video format, or its provider is unavailable | choose a compatible video model or use a supported file format; keep the video adapter and capture lifecycle unchanged |
+| Uploaded video reaches technical retry | `TRANSCRIPTION_MODEL` cannot read the selected container, or `VIDEO_UNDERSTANDING_MODEL`/its provider is unavailable | inspect the transcription and extraction events separately; retry with a supported file or use frames/text while keeping the capture lifecycle unchanged |
 | Audio is rejected before capture | unsupported format or file exceeds 6 MB | choose MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC below the source limit |
-| Saved audio cannot be transcribed | `AUDIO_TRANSCRIPTION_MODEL` is unavailable, misconfigured, or the provider is temporarily failing | inspect `capture-recipe` logs and retry the same capture; do not create another extraction path |
+| Saved audio cannot be transcribed | `TRANSCRIPTION_MODEL` is unavailable, misconfigured, quota-limited, or the provider is temporarily failing | inspect `capture-recipe` provider logs and retry the same capture; do not create another extraction path |
 | Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |
 | New page uses the typesetter | caller bypassed the capture contract or page has no complete image | trace the source through `capture-recipe`; do not add another generation path |
 | Page style differs from its book | stale cookbook page-style fields or caller-defined references | inspect `page_style_id`, `style_revision`, and `page_style_references`; generation must read them from the database |

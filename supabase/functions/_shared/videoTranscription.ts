@@ -1,4 +1,8 @@
-import { MAX_AUDIO_TRANSCRIPT_CHARACTERS } from './audioTranscription.ts';
+import {
+  MAX_AUDIO_TRANSCRIPT_CHARACTERS,
+  readTranscriptionUsage,
+  type TranscriptionUsage,
+} from './audioTranscription.ts';
 import type { VideoRecipeMimeType } from './videoUploadContract.ts';
 
 export type VideoTranscriptionResult =
@@ -6,8 +10,9 @@ export type VideoTranscriptionResult =
       ready: true;
       transcript: string;
       model: string;
-      provider: 'elevenlabs';
-      adapterVersion: 'video-transcription-adapter-v1';
+      provider: 'openrouter';
+      usage?: TranscriptionUsage;
+      adapterVersion: 'video-transcription-openrouter-v1';
     }
   | {
       ready: false;
@@ -28,8 +33,8 @@ function safeFileName(fileName: string | undefined, mimeType: VideoRecipeMimeTyp
 
 /**
  * Sends an inspected video file to Folio's replaceable direct-media STT
- * adapter. The current adapter is ElevenLabs Scribe because its documented
- * contract accepts video containers; OpenAI-compatible audio endpoints do not.
+ * adapter. OpenRouter's multipart transcription endpoint accepts bounded media
+ * files without duplicating a large video as base64 in the Edge Function.
  */
 export async function transcribeVideoRecipeEvidence(
   evidence: {
@@ -54,10 +59,9 @@ export async function transcribeVideoRecipeEvidence(
   }
 
   const form = new FormData();
-  form.append('model_id', options.model);
-  form.append('tag_audio_events', 'false');
-  form.append('diarize', 'false');
-  form.append('timestamps_granularity', 'none');
+  form.append('model', options.model);
+  form.append('response_format', 'json');
+  form.append('temperature', '0');
   const fileBuffer = new ArrayBuffer(evidence.bytes.byteLength);
   new Uint8Array(fileBuffer).set(evidence.bytes);
   form.append(
@@ -72,10 +76,14 @@ export async function transcribeVideoRecipeEvidence(
     let response: Response;
     try {
       response = await (options.fetchImpl ?? fetch)(
-        `${options.apiBase.replace(/\/$/, '')}/speech-to-text`,
+        `${options.apiBase.replace(/\/$/, '')}/audio/transcriptions`,
         {
           method: 'POST',
-          headers: { 'xi-api-key': options.apiKey },
+          headers: {
+            Authorization: `Bearer ${options.apiKey}`,
+            'HTTP-Referer': 'https://nosh.app',
+            'X-Title': 'Folio Cookbook',
+          },
           body: form,
           signal: controller.signal,
         },
@@ -92,10 +100,10 @@ export async function transcribeVideoRecipeEvidence(
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const providerMessage = typeof data?.detail?.message === 'string'
-        ? data.detail.message
-        : typeof data?.detail === 'string'
-          ? data.detail
+      const providerMessage = typeof data?.error?.message === 'string'
+        ? data.error.message
+        : typeof data?.error === 'string'
+          ? data.error
           : `HTTP ${response.status}`;
       return {
         ready: false,
@@ -124,8 +132,9 @@ export async function transcribeVideoRecipeEvidence(
       ready: true,
       transcript,
       model: options.model,
-      provider: 'elevenlabs',
-      adapterVersion: 'video-transcription-adapter-v1',
+      provider: 'openrouter',
+      usage: readTranscriptionUsage(data?.usage),
+      adapterVersion: 'video-transcription-openrouter-v1',
     };
   } finally {
     clearTimeout(timeout);
