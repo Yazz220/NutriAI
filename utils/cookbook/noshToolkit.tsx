@@ -13,6 +13,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { defineToolkit } from '@assistant-ui/react-native';
+import Reanimated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { z } from 'zod';
 import { BookOpen, ChefHat, Clock, ScanSearch } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
@@ -22,7 +23,7 @@ import { CollectionActionCard } from '@/components/nosh/collection/CollectionAct
 import { NoshToolActivity } from '@/components/nosh/conversation/NoshToolActivity';
 import { NoshActivityDots } from '@/components/nosh/conversation/NoshActivityDots';
 import { Colors } from '@/constants/colors';
-import { Radii, Spacing } from '@/constants/spacing';
+import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { GeneratedRecipePage } from '@/types/cookbook';
@@ -66,83 +67,143 @@ function StartTimerToolUI({ args, status, isError }: {
   );
 }
 
-function GuideNextStepToolUI({ status, isError }: {
-  args: { stepId: string };
-  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-  isError?: boolean;
-}) {
-  return (
-    <NoshToolActivity
-      icon={<ChefHat size={16} color={Colors.primary} />}
-      label={isError ? 'Could not open that step' : status.type === 'running' ? 'Finding step' : 'Guiding to step'}
-      running={status.type === 'running'}
-      error={isError}
-    />
-  );
-}
-
-function WalkthroughStateToolUI({ args, status, isError }: {
-  args: { active: boolean };
-  status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-  isError?: boolean;
-}) {
-  return (
-    <NoshToolActivity
-      icon={<ChefHat size={16} color={Colors.primary} />}
-      label={isError
-        ? 'Could not change walkthrough'
-        : status.type === 'running'
-        ? args.active ? 'Starting walkthrough' : 'Ending walkthrough'
-        : args.active ? 'Walkthrough started' : 'Walkthrough ended'}
-      detail={args.active ? 'Progress stays in this cooking session' : 'Back to open conversation'}
-      running={status.type === 'running'}
-      error={isError}
-    />
-  );
-}
-
 interface NoshCookbookChoice {
   id: string;
   title: string;
 }
 
+interface CookbookRetrievalResult {
+  pageId: string;
+  title: string;
+  cookbookTitle?: string;
+  totalTimeMinutes?: number;
+}
+
+function CookbookRetrievalActivity({
+  label,
+  query,
+  results,
+  running,
+}: {
+  label: string;
+  query: string;
+  results: CookbookRetrievalResult[];
+  running: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <View style={styles.retrieval}>
+      <NoshToolActivity
+        icon={<ScanSearch size={16} color={Colors.primary} />}
+        label={label}
+        detail={running
+          ? query
+          : `${results.length} recipe${results.length === 1 ? '' : 's'} found`}
+        running={running}
+      />
+      {!running && results.length > 0 ? (
+        <View style={styles.retrievalResults}>
+          {results.slice(0, 5).map((recipe, index) => {
+            const detail = [
+              recipe.cookbookTitle,
+              typeof recipe.totalTimeMinutes === 'number' ? `${recipe.totalTimeMinutes} min` : undefined,
+            ].filter(Boolean).join(' · ');
+            return (
+              <Reanimated.View
+                key={`${recipe.pageId}-${index}`}
+                entering={reduceMotion ? undefined : FadeIn.duration(140).delay(index * 90)}
+                style={styles.retrievalResult}
+                accessible
+                accessibilityLabel={[recipe.title, detail].filter(Boolean).join('. ')}
+              >
+                <BookOpen size={15} color={Colors.primary} />
+                <View style={styles.retrievalResultCopy}>
+                  <Text style={styles.retrievalResultTitle}>{recipe.title}</Text>
+                  {detail ? <Text style={styles.retrievalResultDetail}>{detail}</Text> : null}
+                </View>
+              </Reanimated.View>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function SearchRecipeCollectionToolUI({ args, status, result, isError }: {
   args: { query: string };
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-  result?: RecipeCollectionSearchOutcome;
+  result?: unknown;
   isError?: boolean;
 }) {
-  if (status.type !== 'running' && !isError) return null;
-  const count = result?.status === 'resolved'
-    ? result.candidates.length
-    : result?.candidates.length;
+  const candidates = result && typeof result === 'object'
+    && 'candidates' in result && Array.isArray(result.candidates)
+    ? result.candidates.filter((candidate): candidate is CookbookRetrievalResult => (
+      Boolean(candidate)
+      && typeof candidate === 'object'
+      && 'pageId' in candidate
+      && typeof candidate.pageId === 'string'
+      && 'title' in candidate
+      && typeof candidate.title === 'string'
+    ))
+    : [];
+  if (isError) {
+    return (
+      <NoshToolActivity
+        icon={<ScanSearch size={16} color={Colors.primary} />}
+        label="Could not search your cookbooks"
+        detail={args.query}
+        error
+      />
+    );
+  }
   return (
-    <NoshToolActivity
-      icon={<ScanSearch size={16} color={Colors.primary} />}
-      label={isError ? 'Could not search your cookbooks' : 'Searching your cookbooks'}
-      detail={count == null ? args.query : `${count} match${count === 1 ? '' : 'es'}`}
+    <CookbookRetrievalActivity
+      label={status.type === 'running' ? 'Searching your cookbooks' : 'Searched your cookbooks'}
+      query={args.query}
+      results={candidates}
       running={status.type === 'running'}
-      error={isError}
     />
   );
 }
 
-function BrowseRecipeCollectionToolUI({ args, status, result, isError }: {
+export function BrowseRecipeCollectionToolUI({ args, status, result, isError }: {
   args: RecipeCollectionBrowseInput;
   status: { type: 'running' | 'complete' | 'incomplete' | 'requires-action' };
-  result?: RecipeCollectionBrowseResult;
+  result?: unknown;
   isError?: boolean;
 }) {
-  if (status.type !== 'running' && !isError) return null;
+  const recipes = result && typeof result === 'object'
+    && 'recipes' in result && Array.isArray(result.recipes)
+    ? result.recipes.filter((recipe): recipe is CookbookRetrievalResult => (
+      Boolean(recipe)
+      && typeof recipe === 'object'
+      && 'pageId' in recipe
+      && typeof recipe.pageId === 'string'
+      && 'title' in recipe
+      && typeof recipe.title === 'string'
+    ))
+    : [];
+  const query = args.text
+    ?? args.ingredientsAny?.join(', ')
+    ?? args.ingredientsAll?.join(', ')
+    ?? (args.maxTotalMinutes ? `Up to ${args.maxTotalMinutes} minutes` : 'Your saved recipes');
+  if (isError) {
+    return (
+      <NoshToolActivity
+        icon={<ScanSearch size={16} color={Colors.primary} />}
+        label="Could not browse your cookbooks"
+        detail={query}
+        error
+      />
+    );
+  }
   return (
-    <NoshToolActivity
-      icon={<ScanSearch size={16} color={Colors.primary} />}
-      label={isError ? 'Could not browse your cookbooks' : 'Checking your cookbooks'}
-      detail={result
-        ? `${result.totalCount} matching recipe${result.totalCount === 1 ? '' : 's'}`
-        : args.text ?? args.ingredientsAny?.join(', ') ?? 'Your saved recipes'}
+    <CookbookRetrievalActivity
+      label={status.type === 'running' ? 'Searching your cookbooks' : 'Searched your cookbooks'}
+      query={query}
+      results={recipes}
       running={status.type === 'running'}
-      error={isError}
     />
   );
 }
@@ -212,12 +273,15 @@ function LoadRecipeToolUI({ status, result, isError }: {
   result?: LoadedCollectionRecipe;
   isError?: boolean;
 }) {
-  if (status.type !== 'running' && !isError) return null;
   return (
     <NoshToolActivity
       icon={<BookOpen size={16} color={Colors.primary} />}
-      label={isError ? 'Could not load that recipe' : 'Loading saved recipe'}
-      detail={result?.recipeGraph.title}
+      label={isError
+        ? 'Could not read that recipe'
+        : status.type === 'running'
+        ? 'Reading saved recipe'
+        : `Read ${result?.recipeGraph.title ?? 'saved recipe'}`}
+      detail={!isError && status.type !== 'running' ? 'Ingredients and steps are ready' : result?.recipeGraph.title}
       running={status.type === 'running'}
       error={isError}
     />
@@ -265,10 +329,6 @@ export interface NoshToolkitContext {
   availableCookbooks?: NoshCookbookChoice[];
   /** Callback to start a timer (device-level) */
   onStartTimer?: (durationMinutes: number, label?: string) => void;
-  /** Callback to highlight a step on the page */
-  onGuideStep?: (stepId: string) => void;
-  /** Enter or leave temporary step-by-step cooking mode. */
-  onSetWalkthrough?: (active: boolean) => void;
   /** Find likely recipes across every cookbook the signed-in user owns. */
   onSearchRecipeCollection?: (input: {
     query: string;
@@ -322,8 +382,6 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
     hasCurrentArtwork,
     availableCookbooks,
     onStartTimer,
-    onGuideStep,
-    onSetWalkthrough,
     onSearchRecipeCollection,
     onBrowseRecipeCollection,
     onLoadRecipe,
@@ -571,30 +629,6 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
         render: StartTimerToolUI,
       },
 
-      guide_next_step: {
-        type: 'frontend',
-        description: 'Highlight a specific step on the page',
-        parameters: z.object({
-          stepId: z.string(),
-        }),
-        execute: async ({ stepId }) => {
-          onGuideStep?.(stepId);
-          return { success: true, stepId };
-        },
-        render: GuideNextStepToolUI,
-      },
-
-      set_walkthrough: {
-        type: 'frontend',
-        description: 'Start or end temporary step-by-step guidance after an explicit user request',
-        parameters: z.object({ active: z.boolean() }),
-        execute: async ({ active }) => {
-          onSetWalkthrough?.(active);
-          return { success: true, active };
-        },
-        render: WalkthroughStateToolUI,
-      },
-
       update_page_data: {
         type: 'human',
         description: 'Preview recipe graph patch operations and wait for the user to choose temporary or saved use',
@@ -653,8 +687,6 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
     hasCurrentArtwork,
     availableCookbooks,
     onStartTimer,
-    onGuideStep,
-    onSetWalkthrough,
     onSearchRecipeCollection,
     onBrowseRecipeCollection,
     onLoadRecipe,
@@ -671,6 +703,41 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  retrieval: {
+    marginVertical: Spacing.values[2],
+  },
+  retrievalResults: {
+    gap: Spacing.values[4],
+    paddingLeft: Spacing.values[26],
+    paddingBottom: Spacing.values[6],
+  },
+  retrievalResult: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.values[6],
+  },
+  retrievalResultCopy: {
+    flex: 1,
+  },
+  retrievalResultTitle: {
+    color: Colors.text,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.smPlus,
+    lineHeight: Typography.metrics.lineHeight18,
+  },
+  retrievalResultDetail: {
+    color: Colors.textMuted,
+    fontFamily: Fonts.ui.regular,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight17,
+  },
   handoffCard: {
     gap: Spacing.sm,
     borderRadius: Radii.lg,

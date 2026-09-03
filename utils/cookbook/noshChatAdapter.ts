@@ -7,13 +7,15 @@
  * that nosh-chat expects, calls the Edge Function, and returns the
  * response with text + tool-call parts.
  *
- * The runtime handles the tool-calling loop:
- *   1. Adapter returns content with tool-call parts
- *   2. Runtime executes tools via the toolkit
+ * nosh-chat runs its own bounded loop for read-only tools (collection search,
+ * browse, load, list cookbooks) and streams those tool calls and results as
+ * they happen, so one request can search, read, and answer. The runtime only
+ * loops here for client-side tools:
+ *   1. Adapter returns content with client tool-call parts
+ *   2. Runtime executes tools via the toolkit (or shows a card)
  *   3. Runtime calls adapter again — tool results are on the assistant
  *      message's tool-call parts (result field)
- *   4. Adapter extracts results, sends as "tool" role messages to nosh-chat
- *   5. nosh-chat returns final text response
+ *   4. Adapter sends them as "tool" role messages to nosh-chat
  */
 
 import type { ChatModelAdapter, ThreadMessage, ThreadAssistantMessagePart } from '@assistant-ui/react-native';
@@ -21,6 +23,7 @@ import { streamAuthenticatedFunction } from '@/utils/supabaseEdge';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { NoshInteractionEnvelope, NoshTask } from '@/types/noshInteraction';
 import type { CookingPreference } from '@/utils/cookbook/cookingPreferences';
+import { getNoshQuickSocialIntent } from '@/supabase/functions/_shared/noshTurnPolicy';
 
 // ---------------------------------------------------------------------------
 // Types — mirrors of the nosh-chat Edge Function's request/response
@@ -61,6 +64,7 @@ interface NoshChatRequest {
   requestId?: string;
   threadId?: string;
   userMessageId?: string;
+  responseMode?: 'quick';
 }
 
 interface NoshChatResponse {
@@ -77,6 +81,8 @@ interface NoshChatResponse {
 
 type NoshChatStreamEvent =
   | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call'; toolCall: NoshChatToolCall }
+  | { type: 'tool-result'; toolCallId: string; result: unknown; isError?: boolean }
   | { type: 'result'; result: NoshChatResponse }
   | { type: 'error'; error: string };
 
@@ -162,6 +168,87 @@ function latestUserMessageHasImage(messages: readonly ThreadMessage[]): boolean 
   );
 }
 
+function isQuickSocialTurn(messages: readonly ThreadMessage[]): boolean {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+  if (!latestUserMessage || latestUserMessageHasImage(messages)) return false;
+  return getNoshQuickSocialIntent(extractText(latestUserMessage.content)) !== null;
+}
+
+function toolFailureMessage(toolNames: string[]): string {
+  if (toolNames.includes('save_cooking_preference')) {
+    return 'I could not save that preference. Nothing changed. Please try again.';
+  }
+  if (toolNames.includes('start_timer')) {
+    return 'I could not start that timer. Please try again.';
+  }
+  if (toolNames.some((name) => ['browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe'].includes(name))) {
+    return 'I could not finish looking that up. Please try again.';
+  }
+  if (toolNames.includes('start_recipe_capture')) {
+    return 'I could not start saving that recipe. Please try again, or use Save a recipe.';
+  }
+  return 'I could not finish that change. Nothing was saved. Please try again.';
+}
+
+function parseToolCallPart(toolCall: NoshChatToolCall): ThreadAssistantMessagePart {
+  const argsText = toolCall.function.arguments || '{}';
+  let args: Record<string, unknown> = {};
+  try {
+    args = JSON.parse(argsText);
+  } catch {
+    // Keep malformed model arguments visible to the tool UI as an empty object.
+  }
+  return {
+    type: 'tool-call',
+    toolCallId: toolCall.id,
+    toolName: toolCall.function.name,
+    args: args as Record<string, never>,
+    argsText,
+  };
+}
+
+/**
+ * Accumulates streamed events into assistant-ui content parts. Text after a
+ * server tool round starts a new text part, so the transcript keeps the
+ * order: lookup, result, answer.
+ */
+class StreamedContent {
+  readonly parts: ThreadAssistantMessagePart[] = [];
+  private textOpen = false;
+
+  appendText(delta: string) {
+    const last = this.parts[this.parts.length - 1];
+    if (this.textOpen && last?.type === 'text') {
+      this.parts[this.parts.length - 1] = { type: 'text', text: last.text + delta };
+    } else {
+      this.parts.push({ type: 'text', text: delta });
+      this.textOpen = true;
+    }
+  }
+
+  addToolCall(toolCall: NoshChatToolCall): number {
+    this.parts.push(parseToolCallPart(toolCall));
+    this.textOpen = false;
+    return this.parts.length - 1;
+  }
+
+  setToolResult(toolCallId: string, result: unknown, isError: boolean) {
+    const index = this.parts.findIndex((part) => part.type === 'tool-call' && part.toolCallId === toolCallId);
+    if (index === -1) return;
+    this.parts[index] = { ...this.parts[index], result, isError } as ThreadAssistantMessagePart;
+  }
+
+  /** The text streamed for the final model round, if any. */
+  trailingText(): string {
+    const last = this.parts[this.parts.length - 1];
+    return this.textOpen && last?.type === 'text' ? last.text : '';
+  }
+
+  snapshot(): ThreadAssistantMessagePart[] {
+    return [...this.parts];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Cookbook context builder
 // ---------------------------------------------------------------------------
@@ -209,6 +296,7 @@ export interface NoshChatAdapterContext {
 
 const TOOLS_BY_TASK: Record<NoshTask, string[]> = {
   collection: ['start_recipe_capture', 'browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'list_cookbooks', 'organize_recipe', 'save_cooking_preference'],
+  'cookbook-help': ['browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'organize_recipe', 'save_cooking_preference'],
   'recipe-help': [
     'start_recipe_capture',
     'search_recipe_collection',
@@ -220,29 +308,12 @@ const TOOLS_BY_TASK: Record<NoshTask, string[]> = {
     'scale_servings',
     'substitute_ingredient',
     'start_timer',
-    'guide_next_step',
-    'set_walkthrough',
     'update_page_data',
     'regenerate_recipe_page',
     'save_cooking_preference',
   ],
   capture: [],
-  walkthrough: [
-    'search_recipe_collection',
-    'browse_recipe_collection',
-    'load_recipe',
-    'open_recipe',
-    'list_cookbooks',
-    'organize_recipe',
-    'start_timer',
-    'guide_next_step',
-    'set_walkthrough',
-    'scale_servings',
-    'substitute_ingredient',
-    'update_page_data',
-    'regenerate_recipe_page',
-    'save_cooking_preference',
-  ],
+  preferences: ['save_cooking_preference'],
 };
 
 /**
@@ -262,18 +333,21 @@ export function createNoshChatAdapter(
       unstable_assistantMessageId,
       unstable_threadId,
     }) {
-      if (requestConsent && !await requestConsent()) {
+      const ctx = getContext();
+      const responseMode = isQuickSocialTurn(messages) ? 'quick' : undefined;
+      if (!responseMode && requestConsent && !await requestConsent()) {
         throw new Error('Allow AI processing to send messages to Folio.');
       }
-      const ctx = getContext();
-      const resolvedRecipeGraph = ctx.resolveRecipeGraph
-        ? await ctx.resolveRecipeGraph()
-        : ctx.recipeGraph;
+      const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+      const resolvedRecipeGraph = responseMode
+        ? null
+        : ctx.resolveRecipeGraph
+          ? await ctx.resolveRecipeGraph()
+          : ctx.recipeGraph;
       const shouldSendRecipeGraph = ctx.recipeGraphSource === 'session-preview';
-      const cookingPreferences = ctx.resolveCookingPreferences
+      const cookingPreferences = !responseMode && ctx.resolveCookingPreferences
         ? await ctx.resolveCookingPreferences()
         : [];
-      const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),
         ...(shouldSendRecipeGraph && resolvedRecipeGraph ? { recipeGraph: resolvedRecipeGraph } : {}),
@@ -291,32 +365,48 @@ export function createNoshChatAdapter(
             ctx.hasAttachedImage || latestUserMessageHasImage(messages),
           ),
         },
-        tools: TOOLS_BY_TASK[ctx.interaction.task],
+        tools: responseMode ? [] : TOOLS_BY_TASK[ctx.interaction.task],
         stream: true,
         requestId: unstable_assistantMessageId,
         threadId: unstable_threadId,
         userMessageId: latestUserMessage?.id,
+        ...(responseMode ? { responseMode } : {}),
       };
 
       let response: NoshChatResponse | null = null;
-      let streamedText = '';
+      const streamed = new StreamedContent();
+      let sawServerToolEvents = false;
       try {
         for await (const event of streamAuthenticatedFunction<NoshChatStreamEvent | NoshChatResponse>(
           'nosh-chat',
           requestBody as unknown as Record<string, unknown>,
-          { timeoutMs: 60_000, signal: abortSignal },
+          { timeoutMs: 120_000, signal: abortSignal },
         )) {
-          if ('type' in event && event.type === 'text-delta') {
-            streamedText += event.delta;
-            yield { content: [{ type: 'text', text: streamedText }] };
-          } else if ('type' in event && event.type === 'result') {
-            response = event.result;
-          } else if ('type' in event && event.type === 'error') {
-            throw new Error(event.error);
-          } else {
+          if (!('type' in event)) {
             // Compatibility with a nosh-chat deployment that has not yet been
             // upgraded to NDJSON streaming.
             response = event;
+            continue;
+          }
+          switch (event.type) {
+            case 'text-delta':
+              streamed.appendText(event.delta);
+              yield { content: streamed.snapshot() };
+              break;
+            case 'tool-call':
+              sawServerToolEvents = true;
+              streamed.addToolCall(event.toolCall);
+              yield { content: streamed.snapshot() };
+              break;
+            case 'tool-result':
+              streamed.setToolResult(event.toolCallId, event.result, Boolean(event.isError));
+              yield { content: streamed.snapshot() };
+              break;
+            case 'result':
+              response = event.result;
+              break;
+            case 'error':
+              throw new Error(event.error);
           }
         }
       } catch (error) {
@@ -329,31 +419,26 @@ export function createNoshChatAdapter(
       if (abortSignal.aborted) return;
       if (!response) throw new Error('Folio returned an incomplete response.');
 
-      // Build the content parts from the response
-      const content: ThreadAssistantMessagePart[] = [];
-      let toolExecutionFailed = false;
-
+      // Build the final content: everything streamed so far, then the final
+      // round's text (if it was not streamed) and any client-side tool calls.
+      const content: ThreadAssistantMessagePart[] = streamed.snapshot();
       const finalText = response.message.content ?? '';
-      if (finalText.trim()) {
+      const streamedFinalText = streamed.trailingText();
+      if (finalText.trim() && finalText !== streamedFinalText) {
+        if (streamedFinalText) content.pop();
         content.push({ type: 'text', text: finalText });
       }
 
+      let toolExecutionFailed = false;
+      const failedToolNames: string[] = [];
       const parsedToolCalls = (response.message.tool_calls ?? []).map((toolCall) => {
-        const argsText = toolCall.function.arguments || '{}';
+        content.push(parseToolCallPart(toolCall));
         let args: Record<string, unknown> = {};
         try {
-          args = JSON.parse(argsText);
+          args = JSON.parse(toolCall.function.arguments || '{}');
         } catch {
-          // Keep malformed model arguments visible to the tool UI as an empty object.
+          // Malformed arguments are still shown to the tool UI as an empty object.
         }
-        const part: ThreadAssistantMessagePart = {
-          type: 'tool-call',
-          toolCallId: toolCall.id,
-          toolName: toolCall.function.name,
-          args: args as Record<string, never>,
-          argsText,
-        };
-        content.push(part);
         return { toolCall, args, partIndex: content.length - 1 };
       });
 
@@ -383,6 +468,7 @@ export function createNoshChatAdapter(
             if (abortSignal.aborted) return;
             isError = true;
             toolExecutionFailed = true;
+            failedToolNames.push(toolCall.function.name);
             result = {
               error: error instanceof Error ? error.message : 'Tool execution failed',
             };
@@ -390,6 +476,7 @@ export function createNoshChatAdapter(
         } else if (!registeredTool) {
           isError = true;
           toolExecutionFailed = true;
+          failedToolNames.push(toolCall.function.name);
           result = { error: `Folio tool ${toolCall.function.name} is unavailable` };
         }
 
@@ -409,7 +496,7 @@ export function createNoshChatAdapter(
       if (toolExecutionFailed) {
         content.push({
           type: 'text',
-          text: 'I could not finish that action. Please try again, or send the recipe in another format.',
+          text: toolFailureMessage(failedToolNames),
         });
       }
 
@@ -429,7 +516,11 @@ export function createNoshChatAdapter(
 
       // Text-only streaming already supplied the exact content. A status-only
       // update avoids replacing it once more at the end of the run.
-      if (parsedToolCalls.length === 0 && streamedText === finalText && content.length > 0) {
+      const alreadyStreamed = parsedToolCalls.length === 0
+        && !sawServerToolEvents
+        && streamedFinalText.length > 0
+        && streamedFinalText === finalText;
+      if (alreadyStreamed) {
         yield { status, metadata };
       } else {
         yield { content, status, metadata };

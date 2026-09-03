@@ -9,11 +9,14 @@
  *   - Guide to the next step
  *   - Update the canonical recipe graph and refresh its generated page
  *
- * This replaces the legacy ai-chat function. Key differences:
- *   - Injects the active RecipeGraph as system context
- *   - Passes tool definitions to the model via function calling
- *   - Uses :exacto routing for tool-calling reliability
- *   - Returns tool calls that the client executes
+ * Agent shape:
+ *   - Injects the focused RecipeGraph plus a CONVERSATION STATE block derived
+ *     from the thread's tool results (current subject, recent result list)
+ *   - Runs a bounded loop: read-only tools (search, browse, load, list
+ *     cookbooks) execute here and feed the next model round in the same request
+ *   - Returns client-side tool calls (cards, navigation, timers, capture) for
+ *     the app to execute
+ *   - Streams NDJSON events: text-delta, tool-call, tool-result, result, error
  *
  * Required Supabase Function secrets:
  *   AI_API_KEY   — OpenRouter API key
@@ -43,22 +46,37 @@ import { corsResponse, getCorsHeaders, jsonError, jsonResponse } from '../_share
 import { errorResponse } from '../_shared/error.ts';
 import { logError, logInfo } from '../_shared/log.ts';
 import {
+  MAX_COLLECTION_LOOKUPS_PER_REQUEST,
   MAX_LOADED_RECIPES_PER_REQUEST,
   compactChatHistory,
   countCompletedToolCallsSinceLatestUser,
 } from '../_shared/noshContextLimits.ts';
+import {
+  applyToolResult,
+  deriveConversationState,
+  emptyConversationState,
+  formatConversationState,
+  fromThreadStateRow,
+  mergeWithPersisted,
+  toThreadStateRow,
+  type ConversationRecipeRef,
+  type ConversationState,
+} from '../_shared/noshConversationState.ts';
 import {
   NOSH_SAFETY_RULES,
   buildSafeChatMessages,
   getNoshSafetyIntervention,
 } from '../_shared/noshSafety.ts';
 import {
-  callChatCompletion,
   streamChatCompletion,
   type ChatMessage,
   type ToolDefinition,
   type ToolCall,
 } from '../_shared/openrouter.ts';
+import {
+  buildNoshQuickSocialReply,
+  getNoshQuickSocialIntent,
+} from '../_shared/noshTurnPolicy.ts';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -67,7 +85,20 @@ const CHAT_MODEL = Deno.env.get('CHAT_MODEL')
   || Deno.env.get('AI_MODEL')
   || 'qwen/qwen3.6-35b-a3b';
 const CHAT_TIMEOUT_MS = 60_000;
-const PROMPT_VERSION = '2026-08-26.v1';
+const PROMPT_VERSION = '2026-09-03.v2';
+/**
+ * Read-only tools that nosh-chat executes itself, inside one request, so a
+ * search -> load -> answer chain costs one round trip instead of three.
+ * Anything that mutates, navigates, or needs a confirmation card stays on the
+ * client.
+ */
+const SERVER_TOOL_NAMES = new Set([
+  'search_recipe_collection',
+  'browse_recipe_collection',
+  'load_recipe',
+  'list_cookbooks',
+]);
+const MAX_SERVER_TOOL_ROUNDS = 3;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -87,11 +118,13 @@ interface CookbookContext {
 }
 
 interface InteractionContext {
-  entryPoint: 'shelf-nosh' | 'recipe-ask' | 'cookbook-add' | 'share-to-nosh' | 'walkthrough';
-  task: 'collection' | 'recipe-help' | 'capture' | 'walkthrough';
+  entryPoint: 'shelf-nosh' | 'cookbook-nosh' | 'recipe-ask' | 'cookbook-add' | 'share-to-nosh' | 'settings-preferences';
+  task: 'collection' | 'cookbook-help' | 'recipe-help' | 'capture' | 'preferences';
   focus: JsonRecord;
   visibleContext: JsonRecord;
   focusStatus?: 'ready' | 'loading' | 'missing' | 'stale';
+  /** User messages that already existed when the current focus was accepted. */
+  focusUserMessageCount?: number;
   hasAttachedImage?: boolean;
 }
 
@@ -109,6 +142,7 @@ interface RequestBody {
   requestId?: string;
   threadId?: string;
   userMessageId?: string;
+  responseMode?: 'quick';
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +177,7 @@ const ALL_TOOLS: Record<string, ToolDefinition> = {
     function: {
       name: 'search_recipe_collection',
       description:
-        'Search the signed-in user\'s entire saved recipe collection. Use this when they name or describe a saved recipe and it is not unambiguously the active recipe.',
+        'Find a saved recipe by name or short description across the whole collection. Use only for a recipe that is NOT already the conversation subject or in the most recent result list; for those, use their pageId directly.',
       parameters: {
         type: 'object',
         properties: {
@@ -194,11 +228,11 @@ const ALL_TOOLS: Record<string, ToolDefinition> = {
     function: {
       name: 'load_recipe',
       description:
-        'Load the complete canonical RecipeGraph for a recipe returned by search_recipe_collection. Use before answering ingredient, step, serving, adaptation, or shopping-list questions.',
+        'Read the full saved recipe (ingredients, quantities, steps, servings) for a known pageId. Use it for the conversation subject or a result-list item before answering ingredient, step, quantity, shopping-list, or adaptation questions about that recipe.',
       parameters: {
         type: 'object',
         properties: {
-          pageId: { type: 'string', description: 'Exact page id returned by collection search' },
+          pageId: { type: 'string', description: 'Exact pageId from CONVERSATION STATE or a search/browse result' },
         },
         required: ['pageId'],
         additionalProperties: false,
@@ -352,41 +386,6 @@ const ALL_TOOLS: Record<string, ToolDefinition> = {
       },
     },
   },
-  guide_next_step: {
-    type: 'function',
-    function: {
-      name: 'guide_next_step',
-      description:
-        'Highlight a specific step on the page to guide the user. Use when the user asks what to do next, or wants to jump to a step.',
-      parameters: {
-        type: 'object',
-        properties: {
-          stepId: {
-            type: 'string',
-            description: 'The id of the step to highlight, from the recipe graph',
-          },
-        },
-        required: ['stepId'],
-        additionalProperties: false,
-      },
-    },
-  },
-  set_walkthrough: {
-    type: 'function',
-    function: {
-      name: 'set_walkthrough',
-      description:
-        'Start or end temporary step-by-step cooking guidance. Start only when the user explicitly asks for a walkthrough, guided cooking, or step-by-step help.',
-      parameters: {
-        type: 'object',
-        properties: {
-          active: { type: 'boolean', description: 'True to start guided steps, false to stop' },
-        },
-        required: ['active'],
-        additionalProperties: false,
-      },
-    },
-  },
   update_page_data: {
     type: 'function',
     function: {
@@ -454,38 +453,47 @@ function selectTools(requested?: string[]): ToolDefinition[] {
 // System prompt — injects the active recipe graph as context
 // ---------------------------------------------------------------------------
 function buildSystemPrompt(
-  recipeGraph?: JsonRecord,
-  cookbookContext?: CookbookContext,
-  interactionContext?: InteractionContext,
-  cookingPreferences: Array<{ key: string; value: string }> = [],
+  recipeGraph: JsonRecord | undefined,
+  cookbookContext: CookbookContext | undefined,
+  interactionContext: InteractionContext | undefined,
+  cookingPreferences: Array<{ key: string; value: string }>,
+  conversationState: ConversationState,
 ): string {
+  const hasFocusedRecipe = Boolean(recipeGraph && Object.keys(recipeGraph).length > 0);
   const parts: string[] = [
-    'You are Folio, an AI chef holding the user\'s living personal cookbook.',
-    'The cookbook is the primary product. You are the same capable Folio across purpose-built entry points.',
-    'Use natural conversation for reasoning and guided tools when the user is reviewing or committing a change.',
-    'The wrapper provides active task context; it does not reduce your culinary intelligence.',
+    'ROLE',
+    'You are Folio, the chef inside the user\'s personal cookbook. You know what they have saved, you remember what this conversation is about, and you finish the task in front of you instead of reporting lookups.',
     '',
-    'PERSONALITY:',
-    '- Warm, concise, practical. You are a helpful cook, not a chatbot.',
-    '- Write for a narrow mobile chat surface: short paragraphs, usually under 120 words unless the task genuinely needs more.',
-    '- Use plain text. For lists, use the bullet character •. Do not use Markdown headings, tables, bold markers, or fenced code blocks.',
-    '- Answer from the focused recipe first. Browse or search the collection when the user asks about saved recipes.',
-    '- When the user asks to change a recipe, use the appropriate preview tool. Never describe a persistent edit as saved until its result says mode="update" or mode="new-version".',
-    '- Treat quantities, ingredients, steps, and timings for a saved recipe as grounded facts: never invent them when they are absent from its graph.',
-    '- You may use general culinary knowledge for substitutions, technique, troubleshooting, and new ideas. Clearly separate that advice from facts stored in the user\'s recipe.',
+    'STYLE',
+    '- Warm, concise, practical. Short paragraphs for a narrow mobile chat; usually under 120 words unless the task needs more (a shopping list may).',
+    '- Plain text only. Use the bullet character • for lists. No Markdown headings, tables, bold markers, or code fences.',
+    '- Saved-recipe quantities, ingredients, steps, and timings are grounded facts from the loaded recipe. Never invent them. General culinary knowledge is welcome for substitutions, technique, and ideas; keep it clearly separate from what the recipe says.',
+    '- Never describe a persistent edit as saved until a tool result says mode="update" or mode="new-version".',
     '',
     NOSH_SAFETY_RULES,
     '',
   ];
 
-  if (recipeGraph && Object.keys(recipeGraph).length > 0) {
-    parts.push('FOCUSED RECIPE:');
+  if (hasFocusedRecipe) {
+    parts.push('FOCUSED RECIPE (the page the user opened Folio from; full graph):');
     parts.push(JSON.stringify(recipeGraph));
-    parts.push('');
   } else {
-    parts.push('No recipe is currently focused.');
-    parts.push('');
+    parts.push('FOCUSED RECIPE: none. The user is talking to you from the shelf or a cookbook, not from an open recipe page.');
   }
+  parts.push('');
+
+  parts.push(...formatConversationState(conversationState));
+  parts.push('');
+
+  parts.push('RESOLVING REFERENCES (do this before choosing any tool)');
+  parts.push('1. "It", "that", "this one", "the recipe", "the fajitas", or an unnamed follow-up (e.g. "what ingredients?", "make a shopping list", "scale it for six") means the Current subject above. Use its pageId directly. Do not search again for a recipe you already have.');
+  parts.push('2. "The first one", "the second", "the 30-minute one" means an item in the most recent result list above.');
+  parts.push(hasFocusedRecipe
+    ? '3. "This recipe" or "the open recipe" means the FOCUSED RECIPE. If the Current subject is a different recipe, "it" still means the subject; only "this recipe" means the focused page.'
+    : '3. With no focused recipe, every recipe reference resolves to the Current subject or the result list.');
+  parts.push('4. Search only when the user names or describes a recipe that is neither the subject nor in the result list. If a search is ambiguous, name the candidates with their cookbook titles and ask which one. Never guess between them.');
+  parts.push('5. Once a recipe is resolved, call load_recipe with its pageId before stating ingredients, quantities, steps, servings, or building a shopping list, unless its full graph is already in this turn.');
+  parts.push('');
 
   if (cookbookContext) {
     parts.push('CURRENT COOKBOOK:');
@@ -504,65 +512,62 @@ function buildSystemPrompt(
   }
 
   if (interactionContext) {
-    parts.push('INTERACTION CONTEXT:');
-    parts.push(`Entry point: ${interactionContext.entryPoint}`);
-    parts.push(`Active task: ${interactionContext.task}`);
-    parts.push(`Conversation focus: ${JSON.stringify(interactionContext.focus)}`);
-    parts.push(`Visible app context: ${JSON.stringify(interactionContext.visibleContext)}`);
-    parts.push('Conversation focus is synchronized to the user-visible recipe before each send and controls references such as "this recipe". Never reuse an older recipe from chat history as the active recipe.');
-  }
-  if (interactionContext?.focusStatus === 'missing') {
-    parts.push('The focused recipe was deleted or is unavailable. Explain this and help the user search for it or choose another recipe.');
-  }
-  if (interactionContext?.task === 'capture') {
-    parts.push('The active task is recipe capture. The dedicated capture interface owns extraction, destination resolution, page generation, and publishing. Do not call legacy extraction or review tools.');
-  }
-  if (interactionContext?.task === 'walkthrough') {
-    parts.push('- A walkthrough is active because the user explicitly requested it. Track progress only in this conversation. Call set_walkthrough with active=false when the user asks to stop.');
-  } else {
-    parts.push('- Normal cooking help is open conversation. Call set_walkthrough with active=true only when the user explicitly asks for step-by-step guidance.');
-  }
-  if (interactionContext?.hasAttachedImage) {
-    parts.push('A recipe photo is attached on the client. Call start_recipe_capture with sourceType="image" and omit input.');
-  }
-  if (interactionContext) parts.push('');
-
-  if (cookingPreferences.length > 0) {
-    parts.push('USER-APPROVED COOKING PREFERENCES:');
-    for (const preference of cookingPreferences.slice(0, 30)) {
-      parts.push(`- ${preference.key}: ${preference.value}`);
+    parts.push('WHERE THE USER IS');
+    parts.push(`Entry point: ${interactionContext.entryPoint}. Active task: ${interactionContext.task}.`);
+    parts.push(`Visible screen: ${JSON.stringify(interactionContext.visibleContext)}`);
+    if (interactionContext.focusStatus === 'missing') {
+      parts.push('The focused recipe was deleted or is unavailable. Explain this and help the user search for it or choose another recipe.');
     }
-    parts.push('- The current user request overrides these defaults. A temporary choice in this conversation overrides them for this session only.');
+    if (interactionContext.task === 'capture') {
+      parts.push('The active task is recipe capture. The dedicated capture interface owns extraction, destination resolution, page generation, and publishing. Do not call legacy extraction or review tools.');
+    }
+    if (interactionContext.task === 'preferences') {
+      parts.push('The user opened Folio from Cooking preferences. Help them state one explicit preference at a time, then call save_cooking_preference so the confirmation card can save it.');
+    }
+    if (interactionContext.task === 'cookbook-help') {
+      parts.push('The user opened Folio from a cookbook. "This book" or "in here" means that cookbook: pass its id in browse or search filters. Broader questions still cover the whole collection.');
+    }
+    if (interactionContext.hasAttachedImage) {
+      parts.push('A recipe photo is attached on the client. Call start_recipe_capture with sourceType="image" and omit input.');
+    }
     parts.push('');
   }
 
-  parts.push('TOOL USE GUIDELINES:');
-  if (interactionContext?.task !== 'capture') {
-    parts.push('- If the user supplies a recipe URL, pasted recipe text, recipe photo, or recipe video to save, call start_recipe_capture. The dedicated capture interface will continue the import.');
+  if (cookingPreferences.length > 0) {
+    parts.push('USER-APPROVED COOKING PREFERENCES');
+    for (const preference of cookingPreferences.slice(0, 30)) {
+      parts.push(`- ${preference.key}: ${preference.value}`);
+    }
+    parts.push('- Allergies are safety constraints: flag conflicts before advising, never silently rewrite the saved recipe.');
+    parts.push('- Apply dietary restrictions and dislikes by default when recommending or adapting. Use the preferred measurement system in your own explanations while preserving source units when quoting.');
+    parts.push('- Default servings apply only when no target is given. A request that overrides a preference for this turn is not a reason to forget the preference.');
+    parts.push('');
   }
-  parts.push('- If a tool returns an error, explain it briefly and ask the user to retry or use another source. Do not automatically call the same failed tool again.');
-  parts.push('- Words like "this recipe" refer to the focused recipe, even if the reader is visibly showing another page.');
-  parts.push('- When the user names or describes another saved recipe, call search_recipe_collection across the whole collection. Do not assume it must be in the active cookbook.');
-  parts.push('- Use browse_recipe_collection for collection inventory, counts, recommendations, ingredient availability, exclusions, tags, cuisine, category, time limits, and pagination. Its compact results are enough for discovery.');
-  parts.push('- If collection search is ambiguous, briefly name the best candidates with their cookbook titles and ask the user to choose. Never guess.');
-  parts.push('- After one saved recipe is resolved, call load_recipe before stating its ingredients, steps, quantities, servings, or building a shopping list. Ground the answer only in the loaded graph.');
-  parts.push(`- Load at most ${MAX_LOADED_RECIPES_PER_REQUEST} canonical recipes for one user request. If the user asks for more, help them narrow the set instead of expanding the context.`);
-  parts.push('- Before proposing a change to a named recipe outside the current focus, search for it and load its canonical graph. Never modify a recipe from a title match alone.');
-  parts.push('- For comparisons, resolve and load each requested recipe separately. Compare only the loaded canonical graphs; never ask for or place the whole collection in context.');
-  parts.push('- Call open_recipe only when the user explicitly asks to open, show, or navigate to the resolved recipe. Searching or answering alone must not change screens.');
-  parts.push('- When the user asks to move or copy a saved recipe, resolve the exact recipe first, then call list_cookbooks to resolve the exact destination. If either name is ambiguous, ask the user to choose.');
-  parts.push('- Call organize_recipe only with exact ids. The card is a proposal, and the persistent change happens only after the user confirms it. Never claim a move or copy succeeded before the tool result confirms it.');
-  parts.push('- Never infer a durable preference from ordinary conversation. Call save_cooking_preference only after the user explicitly asks you to remember or forget it; the confirmation card performs the change.');
-  parts.push('- Conversational delete, bulk organization, and reorder are unavailable. Explain that plainly instead of simulating a change.');
-  parts.push('- Use scale_servings when the user says "double this", "halve", "make it for 8 people", etc. The tool offers temporary session use, saved update, saved copy, or cancel. Do not choose for the user.');
-  parts.push('- Use substitute_ingredient when the user asks to swap an ingredient or adapt for dietary needs. The tool previews the exact change before anything is saved.');
-  parts.push('- Use start_timer when the user asks to time something or references a step with a duration.');
-  parts.push('- Use guide_next_step only when the user explicitly asks to be guided, asks what step is next, or asks to jump to a named step. Do not turn normal cooking questions into a walkthrough.');
-  parts.push('- Use update_page_data for any other proposed recipe edit (fixing text, adding notes, adjusting temperature). It must remain a preview until the user chooses how to apply it.');
-  parts.push('- Use regenerate_recipe_page only after an explicit visual request. Saved recipe-data edits create their own refreshed page through the client workflow.');
-  parts.push('- You can call multiple tools in one response if needed.');
-  parts.push('- Call browse_recipe_collection, search_recipe_collection, load_recipe, and list_cookbooks without narrating those background lookups. Answer once after their results arrive.');
-  parts.push('- Use one short lead-in only when a tool presents a confirmation, preview, navigation, timer, or walkthrough action that the user will notice.');
+
+  parts.push('TOOLS');
+  parts.push('- Complete the task in one reply: chain lookups (search or browse → load_recipe → answer) silently, then answer once with the result. Never narrate lookups or report "I found N recipes" as the answer when the user asked for something else.');
+  parts.push('- browse_recipe_collection answers inventory, counts, "what can I make with…", exclusions, cuisine, category, tags, time limits ("quickest", "under 30 minutes" → sort=time or maxTotalMinutes), and pagination. Its compact rows are enough for recommendations; load only the recipes the user asks about.');
+  parts.push(`- Budget per user request: at most ${MAX_COLLECTION_LOOKUPS_PER_REQUEST} searches, ${MAX_COLLECTION_LOOKUPS_PER_REQUEST} browses, and ${MAX_LOADED_RECIPES_PER_REQUEST} loaded recipes. For comparisons, load each recipe separately. If the user asks for more, help them narrow instead.`);
+  parts.push('- Shopping lists: load the recipe(s), then list every ingredient with quantity and unit, grouped sensibly (produce, protein, dairy, pantry). Merge duplicates across recipes. If the user says what they already have, omit those and say so.');
+  parts.push('- open_recipe only when the user explicitly asks to open, show, or go to a recipe. Answering never changes screens.');
+  parts.push('- scale_servings, substitute_ingredient, and update_page_data preview a change to the FOCUSED RECIPE and let the user choose temporary use, saved update, or cancel. Do not choose for the user. If the user wants to change a recipe that is not the focused page, explain how to open it first, or offer the scaled or substituted quantities in text.');
+  parts.push('- Moving or copying: resolve the exact recipe, call list_cookbooks for the exact destination, then organize_recipe with ids. The card is a proposal; nothing changes until the user confirms.');
+  parts.push('- save_cooking_preference only when the user explicitly asks you to remember or forget something; never infer preferences from ordinary talk.');
+  if (interactionContext?.task !== 'capture') {
+    parts.push('- A recipe URL, pasted recipe text, photo, or video to save → start_recipe_capture. The capture interface finishes the import.');
+  }
+  parts.push('- start_timer when asked to time something. For step-by-step cooking guidance, just walk the user through the recipe in text — you have the full recipe graph. No special tool is needed.');
+  parts.push('- regenerate_recipe_page only on an explicit visual request. Saved recipe-data edits create their own refreshed page; do not regenerate for content changes.');
+  parts.push('- Conversational delete, bulk organization, and reorder are unavailable; say so plainly.');
+  parts.push('- If a tool errors, explain briefly and offer a next step. Do not repeat the same failed call.');
+  parts.push('- Use one short lead-in only when a tool shows the user a card, navigation, or timer.');
+  parts.push('');
+
+  parts.push('EXAMPLES OF STAYING WITH THE SUBJECT');
+  parts.push('User: Do I have a chicken fajita recipe? → search_recipe_collection("chicken fajita") → resolved: Chicken Fajitas (pageId p1) → "Yes, Chicken Fajitas in Weeknight Dinners."');
+  parts.push('User: What ingredients do I need? → subject is p1 → load_recipe(p1) → list its ingredients.');
+  parts.push('User: Make me a shopping list for it. → subject is still p1 (already loaded this conversation; reload if quantities are not in this turn) → grouped shopping list. No search.');
+  parts.push('User: Which of my recipes is quickest tonight? → browse_recipe_collection(sort="time", limit=5) → name the top few with times. User: The second one, what do I need? → result list item 2 → load_recipe → ingredients.');
 
   return parts.join('\n');
 }
@@ -617,10 +622,6 @@ function validateToolCall(call: ParsedToolCall): boolean {
       return typeof call.arguments.ingredientName === 'string' && typeof call.arguments.substituteName === 'string';
     case 'start_timer':
       return typeof call.arguments.durationMinutes === 'number' && call.arguments.durationMinutes >= 1;
-    case 'guide_next_step':
-      return typeof call.arguments.stepId === 'string';
-    case 'set_walkthrough':
-      return typeof call.arguments.active === 'boolean';
     case 'update_page_data':
       return Array.isArray(call.arguments.operations);
     case 'regenerate_recipe_page':
@@ -689,12 +690,18 @@ function latestToolResult(messages: ChatMessage[], toolName: string): JsonRecord
   return latest;
 }
 
-function immediateAssistantResponse(req: Request, stream: boolean | undefined, content: string): Response {
+function immediateAssistantResponse(
+  req: Request,
+  stream: boolean | undefined,
+  content: string,
+  requestId?: string,
+): Response {
   const result = {
     message: { role: 'assistant', content },
     toolCalls: [],
     finishReason: 'stop',
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    requestId,
   };
   if (!stream) return jsonResponse(result, 200, req);
 
@@ -712,6 +719,19 @@ function immediateAssistantResponse(req: Request, stream: boolean | undefined, c
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+
+function quickSocialReply(
+  messages: ChatMessage[],
+  interaction?: InteractionContext,
+): string | null {
+  const latestUserText = [...messages]
+    .reverse()
+    .find((message) => message.role === 'user')
+    ?.content;
+  if (typeof latestUserText !== 'string') return null;
+  const intent = getNoshQuickSocialIntent(latestUserText);
+  return intent ? buildNoshQuickSocialReply(intent, interaction) : null;
 }
 
 function safeIdentifier(value: unknown): string | undefined {
@@ -738,10 +758,10 @@ async function resolveAgentContext(req: Request, body: RequestBody, userId: stri
   const interactionContext = body.interactionContext
     ? { ...body.interactionContext }
     : undefined;
-  let recipeGraph = body.recipeGraph;
   const pageId = focusedRecipePageId(interactionContext);
 
-  if (pageId && body.recipeGraphSource !== 'session-preview') {
+  const recipeGraphPromise = (async (): Promise<JsonRecord | undefined> => {
+    if (!pageId || body.recipeGraphSource === 'session-preview') return body.recipeGraph;
     const { data, error } = await userClient
       .schema('nutriai')
       .from('cookbook_pages')
@@ -753,28 +773,35 @@ async function resolveAgentContext(req: Request, body: RequestBody, userId: stri
       logError('nosh-chat canonical recipe lookup failed', { userId, pageId, error: error.message });
       throw new Error('The open recipe could not be loaded. Please try again.');
     }
-    recipeGraph = data?.recipe_graph as JsonRecord | undefined;
-    if (interactionContext) interactionContext.focusStatus = recipeGraph ? 'ready' : 'missing';
-  }
+    return data?.recipe_graph as JsonRecord | undefined;
+  })();
 
-  let cookingPreferences: Array<{ key: string; value: string }> = [];
-  const { data: preferenceRows, error: preferenceError } = await userClient
-    .schema('nutriai')
-    .from('cooking_preferences')
-    .select('preference_key, value')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(30);
-  if (preferenceError) {
-    // Keep chat usable during a staged rollout, while never granting the
-    // model access to preferences that the client did not already possess.
-    logError('nosh-chat cooking preference lookup failed', { userId, error: preferenceError.message });
-    cookingPreferences = body.cookingPreferences ?? [];
-  } else {
-    cookingPreferences = (preferenceRows ?? []).map((row) => ({
+  const cookingPreferencesPromise = (async (): Promise<Array<{ key: string; value: string }>> => {
+    const { data: preferenceRows, error: preferenceError } = await userClient
+      .schema('nutriai')
+      .from('cooking_preferences')
+      .select('preference_key, value')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(30);
+    if (preferenceError) {
+      // Keep chat usable during a staged rollout, while never granting the
+      // model access to preferences that the client did not already possess.
+      logError('nosh-chat cooking preference lookup failed', { userId, error: preferenceError.message });
+      return body.cookingPreferences ?? [];
+    }
+    return (preferenceRows ?? []).map((row) => ({
       key: String(row.preference_key),
       value: String(row.value),
     }));
+  })();
+
+  const [recipeGraph, cookingPreferences] = await Promise.all([
+    recipeGraphPromise,
+    cookingPreferencesPromise,
+  ]);
+  if (pageId && body.recipeGraphSource !== 'session-preview' && interactionContext) {
+    interactionContext.focusStatus = recipeGraph ? 'ready' : 'missing';
   }
 
   return { recipeGraph, interactionContext, cookingPreferences };
@@ -839,6 +866,55 @@ async function finishAgentRun(input: {
   if (error) logError('nosh-chat trace finish failed', { error: error.message });
 }
 
+// ---------------------------------------------------------------------------
+// Thread state persistence — nosh_thread_state
+//
+// The server reads the persisted state at the start of each request (to fill
+// in fields lost to history compaction and to recover activeTask), then
+// upserts the freshly-derived state after computation. Uses the caller's JWT
+// client so RLS is preserved.
+// ---------------------------------------------------------------------------
+
+async function readThreadState(
+  userClient: UserClient,
+  threadId: string,
+): Promise<ConversationState> {
+  try {
+    const { data, error } = await userClient
+      .schema('nutriai')
+      .from('nosh_thread_state')
+      .select('subject_page_id, subject_title, subject_cookbook_id, subject_source, recent_candidates, loaded_recipes, active_task')
+      .eq('thread_id', threadId)
+      .maybeSingle();
+    if (error || !data) return emptyConversationState();
+    return fromThreadStateRow(data);
+  } catch {
+    return emptyConversationState();
+  }
+}
+
+async function upsertThreadState(
+  userClient: UserClient,
+  threadId: string,
+  state: ConversationState,
+): Promise<void> {
+  try {
+    const { error } = await userClient
+      .schema('nutriai')
+      .from('nosh_thread_state')
+      .upsert({
+        thread_id: threadId,
+        ...toThreadStateRow(state),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,thread_id' });
+    if (error) logError('nosh-chat thread state upsert failed', { error: error.message });
+  } catch (error) {
+    logError('nosh-chat thread state upsert error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
 function modelTuning() {
   const temperature = Number.isFinite(NOSH_TEMPERATURE)
     ? Math.max(0, Math.min(NOSH_TEMPERATURE, 1.5))
@@ -850,6 +926,323 @@ function modelTuning() {
     temperature,
     ...(effort ? { reasoning: { enabled: true, effort, exclude: true } } : {}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Server-executed read tools
+//
+// These mirror the client implementations in utils/cookbook/recipeCollection.ts
+// and return the same shapes, so the existing tool cards render unchanged.
+// They run through the caller's JWT client: both RPCs are security invoker
+// and cookbook_pages is protected by RLS.
+// ---------------------------------------------------------------------------
+// deno-lint-ignore no-explicit-any
+type UserClient = any;
+
+interface CollectionRow {
+  page_id: string;
+  cookbook_id: string;
+  cookbook_title: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  cuisine: string | null;
+  servings: number | null;
+  tags: string[] | null;
+  ingredient_preview: string[] | null;
+  updated_at: string;
+  score: number | string;
+  total_time_minutes?: number | null;
+  dietary_tags?: string[] | null;
+  match_reason?: string;
+  total_count?: number | string;
+}
+
+function mapCollectionCandidate(row: CollectionRow): JsonRecord {
+  return {
+    pageId: row.page_id,
+    cookbookId: row.cookbook_id,
+    cookbookTitle: row.cookbook_title,
+    title: row.title,
+    ...(row.description ? { description: row.description } : {}),
+    ...(row.category ? { category: row.category } : {}),
+    ...(row.cuisine ? { cuisine: row.cuisine } : {}),
+    ...(row.servings != null ? { servings: row.servings } : {}),
+    tags: row.tags ?? [],
+    ingredientPreview: row.ingredient_preview ?? [],
+    updatedAt: row.updated_at,
+    score: Number(row.score),
+  };
+}
+
+function classifyCollectionMatches(candidates: JsonRecord[]): JsonRecord {
+  if (candidates.length === 0) return { status: 'empty', candidates: [] };
+  if (candidates.length === 1) return { status: 'resolved', candidate: candidates[0], candidates };
+  const [first, second] = candidates;
+  if (Number(first.score) - Number(second.score) >= 0.75) {
+    return { status: 'resolved', candidate: first, candidates };
+  }
+  return { status: 'ambiguous', candidates };
+}
+
+async function executeServerTool(
+  userClient: UserClient,
+  call: ParsedToolCall,
+  body: RequestBody,
+): Promise<JsonRecord> {
+  const schema = userClient.schema('nutriai');
+  const args = call.arguments;
+  switch (call.name) {
+    case 'search_recipe_collection': {
+      const limit = typeof args.limit === 'number' ? Math.max(1, Math.min(args.limit, 5)) : 5;
+      const { data, error } = await schema.rpc('search_recipe_collection', {
+        search_query: String(args.query).trim(),
+        cookbook_filter: typeof args.cookbookId === 'string' ? args.cookbookId : null,
+        recent_first: args.recentFirst === true,
+        result_limit: limit,
+      });
+      if (error) throw new Error(error.message);
+      return classifyCollectionMatches(((data ?? []) as CollectionRow[]).map(mapCollectionCandidate));
+    }
+    case 'browse_recipe_collection': {
+      const offset = Number.parseInt(typeof args.cursor === 'string' ? args.cursor : '0', 10);
+      const safeOffset = Number.isFinite(offset) ? Math.max(0, Math.min(offset, 500)) : 0;
+      const limit = typeof args.limit === 'number' ? Math.max(1, Math.min(args.limit, 20)) : 12;
+      const list = (value: unknown) => Array.isArray(value) && value.length ? value.map(String) : null;
+      const text = typeof args.text === 'string' && args.text.trim() ? args.text.trim() : null;
+      const { data, error } = await schema.rpc('browse_recipe_collection', {
+        cookbook_filters: list(args.cookbookIds),
+        text_filter: text,
+        ingredients_all: list(args.ingredientsAll),
+        ingredients_any: list(args.ingredientsAny),
+        exclude_ingredients: list(args.excludeIngredients),
+        tag_filters: list(args.tags),
+        category_filter: typeof args.category === 'string' && args.category.trim() ? args.category.trim() : null,
+        cuisine_filter: typeof args.cuisine === 'string' && args.cuisine.trim() ? args.cuisine.trim() : null,
+        max_total_minutes: typeof args.maxTotalMinutes === 'number' ? args.maxTotalMinutes : null,
+        sort_mode: typeof args.sort === 'string' ? args.sort : (text ? 'relevance' : 'recent'),
+        result_offset: safeOffset,
+        result_limit: limit,
+      });
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as CollectionRow[];
+      const recipes = rows.map((row) => ({
+        ...mapCollectionCandidate(row),
+        ...(row.total_time_minutes != null ? { totalTimeMinutes: row.total_time_minutes } : {}),
+        dietaryTags: row.dietary_tags ?? [],
+        matchReason: row.match_reason ?? 'filters',
+      }));
+      const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
+      const nextOffset = safeOffset + recipes.length;
+      return {
+        recipes,
+        totalCount,
+        ...(nextOffset < totalCount ? { nextCursor: String(nextOffset) } : {}),
+      };
+    }
+    case 'load_recipe': {
+      const { data, error } = await schema
+        .from('cookbook_pages')
+        .select('id, cookbook_id, recipe_graph')
+        .eq('id', String(args.pageId))
+        .not('recipe_graph', 'is', null)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return { error: 'That saved recipe is no longer available.' };
+      const row = data as { id: string; cookbook_id: string; recipe_graph: JsonRecord };
+      return { pageId: row.id, cookbookId: row.cookbook_id, recipeGraph: row.recipe_graph };
+    }
+    case 'list_cookbooks': {
+      if (body.cookbookContext?.availableCookbooks?.length) {
+        return { cookbooks: body.cookbookContext.availableCookbooks };
+      }
+      const { data, error } = await schema.from('cookbooks').select('id, title').order('title');
+      if (error) throw new Error(error.message);
+      return { cookbooks: (data ?? []) as Array<{ id: string; title: string }> };
+    }
+    default:
+      throw new Error(`Tool ${call.name} does not run on the server`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Agent loop
+//
+// One request may contain several model rounds. Read-only tool calls are
+// executed here and fed back to the model; the loop ends when the model
+// answers in text, asks for a client-side tool (card, navigation, timer,
+// capture handoff), or exhausts its round budget.
+// ---------------------------------------------------------------------------
+type AgentEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call'; toolCall: ToolCall }
+  | { type: 'tool-result'; toolCallId: string; result: JsonRecord; isError: boolean }
+  | {
+      type: 'result';
+      result: {
+        message: { role: 'assistant'; content: string; tool_calls?: ToolCall[] };
+        toolCalls: Array<{ tool: string } & JsonRecord>;
+        finishReason: string;
+        usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost?: number };
+        requestId: string;
+      };
+    };
+
+type TurnUsage = Extract<AgentEvent, { type: 'result' }>['result']['usage'];
+
+function toolBudgetFilter(
+  tools: ToolDefinition[],
+  counts: Record<string, number>,
+): ToolDefinition[] {
+  const limits: Record<string, number> = {
+    load_recipe: MAX_LOADED_RECIPES_PER_REQUEST,
+    browse_recipe_collection: MAX_COLLECTION_LOOKUPS_PER_REQUEST,
+    search_recipe_collection: MAX_COLLECTION_LOOKUPS_PER_REQUEST,
+  };
+  return tools.filter((tool) => {
+    const limit = limits[tool.function.name];
+    return limit === undefined || (counts[tool.function.name] ?? 0) < limit;
+  });
+}
+
+async function* runAgentTurn(input: {
+  req: Request;
+  requestId: string;
+  userClient: UserClient;
+  body: RequestBody;
+  systemPrompt: string;
+  history: ChatMessage[];
+  tools: ToolDefinition[];
+  initialCounts: Record<string, number>;
+  conversationState: ConversationState;
+  onToolExecuted: (name: string) => void;
+  onStateChange?: (state: ConversationState) => void;
+}): AsyncGenerator<AgentEvent> {
+  const { req, body } = input;
+  const usage: TurnUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  const counts = { ...input.initialCounts };
+  let messages = buildSafeChatMessages(input.systemPrompt, input.history) as ChatMessage[];
+  let state = input.conversationState;
+
+  for (let round = 0; ; round += 1) {
+    const tools = toolBudgetFilter(input.tools, counts);
+    const rawToolCalls = new Map<number, ToolCall>();
+    let content = '';
+    let finishReason = 'stop';
+
+    for await (const chunk of streamChatCompletion(
+      {
+        model: CHAT_MODEL,
+        messages,
+        ...modelTuning(),
+        max_tokens: body.max_tokens ?? 2000,
+        tools: tools.length > 0 ? tools : undefined,
+        tool_choice: tools.length > 0 ? 'auto' : undefined,
+      },
+      { timeoutMs: CHAT_TIMEOUT_MS, signal: req.signal },
+    )) {
+      const choice = chunk.choices?.[0];
+      const textDelta = choice?.delta?.content;
+      if (textDelta) {
+        content += textDelta;
+        yield { type: 'text-delta', delta: textDelta };
+      }
+      for (const delta of choice?.delta?.tool_calls ?? []) {
+        const current = rawToolCalls.get(delta.index) ?? {
+          id: '',
+          type: 'function' as const,
+          function: { name: '', arguments: '' },
+        };
+        if (delta.id) current.id += delta.id;
+        if (delta.function?.name) current.function.name += delta.function.name;
+        if (delta.function?.arguments) current.function.arguments += delta.function.arguments;
+        rawToolCalls.set(delta.index, current);
+      }
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+      if (chunk.usage) {
+        usage.prompt_tokens += chunk.usage.prompt_tokens;
+        usage.completion_tokens += chunk.usage.completion_tokens;
+        usage.total_tokens += chunk.usage.total_tokens;
+        if (typeof chunk.usage.cost === 'number') usage.cost = (usage.cost ?? 0) + chunk.usage.cost;
+      }
+    }
+
+    const orderedRaw = [...rawToolCalls.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([, call]) => call)
+      .filter((call) => call.id && call.function.name);
+    const parsed = parseToolCalls(orderedRaw);
+    const valid = parsed.filter(validateToolCall);
+    const invalidCount = parsed.length - valid.length;
+    if (invalidCount > 0) logError('nosh-chat: rejected invalid tool calls', { count: invalidCount });
+    const validIds = new Set(valid.map((call) => call.id));
+    const safeRaw = orderedRaw.filter((call) => validIds.has(call.id));
+
+    const allServerSide = valid.length > 0 && valid.every((call) => SERVER_TOOL_NAMES.has(call.name));
+    if (!allServerSide || round >= MAX_SERVER_TOOL_ROUNDS) {
+      if (valid.length > 0 && allServerSide) {
+        logInfo('nosh-chat server tool budget reached; handing remaining calls to client', { round });
+      }
+      yield {
+        type: 'result',
+        result: {
+          message: {
+            role: 'assistant',
+            content,
+            tool_calls: safeRaw.length ? safeRaw : undefined,
+          },
+          toolCalls: valid.map((call) => ({ tool: call.name, ...call.arguments })),
+          finishReason,
+          usage,
+          requestId: input.requestId,
+        },
+      };
+      return;
+    }
+
+    for (const call of safeRaw) yield { type: 'tool-call', toolCall: call };
+    const results = await Promise.all(valid.map(async (call) => {
+      try {
+        const result = await executeServerTool(input.userClient, call, body);
+        return { call, result, isError: typeof result.error === 'string' };
+      } catch (error) {
+        logError('nosh-chat server tool failed', {
+          tool: call.name,
+          error: error instanceof Error ? error.message : 'Unknown tool error',
+        });
+        return { call, result: { error: 'The lookup failed. Tell the user briefly and offer to retry.' }, isError: true };
+      }
+    }));
+
+    const toolMessages: ChatMessage[] = [];
+    for (const { call, result, isError } of results) {
+      counts[call.name] = (counts[call.name] ?? 0) + 1;
+      input.onToolExecuted(call.name);
+      if (!isError) state = applyToolResult(state, call.name, result, call.arguments);
+      yield { type: 'tool-result', toolCallId: call.id, result, isError };
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+    }
+
+    if (state !== input.conversationState) {
+      input.onStateChange?.(state);
+    }
+    messages = [
+      ...messages,
+      { role: 'assistant', content, tool_calls: safeRaw },
+      ...toolMessages,
+    ];
+    if (state !== input.conversationState) {
+      // Refresh the working-memory block so the next round sees the new subject.
+      messages[0] = { role: 'system', content: replaceConversationStateBlock(input.systemPrompt, state) };
+    }
+  }
+}
+
+function replaceConversationStateBlock(systemPrompt: string, state: ConversationState): string {
+  return systemPrompt.replace(
+    /CONVERSATION STATE:[\s\S]*?\n\n/,
+    `${formatConversationState(state).join('\n')}\n\n`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -885,14 +1278,25 @@ serve(async (req: Request) => {
     }
 
     const requestId = safeIdentifier(body.requestId) ?? crypto.randomUUID();
-    const resolvedContext = await resolveAgentContext(req, body, user!.id);
-    body.interactionContext = resolvedContext.interactionContext;
-
     const safetyIntervention = getNoshSafetyIntervention(body.messages);
     if (safetyIntervention) {
       logInfo('nosh-chat safety intervention', { reason: safetyIntervention.reason });
-      return immediateAssistantResponse(req, body.stream, safetyIntervention.message);
+      return immediateAssistantResponse(req, body.stream, safetyIntervention.message, requestId);
     }
+
+    if (body.responseMode === 'quick') {
+      const reply = quickSocialReply(body.messages, body.interactionContext);
+      if (reply) {
+        logInfo('nosh-chat quick response', {
+          entryPoint: body.interactionContext?.entryPoint,
+          task: body.interactionContext?.task,
+        });
+        return immediateAssistantResponse(req, body.stream, reply, requestId);
+      }
+    }
+
+    const resolvedContext = await resolveAgentContext(req, body, user!.id);
+    body.interactionContext = resolvedContext.interactionContext;
 
     if (body.messages.at(-1)?.role === 'tool') {
       const searchResult = latestToolResult(body.messages, 'search_recipe_collection');
@@ -906,34 +1310,124 @@ serve(async (req: Request) => {
       }
     }
 
-    const loadedRecipeCount = countCompletedToolCallsSinceLatestUser(
+    const focus = resolvedContext.interactionContext?.focus;
+    const focusRef: ConversationRecipeRef | null = focus?.kind === 'recipe'
+      && typeof focus.pageId === 'string'
+      && typeof focus.title === 'string'
+      && resolvedContext.interactionContext?.focusStatus !== 'missing'
+      ? {
+        pageId: focus.pageId,
+        title: focus.title,
+        ...(typeof focus.cookbookId === 'string' ? { cookbookId: focus.cookbookId } : {}),
+      }
+      : null;
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const threadId = safeIdentifier(body.threadId);
+    const persistedState = threadId ? await readThreadState(userClient, threadId) : emptyConversationState();
+    const derivedState = deriveConversationState(
       body.messages,
-      'load_recipe',
+      focusRef,
+      resolvedContext.interactionContext?.focusUserMessageCount ?? 0,
     );
-    const tools = selectTools(body.tools).filter((tool) => (
-      loadedRecipeCount < MAX_LOADED_RECIPES_PER_REQUEST || tool.function.name !== 'load_recipe'
-    ));
+    const activeTask = resolvedContext.interactionContext?.task ?? persistedState.activeTask ?? null;
+    const conversationState: ConversationState = {
+      ...mergeWithPersisted(derivedState, persistedState),
+      activeTask,
+    };
+
+    const initialCounts: Record<string, number> = {};
+    for (const name of ['load_recipe', 'browse_recipe_collection', 'search_recipe_collection']) {
+      initialCounts[name] = countCompletedToolCallsSinceLatestUser(body.messages, name);
+    }
+    const tools = selectTools(body.tools);
     const systemPrompt = buildSystemPrompt(
       resolvedContext.recipeGraph,
       body.cookbookContext,
       resolvedContext.interactionContext,
       resolvedContext.cookingPreferences,
+      conversationState,
     );
 
     const compactMessages = compactChatHistory(body.messages);
-    const messages = buildSafeChatMessages(systemPrompt, compactMessages) as ChatMessage[];
-    await startAgentRun({ requestId, userId: user!.id, body, tools });
+    const traceStartPromise = startAgentRun({ requestId, userId: user!.id, body, tools })
+      .catch((error) => {
+        logError('nosh-chat trace start request failed', {
+          error: error instanceof Error ? error.message : 'Unknown trace error',
+        });
+      });
 
     logInfo('nosh-chat started', {
       messageCount: compactMessages.length,
       originalMessageCount: body.messages.length,
       hasRecipeGraph: !!resolvedContext.recipeGraph,
+      hasSubject: Boolean(conversationState.subject),
+      subjectSource: conversationState.subjectSource,
+      activeTask: conversationState.activeTask,
+      hasPersistedSubject: Boolean(persistedState.subject),
       toolCount: tools.length,
       toolNames: tools.map((t) => t.function.name),
-      loadedRecipeCount,
+      initialCounts,
       entryPoint: body.interactionContext?.entryPoint,
       task: body.interactionContext?.task,
     });
+
+    const executedToolNames: string[] = [];
+    let finalConversationState = conversationState;
+    const turn = runAgentTurn({
+      req,
+      requestId,
+      userClient,
+      body,
+      systemPrompt,
+      history: compactMessages,
+      tools,
+      initialCounts,
+      conversationState,
+      onToolExecuted: (name) => executedToolNames.push(name),
+      onStateChange: (state) => { finalConversationState = state; },
+    });
+
+    const finishTrace = async (
+      status: 'completed' | 'failed' | 'cancelled',
+      result?: Extract<AgentEvent, { type: 'result' }>['result'],
+      error?: unknown,
+    ) => {
+      await traceStartPromise;
+      await finishAgentRun({
+        requestId,
+        userId: user!.id,
+        status,
+        startedAt: requestStartedAt,
+        usage: result?.usage,
+        toolNames: [...executedToolNames, ...(result?.toolCalls.map((call) => call.tool) ?? [])],
+        error,
+      });
+      if (result) {
+        logInfo('nosh-chat completed', {
+          finishReason: result.finishReason,
+          serverToolCount: executedToolNames.length,
+          clientToolCallCount: result.toolCalls.length,
+          cost: result.usage.cost,
+          promptTokens: result.usage.prompt_tokens,
+          completionTokens: result.usage.completion_tokens,
+          totalTokens: result.usage.total_tokens,
+          durationMs: Date.now() - requestStartedAt,
+          entryPoint: body.interactionContext?.entryPoint,
+          task: body.interactionContext?.task,
+          streamed: Boolean(body.stream),
+        });
+      }
+      if (threadId && status === 'completed') {
+        const stateToPersist: ConversationState = {
+          ...finalConversationState,
+          activeTask: activeTask ?? finalConversationState.activeTask,
+        };
+        await upsertThreadState(userClient, threadId, stateToPersist);
+      }
+    };
 
     if (body.stream) {
       const encoder = new TextEncoder();
@@ -942,109 +1436,17 @@ serve(async (req: Request) => {
           const send = (event: unknown) => {
             controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
           };
-          let content = '';
-          let finishReason = 'stop';
-          let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-          const toolCalls = new Map<number, ToolCall>();
-
           try {
-            for await (const chunk of streamChatCompletion(
-              {
-                model: CHAT_MODEL,
-                messages,
-                ...modelTuning(),
-                max_tokens: body.max_tokens ?? 2000,
-                tools: tools.length > 0 ? tools : undefined,
-                tool_choice: tools.length > 0 ? 'auto' : undefined,
-              },
-              { timeoutMs: CHAT_TIMEOUT_MS, signal: req.signal },
-            )) {
-              const choice = chunk.choices?.[0];
-              const textDelta = choice?.delta?.content;
-              if (textDelta) {
-                content += textDelta;
-                send({ type: 'text-delta', delta: textDelta });
-              }
-
-              for (const delta of choice?.delta?.tool_calls ?? []) {
-                const current = toolCalls.get(delta.index) ?? {
-                  id: '',
-                  type: 'function' as const,
-                  function: { name: '', arguments: '' },
-                };
-                if (delta.id) current.id += delta.id;
-                if (delta.function?.name) current.function.name += delta.function.name;
-                if (delta.function?.arguments) current.function.arguments += delta.function.arguments;
-                toolCalls.set(delta.index, current);
-              }
-
-              if (choice?.finish_reason) finishReason = choice.finish_reason;
-              if (chunk.usage) usage = chunk.usage;
+            let finalResult: Extract<AgentEvent, { type: 'result' }>['result'] | undefined;
+            for await (const event of turn) {
+              send(event);
+              if (event.type === 'result') finalResult = event.result;
             }
-
-            const rawToolCalls = [...toolCalls.entries()]
-              .sort(([left], [right]) => left - right)
-              .map(([, call]) => call)
-              .filter((call) => call.id && call.function.name);
-            const parsedToolCalls = parseToolCalls(rawToolCalls);
-            const validToolCalls = parsedToolCalls.filter(validateToolCall);
-            const validToolCallIds = new Set(validToolCalls.map((call) => call.id));
-            const safeToolCalls = rawToolCalls.filter((call) => validToolCallIds.has(call.id));
-            const invalidCount = parsedToolCalls.length - validToolCalls.length;
-            if (invalidCount > 0) {
-              logError('nosh-chat: rejected invalid streamed tool calls', { count: invalidCount });
-            }
-
-            send({
-              type: 'result',
-              result: {
-                message: {
-                  role: 'assistant',
-                  content,
-                  tool_calls: safeToolCalls.length ? safeToolCalls : undefined,
-                },
-                toolCalls: validToolCalls.map((call) => ({
-                  tool: call.name,
-                  ...call.arguments,
-                })),
-                finishReason,
-                usage,
-                requestId,
-              },
-            });
-
-            await finishAgentRun({
-              requestId,
-              userId: user!.id,
-              status: 'completed',
-              startedAt: requestStartedAt,
-              usage,
-              toolNames: validToolCalls.map((call) => call.name),
-            });
-
-            logInfo('nosh-chat completed', {
-              finishReason,
-              toolCallCount: validToolCalls.length,
-              cost: 'cost' in usage ? usage.cost : undefined,
-              promptTokens: usage.prompt_tokens,
-              completionTokens: usage.completion_tokens,
-              totalTokens: usage.total_tokens,
-              durationMs: Date.now() - requestStartedAt,
-              loadedRecipeCount,
-              entryPoint: body.interactionContext?.entryPoint,
-              task: body.interactionContext?.task,
-              streamed: true,
-            });
+            await finishTrace('completed', finalResult);
           } catch (modelErr) {
             const message = modelErr instanceof Error ? modelErr.message : 'Chat request failed';
             logError('nosh-chat stream failed', { error: message });
-            await finishAgentRun({
-              requestId,
-              userId: user!.id,
-              status: req.signal.aborted ? 'cancelled' : 'failed',
-              startedAt: requestStartedAt,
-              error: modelErr,
-            });
+            await finishTrace(req.signal.aborted ? 'cancelled' : 'failed', undefined, modelErr);
             send({ type: 'error', error: message });
           } finally {
             controller.close();
@@ -1063,101 +1465,37 @@ serve(async (req: Request) => {
       });
     }
 
-    // Single-turn call — we return the model's response (with any tool calls)
-    // to the client. The client executes the tools and sends results back in
-    // the next message. This keeps the function stateless and simple.
-    let response;
+    // Non-streaming callers receive the final round plus the server-executed
+    // tool calls, so they can persist the same thread shape as the stream.
+    const serverToolCalls: Array<{ toolCall: ToolCall; result?: JsonRecord; isError?: boolean }> = [];
+    let finalResult: Extract<AgentEvent, { type: 'result' }>['result'] | undefined;
     try {
-      response = await callChatCompletion(
-        {
-          model: CHAT_MODEL,
-          messages,
-          ...modelTuning(),
-          max_tokens: body.max_tokens ?? 2000,
-          tools: tools.length > 0 ? tools : undefined,
-          tool_choice: tools.length > 0 ? 'auto' : undefined,
-        },
-        { timeoutMs: CHAT_TIMEOUT_MS },
-      );
+      for await (const event of turn) {
+        if (event.type === 'tool-call') serverToolCalls.push({ toolCall: event.toolCall });
+        if (event.type === 'tool-result') {
+          const entry = serverToolCalls.find((item) => item.toolCall.id === event.toolCallId);
+          if (entry) {
+            entry.result = event.result;
+            entry.isError = event.isError;
+          }
+        }
+        if (event.type === 'result') finalResult = event.result;
+      }
     } catch (modelErr) {
       const message = modelErr instanceof Error ? modelErr.message : 'Chat request failed';
       logError('nosh-chat model call failed', { error: message });
-      await finishAgentRun({
-        requestId,
-        userId: user!.id,
-        status: 'failed',
-        startedAt: requestStartedAt,
-        error: modelErr,
-      });
+      await finishTrace('failed', undefined, modelErr);
       return jsonError(message, 502, req);
     }
-
-    const choice = response.choices?.[0];
-    if (!choice) {
-      await finishAgentRun({
-        requestId,
-        userId: user!.id,
-        status: 'failed',
-        startedAt: requestStartedAt,
-        error: new Error('Missing model choice'),
-      });
+    if (!finalResult) {
+      await finishTrace('failed', undefined, new Error('Missing model choice'));
       return jsonError('No response from model', 502, req);
     }
 
-    const assistantMessage = choice.message;
-    const rawToolCalls = assistantMessage.tool_calls;
-    const parsedToolCalls = parseToolCalls(rawToolCalls);
-
-    // Validate tool calls
-    const validToolCalls = parsedToolCalls.filter(validateToolCall);
-    const validToolCallIds = new Set(validToolCalls.map((call) => call.id));
-    const safeToolCalls = rawToolCalls?.filter((call) => validToolCallIds.has(call.id));
-    const invalidCount = parsedToolCalls.length - validToolCalls.length;
-    if (invalidCount > 0) {
-      logError('nosh-chat: rejected invalid tool calls', { count: invalidCount });
-    }
-
-    // Build the response in Folio's format
-    const result = {
-      message: {
-        role: 'assistant',
-        content: assistantMessage.content ?? '',
-        tool_calls: safeToolCalls?.length ? safeToolCalls : undefined,
-      },
-      toolCalls: validToolCalls.map((call) => ({
-        tool: call.name,
-        ...call.arguments,
-      })),
-      finishReason: choice.finish_reason,
-      usage: response.usage,
-      requestId,
-      userId: user!.id,
-    };
-
-    await finishAgentRun({
-      requestId,
-      userId: user!.id,
-      status: 'completed',
-      startedAt: requestStartedAt,
-      usage: response.usage,
-      toolNames: validToolCalls.map((call) => call.name),
-    });
-
-    logInfo('nosh-chat completed', {
-      finishReason: choice.finish_reason,
-      toolCallCount: validToolCalls.length,
-      cost: response.usage.cost,
-      promptTokens: response.usage.prompt_tokens,
-      completionTokens: response.usage.completion_tokens,
-      totalTokens: response.usage.total_tokens,
-      durationMs: Date.now() - requestStartedAt,
-      loadedRecipeCount,
-      entryPoint: body.interactionContext?.entryPoint,
-      task: body.interactionContext?.task,
-    });
-
-    return jsonResponse(result, 200, req);
+    await finishTrace('completed', finalResult);
+    return jsonResponse({ ...finalResult, serverToolCalls, userId: user!.id }, 200, req);
   } catch (err) {
     return errorResponse(err, req);
   }
 });
+

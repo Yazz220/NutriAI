@@ -162,7 +162,7 @@ Active functions:
 
 - `extract-recipe`: URL, text, image, resolved video evidence with merged transcript and frame signals, acquired social-video evidence, and audio transcripts → RecipeGraphDraft. Uses deterministic schema.org Recipe JSON-LD or Microdata when available and a replaceable strict-schema model for unstructured sources. URL acquisition distinguishes unavailable, access-restricted, unsupported, and oversized pages before extraction. Image extraction validates the real JPEG, PNG, WebP, or GIF signature and dimensions before the multimodal model decides blankness, readability, cropping, and recipe completeness. Permissioned private MP4, MOV, MPEG, or WebM uploads and permission-confirmed direct files up to 20 MB are supported. For supported containers, `capture-recipe` submits the inspected video file to Folio's direct-media speech-to-text adapter and the client uploads up to eight sampled frames; `extract-recipe` merges transcript, frames, and whole video into one multimodal call, with a degraded retry that drops the whole video if the first attempt fails. Public YouTube, TikTok, Instagram, and Facebook links use the configured replaceable acquisition adapter when enabled, which returns bounded metadata and seen/heard observations rather than a RecipeGraph. Every pasted social-video link enters the durable capture immediately; unsupported or unavailable sources show saved-link recovery only after acquisition fails. Existing MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files up to 6 MB are transcribed by `capture-recipe`; in-app audio recording is intentionally not implemented.
 - `capture-recipe`: durable orchestration for extraction, destination resolution, complete-page generation, retry, and publication.
-- `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, walkthrough, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
+- `nosh-chat`: multi-turn kitchen chat with tool-calling (`start_recipe_capture`, collection retrieval, navigation, organization, recipe changes, timers, and complete-page regeneration). Uses Qwen3.6-35B-A3B via OpenRouter.
 - `generate-page-art`: complete style-conditioned recipe-page generation, including visible recipe text. Uses Qwen Image 3 Pro via OpenRouter.
 - `credits`: dormant legacy balance endpoint; the active client and generation path do not use it.
 - `delete-account`: account deletion.
@@ -196,11 +196,8 @@ EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
 EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
-EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=
 ```
-
-`EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must never select a separate extraction, capture, or page-generation pipeline.
 
 Edge Function secrets in Supabase:
 

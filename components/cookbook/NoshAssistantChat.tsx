@@ -31,7 +31,6 @@ import { NoshConversationDisplay } from '@/components/nosh/conversation/NoshConv
 import { isDesignedPageLimitReachedError } from '@/components/subscription/subscriptionErrors';
 import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
-import { isNoshContextModelV2Enabled } from '@/constants/featureFlags';
 import { Spacing } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
@@ -40,7 +39,11 @@ import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import { SHELF_QUERY_KEY, useCookbooks } from '@/hooks/useCookbooks';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
-import type { NoshFocus, NoshInteractionSession } from '@/types/noshInteraction';
+import {
+  isSameNoshFocus,
+  shouldOfferNoshFocusTransition,
+  type NoshInteractionSession,
+} from '@/types/noshInteraction';
 import {
   createRecipePageWithGraph,
   fetchPageById,
@@ -73,15 +76,13 @@ import {
   searchRecipeCollection,
   type LoadedCollectionRecipe,
 } from '@/utils/cookbook/recipeCollection';
-import { saveCookingPreference } from '@/utils/cookbook/cookingPreferences';
+import {
+  loadCookingPreferences,
+  saveCookingPreference,
+  type CookingPreference,
+} from '@/utils/cookbook/cookingPreferences';
 import { SAMPLE_COOKBOOK_ID } from '@/utils/cookbook/sampleCookbook';
 import { normalizeCaptureDestinationCookbookId } from '@/utils/cookbook/captureLifecycle';
-
-const COLLECTION_SESSION: NoshInteractionSession = {
-  entryPoint: 'shelf-nosh',
-  task: 'collection',
-  focus: { kind: 'collection' },
-};
 
 function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
   const references = cookbook.pageStyleReferences?.length
@@ -92,7 +93,6 @@ function pageStyleReferences(cookbook: Cookbook): string[] | undefined {
 
 /** Mounted once in app/_layout.tsx so the transcript survives navigation. */
 export function NoshConversationHost() {
-  const contextModelEnabled = isNoshContextModelV2Enabled();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -186,6 +186,11 @@ export function NoshConversationHost() {
   imageRef.current = pendingImageBase64;
   const cookbooksRef = useRef(cookbooks);
   cookbooksRef.current = cookbooks;
+  const cookingPreferencesRef = useRef<CookingPreference[]>([]);
+  // User messages already in the thread when the current focus was accepted.
+  // 0 means the focus predates the conversation, so a recipe resolved later
+  // in chat becomes the subject; "Continue here" bumps it so the new focus wins.
+  const focusUserMessageCountRef = useRef(0);
   const pendingRecipeCopyRef = useRef<{
     focusPageId: string;
     proposal: RecipeActionProposal;
@@ -197,6 +202,22 @@ export function NoshConversationHost() {
   useEffect(() => {
     if (!visible) setShowingHistory(false);
   }, [visible]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      cookingPreferencesRef.current = [];
+      return undefined;
+    }
+    void loadCookingPreferences(user.id)
+      .then((preferences) => {
+        if (!cancelled) cookingPreferencesRef.current = preferences;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (interaction.task === 'capture') setShowingHistory(false);
@@ -474,7 +495,24 @@ export function NoshConversationHost() {
     onCommitCollectionAction: handleCommitCollectionAction,
     onSaveCookingPreference: async (input) => {
       if (!user) throw new Error('Sign in to save cooking preferences.');
-      return saveCookingPreference({ userId: user.id, ...input });
+      const result = await saveCookingPreference({ userId: user.id, ...input });
+      if (result.action === 'removed') {
+        cookingPreferencesRef.current = cookingPreferencesRef.current.filter((preference) => (
+          preference.key !== result.key
+          || preference.value.toLocaleLowerCase() !== result.value.toLocaleLowerCase()
+        ));
+      } else if (!cookingPreferencesRef.current.some((preference) => (
+        preference.key === result.key
+        && preference.value.toLocaleLowerCase() === result.value.toLocaleLowerCase()
+      ))) {
+        cookingPreferencesRef.current = [{
+          id: `session-${result.key}-${result.value}`,
+          key: result.key,
+          value: result.value,
+          updatedAt: new Date().toISOString(),
+        }, ...cookingPreferencesRef.current];
+      }
+      return result;
     },
     onStartRecipeCapture: (source) => {
       const destination = visibleBookContextRef.current.cookbook;
@@ -505,14 +543,6 @@ export function NoshConversationHost() {
         Alert.alert(label ?? 'Folio timer', `${durationMinutes}-minute timer is done.`);
       }, durationMinutes * 60_000);
     },
-    onGuideStep: (stepId) => {
-      console.info('[Folio] Guide to recipe step', stepId);
-    },
-    onSetWalkthrough: (active) => {
-      const focus = interactionRef.current.focus;
-      if (focus.kind !== 'recipe') return;
-      open(active ? 'walkthrough' : 'recipe-ask', focus);
-    },
   });
 
   const adapter = useMemo(() => createNoshChatAdapter(() => {
@@ -533,9 +563,11 @@ export function NoshConversationHost() {
       availableCookbooks: cookbooksRef.current
         .filter((book) => book.id !== SAMPLE_COOKBOOK_ID)
         .map((book) => ({ id: book.id, title: book.title })),
+      resolveCookingPreferences: async () => cookingPreferencesRef.current,
       interaction: {
         ...currentInteraction,
         focusStatus: focusStatusRef.current,
+        focusUserMessageCount: focusUserMessageCountRef.current,
       },
       hasAttachedImage: Boolean(imageRef.current),
     };
@@ -564,27 +596,23 @@ export function NoshConversationHost() {
     adapter: threadListAdapter,
   });
   const config = useMemo(() => AuiConfig({ tools: Tools({ toolkit }) }), [toolkit]);
-  const contextLabel = interaction.focus.kind === 'collection'
-    ? 'Your cookbook collection'
-    : interaction.focus.kind === 'capture'
-      ? interaction.focus.title ?? 'Recipe capture'
-      : focusStatus === 'missing'
-        ? `${interaction.focus.title} · unavailable`
-        : interaction.focus.title;
+  const contextLabel = interaction.task === 'preferences'
+    ? 'Cooking preferences'
+    : interaction.focus.kind === 'collection'
+      ? 'Your cookbook collection'
+      : interaction.focus.kind === 'capture'
+        ? interaction.focus.title ?? 'Recipe capture'
+        : focusStatus === 'missing'
+          ? `${interaction.focus.title} · unavailable`
+          : interaction.focus.title;
 
-  const startNewConversation = useCallback(async (focus?: NoshFocus) => {
+  const startNewConversation = useCallback(async () => {
+    const currentInteraction = interactionRef.current;
     clearSessionScratch();
     try {
       await runtime.threads.switchToNewThread();
-      if (focus) {
-        restoreInteraction({
-          entryPoint: focus.kind === 'recipe' ? 'recipe-ask' : 'shelf-nosh',
-          task: focus.kind === 'recipe' ? 'recipe-help' : 'collection',
-          focus,
-        });
-      } else {
-        restoreInteraction(COLLECTION_SESSION);
-      }
+      focusUserMessageCountRef.current = 0;
+      restoreInteraction(currentInteraction);
       setShowingHistory(false);
     } catch (error) {
       Alert.alert(
@@ -592,12 +620,96 @@ export function NoshConversationHost() {
         error instanceof Error ? error.message : 'Please try again.',
       );
     }
-  }, [clearSessionScratch, restoreInteraction, runtime]);
+  }, [clearSessionScratch, restoreInteraction, runtime, setShowingHistory]);
+
+  const acceptedInteractionRef = useRef<NoshInteractionSession>({
+    entryPoint: interaction.entryPoint,
+    task: interaction.task,
+    focus: interaction.focus,
+  });
+  const pendingFocusTransitionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const requested: NoshInteractionSession = {
+      entryPoint: interaction.entryPoint,
+      task: interaction.task,
+      focus: interaction.focus,
+    };
+    const accepted = acceptedInteractionRef.current;
+    const threadMessages = runtime.thread.getState().messages;
+    const userMessageCount = threadMessages.filter((message) => message.role === 'user').length;
+    if (!visible || !shouldOfferNoshFocusTransition(
+      accepted,
+      requested,
+      threadMessages.length > 0,
+    )) {
+      if (!isSameNoshFocus(accepted.focus, requested.focus)) {
+        focusUserMessageCountRef.current = userMessageCount;
+      }
+      acceptedInteractionRef.current = requested;
+      return;
+    }
+
+    const requestedTarget = requested.focus.kind === 'recipe' || requested.focus.kind === 'cookbook'
+      ? requested.focus
+      : null;
+    if (!requestedTarget) return;
+    const targetId = requestedTarget.kind === 'recipe'
+      ? requestedTarget.pageId
+      : requestedTarget.cookbookId;
+    const transitionKey = `${runtime.thread.getState().threadId}:${requestedTarget.kind}:${targetId}`;
+    if (pendingFocusTransitionRef.current === transitionKey) return;
+    pendingFocusTransitionRef.current = transitionKey;
+    restoreInteraction(accepted);
+
+    Alert.alert(
+      `Ask Folio about ${requestedTarget.title}?`,
+      'Continue this conversation with what you are viewing now, or start a new conversation for it.',
+      [
+        {
+          text: 'Keep current focus',
+          style: 'cancel',
+          onPress: () => {
+            pendingFocusTransitionRef.current = null;
+          },
+        },
+        {
+          text: 'Continue here',
+          onPress: () => {
+            acceptedInteractionRef.current = requested;
+            focusUserMessageCountRef.current = userMessageCount;
+            pendingFocusTransitionRef.current = null;
+            restoreInteraction(requested);
+          },
+        },
+        {
+          text: 'New conversation',
+          onPress: () => {
+            clearSessionScratch();
+            void runtime.threads.switchToNewThread()
+              .then(() => {
+                acceptedInteractionRef.current = requested;
+                focusUserMessageCountRef.current = 0;
+                pendingFocusTransitionRef.current = null;
+                restoreInteraction(requested);
+              })
+              .catch((error) => {
+                pendingFocusTransitionRef.current = null;
+                Alert.alert(
+                  'Could not start a new conversation',
+                  error instanceof Error ? error.message : 'Please try again.',
+                );
+              });
+          },
+        },
+      ],
+    );
+  }, [clearSessionScratch, interaction, restoreInteraction, runtime, visible]);
 
   const closeAndResetHistory = useCallback(() => {
     setShowingHistory(false);
     close();
-  }, [close]);
+  }, [close, setShowingHistory]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
@@ -679,7 +791,6 @@ export function NoshConversationHost() {
             ) : (
               <NoshConversationDisplay
                 interaction={interaction}
-                contextModelEnabled={contextModelEnabled}
                 sendDisabled={interaction.focus.kind === 'recipe' && focusStatus === 'loading'}
               />
             )}
@@ -690,7 +801,11 @@ export function NoshConversationHost() {
   );
 }
 
-export { NoshAssistantChatButton, NoshShelfChatButton } from '@/components/nosh/NoshLaunchers';
+export {
+  NoshAssistantChatButton,
+  NoshCookbookChatButton,
+  NoshShelfChatButton,
+} from '@/components/nosh/NoshLaunchers';
 
 const styles = StyleSheet.create({
   sheet: {

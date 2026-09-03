@@ -24,10 +24,15 @@ describe('Phase 7 interaction contract', () => {
     expect(server).toContain('Do not choose for the user.');
   });
 
-  it('starts walkthrough mode only after an explicit user request', () => {
-    expect(server).toContain('Start only when the user explicitly asks for a walkthrough');
-    expect(server).toContain('Normal cooking help is open conversation.');
-    expect(adapter).toContain("'set_walkthrough'");
+  it('handles step-by-step cooking guidance in text without a walkthrough tool', () => {
+    expect(toolkit).not.toContain('set_walkthrough');
+    expect(toolkit).not.toContain('guide_next_step');
+    expect(adapter).not.toContain("'set_walkthrough'");
+    expect(adapter).not.toContain("'guide_next_step'");
+    expect(adapter).not.toContain('walkthrough');
+    expect(server).not.toContain('set_walkthrough');
+    expect(server).not.toContain('guide_next_step');
+    expect(server).toContain('walk the user through the recipe in text');
   });
 
   it('refreshes saved page images while keeping visual-only revision explicit', () => {
