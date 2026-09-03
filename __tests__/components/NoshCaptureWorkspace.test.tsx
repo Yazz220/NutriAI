@@ -91,9 +91,6 @@ jest.mock('@/hooks/useRecipeCaptures', () => ({
 jest.mock('@/components/subscription/SubscriptionHost', () => ({
   useSubscriptionUi: () => ({ requestPageAccess: mockRequestPageAccess }),
 }));
-jest.mock('@/components/subscription/PageAllowanceStatus', () => ({
-  PageAllowanceStatus: () => null,
-}));
 jest.mock('@/components/cookbook/CookbookDestinationCarousel', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
@@ -396,6 +393,7 @@ describe('NoshCaptureWorkspace', () => {
     expect(screen.getByText('Destination carousel: Family Table')).toBeTruthy();
     expect(screen.getByText('Cookbook grid: 0 pages')).toBeTruthy();
     expect(screen.getByText('Reordering: enabled')).toBeTruthy();
+    expect(screen.queryByText(/page creations left/i)).toBeNull();
     expect(screen.queryByText('COOKBOOK WORKSPACE')).toBeNull();
     expect(screen.queryByText('Tap a page to read it. Long-press and drag a finished page to reorder.')).toBeNull();
   });

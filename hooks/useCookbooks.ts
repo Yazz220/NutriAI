@@ -89,8 +89,40 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
       cookbookId: string;
       details: UpdateCookbookAppearanceInput;
     }) => updateCookbookAppearanceRow(cookbookId, details),
-    onSuccess: (updatedCookbook) => {
-      queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user?.id), (existing = []) =>
+    onMutate: async ({ cookbookId, details }) => {
+      const shelfKey = SHELF_QUERY_KEY(user?.id);
+      await queryClient.cancelQueries({ queryKey: shelfKey });
+
+      const previousShelf = queryClient.getQueryData<Cookbook[]>(shelfKey);
+      const previousCookbook = queryClient.getQueryData<Cookbook | null>(['cookbook', cookbookId]);
+      const applyDraft = (cookbook: Cookbook): Cookbook => ({
+        ...cookbook,
+        title: details.title.trim(),
+        coverFinishId: details.coverFinishId,
+        coverColorId: details.coverColorId,
+        coverTitleColorId: details.coverTitleColorId,
+        coverTitlePlacementId: details.coverTitlePlacementId,
+      });
+
+      queryClient.setQueryData<Cookbook[]>(shelfKey, (existing = []) =>
+        existing.map((cookbook) => cookbook.id === cookbookId ? applyDraft(cookbook) : cookbook),
+      );
+      queryClient.setQueryData<Cookbook | null>(['cookbook', cookbookId], (existing) =>
+        existing ? applyDraft(existing) : existing,
+      );
+
+      return { previousShelf, previousCookbook };
+    },
+    onError: (_error, { cookbookId }, context) => {
+      if (context?.previousShelf) {
+        queryClient.setQueryData(SHELF_QUERY_KEY(user?.id), context.previousShelf);
+      }
+      if (context?.previousCookbook !== undefined) {
+        queryClient.setQueryData(['cookbook', cookbookId], context.previousCookbook);
+      }
+    },
+    onSuccess: async (updatedCookbook) => {
+      const updatedShelf = queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user?.id), (existing = []) =>
         existing.map((cookbook) => cookbook.id === updatedCookbook.id
           ? { ...updatedCookbook, pageCount: cookbook.pageCount }
           : cookbook),
@@ -100,6 +132,9 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
           ? { ...updatedCookbook, pageCount: existing.pageCount }
           : updatedCookbook,
       );
+      if (user?.id && updatedShelf) {
+        await saveCachedShelf(user.id, updatedShelf).catch(() => undefined);
+      }
     },
   });
 

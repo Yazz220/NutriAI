@@ -18,7 +18,6 @@ import { CaptureActionSheet } from '@/components/cookbook/CaptureActionSheets';
 import { RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
 import { RecipeRevisionSheet, type RecipeRevisionMode } from '@/components/cookbook/RecipeRevisionSheet';
 import { RecipeCorrectionSheet } from '@/components/nosh/capture/RecipeCorrectionSheet';
-import { PageAllowanceStatus } from '@/components/subscription/PageAllowanceStatus';
 import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
@@ -762,7 +761,6 @@ export function NoshCaptureWorkspace({
           onSelect={setSelectedDestinationCookbookId}
         />
       ) : null}
-      <PageAllowanceStatus />
       <UnifiedIntakeComposer
         isSubmitting={isSubmitting || captureState.isStarting}
         input={input}

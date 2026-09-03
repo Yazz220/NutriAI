@@ -30,6 +30,10 @@ function errorMessage(error: unknown): string {
   return 'Reader deletion failed';
 }
 
+function isMissingDeletionTarget(error: unknown): boolean {
+  return isRecord(error) && error.code === 'P0002';
+}
+
 async function drainCleanupJobs(admin: ReturnType<typeof createClient>, userId: string) {
   const { data, error } = await admin
     .schema('nutriai')
@@ -99,21 +103,21 @@ serve(async (req: Request) => {
       const response = await userClient
         .schema('nutriai')
         .rpc('remove_recipe_page', { p_page_id: body.pageId });
-      if (response.error) throw response.error;
+      if (response.error && !isMissingDeletionTarget(response.error)) throw response.error;
       result = response.data;
     } else if (action === 'discardCapture') {
       if (!isUuid(body.captureId)) return jsonError('Recipe capture is required', 400, req);
       const response = await userClient
         .schema('nutriai')
         .rpc('discard_recipe_capture', { p_capture_id: body.captureId });
-      if (response.error) throw response.error;
+      if (response.error && !isMissingDeletionTarget(response.error)) throw response.error;
       result = response.data;
     } else if (action === 'deleteCookbook') {
       if (!isUuid(body.cookbookId)) return jsonError('Cookbook is required', 400, req);
       const response = await userClient
         .schema('nutriai')
         .rpc('delete_cookbook', { p_cookbook_id: body.cookbookId });
-      if (response.error) throw response.error;
+      if (response.error && !isMissingDeletionTarget(response.error)) throw response.error;
       result = response.data;
     }
 
@@ -131,12 +135,10 @@ serve(async (req: Request) => {
     logInfo('Reader deletion completed', { userId: user!.id, action, cleanup });
     return jsonResponse({ result, cleanup }, 200, req);
   } catch (error) {
-    const record = isRecord(error) ? error : {};
-    const status = record.code === 'P0002' ? 404 : 500;
     logError('Reader deletion failed', {
       userId: user!.id,
       error: errorMessage(error),
     });
-    return jsonError(errorMessage(error), status, req);
+    return jsonError(errorMessage(error), 500, req);
   }
 });

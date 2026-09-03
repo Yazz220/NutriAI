@@ -77,4 +77,30 @@ describe('cookbook cache', () => {
     expect((await loadCachedCaptures('u1'))?.captures).toEqual([capture]);
     expect(await loadCachedCaptures('u2')).toBeNull();
   });
+
+  it('serializes shelf writes so an older write cannot finish last', async () => {
+    const setItem = jest.spyOn(AsyncStorage, 'setItem');
+    setItem.mockClear();
+    let finishFirstWrite!: () => void;
+    let markFirstWriteStarted!: () => void;
+    const firstWriteStarted = new Promise<void>((resolve) => { markFirstWriteStarted = resolve; });
+    setItem
+      .mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finishFirstWrite = resolve;
+        markFirstWriteStarted();
+      }))
+      .mockResolvedValueOnce(undefined);
+
+    const firstWrite = saveCachedShelf('u1', [sampleCookbook]);
+    await firstWriteStarted;
+    const renamedCookbook = { ...sampleCookbook, title: 'Sunday Suppers' };
+    const secondWrite = saveCachedShelf('u1', [renamedCookbook]);
+
+    expect(setItem).toHaveBeenCalledTimes(1);
+    finishFirstWrite();
+    await Promise.all([firstWrite, secondWrite]);
+
+    expect(setItem).toHaveBeenCalledTimes(2);
+    expect(setItem.mock.calls[1]?.[1]).toContain('Sunday Suppers');
+  });
 });

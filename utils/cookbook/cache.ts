@@ -6,6 +6,8 @@ export const SHELF_CACHE_KEY = 'nosh:cookbook-shelf:v2';
 export const PAGES_CACHE_PREFIX = 'nosh:cookbook-pages:v2';
 export const CAPTURES_CACHE_PREFIX = 'nosh:recipe-captures:v1';
 
+const shelfWriteQueue = new Map<string, Promise<void>>();
+
 export interface CachedShelf {
   userId: string;
   cookbooks: Cookbook[];
@@ -62,9 +64,17 @@ export async function clearCachedCaptures(userId?: string | null): Promise<void>
   await AsyncStorage.removeItem(capturesKey(userId));
 }
 
-export async function saveCachedShelf(userId: string, cookbooks: Cookbook[]): Promise<void> {
+export function saveCachedShelf(userId: string, cookbooks: Cookbook[]): Promise<void> {
+  const key = shelfKey(userId);
   const payload: CachedShelf = { userId, cookbooks };
-  await AsyncStorage.setItem(shelfKey(userId), JSON.stringify(payload));
+  const previousWrite = shelfWriteQueue.get(key) ?? Promise.resolve();
+  const write = previousWrite
+    .catch(() => undefined)
+    .then(() => AsyncStorage.setItem(key, JSON.stringify(payload)));
+  shelfWriteQueue.set(key, write);
+  return write.finally(() => {
+    if (shelfWriteQueue.get(key) === write) shelfWriteQueue.delete(key);
+  });
 }
 
 export async function loadCachedShelf(userId?: string | null): Promise<CachedShelf | null> {
@@ -109,6 +119,7 @@ export async function loadCachedPages(cookbookId: string): Promise<CookbookPage[
 export async function clearCachedShelf(userId?: string | null): Promise<void> {
   const keys = new Set<string>([shelfKey(userId)]);
   if (userId) keys.add(SHELF_CACHE_KEY);
+  await Promise.all([...keys].map((key) => shelfWriteQueue.get(key)?.catch(() => undefined)));
   await AsyncStorage.multiRemove([...keys]);
 }
 
