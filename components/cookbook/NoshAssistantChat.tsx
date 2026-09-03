@@ -63,6 +63,7 @@ import {
   finishRecipePageCandidate,
   finishRecipePageImage,
 } from '@/utils/cookbook/pageProduction';
+import { resolveCookbookPageImageUri } from '@/utils/cookbook/pageImageResolver';
 import type {
   RecipeActionCommitMode,
   RecipeActionProposal,
@@ -353,6 +354,9 @@ export function NoshConversationHost() {
     if (!cookbook) throw new Error('Cookbook not found');
     const currentPage = visibleBookContextRef.current.pages.find((page) => page.id === focus.pageId)
       ?? (await fetchCookbookPages(focus.cookbookId)).find((page) => page.id === focus.pageId);
+    const referenceArtUrl = currentPage
+      ? await resolveCookbookPageImageUri(currentPage)
+      : null;
 
     return finishRecipePageCandidate({
       cookbookId: focus.cookbookId,
@@ -363,7 +367,7 @@ export function NoshConversationHost() {
       styleReferences: pageStyleReferences(cookbook),
       idempotencyKey,
       artDirection: instruction,
-      referenceArtUrl: currentPage?.pageImage?.imageUrl ?? currentPage?.artAsset?.artUrl,
+      referenceArtUrl: referenceArtUrl ?? undefined,
     });
   }, []);
 

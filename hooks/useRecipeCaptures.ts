@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
@@ -18,6 +18,7 @@ import {
   saveCachedCaptures,
 } from '@/utils/cookbook/cache';
 import {
+  getCapturePageSyncKey,
   isCaptureProcessing,
   markRecipeCaptureRetryQueued,
   reconcileCapturePage,
@@ -62,6 +63,7 @@ export function useRecipeCaptures() {
   const queryClient = useQueryClient();
   const queryKey = RECIPE_CAPTURES_QUERY_KEY(user?.id);
   const query = useRecipeCapturesQuery(user?.id);
+  const capturePageSyncKeysRef = useRef<Map<string, string> | null>(null);
 
   useEffect(() => {
     if (!user?.id || query.data !== undefined) return;
@@ -78,8 +80,24 @@ export function useRecipeCaptures() {
   }, [query.data, user?.id]);
 
   useEffect(() => {
-    const placedCaptures = (query.data ?? []).filter((capture) => capture.pageId);
-    for (const capture of placedCaptures) {
+    if (!query.data) return;
+    const nextKeys = new Map<string, string>();
+    const changedCaptures = query.data.filter((capture) => {
+      const syncKey = getCapturePageSyncKey(capture);
+      if (!syncKey) return false;
+      nextKeys.set(capture.id, syncKey);
+      return capturePageSyncKeysRef.current?.get(capture.id) !== syncKey;
+    });
+
+    // Cached/server hydration already loads each cookbook independently. This
+    // baseline prevents a feed mount from fetching every historical page.
+    if (capturePageSyncKeysRef.current === null) {
+      capturePageSyncKeysRef.current = nextKeys;
+      return;
+    }
+    capturePageSyncKeysRef.current = nextKeys;
+
+    for (const capture of changedCaptures) {
       void fetchPageById(capture.pageId!).then((page) => {
         if (!page) return;
         queryClient.setQueryData<CookbookPage[]>(

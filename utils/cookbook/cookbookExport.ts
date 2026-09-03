@@ -2,7 +2,10 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
-import { getCookbookPageImageUri } from '@/utils/cookbook/pageImage';
+import {
+  hasCookbookPageImage,
+} from '@/utils/cookbook/pageImageDelivery';
+import { resolveCookbookPageImageUri } from '@/utils/cookbook/pageImageResolver';
 
 const PDF_POINTS_PER_INCH = 72;
 const PDF_WIDTH = COOKBOOK_GEOMETRY.print.widthInches * PDF_POINTS_PER_INCH;
@@ -20,12 +23,12 @@ export async function exportCookbookPdf(
   const orderedPages = [...pages].sort((a, b) => a.sortOrder - b.sortOrder || a.pageNumber - b.pageNumber);
   if (orderedPages.length === 0) throw new Error('Add a recipe before exporting this cookbook.');
 
-  const missingPage = orderedPages.find((page) => !getCookbookPageImageUri(page));
+  const missingPage = orderedPages.find((page) => !hasCookbookPageImage(page));
   if (missingPage) throw new Error(`${missingPage.title} is not ready to export yet.`);
 
   const pdfPages: PdfRecipePage[] = [];
   for (const page of orderedPages) {
-    const imageUrl = getCookbookPageImageUri(page);
+    const imageUrl = await resolveCookbookPageImageUri(page);
     if (!imageUrl) continue;
     pdfPages.push({
       title: page.title,

@@ -24,7 +24,7 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
-import { ArtLayer } from '@/components/cookbook/typesetter/ArtLayer';
+import { ArtLayer, type ArtLayerProps } from '@/components/cookbook/typesetter/ArtLayer';
 import { TextLayer } from '@/components/cookbook/typesetter/TextLayer';
 import { getTypesetterStyleConfig } from '@/constants/typesetterStyles';
 import { getTypesetterLayoutConfig } from '@/constants/typesetterLayouts';
@@ -32,6 +32,23 @@ import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Spacing } from '@/constants/spacing';
 import type { CookbookStyleId, RecipeTemplateId, PageArtAsset } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import { useCookbookPageImageUrl } from '@/hooks/useCookbookPageImage';
+
+interface ResolvedArtLayerProps extends Omit<ArtLayerProps, 'artUrl'> {
+  artAsset?: PageArtAsset | null;
+}
+
+function StoredArtLayer({ artAsset, ...props }: ResolvedArtLayerProps & { artAsset: PageArtAsset }) {
+  const storagePath = artAsset.storagePath!;
+  const imageQuery = useCookbookPageImageUrl(storagePath, 'full');
+  return <ArtLayer {...props} artUrl={imageQuery.data ?? null} />;
+}
+
+function ResolvedArtLayer({ artAsset, ...props }: ResolvedArtLayerProps) {
+  return artAsset?.storagePath
+    ? <StoredArtLayer {...props} artAsset={artAsset} />
+    : <ArtLayer {...props} artUrl={artAsset?.artUrl ?? null} />;
+}
 
 export interface TypesetterPageProps {
   /** The recipe graph to render (the canonical culinary data). */
@@ -96,18 +113,18 @@ export const TypesetterPage = memo(function TypesetterPage({
     return margin * 0.6 + artHeight + gap + 8;
   }, [pageWidth, pageHeight, styleConfig, layoutConfig]);
 
-  const artUrl = artAsset?.artUrl ?? null;
+  const artIdentity = artAsset?.storagePath ?? artAsset?.artUrl ?? null;
   const [loadedArtUrl, setLoadedArtUrl] = useState<string | null>(null);
   const hasMeasuredPage = pageWidth > 0 && pageHeight > 0;
 
   const handleArtReady = useCallback(() => {
-    setLoadedArtUrl(artUrl);
-  }, [artUrl]);
+    setLoadedArtUrl(artIdentity);
+  }, [artIdentity]);
 
   useEffect(() => {
     if (hasMeasuredPage) onRenderReady?.();
   }, [
-    artUrl,
+    artIdentity,
     hasMeasuredPage,
     layoutConfig,
     loadedArtUrl,
@@ -131,10 +148,10 @@ export const TypesetterPage = memo(function TypesetterPage({
       {hasMeasuredPage ? (
         <>
           {/* Art layer (z-index 0) — Skia Canvas with art + decorative elements */}
-          <ArtLayer
+          <ResolvedArtLayer
             width={pageWidth}
             height={pageHeight}
-            artUrl={artUrl}
+            artAsset={artAsset}
             styleConfig={styleConfig}
             layoutConfig={layoutConfig}
             onImageReady={handleArtReady}

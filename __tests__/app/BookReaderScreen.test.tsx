@@ -6,6 +6,9 @@ const mockRequestConsent = jest.fn();
 const mockFinishRecipePageCandidate = jest.fn();
 const mockUseCookbook = jest.fn();
 const mockUseCookbooks = jest.fn();
+const mockRecordReaderPage = jest.fn().mockResolvedValue(undefined);
+let mockReaderPositionPageId: string | undefined;
+let mockReaderPositionViewMode: 'page' | 'spread' | undefined;
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -34,6 +37,19 @@ jest.mock('@/hooks/useCookbook', () => ({
 
 jest.mock('@/hooks/useCookbooks', () => ({
   useCookbooks: () => mockUseCookbooks(),
+}));
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+jest.mock('@/hooks/useCookbookReaderPosition', () => ({
+  useCookbookReaderPosition: () => ({
+    isReady: true,
+    pageId: mockReaderPositionPageId,
+    viewMode: mockReaderPositionViewMode,
+    recordPage: mockRecordReaderPage,
+  }),
 }));
 
 jest.mock('@/hooks/useRecipeCaptures', () => ({
@@ -72,20 +88,34 @@ jest.mock('@/components/cookbook/BookReader', () => {
   const mockReact = require('react');
   const { Pressable, Text, View } = require('react-native');
   return {
-    BookReader: ({ pages, onGeneratePageCandidate }: {
+    BookReader: ({ pages, initialPageId, initialReadingView, onGeneratePageCandidate, onReadingPositionChange }: {
       pages: Array<{ recipeGraph: object }>;
+      initialPageId?: string;
+      initialReadingView?: 'page' | 'spread';
       onGeneratePageCandidate: (
         page: { recipeGraph: object },
         recipeGraph: object,
         instruction: string,
         idempotencyKey: string,
       ) => Promise<unknown>;
+      onReadingPositionChange?: (pageId: string, viewMode: 'page' | 'spread') => void;
     }) => {
       const [status, setStatus] = mockReact.useState('idle');
       const page = pages[0];
       return mockReact.createElement(
         View,
         null,
+        mockReact.createElement(Text, { testID: 'reader-initial-page' }, initialPageId ?? 'none'),
+        mockReact.createElement(Text, { testID: 'reader-initial-view' }, initialReadingView ?? 'none'),
+        mockReact.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Advance remembered page',
+            onPress: () => onReadingPositionChange?.('page-next', 'spread'),
+          },
+          mockReact.createElement(Text, null, 'Advance remembered page'),
+        ),
         mockReact.createElement(
           Pressable,
           {
@@ -115,6 +145,8 @@ describe('BookReaderScreen AI data consent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     const { SAMPLE_COOKBOOK, SAMPLE_COOKBOOK_PAGES } = require('@/utils/cookbook/sampleCookbook');
+    mockReaderPositionPageId = SAMPLE_COOKBOOK_PAGES[0].id;
+    mockReaderPositionViewMode = 'spread';
     mockUseCookbook.mockReturnValue({
       cookbook: SAMPLE_COOKBOOK,
       pages: [SAMPLE_COOKBOOK_PAGES[0]],
@@ -132,6 +164,15 @@ describe('BookReaderScreen AI data consent', () => {
       deleteCookbook: jest.fn(),
       updateCookbookTitle: jest.fn(),
     });
+  });
+
+  it('opens at the restored page and records reader progress', () => {
+    const screen = render(<BookReaderScreen />);
+
+    expect(screen.getByTestId('reader-initial-page')).toHaveTextContent(mockReaderPositionPageId!);
+    expect(screen.getByTestId('reader-initial-view')).toHaveTextContent('spread');
+    fireEvent.press(screen.getByRole('button', { name: 'Advance remembered page' }));
+    expect(mockRecordReaderPage).toHaveBeenCalledWith('page-next', 'spread');
   });
 
   it('does not generate a new page when the user declines AI processing', async () => {

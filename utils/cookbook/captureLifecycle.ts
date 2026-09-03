@@ -152,6 +152,18 @@ export function isCaptureProcessing(status: RecipeCaptureStatus): boolean {
   return status === 'processing';
 }
 
+/**
+ * Stable identity for page publication state. Polling timestamps are omitted so
+ * a capture heartbeat cannot cause the same page image to be fetched repeatedly.
+ */
+export function getCapturePageSyncKey(
+  capture: Pick<RecipeCapture, 'pageId' | 'status' | 'pageStatus'>,
+): string | null {
+  return capture.pageId
+    ? `${capture.pageId}:${capture.status}:${capture.pageStatus}`
+    : null;
+}
+
 export function markRecipeCaptureRetryQueued(
   capture: RecipeCapture,
   queuedAt = new Date().toISOString(),

@@ -15,6 +15,7 @@ import { loadCachedShelf, saveCachedShelf } from '@/utils/cookbook/cache';
 import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
 import type { Cookbook } from '@/types/cookbook';
 import { SAMPLE_COOKBOOK, shouldShowSampleCookbook } from '@/utils/cookbook/sampleCookbook';
+import { clearCookbookReaderPosition } from '@/utils/cookbook/readerPosition';
 
 export const SHELF_QUERY_KEY = (userId: string | undefined) => ['cookbook-shelf', userId];
 
@@ -76,6 +77,7 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
       queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user?.id), (existing = []) =>
         existing.filter((c) => c.id !== cookbookId),
       );
+      if (user?.id) void clearCookbookReaderPosition(user.id, cookbookId).catch(() => undefined);
     },
   });
 

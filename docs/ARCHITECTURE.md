@@ -145,6 +145,7 @@ Reader
   -> useCookbook(cookbookId)
   -> nutriai.cookbooks + nutriai.cookbook_pages (with recipe_graph JSONB)
   -> AsyncStorage per-book pages cache
+  -> user-scoped AsyncStorage reading position keyed by cookbook, stable page ID, and reader view mode
 
 Capture from Share to Folio, Add page, or assistant handoff
   -> image sources are orientation-normalized, bounded to 2400 px, and encoded below 8 MB
@@ -276,7 +277,21 @@ AI_MODEL
 
 ### Complete Cookbook Page Generation
 
-`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the clean canonical cooking-data projection, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` and `complete-recipe-page-4x5-v3` so geometry and generation contracts remain identifiable. Before upload, the function reads the generated PNG dimensions and rejects any output that is not physically 4:5. Publication retries reuse a ready image only when its recorded geometry matches the current contract, preventing an older deployment from silently restoring a 3:4 page or source-analysis copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, outer padding, or extraction commentary. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the clean canonical cooking-data projection, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` and `complete-recipe-page-4x5-v3` so geometry and generation contracts remain identifiable. Before upload, the function reads the generated PNG dimensions and rejects any output that is not physically 4:5. Publication retries reuse a ready image only when its recorded geometry matches the current contract, preventing an older deployment from silently restoring a 3:4 page or source-analysis copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, outer padding, or extraction commentary. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Cookbook metadata reads return that immutable path without signing or downloading the image. Visible surfaces resolve one-hour signed URLs on demand after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+
+### Page Image Delivery
+
+`storage_path` is the durable identity of a generated page image. Signed URLs are transport credentials and must never be used as React Query, AsyncStorage, or image-cache identity. `privatePageUrls.ts` memoizes each full or thumbnail signed URL until shortly before expiry and coalesces concurrent requests for the same object. `CookbookPageImage` uses `expo-image` with memory-and-disk caching keyed by the immutable storage path plus delivery variant, so a refreshed token does not download an unchanged page again.
+
+The page overview requests a bounded 480 × 600 transformed variant. Supabase image transformations require a plan that supports them; development projects without transformations fall back to the original image while retaining stable disk-cache identity. The reader resolves full-resolution images only for the active page and a two-page neighborhood on either side. In particular, the web Three.js reader must not receive authenticated URLs for the whole cookbook because `TextureLoader` eagerly downloads every URL in its input array. Sharing, export, and visual regeneration resolve a full asset only when the user explicitly starts that action.
+
+Capture polling updates progress metadata every 2.5 seconds while work is active, but a page is reconciled only when its page ID, capture status, or page status changes. Reordering and local removal update the affected React Query entries directly; they do not invalidate and reload an otherwise unchanged page list. See ADR 0016.
+
+### Reader Continuity
+
+`useCookbookReaderPosition` restores one user-scoped position for each cookbook before the reader begins its entry animation. The stable recipe-page ID is authoritative, so reordering cannot move a reader to different content. The saved numeric slot is only a recovery hint: if the saved page was removed or moved to another cookbook, the reader resumes at the page now occupying the nearest valid slot. An explicit `pageId` navigation from Composer, a completion toast, or Folio overrides saved history for that visit.
+
+Only a page that becomes visible is recorded. Page overview, action sheets, and other transient controls do not change reading history. Position writes include the active one-page or two-page mode and enter a per-user queue to preserve turn order across rapid navigation. Closing and reopening the physical cover retains that reading mode; process restarts and ordinary navigation restore the page and presentation together from AsyncStorage. Deleting a cookbook removes its position, and account deletion removes every position for that user. See ADR 0017.
 
 The reader and Composer expose this flow through the same compact recipe action system, including `Edit recipe` and `Try another design`. Both surfaces reuse `buildRecipeContextActions`, `RecipeActionsSheet`, and `RecipeRevisionSheet`; processing and recovery items do not receive ready-page controls. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Folio. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 
@@ -328,6 +343,7 @@ Page requests include the exact visible recipe copy and structured visual ingred
 - `nosh:unseen-cookbook-pages:v1:<userId>`: per-cookbook known and unseen ready-page IDs used by the local New marker.
 
 The caches are hydrated before network responses and then updated from React Query results.
+Expiring signed URLs are not persisted as image identity. Stored pages resolve through `storage_path`, and `expo-image` keeps the downloaded bytes under `folio-page:<variant>:<storagePath>`.
 
 ## Current Boundaries
 

@@ -8,6 +8,7 @@ import {
   normalizeCaptureDestinationCookbookId,
   normalizeRecipeCaptureStatus,
   reconcileCapturePage,
+  getCapturePageSyncKey,
 } from '@/utils/cookbook/captureLifecycle';
 import type { CookbookPage } from '@/types/cookbook';
 
@@ -87,6 +88,23 @@ describe('recipe capture lifecycle', () => {
     const published = page('published', 1, 'approved');
     expect(reconcileCapturePage([page('first', 0, 'approved'), published], published))
       .toEqual([page('first', 0, 'approved'), published]);
+  });
+
+  it('does not refetch a page when polling only changes capture timestamps', () => {
+    const capture = {
+      id: 'capture-1',
+      pageId: 'page-1',
+      status: 'processing' as const,
+      pageStatus: 'generating' as const,
+      updatedAt: '2026-09-03T10:00:00.000Z',
+    };
+
+    expect(getCapturePageSyncKey(capture)).toBe(
+      getCapturePageSyncKey({ ...capture, updatedAt: '2026-09-03T10:00:02.500Z' }),
+    );
+    expect(getCapturePageSyncKey({ ...capture, pageStatus: 'ready' })).not.toBe(
+      getCapturePageSyncKey(capture),
+    );
   });
 
   it('keeps processing pages out of the reader', () => {

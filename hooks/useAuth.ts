@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { identifyUser } from '@/utils/analytics';
 import { withTimeout } from '@/utils/networkTimeout';
+import { clearCookbookPageUrlCache } from '@/utils/cookbook/privatePageUrls';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -19,7 +20,8 @@ export function useAuth() {
       setInitializing(false);
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'SIGNED_OUT') clearCookbookPageUrlCache();
       setSession(s);
       setUser(s?.user ?? null);
       identifyUser(s?.user?.id ?? null, { email: s?.user?.email });
@@ -45,6 +47,7 @@ export function useAuth() {
         console.warn('[Auth] signOut fallback failed, clearing local state anyway', err1, err2);
       }
     } finally {
+      clearCookbookPageUrlCache();
       setSession(null);
       setUser(null);
     }

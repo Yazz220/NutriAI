@@ -17,7 +17,7 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { hasCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 
@@ -58,7 +58,7 @@ export function RecipeActionsSheet({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'actions' | 'move'>(initialView);
   const sourceUrl = page ? getRecipeSourceUrl(page) : null;
-  const hasPageImage = getCookbookPageImageSource(page) !== null;
+  const hasPageImage = hasCookbookPageImage(page);
   const destinations = cookbooks.filter((cookbook) => cookbook.id !== cookbookId);
   const canRevise = Boolean(!readOnly && page?.recipeGraph && (onEdit || onRedesign));
   const canMove = Boolean(!readOnly && onMove && destinations.length > 0);

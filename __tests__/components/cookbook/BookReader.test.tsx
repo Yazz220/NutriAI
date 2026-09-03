@@ -226,6 +226,58 @@ describe('BookReader cover entry', () => {
     jest.useRealTimers();
   });
 
+  it('keeps the cover stable until a saved position is hydrated, then opens that page', async () => {
+    jest.useFakeTimers();
+    const onSelectPage = jest.fn();
+    const resumedPage = SAMPLE_COOKBOOK_PAGES[2];
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPositionReady: false,
+      onSelectPage,
+      onShare: jest.fn(),
+    });
+
+    act(() => jest.runAllTimers());
+    expect(screen.getByText('Cookbook closed')).toBeTruthy();
+    expect(onSelectPage).not.toHaveBeenCalled();
+
+    screen.rerender(
+      <NoshConversationProvider>
+        <BookReader
+          cookbook={SAMPLE_COOKBOOK}
+          pages={SAMPLE_COOKBOOK_PAGES}
+          initialPageId={resumedPage.id}
+          initialPositionReady
+          onSelectPage={onSelectPage}
+          onShare={jest.fn()}
+        />
+      </NoshConversationProvider>,
+    );
+
+    await waitFor(() => expect(onSelectPage).toHaveBeenCalledWith(resumedPage.id));
+    expect(screen.getByText('Cookbook open')).toBeTruthy();
+    expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    jest.useRealTimers();
+  });
+
+  it('restores the saved two-page view instead of forcing a recipe into one-page view', async () => {
+    const resumedPage = SAMPLE_COOKBOOK_PAGES[2];
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: resumedPage.id,
+      initialReadingView: 'spread',
+      initialPositionReady: true,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    expect(screen.getByText('Cookbook open')).toBeTruthy();
+    expect(screen.getByText('Recipe spread')).toBeTruthy();
+    expect(screen.queryByText('Recipe reading page')).toBeNull();
+  });
+
   it('returns to the existing shelf screen instead of replacing it', async () => {
     const { router } = require('expo-router');
     const screen = await renderReader({
@@ -522,10 +574,12 @@ describe('BookReader compact reading flow', () => {
     jest.useFakeTimers();
     const { router } = require('expo-router');
     router.dismissTo.mockClear();
+    const onReadingPositionChange = jest.fn();
     const screen = await renderReader({
       cookbook: SAMPLE_COOKBOOK,
       pages: SAMPLE_COOKBOOK_PAGES,
       onSelectPage: jest.fn(),
+      onReadingPositionChange,
       onShare: jest.fn(),
     });
 
@@ -533,9 +587,11 @@ describe('BookReader compact reading flow', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Open recipe page' }));
 
     expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith(SAMPLE_COOKBOOK_PAGES[0].id, 'page');
     fireEvent.press(screen.getByRole('button', { name: 'Back to open cookbook' }));
 
     expect(screen.getByText('Recipe spread')).toBeTruthy();
+    expect(onReadingPositionChange).toHaveBeenLastCalledWith(SAMPLE_COOKBOOK_PAGES[0].id, 'spread');
     expect(router.dismissTo).not.toHaveBeenCalled();
     jest.useRealTimers();
   });

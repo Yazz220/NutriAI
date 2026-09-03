@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
 import { AlertTriangle, BookOpen, Ellipsis } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import Sortable, { type SortableGridDragEndParams, type SortableGridRenderItem } from 'react-native-sortables';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 import { PageGenerationPreview, PageGenerationStatus } from '@/components/cookbook/PageGenerationState';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
@@ -12,7 +13,7 @@ import { Colors } from '@/constants/colors';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import type { CookbookPage } from '@/types/cookbook';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { hasCompleteCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
 import { buildCookbookPageGridItems, type CookbookPageGridItem } from '@/utils/cookbook/pageGrid';
 import { getBeforePageId } from '@/utils/cookbook/pageOrder';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
@@ -85,13 +86,13 @@ function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
 }
 
 function PageThumbnail({ page }: { page: CookbookPage }) {
-  const source = getCookbookPageImageSource(page);
-  if (source !== null) {
+  if (hasCompleteCookbookPageImage(page)) {
     return (
-      <Image
-        source={typeof source === 'number' ? source : { uri: source }}
+      <CookbookPageImage
+        page={page}
+        variant="thumbnail"
         style={styles.pageImage}
-        resizeMode="contain"
+        contentFit="contain"
         accessible={false}
       />
     );
