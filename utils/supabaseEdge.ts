@@ -1,3 +1,5 @@
+import { fetch as expoFetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 const DEFAULT_FUNCTION_TIMEOUT_MS = 60_000;
@@ -137,11 +139,12 @@ export async function* streamAuthenticatedFunction<T>(
   if (options.signal?.aborted) controller.abort();
   options.signal?.addEventListener('abort', abortFromExternal, { once: true });
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await (Platform.OS === 'web' ? fetch : expoFetch)(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -179,7 +182,7 @@ export async function* streamAuthenticatedFunction<T>(
       }
       return;
     }
-    const reader = res.body.getReader();
+    reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -205,5 +208,7 @@ export async function* streamAuthenticatedFunction<T>(
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener('abort', abortFromExternal);
+    // A semantic terminal event may end consumption before the peer closes.
+    void reader?.cancel().catch(() => {});
   }
 }

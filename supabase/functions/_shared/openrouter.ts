@@ -233,7 +233,11 @@ export async function* streamChatCompletion(
         const trimmed = line.trim();
         if (!trimmed.startsWith('data:')) continue;
         const data = trimmed.slice(5).trim();
-        if (!data || data === '[DONE]') continue;
+        if (data === '[DONE]') {
+          void reader.cancel().catch(() => {});
+          return;
+        }
+        if (!data) continue;
         yield JSON.parse(data) as ChatCompletionStreamChunk;
       }
 

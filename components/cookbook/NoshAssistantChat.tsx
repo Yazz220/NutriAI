@@ -41,7 +41,6 @@ import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbo
 import type { RecipeGraph } from '@/types/recipeGraph';
 import {
   isSameNoshFocus,
-  shouldOfferNoshFocusTransition,
   type NoshInteractionSession,
 } from '@/types/noshInteraction';
 import {
@@ -627,84 +626,18 @@ export function NoshConversationHost() {
     task: interaction.task,
     focus: interaction.focus,
   });
-  const pendingFocusTransitionRef = useRef<string | null>(null);
-
   useEffect(() => {
     const requested: NoshInteractionSession = {
       entryPoint: interaction.entryPoint,
       task: interaction.task,
       focus: interaction.focus,
     };
-    const accepted = acceptedInteractionRef.current;
-    const threadMessages = runtime.thread.getState().messages;
-    const userMessageCount = threadMessages.filter((message) => message.role === 'user').length;
-    if (!visible || !shouldOfferNoshFocusTransition(
-      accepted,
-      requested,
-      threadMessages.length > 0,
-    )) {
-      if (!isSameNoshFocus(accepted.focus, requested.focus)) {
-        focusUserMessageCountRef.current = userMessageCount;
-      }
-      acceptedInteractionRef.current = requested;
-      return;
+    if (!isSameNoshFocus(acceptedInteractionRef.current.focus, requested.focus)) {
+      focusUserMessageCountRef.current = runtime.thread.getState().messages
+        .filter((message) => message.role === 'user').length;
     }
-
-    const requestedTarget = requested.focus.kind === 'recipe' || requested.focus.kind === 'cookbook'
-      ? requested.focus
-      : null;
-    if (!requestedTarget) return;
-    const targetId = requestedTarget.kind === 'recipe'
-      ? requestedTarget.pageId
-      : requestedTarget.cookbookId;
-    const transitionKey = `${runtime.thread.getState().threadId}:${requestedTarget.kind}:${targetId}`;
-    if (pendingFocusTransitionRef.current === transitionKey) return;
-    pendingFocusTransitionRef.current = transitionKey;
-    restoreInteraction(accepted);
-
-    Alert.alert(
-      `Ask Folio about ${requestedTarget.title}?`,
-      'Continue this conversation with what you are viewing now, or start a new conversation for it.',
-      [
-        {
-          text: 'Keep current focus',
-          style: 'cancel',
-          onPress: () => {
-            pendingFocusTransitionRef.current = null;
-          },
-        },
-        {
-          text: 'Continue here',
-          onPress: () => {
-            acceptedInteractionRef.current = requested;
-            focusUserMessageCountRef.current = userMessageCount;
-            pendingFocusTransitionRef.current = null;
-            restoreInteraction(requested);
-          },
-        },
-        {
-          text: 'New conversation',
-          onPress: () => {
-            clearSessionScratch();
-            void runtime.threads.switchToNewThread()
-              .then(() => {
-                acceptedInteractionRef.current = requested;
-                focusUserMessageCountRef.current = 0;
-                pendingFocusTransitionRef.current = null;
-                restoreInteraction(requested);
-              })
-              .catch((error) => {
-                pendingFocusTransitionRef.current = null;
-                Alert.alert(
-                  'Could not start a new conversation',
-                  error instanceof Error ? error.message : 'Please try again.',
-                );
-              });
-          },
-        },
-      ],
-    );
-  }, [clearSessionScratch, interaction, restoreInteraction, runtime, visible]);
+    acceptedInteractionRef.current = requested;
+  }, [interaction, runtime]);
 
   const closeAndResetHistory = useCallback(() => {
     setShowingHistory(false);

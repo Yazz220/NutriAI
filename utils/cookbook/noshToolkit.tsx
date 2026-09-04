@@ -10,7 +10,7 @@
  * execute functions need access to the current page and an update callback.
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { defineToolkit } from '@assistant-ui/react-native';
 import Reanimated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -165,6 +165,19 @@ function SearchRecipeCollectionToolUI({ args, status, result, isError }: {
       running={status.type === 'running'}
     />
   );
+}
+
+function FailedRecipeAction({ message, onResult }: {
+  message: string;
+  onResult: (result: { error: string }) => void;
+}) {
+  const settled = useRef(false);
+  useEffect(() => {
+    if (settled.current) return;
+    settled.current = true;
+    onResult({ error: message });
+  }, [message, onResult]);
+  return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label={message} error />;
 }
 
 export function BrowseRecipeCollectionToolUI({ args, status, result, isError }: {
@@ -574,7 +587,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           targetServings: z.number().int().min(1).max(100),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
+          if (!recipeGraph) return <FailedRecipeAction message="No recipe in focus" onResult={addResult} />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -584,7 +597,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
+            return <FailedRecipeAction message={error instanceof Error ? error.message : 'Could not prepare change'} onResult={addResult} />;
           }
         },
       },
@@ -600,7 +613,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           reason: z.string().optional(),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
+          if (!recipeGraph) return <FailedRecipeAction message="No recipe in focus" onResult={addResult} />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -610,7 +623,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
+            return <FailedRecipeAction message={error instanceof Error ? error.message : 'Could not prepare change'} onResult={addResult} />;
           }
         },
       },
@@ -641,7 +654,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
           ),
         }),
         render: ({ args, addResult }) => {
-          if (!recipeGraph) return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="No recipe in focus" error />;
+          if (!recipeGraph) return <FailedRecipeAction message="No recipe in focus" onResult={addResult} />;
           try {
             return (
               <RecipeActionPreviewCard
@@ -651,7 +664,7 @@ export function useNoshToolkit(ctx: NoshToolkitContext) {
               />
             );
           } catch (error) {
-            return <NoshToolActivity icon={<ChefHat size={16} color={Colors.primary} />} label="Could not prepare change" detail={error instanceof Error ? error.message : undefined} error />;
+            return <FailedRecipeAction message={error instanceof Error ? error.message : 'Could not prepare change'} onResult={addResult} />;
           }
         },
       },

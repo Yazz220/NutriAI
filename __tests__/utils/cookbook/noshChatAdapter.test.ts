@@ -521,6 +521,7 @@ describe('createNoshChatAdapter', () => {
           'open_recipe',
           'list_cookbooks',
           'organize_recipe',
+          'start_timer',
           'save_cooking_preference',
         ],
         cookbookContext: expect.not.objectContaining({ otherRecipes: expect.anything() }),
@@ -564,7 +565,7 @@ describe('createNoshChatAdapter', () => {
     );
   });
 
-  it('resolves recipe context before starting a recipe-scoped request', async () => {
+  it('lets the server resolve canonical context without a duplicate client lookup', async () => {
     const resolvedGraph = { title: 'Pasta', ingredientGroups: [], stepGroups: [] };
     const resolveRecipeGraph = jest.fn().mockResolvedValue(resolvedGraph);
     mockResponse({
@@ -584,7 +585,7 @@ describe('createNoshChatAdapter', () => {
 
     await runAdapter(adapter, runOptions(jest.fn()));
 
-    expect(resolveRecipeGraph).toHaveBeenCalledTimes(1);
+    expect(resolveRecipeGraph).not.toHaveBeenCalled();
     expect(mockedStream).toHaveBeenCalledWith(
       'nosh-chat',
       expect.objectContaining({
@@ -703,5 +704,25 @@ describe('createNoshChatAdapter', () => {
       }),
       expect.anything(),
     );
+  });
+});
+
+
+describe('terminal chat events', () => {
+  it('completes at result without consuming a delayed EOF', async () => {
+    let consumedAfterResult = false;
+    let released = false;
+    mockedStream.mockImplementation(async function* () {
+      try {
+        yield { type: 'result', result: { message: { role: 'assistant', content: 'Start with the onions.' }, toolCalls: [] } } as never;
+        consumedAfterResult = true;
+        throw new Error('Transport stayed open after the answer');
+      } finally { released = true; }
+    });
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
+    const updates = await runAdapter(adapter, runOptions(jest.fn()));
+    expect(updates.status).toEqual({ type: 'complete', reason: 'stop' });
+    expect(consumedAfterResult).toBe(false);
+    expect(released).toBe(true);
   });
 });

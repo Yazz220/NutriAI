@@ -85,7 +85,8 @@ const CHAT_MODEL = Deno.env.get('CHAT_MODEL')
   || Deno.env.get('AI_MODEL')
   || 'qwen/qwen3.6-35b-a3b';
 const CHAT_TIMEOUT_MS = 60_000;
-const PROMPT_VERSION = '2026-09-03.v2';
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+const PROMPT_VERSION = '2026-09-05.v1';
 /**
  * Read-only tools that nosh-chat executes itself, inside one request, so a
  * search -> load -> answer chain costs one round trip instead of three.
@@ -544,11 +545,18 @@ function buildSystemPrompt(
     parts.push('');
   }
 
+  parts.push('CONVERSATION FIRST');
+  parts.push('- Answer immediately when the supplied recipe and conversation contain enough information. Do not call tools to restate known steps, quantities, substitutions, or cooking advice.');
+  parts.push('- "Help me make this" means begin helping with the current recipe. Give the first useful step naturally, without a menu, setup questions, or a walkthrough mode.');
+  parts.push('- Follow conversational progress: "done, next" continues from the last step discussed; "all the steps" gives the complete method immediately. Answer interruptions and substitutions without resetting the conversation. Ask only when something necessary is genuinely unclear.');
+  parts.push('- Advice is not permission to edit. Explain substitutions and scaled quantities in text. Use change-preview tools only when the user asks to apply a change or explicitly requests an interactive preview.');
+  parts.push('- Keep simple answers brief; provide the full method or detail when requested. Do not narrate internal tools or context management.');
+  parts.push('');
   parts.push('TOOLS');
   parts.push('- Complete the task in one reply: chain lookups (search or browse → load_recipe → answer) silently, then answer once with the result. Never narrate lookups or report "I found N recipes" as the answer when the user asked for something else.');
   parts.push('- browse_recipe_collection answers inventory, counts, "what can I make with…", exclusions, cuisine, category, tags, time limits ("quickest", "under 30 minutes" → sort=time or maxTotalMinutes), and pagination. Its compact rows are enough for recommendations; load only the recipes the user asks about.');
   parts.push(`- Budget per user request: at most ${MAX_COLLECTION_LOOKUPS_PER_REQUEST} searches, ${MAX_COLLECTION_LOOKUPS_PER_REQUEST} browses, and ${MAX_LOADED_RECIPES_PER_REQUEST} loaded recipes. For comparisons, load each recipe separately. If the user asks for more, help them narrow instead.`);
-  parts.push('- Shopping lists: load the recipe(s), then list every ingredient with quantity and unit, grouped sensibly (produce, protein, dairy, pantry). Merge duplicates across recipes. If the user says what they already have, omit those and say so.');
+  parts.push('- Shopping lists: use the supplied full recipe graphs, loading only missing recipes, then list every ingredient with quantity and unit, grouped sensibly (produce, protein, dairy, pantry). Merge duplicates across recipes. If the user says what they already have, omit those and say so.');
   parts.push('- open_recipe only when the user explicitly asks to open, show, or go to a recipe. Answering never changes screens.');
   parts.push('- scale_servings, substitute_ingredient, and update_page_data preview a change to the FOCUSED RECIPE and let the user choose temporary use, saved update, or cancel. Do not choose for the user. If the user wants to change a recipe that is not the focused page, explain how to open it first, or offer the scaled or substituted quantities in text.');
   parts.push('- Moving or copying: resolve the exact recipe, call list_cookbooks for the exact destination, then organize_recipe with ids. The card is a proposal; nothing changes until the user confirms.');
@@ -752,7 +760,7 @@ async function resolveAgentContext(req: Request, body: RequestBody, userId: stri
 }> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
+    global: { headers: { Authorization: authHeader }, fetch: (url, init) => fetch(url, { ...init, signal: req.signal }) },
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const interactionContext = body.interactionContext
@@ -1123,9 +1131,12 @@ async function* runAgentTurn(input: {
   const counts = { ...input.initialCounts };
   let messages = buildSafeChatMessages(input.systemPrompt, input.history) as ChatMessage[];
   let state = input.conversationState;
+  const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   for (let round = 0; ; round += 1) {
-    const tools = toolBudgetFilter(input.tools, counts);
+    if (Date.now() >= deadline) throw new Error('Folio took too long to respond. Please try again.');
+    // The final round synthesizes an answer instead of escaping into another client read loop.
+    const tools = round >= MAX_SERVER_TOOL_ROUNDS ? [] : toolBudgetFilter(input.tools, counts);
     const rawToolCalls = new Map<number, ToolCall>();
     let content = '';
     let finishReason = 'stop';
@@ -1139,7 +1150,7 @@ async function* runAgentTurn(input: {
         tools: tools.length > 0 ? tools : undefined,
         tool_choice: tools.length > 0 ? 'auto' : undefined,
       },
-      { timeoutMs: CHAT_TIMEOUT_MS, signal: req.signal },
+      { timeoutMs: Math.max(1, deadline - Date.now()), signal: req.signal },
     )) {
       const choice = chunk.choices?.[0];
       const textDelta = choice?.delta?.content;
@@ -1172,17 +1183,15 @@ async function* runAgentTurn(input: {
       .map(([, call]) => call)
       .filter((call) => call.id && call.function.name);
     const parsed = parseToolCalls(orderedRaw);
-    const valid = parsed.filter(validateToolCall);
+    const valid = parsed.filter((call) => validateToolCall(call) && tools.some((tool) => tool.function.name === call.name));
     const invalidCount = parsed.length - valid.length;
     if (invalidCount > 0) logError('nosh-chat: rejected invalid tool calls', { count: invalidCount });
     const validIds = new Set(valid.map((call) => call.id));
     const safeRaw = orderedRaw.filter((call) => validIds.has(call.id));
 
-    const allServerSide = valid.length > 0 && valid.every((call) => SERVER_TOOL_NAMES.has(call.name));
-    if (!allServerSide || round >= MAX_SERVER_TOOL_ROUNDS) {
-      if (valid.length > 0 && allServerSide) {
-        logInfo('nosh-chat server tool budget reached; handing remaining calls to client', { round });
-      }
+    const serverCalls = valid.filter((call) => SERVER_TOOL_NAMES.has(call.name));
+    const clientCalls = valid.filter((call) => !SERVER_TOOL_NAMES.has(call.name));
+    if (serverCalls.length === 0) {
       yield {
         type: 'result',
         result: {
@@ -1200,8 +1209,9 @@ async function* runAgentTurn(input: {
       return;
     }
 
-    for (const call of safeRaw) yield { type: 'tool-call', toolCall: call };
-    const results = await Promise.all(valid.map(async (call) => {
+    const serverRaw = safeRaw.filter((call) => SERVER_TOOL_NAMES.has(call.function.name));
+    for (const call of serverRaw) yield { type: 'tool-call', toolCall: call };
+    const results = await Promise.all(serverCalls.map(async (call) => {
       try {
         const result = await executeServerTool(input.userClient, call, body);
         return { call, result, isError: typeof result.error === 'string' };
@@ -1225,6 +1235,14 @@ async function* runAgentTurn(input: {
 
     if (state !== input.conversationState) {
       input.onStateChange?.(state);
+    }
+    if (clientCalls.length) {
+      yield { type: 'result', result: {
+        message: { role: 'assistant', content, tool_calls: safeRaw.filter((call) => !SERVER_TOOL_NAMES.has(call.function.name)) },
+        toolCalls: clientCalls.map((call) => ({ tool: call.name, ...call.arguments })),
+        finishReason, usage, requestId: input.requestId,
+      } };
+      return;
     }
     messages = [
       ...messages,
@@ -1251,6 +1269,8 @@ function replaceConversationStateBlock(systemPrompt: string, state: Conversation
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsResponse(req);
   const requestStartedAt = Date.now();
+  const turnAbort = new AbortController();
+  req = new Request(req, { signal: AbortSignal.any([req.signal, turnAbort.signal, AbortSignal.timeout(CHAT_TIMEOUT_MS)]) });
 
   const { user, error: authError } = await verifyAuth(req);
   if (authError) return authError;
@@ -1295,7 +1315,15 @@ serve(async (req: Request) => {
       }
     }
 
-    const resolvedContext = await resolveAgentContext(req, body, user!.id);
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' }, fetch: (url, init) => fetch(url, { ...init, signal: req.signal }) },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const threadId = safeIdentifier(body.threadId);
+    const persistedStatePromise = threadId ? readThreadState(userClient, threadId) : Promise.resolve(emptyConversationState());
+    const [resolvedContext, persistedState] = await Promise.all([
+      resolveAgentContext(req, body, user!.id), persistedStatePromise,
+    ]);
     body.interactionContext = resolvedContext.interactionContext;
 
     if (body.messages.at(-1)?.role === 'tool') {
@@ -1321,12 +1349,6 @@ serve(async (req: Request) => {
         ...(typeof focus.cookbookId === 'string' ? { cookbookId: focus.cookbookId } : {}),
       }
       : null;
-    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const threadId = safeIdentifier(body.threadId);
-    const persistedState = threadId ? await readThreadState(userClient, threadId) : emptyConversationState();
     const derivedState = deriveConversationState(
       body.messages,
       focusRef,
@@ -1343,13 +1365,24 @@ serve(async (req: Request) => {
       initialCounts[name] = countCompletedToolCallsSinceLatestUser(body.messages, name);
     }
     const tools = selectTools(body.tools);
-    const systemPrompt = buildSystemPrompt(
+    let systemPrompt = buildSystemPrompt(
       resolvedContext.recipeGraph,
       body.cookbookContext,
       resolvedContext.interactionContext,
       resolvedContext.cookingPreferences,
       conversationState,
     );
+
+    // Hydrate the resolved subject once before inference. Historical graphs stay compact,
+    // while follow-ups receive fresh, RLS-checked quantities without a model/tool round.
+    if (conversationState.subject && conversationState.subject.pageId !== focusRef?.pageId) {
+      const { data, error } = await userClient.schema('nutriai').from('cookbook_pages')
+        .select('recipe_graph').eq('id', conversationState.subject.pageId).maybeSingle();
+      if (error) throw new Error('The recipe could not be loaded. Please try again.');
+      systemPrompt += data?.recipe_graph
+        ? `\nCURRENT SUBJECT RECIPE (fresh full graph; answer directly):\n${JSON.stringify(data.recipe_graph)}`
+        : '\nThe current subject recipe is unavailable. Do not use historical quantities or steps; ask the user to choose another recipe.';
+    }
 
     const compactMessages = compactChatHistory(body.messages);
     const traceStartPromise = startAgentRun({ requestId, userId: user!.id, body, tools })
@@ -1376,6 +1409,8 @@ serve(async (req: Request) => {
 
     const executedToolNames: string[] = [];
     let finalConversationState = conversationState;
+    let firstTextAt: number | undefined;
+    logInfo('nosh-chat context ready', { requestId, durationMs: Date.now() - requestStartedAt });
     const turn = runAgentTurn({
       req,
       requestId,
@@ -1425,31 +1460,47 @@ serve(async (req: Request) => {
           ...finalConversationState,
           activeTask: activeTask ?? finalConversationState.activeTask,
         };
-        await upsertThreadState(userClient, threadId, stateToPersist);
+        // The client may close its reader as soon as it receives the result.
+        // Persist with the same user authorization, independently of that signal.
+        const persistenceClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        await upsertThreadState(persistenceClient, threadId, stateToPersist);
       }
     };
 
     if (body.stream) {
       const encoder = new TextEncoder();
+      let streamCancelled = false;
       const responseStream = new ReadableStream<Uint8Array>({
+        cancel() { streamCancelled = true; turnAbort.abort(); },
         async start(controller) {
           const send = (event: unknown) => {
-            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+            if (!streamCancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
           };
           try {
             let finalResult: Extract<AgentEvent, { type: 'result' }>['result'] | undefined;
             for await (const event of turn) {
+              if (event.type === 'text-delta' && firstTextAt === undefined) {
+                firstTextAt = Date.now();
+                logInfo('nosh-chat first text', { requestId, durationMs: firstTextAt - requestStartedAt });
+              }
               send(event);
               if (event.type === 'result') finalResult = event.result;
             }
-            await finishTrace('completed', finalResult);
+            EdgeRuntime.waitUntil(finishTrace('completed', finalResult).catch((error) => {
+              logError('nosh-chat completion bookkeeping failed', { error: String(error) });
+            }));
           } catch (modelErr) {
             const message = modelErr instanceof Error ? modelErr.message : 'Chat request failed';
             logError('nosh-chat stream failed', { error: message });
-            await finishTrace(req.signal.aborted ? 'cancelled' : 'failed', undefined, modelErr);
+            EdgeRuntime.waitUntil(finishTrace(req.signal.aborted ? 'cancelled' : 'failed', undefined, modelErr).catch((error) => {
+              logError('nosh-chat failure bookkeeping failed', { error: String(error) });
+            }));
             send({ type: 'error', error: message });
           } finally {
-            controller.close();
+            if (!streamCancelled) controller.close();
           }
         },
       });

@@ -1,9 +1,10 @@
+import { defineToolkit } from '@assistant-ui/react-native';
 import React from 'react';
-import { render } from '@testing-library/react-native';
-import { BrowseRecipeCollectionToolUI } from '@/utils/cookbook/noshToolkit';
+import { render, renderHook } from '@testing-library/react-native';
+import { BrowseRecipeCollectionToolUI, useNoshToolkit } from '@/utils/cookbook/noshToolkit';
 import type { RecipeCollectionBrowseResult } from '@/utils/cookbook/recipeCollection';
 
-jest.mock('@assistant-ui/react-native', () => ({ defineToolkit: () => () => ({}) }));
+jest.mock('@assistant-ui/react-native', () => ({ defineToolkit: jest.fn(() => () => ({})) }));
 jest.mock('@/lib/supabase', () => ({ supabase: {} }));
 jest.mock('@/components/nosh/recipe/RecipeActionPreviewCard', () => ({ RecipeActionPreviewCard: () => null }));
 jest.mock('@/components/nosh/recipe/ArtworkActionCard', () => ({ ArtworkActionCard: () => null }));
@@ -56,4 +57,21 @@ describe('BrowseRecipeCollectionToolUI', () => {
       name: 'Could not browse your cookbooks. Your saved recipes',
     })).toBeTruthy();
   });
+});
+
+
+describe('recipe proposal failures', () => {
+  it.each(['scale_servings', 'substitute_ingredient', 'update_page_data'])(
+    '%s resolves its pending tool when the recipe is unavailable', (name) => {
+      renderHook(() => useNoshToolkit({ recipeGraph: null, onCommitRecipeAction: jest.fn() }));
+      const definitions = (defineToolkit as jest.Mock).mock.calls.at(-1)[0];
+      const addResult = jest.fn();
+      const view = render(definitions[name].render({ args: {}, addResult }));
+      expect(addResult).toHaveBeenCalledWith({ error: 'No recipe in focus' });
+      expect(addResult).toHaveBeenCalledTimes(1);
+      const newCallback = jest.fn();
+      view.rerender(definitions[name].render({ args: {}, addResult: newCallback }));
+      expect(newCallback).not.toHaveBeenCalled();
+    },
+  );
 });

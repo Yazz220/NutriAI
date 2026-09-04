@@ -1,3 +1,4 @@
+jest.mock('expo/fetch', () => ({ fetch: (...args: unknown[]) => global.fetch(...args as Parameters<typeof fetch>) }));
 import {
   fetchWithTimeout,
   FunctionCanceledError,
@@ -124,4 +125,21 @@ describe('streamAuthenticatedFunction', () => {
       },
     ]);
   });
+  it('cancels the reader when a terminal event ends consumption before EOF', async () => {
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    const read = jest.fn().mockResolvedValueOnce({
+      done: false, value: new TextEncoder().encode('{"type":"result"}\n'),
+    });
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
+      body: { getReader: () => ({ read, cancel }) },
+    } as unknown as Response);
+    for await (const event of streamAuthenticatedFunction('nosh-chat', {})) {
+      expect(event).toEqual({ type: 'result' });
+      break;
+    }
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
 });

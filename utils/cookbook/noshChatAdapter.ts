@@ -295,8 +295,8 @@ export interface NoshChatAdapterContext {
 }
 
 const TOOLS_BY_TASK: Record<NoshTask, string[]> = {
-  collection: ['start_recipe_capture', 'browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'list_cookbooks', 'organize_recipe', 'save_cooking_preference'],
-  'cookbook-help': ['browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'organize_recipe', 'save_cooking_preference'],
+  collection: ['start_recipe_capture', 'browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'list_cookbooks', 'organize_recipe', 'start_timer', 'save_cooking_preference'],
+  'cookbook-help': ['browse_recipe_collection', 'search_recipe_collection', 'load_recipe', 'open_recipe', 'organize_recipe', 'start_timer', 'save_cooking_preference'],
   'recipe-help': [
     'start_recipe_capture',
     'search_recipe_collection',
@@ -339,19 +339,18 @@ export function createNoshChatAdapter(
         throw new Error('Allow AI processing to send messages to Folio.');
       }
       const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
-      const resolvedRecipeGraph = responseMode
-        ? null
-        : ctx.resolveRecipeGraph
-          ? await ctx.resolveRecipeGraph()
-          : ctx.recipeGraph;
       const shouldSendRecipeGraph = ctx.recipeGraphSource === 'session-preview';
+      // Canonical context is loaded by the server; do not gate first text on a duplicate lookup.
+      const resolvedRecipeGraph = !responseMode && shouldSendRecipeGraph
+        ? ctx.resolveRecipeGraph ? await ctx.resolveRecipeGraph() : ctx.recipeGraph
+        : ctx.recipeGraph;
       const cookingPreferences = !responseMode && ctx.resolveCookingPreferences
         ? await ctx.resolveCookingPreferences()
         : [];
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),
         ...(shouldSendRecipeGraph && resolvedRecipeGraph ? { recipeGraph: resolvedRecipeGraph } : {}),
-        ...(resolvedRecipeGraph ? { recipeGraphSource: ctx.recipeGraphSource ?? 'canonical' } : {}),
+        ...(!responseMode ? { recipeGraphSource: ctx.recipeGraphSource ?? 'canonical' } : {}),
         ...(cookingPreferences.length ? { cookingPreferences } : {}),
         cookbookContext: buildCookbookContext(
           ctx.activeCookbookId,
@@ -377,7 +376,7 @@ export function createNoshChatAdapter(
       const streamed = new StreamedContent();
       let sawServerToolEvents = false;
       try {
-        for await (const event of streamAuthenticatedFunction<NoshChatStreamEvent | NoshChatResponse>(
+        responseEvents: for await (const event of streamAuthenticatedFunction<NoshChatStreamEvent | NoshChatResponse>(
           'nosh-chat',
           requestBody as unknown as Record<string, unknown>,
           { timeoutMs: 120_000, signal: abortSignal },
@@ -386,7 +385,7 @@ export function createNoshChatAdapter(
             // Compatibility with a nosh-chat deployment that has not yet been
             // upgraded to NDJSON streaming.
             response = event;
-            continue;
+            break;
           }
           switch (event.type) {
             case 'text-delta':
@@ -404,7 +403,7 @@ export function createNoshChatAdapter(
               break;
             case 'result':
               response = event.result;
-              break;
+              break responseEvents;
             case 'error':
               throw new Error(event.error);
           }

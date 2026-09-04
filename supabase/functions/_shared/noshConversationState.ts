@@ -232,7 +232,7 @@ export function formatConversationState(state: ConversationState): string[] {
   if (state.loadedRecipes.length > 0) {
     lines.push(`Recipes already read this conversation: ${
       state.loadedRecipes.map((ref) => `${ref.title} (pageId: ${ref.pageId})`).join('; ')
-    }. Their full graphs are not kept in history; call load_recipe with the pageId when you need exact quantities again.`);
+    }. Use the supplied current subject or focused recipe graph directly. Call load_recipe only for a recipe whose full graph is not supplied.`);
   }
   return lines;
 }
