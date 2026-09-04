@@ -1,3 +1,4 @@
+import { abortable } from '@/utils/abortable';
 /**
  * NoshChatAdapter — bridges the assistant-ui ChatModelAdapter to the
  * nosh-chat Supabase Edge Function.
@@ -335,17 +336,17 @@ export function createNoshChatAdapter(
     }) {
       const ctx = getContext();
       const responseMode = isQuickSocialTurn(messages) ? 'quick' : undefined;
-      if (!responseMode && requestConsent && !await requestConsent()) {
+      if (!responseMode && requestConsent && !await abortable(requestConsent(), abortSignal)) {
         throw new Error('Allow AI processing to send messages to Folio.');
       }
       const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
       const shouldSendRecipeGraph = ctx.recipeGraphSource === 'session-preview';
       // Canonical context is loaded by the server; do not gate first text on a duplicate lookup.
       const resolvedRecipeGraph = !responseMode && shouldSendRecipeGraph
-        ? ctx.resolveRecipeGraph ? await ctx.resolveRecipeGraph() : ctx.recipeGraph
+        ? ctx.resolveRecipeGraph ? await abortable(ctx.resolveRecipeGraph(), abortSignal) : ctx.recipeGraph
         : ctx.recipeGraph;
       const cookingPreferences = !responseMode && ctx.resolveCookingPreferences
-        ? await ctx.resolveCookingPreferences()
+        ? await abortable(ctx.resolveCookingPreferences(), abortSignal)
         : [];
       const requestBody: NoshChatRequest = {
         messages: convertMessagesToNoshFormat(messages),

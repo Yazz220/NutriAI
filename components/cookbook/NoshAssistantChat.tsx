@@ -33,7 +33,7 @@ import { Colors } from '@/constants/colors';
 import { getCookbookPageStyleReferences } from '@/constants/cookbookCustomization';
 import { Spacing } from '@/constants/spacing';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
-import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import { AiDataConsentPromptHost, useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useAuth } from '@/hooks/useAuth';
 import { COOKBOOK_PAGES_QUERY_KEY } from '@/hooks/useCookbook';
 import { SHELF_QUERY_KEY, useCookbooks } from '@/hooks/useCookbooks';
@@ -729,6 +729,7 @@ export function NoshConversationHost() {
             )}
           </>
         )}
+        {visible ? <AiDataConsentPromptHost /> : null}
       </Sheet>
     </AssistantRuntimeProvider>
   );

@@ -90,6 +90,7 @@ describe('streamAuthenticatedFunction', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   it('reads a completed NDJSON response when native fetch has no readable stream', async () => {
@@ -140,6 +141,34 @@ describe('streamAuthenticatedFunction', () => {
     }
     expect(read).toHaveBeenCalledTimes(1);
     expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out even when session loading never settles', async () => {
+    jest.useFakeTimers();
+    (supabase.auth.getSession as jest.Mock).mockReturnValue(new Promise(() => {}));
+    const pending = streamAuthenticatedFunction('nosh-chat', {}, { timeoutMs: 100 }).next();
+    let settled = false;
+    const checked = pending.catch(error => { settled = true; expect(error).toBeInstanceOf(FunctionTimeoutError); });
+    await jest.advanceTimersByTimeAsync(101);
+    expect(settled).toBe(true);
+    await checked;
+    jest.useRealTimers();
+  });
+  it('settles a native read that ignores abort instead of leaving chat running', async () => {
+    jest.useFakeTimers();
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
+      body: { getReader: () => ({ read: () => new Promise(() => {}), cancel }) },
+    } as unknown as Response);
+    const pending = streamAuthenticatedFunction('nosh-chat', {}, { timeoutMs: 100 }).next();
+    let settled = false;
+    const checked = pending.catch(error => { settled = true; expect(error).toBeInstanceOf(FunctionTimeoutError); });
+    await jest.advanceTimersByTimeAsync(101);
+    expect(settled).toBe(true);
+    await checked;
+    expect(cancel).toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
 });

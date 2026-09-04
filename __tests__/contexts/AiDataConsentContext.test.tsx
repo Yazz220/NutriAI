@@ -1,8 +1,10 @@
+import { View } from 'react-native';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   AiDataConsentProvider,
+  AiDataConsentPromptHost,
   useAiDataConsent,
 } from '@/contexts/AiDataConsentContext';
 import { loadAiDataConsent } from '@/utils/privacy/aiDataConsent';
@@ -73,4 +75,24 @@ describe('AiDataConsentProvider', () => {
     await waitFor(() => expect(screen.getByText('not granted')).toBeTruthy());
     await expect(loadAiDataConsent('user-1')).resolves.toBeNull();
   });
+  it('presents consent inside the active conversation modal host', async () => {
+    const screen = render(
+      <AiDataConsentProvider>
+        <View testID="conversation-modal">
+          <ConsentProbe />
+          <AiDataConsentPromptHost />
+        </View>
+      </AiDataConsentProvider>,
+    );
+    await screen.findByText('ready');
+    fireEvent.press(screen.getByRole('button', { name: 'Request permission' }));
+    const allowButton = await screen.findByTestId('allow-ai-data-processing');
+    let parent = allowButton.parent;
+    while (parent && parent.props.testID !== 'conversation-modal') parent = parent.parent;
+    expect(parent).not.toBeNull();
+    expect(screen.getAllByTestId('allow-ai-data-processing')).toHaveLength(1);
+    fireEvent.press(allowButton);
+    await screen.findByText('granted');
+  });
+
 });

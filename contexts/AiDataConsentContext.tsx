@@ -37,6 +37,20 @@ interface AiDataConsentContextValue {
 }
 
 const AiDataConsentContext = createContext<AiDataConsentContextValue | null>(null);
+const ConsentPromptContext = createContext<{
+  prompt: React.ReactNode;
+  registerHost: () => () => void;
+} | null>(null);
+
+/** Mount inside an already presented native modal so consent is visible above it. */
+export function AiDataConsentPromptHost() {
+  const context = useContext(ConsentPromptContext);
+  if (!context) throw new Error('Consent prompt host requires AiDataConsentProvider');
+  const { registerHost, prompt } = context;
+  useEffect(() => registerHost(), [registerHost]);
+  return <>{prompt}</>;
+}
+
 
 async function openUrl(url: string) {
   try {
@@ -53,6 +67,12 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
   const [isReady, setIsReady] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [sheetMode, setSheetMode] = useState<'request' | 'review' | null>(null);
+  const [promptHostCount, setPromptHostCount] = useState(0);
+  const registerHost = useCallback(() => {
+    setPromptHostCount(count => count + 1);
+    return () => setPromptHostCount(count => count - 1);
+  }, []);
+
   const pendingRequest = useRef<Promise<boolean> | null>(null);
   const resolveRequest = useRef<((allowed: boolean) => void) | null>(null);
   const consentState = useRef({ isGranted, isReady });
@@ -154,9 +174,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
 
   const isRequest = sheetMode === 'request';
 
-  return (
-    <AiDataConsentContext.Provider value={value}>
-      {children}
+  const prompt = (
       <Sheet
         visible={sheetMode !== null}
         onClose={() => finishRequest(false)}
@@ -272,6 +290,13 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
           )}
         </ScrollView>
       </Sheet>
+  );
+  return (
+    <AiDataConsentContext.Provider value={value}>
+      <ConsentPromptContext.Provider value={{ prompt, registerHost }}>
+        {children}
+        {promptHostCount === 0 ? prompt : null}
+      </ConsentPromptContext.Provider>
     </AiDataConsentContext.Provider>
   );
 }

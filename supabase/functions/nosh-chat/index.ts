@@ -903,6 +903,7 @@ async function readThreadState(
 
 async function upsertThreadState(
   userClient: UserClient,
+  userId: string,
   threadId: string,
   state: ConversationState,
 ): Promise<void> {
@@ -911,6 +912,7 @@ async function upsertThreadState(
       .schema('nutriai')
       .from('nosh_thread_state')
       .upsert({
+        user_id: userId,
         thread_id: threadId,
         ...toThreadStateRow(state),
         updated_at: new Date().toISOString(),
@@ -1466,7 +1468,7 @@ serve(async (req: Request) => {
           global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
           auth: { autoRefreshToken: false, persistSession: false },
         });
-        await upsertThreadState(persistenceClient, threadId, stateToPersist);
+        await upsertThreadState(persistenceClient, user!.id, threadId, stateToPersist);
       }
     };
 

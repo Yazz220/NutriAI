@@ -726,3 +726,18 @@ describe('terminal chat events', () => {
     expect(released).toBe(true);
   });
 });
+
+
+describe('chat preflight cancellation', () => {
+  it('releases the running turn when Stop is pressed while consent is pending', async () => {
+    const controller = new AbortController();
+    const consent = jest.fn(() => new Promise<boolean>(() => {}));
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }), consent);
+    const options = { ...runOptions(jest.fn()), messages: [userMessage('Make this for two')], abortSignal: controller.signal };
+    const pending = collectAdapterResults(adapter, options);
+    const checked = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    await checked;
+    expect(consent).toHaveBeenCalledTimes(1);
+  });
+});
