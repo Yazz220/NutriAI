@@ -22,7 +22,7 @@
       },
       "supportsTablet": false,
       "bundleIdentifier": "com.yaz12.nosh",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "infoPlist": {
         "NSCameraUsageDescription": "Folio uses your camera to capture recipe images.",
         "NSPhotoLibraryUsageDescription": "Folio needs access to your photo library to import images for recipes.",
