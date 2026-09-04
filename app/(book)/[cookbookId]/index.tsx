@@ -164,7 +164,45 @@ export default function BookReaderScreen() {
     });
   };
 
+  const handleRemoveCapture = (capture: RecipeCapture) => {
+    Alert.alert(
+      'Remove unfinished recipe?',
+      'This removes the failed item and its saved source.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            void captureState
+              .discardCapture(capture.id)
+              .then(async () => {
+                if (capture.pageId) {
+                  removePageFromReader(capture.pageId);
+                }
+                await refreshRecipeCollections(capture.destinationCookbookId);
+                showToast({ message: 'The unfinished recipe was removed.', type: 'success' });
+              })
+              .catch((error) => {
+                const message = error instanceof Error ? error.message : 'The unfinished recipe could not be removed.';
+                Alert.alert('Remove failed', message);
+              });
+          },
+        },
+      ],
+    );
+  };
+
   const handleRemoveRecipe = (page: CookbookPage) => {
+    if (page.lifecycleStatus === 'processing') {
+      const capture = (page.captureId ? captures.find((c) => c.id === page.captureId) : undefined)
+        ?? captures.find((c) => c.pageId === page.id);
+      if (capture) {
+        handleRemoveCapture(capture);
+        return;
+      }
+    }
+
     Alert.alert(
       'Remove recipe?',
       `This permanently removes ${page.title} from ${effectiveCookbook?.title ?? 'this cookbook'}.`,
@@ -212,26 +250,6 @@ export default function BookReaderScreen() {
           : {}),
       },
     });
-  };
-
-  const handleRemoveCapture = (capture: RecipeCapture) => {
-    Alert.alert(
-      'Remove unfinished recipe?',
-      'This removes the failed item and its saved source.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            void captureState.discardCapture(capture.id).catch((error) => {
-              const message = error instanceof Error ? error.message : 'The unfinished recipe could not be removed.';
-              Alert.alert('Remove failed', message);
-            });
-          },
-        },
-      ],
-    );
   };
 
   const handleGeneratePageCandidate = async (
@@ -308,10 +326,10 @@ export default function BookReaderScreen() {
     );
   };
 
-  // Only show the full-screen spinner if we have NO cookbook metadata at
-  // all (not even from the shelf). If we have the cookbook, render the
-  // reader immediately — the cover shows instantly and pages stream in.
-  if (isLoading && !effectiveCookbook) {
+  // Show the opening spinner if cookbook metadata is loading, or if
+  // pages are still loading from the network and no cached pages exist.
+  // This prevents flashing an alarming empty book before recipes arrive.
+  if (!effectiveCookbook || (!hasPageData && pages.length === 0 && (isLoading || (effectiveCookbook.pageCount ?? 0) > 0))) {
     return (
       <View style={styles.loading}>
         <LoadingSpinner text="Opening your cookbook…" />

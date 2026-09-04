@@ -30,18 +30,16 @@ export function clampNoshComposerHeight(height: number) {
 
 export function NoshComposer({
   interaction,
-  contextModelEnabled,
   sendDisabled = false,
 }: {
   interaction: NoshInteractionSession;
-  contextModelEnabled: boolean;
   sendDisabled?: boolean;
 }) {
   const isEmpty = useAuiState((state) => state.composer.isEmpty);
   const composerText = useAuiState((state) => state.composer.text);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const aui = useAui();
-  const mode = getNoshComposerMode(interaction, contextModelEnabled);
+  const mode = getNoshComposerMode(interaction);
   const {
     pendingImageBase64,
     pendingImageMimeType,

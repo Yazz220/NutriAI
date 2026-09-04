@@ -773,10 +773,17 @@ export async function uploadRecipeCaptureVideo(input: {
 }> {
   const prepared = await prepareRecipeCaptureVideo(input.video);
   const storagePath = `${input.userId}/${input.requestKey}.${prepared.fileExtension}`;
+  const mimeType = prepared.mimeType;
+  const fileName = prepared.fileName;
+  const byteSize = prepared.byteSize;
+
   const { error } = await supabase.storage
     .from('recipe-captures')
-    .upload(storagePath, prepared.bytes, { contentType: prepared.mimeType, upsert: false });
+    .upload(storagePath, prepared.bytes, { contentType: mimeType, upsert: false });
   if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+
+  // Dereference the 20MB video buffer before sampling frames to avoid compounding heap memory
+  (prepared as { bytes?: unknown }).bytes = undefined;
 
   // Sampled frames are supplementary on-screen-text evidence. A frame that
   // cannot be produced or uploaded is skipped; the video stays the source.
@@ -796,9 +803,9 @@ export async function uploadRecipeCaptureVideo(input: {
   }
   return {
     storagePath,
-    mimeType: prepared.mimeType,
-    fileName: prepared.fileName,
-    byteSize: prepared.byteSize,
+    mimeType,
+    fileName,
+    byteSize,
     framePaths,
   };
 }

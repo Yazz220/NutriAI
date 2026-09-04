@@ -367,4 +367,63 @@ describe('UnifiedIntakeComposer accessibility layout', () => {
     });
     expect(onImageUriChange).toHaveBeenCalledWith(null, null);
   });
+
+  it('rejects a video that exceeds MAX_DIRECT_VIDEO_BYTES before attaching', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{
+        uri: 'file:///huge-recipe.mp4',
+        type: 'video',
+        fileName: 'huge-recipe.mp4',
+        fileSize: 25_000_000,
+        mimeType: 'video/mp4',
+      }],
+    });
+    const onVideoAttachmentChange = jest.fn();
+
+    const screen = render(
+      <UnifiedIntakeComposer
+        input=""
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onVideoAttachmentChange={onVideoAttachmentChange}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Attach photo or video' }));
+
+    expect(await screen.findByText('This video is larger than 20 MB. Choose a shorter or smaller clip.')).toBeTruthy();
+    expect(onVideoAttachmentChange).not.toHaveBeenCalled();
+  });
+
+  it('rejects an audio recording that exceeds MAX_AUDIO_CAPTURE_BYTES before attaching', async () => {
+    mockGetDocumentAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{
+        uri: 'file:///huge-voice-note.m4a',
+        name: 'huge-voice-note.m4a',
+        size: 8_000_000,
+        mimeType: 'audio/m4a',
+      }],
+    });
+    const onAudioAttachmentChange = jest.fn();
+
+    const screen = render(
+      <UnifiedIntakeComposer
+        input=""
+        imageBase64={null}
+        onInputChange={jest.fn()}
+        onImageBase64Change={jest.fn()}
+        onAudioAttachmentChange={onAudioAttachmentChange}
+        onSubmit={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Attach audio file' }));
+
+    expect(await screen.findByText('This audio file is larger than 6 MB. Choose a shorter recording.')).toBeTruthy();
+    expect(onAudioAttachmentChange).not.toHaveBeenCalled();
+  });
 });

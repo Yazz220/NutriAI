@@ -7,6 +7,8 @@ import Animated, {
   cancelAnimation,
   Easing,
   Extrapolation,
+  FadeIn,
+  FadeOut,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -63,9 +65,9 @@ const STACK_MAX_RATIO = 0.42;
 const STACK_STRIATIONS = 5;
 const CORNER_LIFT_PROGRESS = 0.05;
 const TURN_COMMIT_SPRING = {
-  damping: 24,
-  stiffness: 175,
-  mass: 0.78,
+  damping: 26,
+  stiffness: 280,
+  mass: 0.55,
   overshootClamping: true,
 } as const;
 
@@ -132,39 +134,8 @@ function getLeafPageByIndex(
 // like it's receding). Both fade in/out. This gives the mode switch a physical
 // "leaning in to read" / "leaning back to browse" quality instead of a flat
 // dissolve.
-const ZOOM_SCALE = 0.94;
-const ZOOM_ENTER_MS = 280;
-const ZOOM_EXIT_MS = 220;
-const ZOOM_ENTER_EASING = Easing.bezier(0.22, 0.72, 0.24, 1);
-const ZOOM_EXIT_EASING = Easing.bezier(0.4, 0, 0.68, 0.06);
-
-const zoomEntering = () => {
-  'worklet';
-  return {
-    initialValues: {
-      opacity: 0,
-      transform: [{ scale: ZOOM_SCALE }],
-    },
-    animations: {
-      opacity: withTiming(1, { duration: ZOOM_ENTER_MS, easing: ZOOM_ENTER_EASING }),
-      transform: [{ scale: withTiming(1, { duration: ZOOM_ENTER_MS, easing: ZOOM_ENTER_EASING }) }],
-    },
-  };
-};
-
-const zoomExiting = () => {
-  'worklet';
-  return {
-    initialValues: {
-      opacity: 1,
-      transform: [{ scale: 1 }],
-    },
-    animations: {
-      opacity: withTiming(0, { duration: ZOOM_EXIT_MS, easing: ZOOM_EXIT_EASING }),
-      transform: [{ scale: withTiming(ZOOM_SCALE, { duration: ZOOM_EXIT_MS, easing: ZOOM_EXIT_EASING }) }],
-    },
-  };
-};
+const STAGE_ENTER_DURATION = 180;
+const STAGE_EXIT_DURATION = 140;
 
 export function Cookbook3DScene({
   cookbook,
@@ -237,10 +208,76 @@ export function Cookbook3DScene({
     if (previousUri === uri) return;
     if (previousUri) releaseCapture(previousUri);
 
-    const nextUris = { ...pageTextureUrisRef.current, [pageId]: uri };
+    const nextUris: Record<string, string> = { ...pageTextureUrisRef.current, [pageId]: uri };
+
+    // Prune distant captures if cache grows beyond 6 entries to reclaim temp files and memory
+    const keys = Object.keys(nextUris);
+    if (keys.length > 6) {
+      const neededIds = new Set<string>();
+      neededIds.add(pageId);
+      if (hasLeaves && leaves) {
+        for (let i = Math.max(0, leafIndex - 2); i <= Math.min(leaves.length - 1, leafIndex + 2); i++) {
+          const page = getLeafPage(leaves[i], pages);
+          if (page?.id) neededIds.add(page.id);
+        }
+      } else {
+        for (let s = Math.max(0, spreadIndex - 1); s <= Math.min(spreads.length - 1, spreadIndex + 1); s++) {
+          const sp = spreads[s];
+          const leftPage = getLeafPage(sp?.left, pages);
+          const rightPage = getLeafPage(sp?.right, pages);
+          if (leftPage?.id) neededIds.add(leftPage.id);
+          if (rightPage?.id) neededIds.add(rightPage.id);
+        }
+      }
+
+      for (const [id, oldUri] of Object.entries(nextUris)) {
+        if (!neededIds.has(id)) {
+          releaseCapture(oldUri);
+          delete nextUris[id];
+        }
+      }
+    }
+
     pageTextureUrisRef.current = nextUris;
     setPageTextureUris(nextUris);
-  }, []);
+  }, [hasLeaves, leafIndex, leaves, pages, spreadIndex, spreads]);
+
+  useEffect(() => {
+    // Prune distant captures on page turn to keep memory footprint bounded
+    const currentUris = pageTextureUrisRef.current;
+    const keys = Object.keys(currentUris);
+    if (keys.length <= 6) return;
+
+    const neededIds = new Set<string>();
+    if (hasLeaves && leaves) {
+      for (let i = Math.max(0, leafIndex - 2); i <= Math.min(leaves.length - 1, leafIndex + 2); i++) {
+        const page = getLeafPage(leaves[i], pages);
+        if (page?.id) neededIds.add(page.id);
+      }
+    } else {
+      for (let s = Math.max(0, spreadIndex - 1); s <= Math.min(spreads.length - 1, spreadIndex + 1); s++) {
+        const sp = spreads[s];
+        const leftPage = getLeafPage(sp?.left, pages);
+        const rightPage = getLeafPage(sp?.right, pages);
+        if (leftPage?.id) neededIds.add(leftPage.id);
+        if (rightPage?.id) neededIds.add(rightPage.id);
+      }
+    }
+
+    let pruned = false;
+    const nextUris = { ...currentUris };
+    for (const [id, uri] of Object.entries(currentUris)) {
+      if (!neededIds.has(id)) {
+        releaseCapture(uri);
+        delete nextUris[id];
+        pruned = true;
+      }
+    }
+    if (pruned) {
+      pageTextureUrisRef.current = nextUris;
+      setPageTextureUris(nextUris);
+    }
+  }, [hasLeaves, leafIndex, leaves, pages, spreadIndex, spreads]);
 
   useEffect(
     () => () => {
@@ -601,6 +638,10 @@ export function Cookbook3DScene({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const notifyCoverClosed = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
   const startCanonicalTurn = useCallback(
     (direction: -1 | 1) => {
       const canTurn = direction === 1 ? canTurnNext : canTurnPrevious;
@@ -712,6 +753,9 @@ export function Cookbook3DScene({
           // Wake the reader chrome on any stage touch — same pattern as the
           // web document-level touchstart listener.
           if (onStageTap) runOnJS(onStageTap)();
+          if (isSettling.value !== 0) {
+            return;
+          }
           cancelAnimation(turnProgress);
           isSettling.value = 0;
 
@@ -739,12 +783,17 @@ export function Cookbook3DScene({
               pageWidth: turnSurfaceWidth,
               direction: currentDir,
             });
+          } else if (isPhysicalPageReading) {
+            // In one-page reader view, keep the page firmly planted and flat on touch.
+            // A page turn begins only when the user intentionally drags horizontally.
+            // This prevents the page from awkwardly hovering or detaching when the user merely
+            // touches the screen to read, scroll, or hold the phone with their thumb.
+            turnDirection.value = 0;
+            turnProgress.value = 0;
+            turnGrabX.value = event.x;
           } else {
-            // New touch: lift the corner slightly based on which side was
+            // New touch in spread view: lift the corner slightly based on which side was
             // touched. Right half → forward curl, left half → backward curl.
-            // The grab point is anchored for the lift progress, so the corner
-            // keeps rising smoothly from the lift once the drag starts
-            // instead of dropping back to flat.
             const direction = event.x > width / 2 ? (1 as const) : (-1 as const);
             turnDirection.value = direction;
             turnGrabX.value = resolveTurnGrabXForProgress({
@@ -757,21 +806,20 @@ export function Cookbook3DScene({
           }
         })
         .onUpdate((event) => {
-          // Determine or correct the turn direction once the drag is large
-          // enough. If the corner lift guessed wrong (user touched right but
-          // dragged right), switch direction and re-anchor the grab point for
-          // the corner lift in the new direction, so the other leaf lifts
-          // from rest instead of jumping.
+          if (isSettling.value !== 0) return;
+
+          // Determine or correct the turn direction once the drag is large enough.
           if (Math.abs(event.translationX) >= 4) {
             const dragDir = event.translationX < 0 ? (1 as const) : (-1 as const);
             if (turnDirection.value === 0) {
               turnDirection.value = dragDir;
+              turnGrabX.value = event.x;
               runOnJS(notifyTurnGrabbed)();
-            } else if (turnDirection.value !== dragDir && turnProgress.value < 0.15) {
+            } else if (turnDirection.value !== dragDir && turnProgress.value < 0.35) {
               turnDirection.value = dragDir;
               turnGrabX.value = resolveTurnGrabXForProgress({
                 pointerX: event.x,
-                progress: CORNER_LIFT_PROGRESS,
+                progress: isPhysicalPageReading ? 0 : CORNER_LIFT_PROGRESS,
                 pageWidth: turnSurfaceWidth,
                 direction: dragDir,
               });
@@ -791,6 +839,8 @@ export function Cookbook3DScene({
           });
         })
         .onEnd((event) => {
+          if (isSettling.value !== 0) return;
+
           const direction = turnDirection.value;
           if (direction === 0) return;
 
@@ -799,22 +849,32 @@ export function Cookbook3DScene({
           // below, because on spread 0 canTurnPrevious is false and
           // turnProgress stays at the corner-lift value — without this
           // check the gesture would just spring back harmlessly.
-          if (direction === -1 && atFrontEdge && !isBackClosed && event.translationX > 24 && onClose) {
+          const isIntentionalFrontClose = isPhysicalPageReading
+            ? event.translationX > 48 || event.velocityX > 450
+            : event.translationX > 36 || event.velocityX > 400;
+
+          if (direction === -1 && !isPhysicalPageReading && atFrontEdge && !isBackClosed && isIntentionalFrontClose && onClose) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
+            runOnJS(notifyCoverClosed)();
             runOnJS(onClose)();
             return;
           }
 
-          // Close the back cover: forward swipe on the last spread or leaf. The
-          // back cover swings from +175° (face-down on the right) to 0°
-          // (covering the left page), closing the book from the back.
-          // Same priority logic as the front cover close above.
-          if (direction === 1 && atBackEdge && !isBackClosed && event.translationX < -24 && onCloseBack) {
+          // Close the back cover: forward swipe on the last spread or leaf.
+          // In spread view, the back cover swings shut from +175° to 0°.
+          // In one-page view, this smoothly coordinates with BookReader's
+          // two-phase transition (zooms to spread view, then swings the back cover shut).
+          const isIntentionalBackClose = isPhysicalPageReading
+            ? event.translationX < -48 || event.velocityX < -450
+            : event.translationX < -36 || event.velocityX < -400;
+
+          if (direction === 1 && atBackEdge && !isBackClosed && isIntentionalBackClose && onCloseBack) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
+            runOnJS(notifyCoverClosed)();
             runOnJS(onCloseBack)();
             return;
           }
@@ -822,17 +882,20 @@ export function Cookbook3DScene({
           // Reopen the back cover: backward swipe when the back cover is
           // closed. The back cover swings from 0° back to +175°, revealing
           // the last spread again.
-          if (direction === -1 && !isPhysicalPageReading && isBackClosed && event.translationX > 24 && onOpenBack) {
+          const isIntentionalBackOpen = event.translationX > 24 || event.velocityX > 300;
+          if (direction === -1 && !isPhysicalPageReading && isBackClosed && isIntentionalBackOpen && onOpenBack) {
             turnDirection.value = 0;
             turnProgress.value = 0;
             isSettling.value = 0;
+            runOnJS(notifyTurnGrabbed)();
             runOnJS(onOpenBack)();
             return;
           }
 
-          // If this was just a corner lift (touch without enough drag),
+          // If this was just a corner lift or minor movement without enough drag,
           // release quietly without haptic feedback.
-          if (turnProgress.value <= CORNER_LIFT_PROGRESS + 0.02) {
+          const liftThreshold = isPhysicalPageReading ? 0.08 : CORNER_LIFT_PROGRESS + 0.02;
+          if (turnProgress.value <= liftThreshold) {
             if (reduceMotion) {
               turnProgress.value = 0;
               turnDirection.value = 0;
@@ -840,9 +903,11 @@ export function Cookbook3DScene({
               return;
             }
             isSettling.value = 1;
-            turnProgress.value = withSpring(0, { damping: 22, stiffness: 220, mass: 0.6 }, () => {
-              turnDirection.value = 0;
-              isSettling.value = 0;
+            turnProgress.value = withSpring(0, TURN_COMMIT_SPRING, (finished) => {
+              if (finished) {
+                turnDirection.value = 0;
+                isSettling.value = 0;
+              }
             });
             return;
           }
@@ -871,9 +936,11 @@ export function Cookbook3DScene({
             turnProgress.value = withSpring(
               0,
               { damping: 22, stiffness: 190, mass: 0.72, velocity: cancelVelocity },
-              () => {
-                turnDirection.value = 0;
-                isSettling.value = 0;
+              (finished) => {
+                if (finished) {
+                  turnDirection.value = 0;
+                  isSettling.value = 0;
+                }
               },
             );
             return;
@@ -900,9 +967,11 @@ export function Cookbook3DScene({
           );
         })
         .onFinalize((_event, success) => {
-          if (success || isSettling.value !== 0) return;
-          turnProgress.value = reduceMotion ? 0 : withTiming(0, { duration: 120 });
+          if (success) return;
+          cancelAnimation(turnProgress);
+          turnProgress.value = 0;
           turnDirection.value = 0;
+          isSettling.value = 0;
         }),
     [
       canTurnNext,
@@ -918,6 +987,7 @@ export function Cookbook3DScene({
       isPhysicalPageReading,
       isOpen,
       isSettling,
+      notifyCoverClosed,
       notifyTurnCancelled,
       notifyTurnGrabbed,
       onClose,
@@ -1076,8 +1146,8 @@ export function Cookbook3DScene({
           <Animated.View style={styles.gestureSurface} pointerEvents="auto">
             {isPhysicalPageReading ? (
               <Animated.View
-                entering={reduceMotion ? undefined : zoomEntering}
-                exiting={reduceMotion ? undefined : zoomExiting}
+                entering={reduceMotion ? undefined : FadeIn.duration(STAGE_ENTER_DURATION)}
+                exiting={reduceMotion ? undefined : FadeOut.duration(STAGE_EXIT_DURATION)}
                 style={[
                   styles.physicalPageStage,
                   { width: readingPageGeometry.stageWidth, height: readingPageHeight + 30 },
@@ -1260,8 +1330,8 @@ export function Cookbook3DScene({
                 importantForAccessibility={isOpen ? 'auto' : 'no-hide-descendants'}
               >
                 <Animated.View
-                  entering={reduceMotion ? undefined : zoomEntering}
-                  exiting={reduceMotion ? undefined : zoomExiting}
+                  entering={reduceMotion ? undefined : FadeIn.duration(STAGE_ENTER_DURATION)}
+                  exiting={reduceMotion ? undefined : FadeOut.duration(STAGE_EXIT_DURATION)}
                 >
                   <View
                     style={[styles.spreadStage, { width: bookGeometry.stageWidth, height: bookGeometry.stageHeight }]}

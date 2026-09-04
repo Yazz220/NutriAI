@@ -15,7 +15,9 @@ The database mirrors valid identity pairs in `nutriai.recipe_page_style_versions
 | Illustrated | `illustrated@2` | Painted gouache/watercolor dish and ingredient vignettes; no photography |
 | Heritage | `heritage@2` | Engraved dish, formal symmetry, small caps, restrained printer language |
 | Journal | `journal@1` | Dot-grid notebook, candid snapshot, typed body, useful handwritten marks |
-| Bold | `bold@1` | Condensed type, saturated ink blocks, risograph/halftone food image |
+| Artisan | `artisan@1` | Warm oat paper, tactile stoneware dish photography, humanist letterpressed typography |
+
+*(Legacy styles such as `bold@1`, `illustrated@1`, and `heritage@1` remain in the database catalog for existing books but are retired from active creation.)*
 
 Each definition owns paper, typography, image medium, palette, graphic language, one signature cue, composition for sparse/standard/dense recipes, explicit exclusions, and optional visual references. `_shared/artGeneration.ts` compiles those fields with the exact canonical recipe copy. The provider request remains downstream of that provider-neutral prompt payload.
 
@@ -30,7 +32,7 @@ Assets are versioned in their filenames:
 - `illustrated-v2-{brownies,cookies}.png`
 - `heritage-v2-{brownies,cookies}.png`
 - `journal-v1-{brownies,cookies}.png`
-- `bold-v1-{brownies,cookies}.png`
+- `artisan-v1-{brownies,cookies}.png`
 
 The samples are Studio previews, not runtime recipe data and not automatic provider references. If visual anchors are later approved and hosted, add their immutable HTTPS URLs to the matching registry version instead of accepting caller-defined per-recipe references.
 

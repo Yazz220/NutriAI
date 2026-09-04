@@ -182,9 +182,12 @@ export function CookbookPageGrid({
         item.capture && (item.phase === 'attention' || item.phase === 'destination') && onOpenCapture,
       );
       const canActivate = canOpen || canOpenCapture;
-      const contextActions = item.page ? (contextActionsFor?.(item.page) ?? []) : [];
+      const isUnfinishedCapture = Boolean(
+        item.capture && (item.phase === 'attention' || item.phase === 'destination'),
+      );
+      const contextActions = item.page && item.phase === 'ready' ? (contextActionsFor?.(item.page) ?? []) : [];
       const flatContextActions = flattenContextActions(contextActions);
-      const captureContextActions = item.capture ? (captureActionsFor?.(item.capture) ?? []) : [];
+      const captureContextActions = isUnfinishedCapture && item.capture ? (captureActionsFor?.(item.capture) ?? []) : [];
       const flatCaptureContextActions = flattenContextActions(captureContextActions);
       const canMoveEarlier = Boolean(
         onMovePage && item.isDraggable && index > 0 && orderedItems[index - 1]?.isDraggable,
@@ -196,9 +199,11 @@ export function CookbookPageGrid({
         { name: 'activate' as const, label: canOpen ? `Open ${item.title}` : `Resolve ${item.title}` },
         ...(canMoveEarlier ? [{ name: CUSTOM_ACTIONS.earlier, label: 'Move page earlier' }] : []),
         ...(canMoveLater ? [{ name: CUSTOM_ACTIONS.later, label: 'Move page later' }] : []),
-        ...flatContextActions.map((action) => ({ name: action.id, label: action.title })),
-        ...flatCaptureContextActions.map((action) => ({ name: action.id, label: action.title })),
-        ...(item.page && !contextActionsFor && flatContextActions.length === 0 && onPageActions
+        ...(isUnfinishedCapture ? flatCaptureContextActions : flatContextActions).map((action) => ({
+          name: action.id,
+          label: action.title,
+        })),
+        ...(!isUnfinishedCapture && item.page && item.phase === 'ready' && !contextActionsFor && flatContextActions.length === 0 && onPageActions
           ? [{ name: CUSTOM_ACTIONS.actions, label: 'Show page actions' }]
           : []),
       ];
@@ -210,11 +215,10 @@ export function CookbookPageGrid({
         if (action === CUSTOM_ACTIONS.earlier) moveAccessibly(item, -1);
         if (action === CUSTOM_ACTIONS.later) moveAccessibly(item, 1);
         if (action === CUSTOM_ACTIONS.actions && item.page) onPageActions?.(item.page);
-        if (item.page && flatContextActions.some((contextAction) => contextAction.id === action)) {
-          onContextAction?.(item.page, action as ContextActionId);
-        }
-        if (item.capture && flatCaptureContextActions.some((contextAction) => contextAction.id === action)) {
+        if (isUnfinishedCapture && item.capture && flatCaptureContextActions.some((contextAction) => contextAction.id === action)) {
           onCaptureContextAction?.(item.capture, action as ContextActionId);
+        } else if (item.page && flatContextActions.some((contextAction) => contextAction.id === action)) {
+          onContextAction?.(item.page, action as ContextActionId);
         }
       }
 
@@ -305,7 +309,19 @@ export function CookbookPageGrid({
                 <Text style={styles.pageTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                   {item.title}
                 </Text>
-                {item.page && contextActions.length > 0 && onContextAction ? (
+                {isUnfinishedCapture && item.capture && captureContextActions.length > 0 && onCaptureContextAction ? (
+                  <ContextActionMenu
+                    actions={captureContextActions}
+                    onSelect={(actionId) => onCaptureContextAction(item.capture!, actionId)}
+                    fallbackOnPress={onCaptureActions ? () => onCaptureActions(item.capture!) : undefined}
+                    accessibilityLabel={`Actions for ${item.title}`}
+                    style={styles.moreButton}
+                    title={item.title}
+                    testID={`capture-context-menu-${item.capture.id}`}
+                  >
+                    <Ellipsis size={18} color={Colors.textSecondary} />
+                  </ContextActionMenu>
+                ) : item.page && item.phase === 'ready' && contextActions.length > 0 && onContextAction ? (
                   <ContextActionMenu
                     actions={contextActions}
                     onSelect={(actionId) => onContextAction(item.page!, actionId)}
@@ -317,7 +333,7 @@ export function CookbookPageGrid({
                   >
                     <Ellipsis size={18} color={Colors.textSecondary} />
                   </ContextActionMenu>
-                ) : item.page && !contextActionsFor && onPageActions ? (
+                ) : item.page && item.phase === 'ready' && !contextActionsFor && onPageActions ? (
                   <Pressable
                     style={({ pressed }) => [styles.moreButton, pressed && styles.moreButtonPressed]}
                     onPress={() => onPageActions(item.page!)}

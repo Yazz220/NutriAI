@@ -10,6 +10,7 @@ export type ContextActionId =
   | 'share_recipe'
   | 'move_recipe'
   | 'remove_recipe'
+  | 'report_recipe'
   | 'resolve_capture'
   | 'remove_capture';
 
@@ -40,6 +41,7 @@ interface RecipeActionCapabilities {
   canShare?: boolean;
   canMove?: boolean;
   canRemove?: boolean;
+  canReport?: boolean;
 }
 
 export function buildCaptureContextActions(primaryTitle: string): ContextActionGroup[] {
@@ -98,10 +100,12 @@ export function buildRecipeContextActions({
   canShare = false,
   canMove = false,
   canRemove = false,
+  canReport = false,
 }: RecipeActionCapabilities): ContextActionGroup[] {
   const editing: ContextAction[] = [];
   const sharing: ContextAction[] = [];
   const organization: ContextAction[] = [];
+  const reporting: ContextAction[] = [];
   const destructive: ContextAction[] = [];
 
   if (canEdit) {
@@ -122,6 +126,9 @@ export function buildRecipeContextActions({
   if (canMove) {
     organization.push({ id: 'move_recipe', title: 'Move to another cookbook', systemImage: 'books.vertical' });
   }
+  if (canReport) {
+    reporting.push({ id: 'report_recipe', title: 'Report issue or content', systemImage: 'flag' });
+  }
   if (canRemove) {
     destructive.push({
       id: 'remove_recipe',
@@ -135,6 +142,7 @@ export function buildRecipeContextActions({
     { id: 'recipe-editing', actions: editing },
     { id: 'recipe-sharing', actions: sharing },
     { id: 'recipe-organization', actions: organization },
+    { id: 'recipe-reporting', actions: reporting },
     { id: 'recipe-destructive', actions: destructive },
   ]);
 }

@@ -45,11 +45,8 @@ EXPO_PUBLIC_SENTRY_ENVIRONMENT=development
 EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
-EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 ```
-
-`EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must not select a different capture, extraction, or page-generation implementation.
 
 Only `EXPO_PUBLIC_*` values are bundled into the app. The RevenueCat iOS value is a public SDK key. `EXPO_PUBLIC_SUPPORT_EMAIL` must be a monitored private inbox in release builds; Settings otherwise falls back to the public support page. Keep Android and web RevenueCat keys unset for the App Store launch; `docs/MONETIZATION.md` defines the store-mapping work required before enabling them. Never put secret provider keys or service-role keys in client env vars.
 

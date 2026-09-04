@@ -54,6 +54,36 @@ export function NoshShelfChatButton() {
   );
 }
 
+export function NoshCookbookChatButton({ cookbook, cookbookPages, compact = false }: {
+  cookbook: Cookbook;
+  cookbookPages: CookbookPage[];
+  compact?: boolean;
+}) {
+  const { open, setVisibleBookContext } = useNoshConversation();
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.recipeButton,
+        compact && styles.recipeButtonCompact,
+        pressed && styles.recipeButtonPressed,
+      ]}
+      accessibilityLabel={`Ask Folio about ${cookbook.title}`}
+      accessibilityRole="button"
+      onPress={() => {
+        setVisibleBookContext({ cookbook, pages: cookbookPages, page: null });
+        open('cookbook-nosh', {
+          kind: 'cookbook',
+          cookbookId: cookbook.id,
+          title: cookbook.title,
+        });
+      }}
+    >
+      <NoshSymbol size={24} />
+      {compact ? null : <Text style={styles.recipeLabel}>Ask Folio</Text>}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   recipeButton: { minWidth: 126, height: 44, borderRadius: Radii.full, paddingHorizontal: Spacing.values[18], flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.values[7], backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.primary, boxShadow: Colors.book.cardShadow },
   recipeButtonCompact: { minWidth: 44, width: 44, paddingHorizontal: 0 },

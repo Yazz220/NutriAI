@@ -10,7 +10,7 @@ This runbook separates code-complete hardening from checks that require a linked
 4. Run Supabase security and performance advisors. Review new findings; do not waive ownership, RLS, function-grant, mutable-search-path, or foreign-key-index findings.
 5. Deploy `extract-recipe`, `capture-recipe`, `nosh-chat`, `generate-page-art`, and `delete-account` to staging.
 6. Run `npm run eval:ingestion:live` against the staged extraction configuration and retain the ignored result artifact with the release evidence.
-7. Choose the `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` conversation presentation for the internal build. Both values must use the same capture pipeline.
+7. Verify the single contextual Folio conversation experience from the shelf, an open cookbook, a recipe page, and Settings; include the deterministic quick-reply path and a tool-using turn.
 8. Complete the device matrix and inspect the monitoring signals below.
 9. Promote the same tested migration/function/client versions to production in that order.
 

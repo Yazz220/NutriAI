@@ -22,9 +22,21 @@ const capture: NoshInteractionSession = {
   focus: { kind: 'cookbook', cookbookId: 'book-1', title: 'Dinner' },
 };
 
+const preferences: NoshInteractionSession = {
+  entryPoint: 'settings-preferences',
+  task: 'preferences',
+  focus: { kind: 'collection' },
+};
+
+const cookbook: NoshInteractionSession = {
+  entryPoint: 'cookbook-nosh',
+  task: 'cookbook-help',
+  focus: { kind: 'cookbook', cookbookId: 'book-1', title: 'Dinner' },
+};
+
 describe('purpose-built Folio conversation wrappers', () => {
   it('gives an empty shelf conversation collection jobs instead of capture prompts', () => {
-    const config = getNoshStartConfig(collection, true);
+    const config = getNoshStartConfig(collection);
 
     expect(config.title).toBe('What can Folio help with?');
     expect(config.prompts).toEqual(expect.arrayContaining([
@@ -37,36 +49,59 @@ describe('purpose-built Folio conversation wrappers', () => {
   });
 
   it('names the focused recipe and offers recipe-specific starts', () => {
-    const config = getNoshStartConfig(recipe, true);
+    const config = getNoshStartConfig(recipe);
 
     expect(config.title).toBe('Baked Cheesecake');
     expect(config.prompts).toContain('Make this for two');
   });
 
   it('removes capture attachments and mixed copy from general conversation', () => {
-    expect(getNoshComposerMode(collection, true)).toEqual({
+    expect(getNoshComposerMode(collection)).toEqual({
       allowsRecipePhoto: false,
       placeholder: 'Ask Folio about your cookbooks…',
     });
-    expect(getNoshComposerMode(recipe, true)).toEqual({
+    expect(getNoshComposerMode(recipe)).toEqual({
       allowsRecipePhoto: false,
       placeholder: 'Ask about Baked Cheesecake…',
     });
   });
 
   it('keeps source controls in the dedicated capture task', () => {
-    expect(getNoshStartConfig(capture, true).copy).toContain('add it to the right cookbook automatically');
-    expect(getNoshStartConfig(capture, true).copy).not.toContain('ask before');
-    expect(getNoshComposerMode(capture, true)).toEqual({
+    expect(getNoshStartConfig(capture).copy).toContain('add it to the right cookbook automatically');
+    expect(getNoshStartConfig(capture).copy).not.toContain('ask before');
+    expect(getNoshComposerMode(capture)).toEqual({
       allowsRecipePhoto: true,
       placeholder: 'Send a recipe link, text, or photo…',
     });
   });
 
-  it('keeps the legacy everything-box behavior while the flag is off', () => {
-    expect(getNoshComposerMode(collection, false)).toEqual({
-      allowsRecipePhoto: true,
-      placeholder: 'Drop a recipe link or ask Folio…',
+  it('keeps one contextual recipe presentation without a split feature flag', () => {
+    expect(getNoshStartConfig(recipe).title).toBe('Baked Cheesecake');
+    expect(getNoshComposerMode(recipe)).toEqual({
+      allowsRecipePhoto: false,
+      placeholder: 'Ask about Baked Cheesecake…',
     });
+  });
+
+  it('gives the Settings entry point a focused preference conversation', () => {
+    const config = getNoshStartConfig(preferences);
+
+    expect(config.title).toBe('What should Folio remember?');
+    expect(config.copy).toContain('every cookbook');
+    expect(config.prompts).toEqual(expect.arrayContaining([
+      'Use metric measurements',
+      'I have a food allergy',
+    ]));
+    expect(getNoshComposerMode(preferences).placeholder).toBe(
+      'Tell Folio how you like to cook…',
+    );
+  });
+
+  it('gives an open cookbook its own contextual wrapper', () => {
+    const config = getNoshStartConfig(cookbook);
+
+    expect(config.title).toBe('Dinner');
+    expect(config.prompts).toContain('What can I cook from this book?');
+    expect(getNoshComposerMode(cookbook).placeholder).toBe('Ask about Dinner…');
   });
 });

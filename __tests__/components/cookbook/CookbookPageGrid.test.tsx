@@ -126,7 +126,60 @@ describe('CookbookPageGrid contextual actions', () => {
     );
     actionSheet.mock.calls[0]?.[1](1);
     expect(onCaptureContextAction).toHaveBeenCalledWith(unresolvedCapture, 'remove_capture');
-    expect(onOpenCapture).toHaveBeenCalledTimes(1);
+    actionSheet.mockRestore();
+  });
+
+  it('presents capture context actions from footer menu on an unfinished capture with a processing slot', () => {
+    const onCaptureContextAction = jest.fn();
+    const actionSheet = jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation(() => undefined);
+    const failedCapture: RecipeCapture = {
+      id: 'capture-failed-1',
+      userId: 'user-1',
+      destinationCookbookId: SAMPLE_COOKBOOK.id,
+      sourceType: 'text',
+      sourcePayload: {},
+      status: 'needs_attention',
+      extractionNotes: [],
+      inferredFields: [],
+      recipeGraph: { title: 'Corn Chowder' } as RecipeCapture['recipeGraph'],
+      pageStatus: 'failed',
+      pageId: 'page-processing-1',
+      failureCode: 'generation_failed',
+      idempotencyKey: 'capture-failed-1',
+      processingAttempt: 1,
+      createdAt: '2026-09-01T12:00:00.000Z',
+      updatedAt: '2026-09-01T12:00:00.000Z',
+    };
+    const processingPageSlot = {
+      ...SAMPLE_COOKBOOK_PAGES[0],
+      id: 'page-processing-1',
+      captureId: 'capture-failed-1',
+      title: 'Corn Chowder',
+      lifecycleStatus: 'processing' as const,
+    };
+
+    const screen = render(
+      <CookbookPageGrid
+        cookbookId={SAMPLE_COOKBOOK.id}
+        pageSlots={[processingPageSlot]}
+        captures={[failedCapture]}
+        captureActionsFor={() => buildCaptureContextActions('Try again')}
+        onCaptureContextAction={onCaptureContextAction}
+      />,
+    );
+
+    const menuButton = screen.getByTestId('capture-context-menu-capture-failed-1');
+    fireEvent.press(menuButton);
+
+    expect(actionSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: ['Try again', 'Remove', 'Cancel'],
+        destructiveButtonIndex: [1],
+      }),
+      expect.any(Function),
+    );
+    actionSheet.mock.calls[0]?.[1](1);
+    expect(onCaptureContextAction).toHaveBeenCalledWith(failedCapture, 'remove_capture');
     actionSheet.mockRestore();
   });
 

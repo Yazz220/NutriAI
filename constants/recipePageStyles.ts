@@ -12,6 +12,7 @@ export const LEGACY_RECIPE_PAGE_STYLE_IDS = [
   'alabaster-linen',
   'umber-leather',
   'studio-editorial',
+  'bold',
 ] as const;
 
 export const ACTIVE_RECIPE_PAGE_STYLE_IDS = [
@@ -20,7 +21,7 @@ export const ACTIVE_RECIPE_PAGE_STYLE_IDS = [
   'illustrated',
   'heritage',
   'journal',
-  'bold',
+  'artisan',
 ] as const;
 
 export type LegacyRecipePageStyleId = typeof LEGACY_RECIPE_PAGE_STYLE_IDS[number];
@@ -300,10 +301,9 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
   'bold@1': {
     id: 'bold',
     revision: 1,
-    status: 'active',
+    status: 'legacy',
     name: 'Bold',
     description: 'Graphic, energetic, and poster-led',
-    studioOrder: 5,
     paper: 'bright matte stock with visible controlled risograph ink texture',
     typography: 'oversized condensed sans-serif display title, sturdy grotesk recipe text, large numerals, and unapologetic graphic labels',
     imagery: 'high-contrast screenprint or risograph food image reduced to bold color separations and halftone texture; not realistic photography',
@@ -318,6 +318,27 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
     exclusions: ['soft watercolor', 'heritage ornament', 'beige neutral palette', 'delicate serif title', 'realistic glossy photography', 'subtle timid hierarchy'],
     styleReferences: [],
   },
+  'artisan@1': {
+    id: 'artisan',
+    revision: 1,
+    status: 'active',
+    name: 'Artisan',
+    description: 'Warm, tactile, and farm-to-table',
+    studioOrder: 5,
+    paper: 'warm unbleached oat-linen paper with subtle organic flecks, soft deckled edges, and matte natural warmth',
+    typography: 'warm humanist serif display titles with rustic hand-hewn elegance, paired with clean readable humanist sans-serif recipe text and gentle letterpressed numerals',
+    imagery: 'tactile rustic culinary photography in soft diffused window light, styled on raw linen, warm weathered wood, and handmade stoneware ceramics with scattered raw ingredients',
+    palette: 'warm oat, toasted wheat, deep terracotta, muted rosemary olive green, raw linen cream, and soft espresso charcoal ink',
+    graphicLanguage: 'farm-to-table culinary editorial, subtle earthy rule lines, botanical accents, generous breathable whitespace, and tactile organic textures',
+    signature: 'natural linen paper warmth and honest handmade stoneware photography anchored by warm humanist letterpressed typography',
+    composition: {
+      sparse: 'generous breathing room on warm oat paper; centered rustic dish presentation in stoneware ceramics with clean ingredient list and spacious method block',
+      standard: 'harmonious two-column balance with warm serif title, rustic window-lit dish hero, neatly divided tactile ingredient column, and clearly stepped method flow',
+      dense: 'compact yet warm editorial spread; organized dual-column ingredient and method layout anchored by subtle terracotta dividers and a focused overhead rustic dish capture',
+    },
+    exclusions: ['glossy synthetic stock', 'neon or electric saturated colors', 'sterile digital vectors', 'harsh flash photography', 'cold modern chrome or plastic', 'cluttered chaotic stickers'],
+    styleReferences: [],
+  },
 });
 
 export const ACTIVE_RECIPE_PAGE_STYLE_REVISIONS: Readonly<Record<CreationPageStyleId, number>> = Object.freeze({
@@ -326,7 +347,7 @@ export const ACTIVE_RECIPE_PAGE_STYLE_REVISIONS: Readonly<Record<CreationPageSty
   illustrated: 2,
   heritage: 2,
   journal: 1,
-  bold: 1,
+  artisan: 1,
 });
 
 const RECIPE_PAGE_STYLE_IDS = new Set<string>([

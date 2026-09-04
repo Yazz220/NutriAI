@@ -24,6 +24,11 @@ jest.mock('@/utils/cookbook/api', () => ({
   startRecipeCapture: jest.fn(),
 }));
 
+let mockNetworkStatus = { isConnected: true, isInternetReachable: true };
+jest.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => mockNetworkStatus,
+}));
+
 function readyCapture(index: number): RecipeCapture {
   return {
     id: `capture-${index}`,
@@ -47,6 +52,7 @@ function readyCapture(index: number): RecipeCapture {
 describe('useRecipeCaptures page synchronization', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockNetworkStatus = { isConnected: true, isInternetReachable: true };
     jest.mocked(fetchPageById).mockResolvedValue(null);
   });
 
@@ -65,5 +71,81 @@ describe('useRecipeCaptures page synchronization', () => {
 
     await waitFor(() => expect(hook.result.current.captures).toHaveLength(22));
     expect(fetchPageById).not.toHaveBeenCalled();
+  });
+
+  it('uses 2500ms polling when capture is actively processing within 30s', async () => {
+    jest.mocked(listRecipeCaptures).mockResolvedValue([]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useRecipeCaptures(), { wrapper });
+
+    const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
+    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+
+    const recentProcessingCapture: RecipeCapture = {
+      ...readyCapture(1),
+      status: 'processing',
+      pageStatus: 'not_started',
+      createdAt: new Date().toISOString(),
+    };
+
+    const interval = refetchIntervalFn({ state: { data: [recentProcessingCapture] } } as any);
+    expect(interval).toBe(2500);
+  });
+
+  it('backs off to 5000ms polling when capture has been processing > 30s', async () => {
+    jest.mocked(listRecipeCaptures).mockResolvedValue([]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useRecipeCaptures(), { wrapper });
+
+    const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
+    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+
+    const longRunningCapture: RecipeCapture = {
+      ...readyCapture(1),
+      status: 'processing',
+      pageStatus: 'not_started',
+      createdAt: new Date(Date.now() - 45_000).toISOString(),
+    };
+
+    const interval = refetchIntervalFn({ state: { data: [longRunningCapture] } } as any);
+    expect(interval).toBe(5000);
+  });
+
+  it('disables polling when device is offline', async () => {
+    mockNetworkStatus = { isConnected: false, isInternetReachable: false };
+    jest.mocked(listRecipeCaptures).mockResolvedValue([]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useRecipeCaptures(), { wrapper });
+
+    const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
+    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+
+    const processingCapture: RecipeCapture = {
+      ...readyCapture(1),
+      status: 'processing',
+      pageStatus: 'not_started',
+      createdAt: new Date().toISOString(),
+    };
+
+    const interval = refetchIntervalFn({ state: { data: [processingCapture] } } as any);
+    expect(interval).toBe(false);
   });
 });

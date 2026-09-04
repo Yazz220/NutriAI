@@ -55,6 +55,7 @@ export default function CookbookSettingsScreen() {
   const { isGranted, isReady, reviewConsent } = useAiDataConsent();
   const { open: openNosh } = useNoshConversation();
   const subscription = useNoshSubscription();
+  const userId = user?.id;
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [preferencesVisible, setPreferencesVisible] = useState(false);
@@ -64,20 +65,20 @@ export default function CookbookSettingsScreen() {
   const [removingPreferenceId, setRemovingPreferenceId] = useState<string | null>(null);
 
   const refreshPreferences = useCallback(async () => {
-    if (!user?.id) {
+    if (!userId) {
       setPreferences([]);
       return;
     }
     setPreferencesLoading(true);
     setPreferencesError(null);
     try {
-      setPreferences(await loadCookingPreferences(user.id));
+      setPreferences(await loadCookingPreferences(userId));
     } catch {
       setPreferencesError('Could not load preferences. Check your connection and try again.');
     } finally {
       setPreferencesLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     void refreshPreferences();
@@ -362,7 +363,7 @@ export default function CookbookSettingsScreen() {
         onRemove={confirmRemovePreference}
         onOpenNosh={() => {
           setPreferencesVisible(false);
-          openNosh('shelf-nosh', { kind: 'collection' });
+          openNosh('settings-preferences', { kind: 'collection' });
         }}
       />
     </View>

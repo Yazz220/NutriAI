@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Radii, Spacing , Typography} from '@/constants/spacing';
 import { supabase } from '@/lib/supabase';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { isAppleCancellation, isAppleSignInAvailable, signInWithApple } from '@/utils/appleAuth';
 import { getUserFriendlyErrorMessage, withTimeout } from '@/utils/networkTimeout';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
@@ -142,22 +143,24 @@ export function SignInScreen() {
       <Button title="Sign in" onPress={onSignIn} loading={loading} disabled={loading} />
 
       {appleAvailable ? (
-        loading ? (
-          <ActivityIndicator color={Colors.primary} />
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Continue with Apple"
-            onPress={onAppleSignIn}
-            style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
-          >
-            <Image
-              source={require('../../assets/auth/apple-sign-in-logo-black.png')}
-              style={styles.appleButtonImage}
-              accessible={false}
+        <>
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          {loading ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={Radii.md}
+              style={styles.appleButton}
+              onPress={onAppleSignIn}
             />
-          </Pressable>
-        )
+          )}
+        </>
       ) : null}
 
       {__DEV__ ? (
@@ -183,20 +186,25 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     paddingVertical: Spacing.xs,
   },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginVertical: Spacing.xs,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.ash,
+  },
+  dividerText: {
+    color: Colors.textMuted,
+    fontSize: Typography.sizes.xs,
+    textTransform: 'uppercase',
+  },
   appleButton: {
-    alignSelf: 'center',
-    height: 44,
-    width: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  appleButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.96 }],
-  },
-  appleButtonImage: {
-    height: 44,
-    width: 44,
+    width: '100%',
+    height: 48,
   },
   footer: {
     flexDirection: 'row',

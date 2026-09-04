@@ -30,6 +30,8 @@ import {
   classifyVideoSourceUrl,
   isRecognizedVideoSourceUrl,
 } from '@/supabase/functions/_shared/videoSource';
+import { MAX_DIRECT_VIDEO_BYTES } from '@/supabase/functions/_shared/videoUploadContract';
+import { MAX_AUDIO_CAPTURE_BYTES } from '@/supabase/functions/_shared/audioRecipeEvidence';
 import {
   MAX_RECIPE_TEXT_CHARACTERS,
   recipeTextSourceIsTooLarge,
@@ -203,10 +205,17 @@ export function UnifiedIntakeComposer({
         return;
       }
 
-      onSourceChange?.();
-      onAudioAttachmentChange?.(null);
-      onImageBase64Change(null);
       if (asset.type === 'video' || asset.mimeType?.startsWith('video/')) {
+        if (asset.fileSize && asset.fileSize > MAX_DIRECT_VIDEO_BYTES) {
+          setValidationError(
+            `This video is larger than ${Math.floor(MAX_DIRECT_VIDEO_BYTES / 1_000_000)} MB. Choose a shorter or smaller clip.`,
+          );
+          return;
+        }
+
+        onSourceChange?.();
+        onAudioAttachmentChange?.(null);
+        onImageBase64Change(null);
         onImageUriChange?.(null, null);
         onAdditionalImagesChange?.([]);
         onVideoAttachmentChange?.({
@@ -217,6 +226,9 @@ export function UnifiedIntakeComposer({
           duration: asset.duration ?? null,
         });
       } else {
+        onSourceChange?.();
+        onAudioAttachmentChange?.(null);
+        onImageBase64Change(null);
         onVideoAttachmentChange?.(null);
         onImageUriChange?.(asset.uri, asset.mimeType ?? null);
         onAdditionalImagesChange?.(assets.slice(1).map((candidate) => ({
@@ -235,6 +247,14 @@ export function UnifiedIntakeComposer({
     });
     const asset = result.canceled ? null : result.assets[0] ?? null;
     if (!asset) return;
+
+    if (asset.size && asset.size > MAX_AUDIO_CAPTURE_BYTES) {
+      setValidationError(
+        `This audio file is larger than ${Math.floor(MAX_AUDIO_CAPTURE_BYTES / 1_000_000)} MB. Choose a shorter recording.`,
+      );
+      return;
+    }
+
     onSourceChange?.();
     onImageBase64Change(null);
     onImageUriChange?.(null, null);

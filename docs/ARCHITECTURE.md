@@ -105,7 +105,7 @@ ShareIntentProvider
                         OfflineBanner
 ```
 
-Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. `NoshConversationProvider` keeps the assistant sheet and interaction session alive across route changes. The session records an entry point, active task, stable conversation focus, and a separate visible route context. Its root-mounted `LocalRuntime` bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`.
+Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. `NoshConversationProvider` keeps the assistant sheet and interaction session alive across route changes. The session records an entry point, active task, stable conversation focus, and a separate visible route context. Its root-mounted `LocalRuntime` bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Conversation presentation is always context-aware; there is no legacy flag-gated assistant UI. The adapter marks self-contained greetings and thanks for the deterministic quick path, while all other turns keep the normal streamed model and tool loop.
 
 Sentry is initialized before the root layout and wraps the Expo Router tree. `folio-mobile` owns client/native failures and sampled navigation performance; `folio-backend` owns Edge Function and external-provider failures. Recipe content and media are excluded by client and server scrubbers, and Session Replay is intentionally disabled. See [OBSERVABILITY.md](./OBSERVABILITY.md).
 

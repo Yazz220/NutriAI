@@ -19,6 +19,7 @@ import { Fonts } from '@/utils/fonts';
 import { NoshComposer } from './NoshComposer';
 import { NoshActivityDots } from './NoshActivityDots';
 import { NoshConversationStart } from './NoshConversationStart';
+import { getNoshContextNote } from './noshConversationPresentation';
 import { NoshResponseReportButton } from './NoshResponseReportButton';
 import { NoshStreamingText, NoshThinkingIndicator } from './NoshStreamingText';
 
@@ -119,18 +120,22 @@ function AssistantMessage() {
   );
 }
 
-export function NoshConversationDisplay({ interaction, contextModelEnabled, sendDisabled = false }: {
+export function NoshConversationDisplay({ interaction, sendDisabled = false }: {
   interaction: NoshInteractionSession;
-  contextModelEnabled: boolean;
   sendDisabled?: boolean;
 }) {
+  const contextNote = getNoshContextNote(interaction);
   return (
     <View style={styles.container}>
+      {contextNote ? (
+        <View style={styles.contextNote} accessible accessibilityLabel={contextNote}>
+          <View style={styles.contextDot} />
+          <Text style={styles.contextNoteText} numberOfLines={1}>{contextNote}</Text>
+        </View>
+      ) : null}
       <Pressable style={styles.messagesArea} onPress={Keyboard.dismiss}>
         <ThreadPrimitive.MessagesFlatList autoScroll contentContainerStyle={styles.messagesContent} style={styles.messagesList} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" components={{ UserMessage, AssistantMessage }} />
-        {sendDisabled ? null : (
-          <NoshConversationStart interaction={interaction} contextModelEnabled={contextModelEnabled} />
-        )}
+        <NoshConversationStart interaction={interaction} disabled={sendDisabled} />
       </Pressable>
       {sendDisabled ? (
         <View style={styles.contextLoading} accessibilityRole="progressbar">
@@ -140,7 +145,6 @@ export function NoshConversationDisplay({ interaction, contextModelEnabled, send
       ) : null}
       <NoshComposer
         interaction={interaction}
-        contextModelEnabled={contextModelEnabled}
         sendDisabled={sendDisabled}
       />
     </View>
@@ -162,4 +166,17 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.65 },
   contextLoading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   contextLoadingText: { color: Colors.textMuted, fontSize: Typography.sizes.sm, fontFamily: Fonts.ui.regular },
+  contextNote: {
+    minHeight: 32,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.parchment,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.values[4],
+  },
+  contextDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.primary },
+  contextNoteText: { color: Colors.textSecondary, fontSize: Typography.sizes.sm, fontFamily: Fonts.ui.medium },
 });

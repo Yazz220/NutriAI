@@ -77,9 +77,9 @@ export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyle
     brownies: require('../assets/cookbook/style-previews/journal-v1-brownies.png'),
     cookies: require('../assets/cookbook/style-previews/journal-v1-cookies.png'),
   }),
-  bold: option('bold', {
-    brownies: require('../assets/cookbook/style-previews/bold-v1-brownies.png'),
-    cookies: require('../assets/cookbook/style-previews/bold-v1-cookies.png'),
+  artisan: option('artisan', {
+    brownies: require('../assets/cookbook/style-previews/artisan-v1-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/artisan-v1-cookies.png'),
   }),
 };
 

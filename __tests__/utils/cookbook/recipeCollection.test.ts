@@ -164,4 +164,62 @@ describe('recipe collection retrieval', () => {
       sort_mode: 'recent',
     }));
   });
+
+  it('falls back to owned cookbook pages when the browse RPC is not deployed', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find the function nutriai.browse_recipe_collection in the schema cache',
+      },
+    });
+    const cookbookSelect = jest.fn().mockResolvedValue({
+      data: [{ id: 'book-dinner', title: 'Dinner' }],
+      error: null,
+    });
+    const pageLimit = jest.fn().mockResolvedValue({
+      data: [{
+        id: 'page-soup',
+        cookbook_id: 'book-dinner',
+        recipe_graph: {
+          id: 'recipe-soup',
+          title: 'Tomato Soup',
+          description: 'A quick weeknight soup',
+          category: 'dinner',
+          totalTimeMinutes: 25,
+          ingredientGroups: [{
+            id: 'main',
+            ingredients: [{ name: 'tomatoes' }, { name: 'stock' }],
+          }],
+          stepGroups: [],
+          tags: ['weeknight'],
+          dietaryTags: ['vegetarian'],
+          createdAt: '2026-08-25T00:00:00.000Z',
+          updatedAt: '2026-08-25T00:00:00.000Z',
+        },
+        updated_at: '2026-08-25T00:00:00.000Z',
+      }],
+      error: null,
+    });
+    const pageNot = jest.fn().mockReturnValue({ limit: pageLimit });
+    const pageSelect = jest.fn().mockReturnValue({ not: pageNot });
+    const from = jest.fn((table: string) => table === 'cookbooks'
+      ? { select: cookbookSelect }
+      : { select: pageSelect });
+    mockedSchema.mockReturnValue({ rpc, from } as never);
+
+    await expect(browseRecipeCollection({
+      ingredientsAny: ['tomato'],
+      maxTotalMinutes: 30,
+    })).resolves.toEqual({
+      recipes: [expect.objectContaining({
+        pageId: 'page-soup',
+        cookbookTitle: 'Dinner',
+        title: 'Tomato Soup',
+        ingredientPreview: ['tomatoes', 'stock'],
+        matchReason: 'ingredients',
+      })],
+      totalCount: 1,
+    });
+  });
 });

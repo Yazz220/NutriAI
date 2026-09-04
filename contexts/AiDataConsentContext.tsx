@@ -55,6 +55,8 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
   const [sheetMode, setSheetMode] = useState<'request' | 'review' | null>(null);
   const pendingRequest = useRef<Promise<boolean> | null>(null);
   const resolveRequest = useRef<((allowed: boolean) => void) | null>(null);
+  const consentState = useRef({ isGranted, isReady });
+  consentState.current = { isGranted, isReady };
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +96,7 @@ export function AiDataConsentProvider({ children }: React.PropsWithChildren) {
 
   const requestConsent = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
+    if (consentState.current.isReady && consentState.current.isGranted) return true;
     const stored = await loadAiDataConsent(userId).catch(() => null);
     if (stored) {
       setIsGranted(true);

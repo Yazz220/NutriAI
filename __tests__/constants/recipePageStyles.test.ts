@@ -25,6 +25,8 @@ describe('versioned recipe page style registry', () => {
     expect(resolveRecipePageStyleVersion('heritage', 2)?.status).toBe('active');
     expect(resolveRecipePageStyleVersion('studio-editorial', 1)?.status).toBe('legacy');
     expect(resolveRecipePageStyleVersion('studio-editorial', 2)).toBeUndefined();
+    expect(resolveRecipePageStyleVersion('bold', 1)?.status).toBe('legacy');
+    expect(resolveRecipePageStyleVersion('bold', 2)).toBeUndefined();
   });
 
   it('gives every active style a distinguishable thumbnail-scale contract', () => {
@@ -34,7 +36,7 @@ describe('versioned recipe page style registry', () => {
 
     expect(new Set(descriptors).size).toBe(ACTIVE_RECIPE_PAGE_STYLE_IDS.length);
     expect(descriptors.join('\n')).toContain('absolutely no photography');
-    expect(descriptors.join('\n')).toContain('oversized condensed sans-serif');
+    expect(descriptors.join('\n')).toContain('warm humanist serif');
     expect(descriptors.join('\n')).toContain('formal symmetry');
     expect(descriptors.join('\n')).toContain('notebook grid');
   });

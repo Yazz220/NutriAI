@@ -33,6 +33,15 @@ jest.mock('@/components/cookbook/NoshAssistantChat', () => ({
       ReactModule.createElement(Text, null, 'Ask Folio'),
     );
   },
+  NoshCookbookChatButton: ({ cookbook }: { cookbook: { title: string } }) => {
+    const ReactModule = require('react');
+    const { Pressable, Text } = require('react-native');
+    return ReactModule.createElement(
+      Pressable,
+      { accessibilityRole: 'button', accessibilityLabel: `Ask Folio about ${cookbook.title}` },
+      ReactModule.createElement(Text, null, 'Ask Folio'),
+    );
+  },
 }));
 
 jest.mock('@/utils/cookbook/reader', () => ({
@@ -63,7 +72,9 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
   return {
     Cookbook3DScene: ({
       isOpen,
+      isBackClosed,
       onOpen,
+      onCloseBack,
       pages,
       readingView,
       turnRequest,
@@ -73,7 +84,9 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
       onOpenRecipe,
     }: {
       isOpen: boolean;
+      isBackClosed?: boolean;
       onOpen: () => void;
+      onCloseBack?: () => void;
       pages: unknown[];
       readingView: 'spread' | 'page';
       turnRequest?: { id: number; direction: -1 | 1 };
@@ -93,6 +106,15 @@ jest.mock('@/components/cookbook/Cookbook3DScene', () => {
             onPress: onOpen,
           },
           ReactModule.createElement(Text, null, isOpen ? 'Cookbook open' : 'Cookbook closed'),
+        ),
+        ReactModule.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Close back cover',
+            onPress: onCloseBack,
+          },
+          ReactModule.createElement(Text, null, isBackClosed ? 'Back cover closed' : 'Back cover open'),
         ),
         ReactModule.createElement(
           Pressable,
@@ -295,9 +317,9 @@ describe('BookReader cover entry', () => {
     fireEvent.press(recipeMenu);
     expect(actionSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        options: ['Save page image', 'Share recipe', 'Cancel'],
+        options: ['Save page image', 'Share recipe', 'Report issue or content', 'Cancel'],
         destructiveButtonIndex: [],
-        cancelButtonIndex: 2,
+        cancelButtonIndex: 3,
       }),
       expect.any(Function),
     );
@@ -324,6 +346,7 @@ describe('BookReader cover entry', () => {
     expect(addFirstRecipe).toBeTruthy();
     expect(screen.getByText('Turn a recipe you love into its first page.').props.maxFontSizeMultiplier).toBe(1.35);
     expect(screen.queryByRole('button', { name: /Add a page to/ })).toBeNull();
+    expect(screen.getByRole('button', { name: `Ask Folio about ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
     fireEvent.press(addFirstRecipe);
     const { router } = require('expo-router');
     expect(router.push).toHaveBeenCalledWith({
@@ -749,7 +772,7 @@ describe('BookReader compact reading flow', () => {
       params: { cookbookId: SAMPLE_COOKBOOK.id },
     });
     expect(screen.getByRole('button', { name: `Cookbook actions for ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Ask Folio about/ })).toBeNull();
+    expect(screen.getByRole('button', { name: `Ask Folio about ${SAMPLE_COOKBOOK.title}` })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Recipe actions for/ })).toBeNull();
 
     const cookbookMenu = screen.getByTestId('cookbook-context-menu');
@@ -792,11 +815,12 @@ describe('BookReader compact reading flow', () => {
           'Save page image',
           'Share recipe',
           'Move to another cookbook',
+          'Report issue or content',
           'Remove from cookbook',
           'Cancel',
         ],
-        destructiveButtonIndex: [6],
-        cancelButtonIndex: 7,
+        destructiveButtonIndex: [7],
+        cancelButtonIndex: 8,
       }),
       expect.any(Function),
     );
@@ -824,7 +848,7 @@ describe('BookReader compact reading flow', () => {
     expect(onMoveRecipe).toHaveBeenCalledWith(sourcedPage, destinationCookbook);
 
     fireEvent.press(recipeMenu);
-    act(() => actionSheet.mock.calls.at(-1)?.[1](6));
+    act(() => actionSheet.mock.calls.at(-1)?.[1](7));
     expect(onRemoveRecipe).toHaveBeenCalledWith(sourcedPage);
     actionSheet.mockRestore();
     jest.useRealTimers();
@@ -856,5 +880,35 @@ describe('BookReader compact reading flow', () => {
 
     await waitFor(() => expect(onSelectPage).toHaveBeenCalledWith(secondPage.id));
     expect(screen.getByText(secondPage.title)).toBeTruthy();
+  });
+
+  it('smoothly transitions from one-page view to spread view before closing back cover', async () => {
+    jest.useFakeTimers();
+    const screen = await renderReader({
+      cookbook: SAMPLE_COOKBOOK,
+      pages: SAMPLE_COOKBOOK_PAGES,
+      initialPageId: SAMPLE_COOKBOOK_PAGES[SAMPLE_COOKBOOK_PAGES.length - 1].id,
+      onSelectPage: jest.fn(),
+      onShare: jest.fn(),
+    });
+
+    expect(screen.getByText('Recipe reading page')).toBeTruthy();
+    expect(screen.getByText('Back cover open')).toBeTruthy();
+
+    // Trigger back close while in one-page view
+    fireEvent.press(screen.getByRole('button', { name: 'Close back cover' }));
+
+    // Phase 1: Immediately transitions to spread view
+    expect(screen.getByText('Recipe spread')).toBeTruthy();
+    // Back cover is still open during spread settlement
+    expect(screen.getByText('Back cover open')).toBeTruthy();
+
+    // Phase 2: After 260ms, back cover swings shut
+    act(() => {
+      jest.advanceTimersByTime(260);
+    });
+
+    expect(screen.getByText('Back cover closed')).toBeTruthy();
+    jest.useRealTimers();
   });
 });

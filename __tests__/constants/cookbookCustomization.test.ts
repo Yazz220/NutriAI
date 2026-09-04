@@ -51,7 +51,7 @@ describe('cookbook customization catalog', () => {
       'illustrated',
       'heritage',
       'journal',
-      'bold',
+      'artisan',
     ]);
     pageStyles.forEach((style) => {
       expect(isRecipePageStyleId(style.id)).toBe(true);

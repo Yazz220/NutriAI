@@ -10,6 +10,7 @@ const mockPurgeLocalUserData = jest.fn();
 const mockLoadCookingPreferences = jest.fn();
 const mockManageSubscription = jest.fn();
 const mockTrackEvent = jest.fn();
+const mockOpenNosh = jest.fn();
 let mockSubscriptionAccess: null | {
   planId: 'plus';
   entitlementStatus: 'active' | 'cancelled';
@@ -40,7 +41,7 @@ jest.mock('@/contexts/AiDataConsentContext', () => ({
   useAiDataConsent: () => ({ isGranted: true, isReady: true, reviewConsent: jest.fn() }),
 }));
 jest.mock('@/contexts/NoshConversationContext', () => ({
-  useNoshConversation: () => ({ open: jest.fn() }),
+  useNoshConversation: () => ({ open: mockOpenNosh }),
 }));
 jest.mock('@/contexts/NoshSubscriptionContext', () => ({
   useNoshSubscription: () => ({
@@ -72,7 +73,16 @@ jest.mock('@/components/brand/NoshBrandAssets', () => {
   return { NoshSymbol: () => mockReact.createElement(MockView, { testID: 'nosh-symbol' }) };
 });
 jest.mock('@/components/settings/CookingPreferencesSheet', () => ({
-  CookingPreferencesSheet: () => null,
+  CookingPreferencesSheet: ({ visible, onOpenNosh }: { visible: boolean; onOpenNosh: () => void }) => {
+    if (!visible) return null;
+    const mockReact = require('react');
+    const { Pressable: MockPressable, Text: MockText } = require('react-native');
+    return mockReact.createElement(
+      MockPressable,
+      { accessibilityRole: 'button', accessibilityLabel: 'Tell Folio a preference', onPress: onOpenNosh },
+      mockReact.createElement(MockText, null, 'Tell Folio a preference'),
+    );
+  },
 }));
 jest.mock('@/components/subscription/SubscriptionPlanCard', () => {
   const mockReact = require('react');
@@ -108,6 +118,18 @@ describe('SettingsScreen', () => {
     expect(screen.getByRole('link', { name: 'Terms of use' })).toBeTruthy();
     expect(screen.getAllByTestId('nosh-symbol', { includeHiddenElements: true })).toHaveLength(1);
     expect(screen.getByText('Folio v1.2.3')).toBeTruthy();
+  });
+
+  it('opens Folio in a dedicated preference conversation', async () => {
+    const screen = render(<SettingsScreen />);
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Cooking preferences, 1 saved' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Tell Folio a preference' }));
+
+    expect(mockOpenNosh).toHaveBeenCalledWith(
+      'settings-preferences',
+      { kind: 'collection' },
+    );
   });
 
   it('warns active Plus members that account deletion does not cancel App Store billing', async () => {

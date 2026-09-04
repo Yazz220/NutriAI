@@ -129,7 +129,7 @@ describe('complete recipe page generation contract', () => {
           ],
         },
       ],
-    }, 'bold');
+    }, 'artisan');
 
     expect(payload.recipe.description).toBeUndefined();
     expect(payload.recipe.stepGroups).toEqual([{
@@ -159,6 +159,7 @@ describe('complete recipe page generation contract', () => {
     ['illustrated', 2, 'absolutely no photography'],
     ['heritage', 2, 'wood engraving or copperplate'],
     ['journal', 1, 'instant-film food photograph'],
+    ['artisan', 1, 'rustic culinary photography'],
     ['bold', 1, 'screenprint or risograph'],
   ])('gives %s a distinctive polished visual contract', (styleId, revision, signature) => {
     const profile = resolveRecipePageStyleVersion(styleId as never, revision);

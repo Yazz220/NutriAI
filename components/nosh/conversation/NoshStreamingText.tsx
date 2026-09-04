@@ -6,22 +6,41 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
+import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { NoshActivityDots } from './NoshActivityDots';
 import { parseNoshResponseBlocks } from './noshResponseFormatting';
 
 const RESPONSE_ENTER_DURATION_MS = 140;
+const PENDING_INDICATOR_DELAY_MS = 450;
 
 export function NoshThinkingIndicator() {
   const isRunning = useAuiState((state) => state.message.status?.type === 'running');
+  const { interaction } = useNoshConversation();
+  const [visible, setVisible] = React.useState(false);
 
-  if (!isRunning) return null;
+  React.useEffect(() => {
+    if (!isRunning) {
+      setVisible(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setVisible(true), PENDING_INDICATOR_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isRunning]);
+
+  if (!isRunning || !visible) return null;
+
+  const label = interaction.focus.kind === 'recipe'
+    ? 'Checking this recipe'
+    : interaction.task === 'preferences'
+      ? 'Getting your preferences ready'
+      : 'Preparing a reply';
 
   return (
     <View
       style={styles.thinking}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel="Folio is thinking"
+      accessibilityLabel={label}
     >
       <NoshActivityDots />
     </View>

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutated through their .value API. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,10 @@ import { CaptureActionSheet } from '@/components/cookbook/CaptureActionSheets';
 import type { CookbookTurnRequest } from '@/components/cookbook/Cookbook3DScene.types';
 import { CookbookSettingsSheet, RecipeActionsSheet } from '@/components/cookbook/ReaderActionSheets';
 import { RecipeRevisionSheet, type RecipeRevisionMode } from '@/components/cookbook/RecipeRevisionSheet';
-import { NoshAssistantChatButton } from '@/components/cookbook/NoshAssistantChat';
+import {
+  NoshAssistantChatButton,
+  NoshCookbookChatButton,
+} from '@/components/cookbook/NoshAssistantChat';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,6 +89,7 @@ interface BookReaderProps {
   onRemoveRecipe?: (page: CookbookPage) => Promise<void> | void;
   onResolveCapture?: (capture: RecipeCapture) => Promise<void> | void;
   onRemoveCapture?: (capture: RecipeCapture) => Promise<void> | void;
+  onReportRecipe?: (page: CookbookPage) => Promise<void> | void;
   onReorderPage?: (input: { pageId: string; beforePageId: string | null }) => Promise<unknown> | void;
   reorderError?: boolean;
   onGeneratePageCandidate?: (
@@ -143,6 +147,7 @@ export function BookReader({
   onRemoveRecipe,
   onResolveCapture,
   onRemoveCapture,
+  onReportRecipe,
   onReorderPage,
   reorderError = false,
   onGeneratePageCandidate,
@@ -209,6 +214,7 @@ export function BookReader({
   const nativeTurnRequestId = useRef(0);
   const handledInitialPageId = useRef<string | null>(null);
   const entryOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opening = useSharedValue(initialPageId ? 1 : 0);
   const chromeIdle = useSharedValue(1);
   const [chromeVisible, setChromeVisible] = useState(true);
@@ -304,18 +310,20 @@ export function BookReader({
   const counterTotal = isCompactReading ? pages.length : spreads.length;
   const recipeContextActionsFor = useCallback(
     (page: CookbookPage) => {
+      const isReady = page.lifecycleStatus !== 'processing';
       const hasPageImage = getCookbookPageImageSource(page) !== null;
-      const canRevise = Boolean(!readOnly && page.recipeGraph && onGeneratePageCandidate && onUsePageCandidate);
+      const canRevise = Boolean(!readOnly && isReady && page.recipeGraph && onGeneratePageCandidate && onUsePageCandidate);
       const hasMoveDestination = availableCookbooks.some((destination) => destination.id !== cookbookId);
 
       return buildRecipeContextActions({
         canEdit: canRevise,
         canRedesign: canRevise,
-        canVisitSource: Boolean(onVisitSource && getRecipeSourceUrl(page)),
+        canVisitSource: Boolean(onVisitSource && isReady && getRecipeSourceUrl(page)),
         canSaveImage: Boolean(onExportPage && hasPageImage),
         canShare: hasPageImage,
-        canMove: Boolean(!readOnly && onMoveRecipe && hasMoveDestination),
-        canRemove: Boolean(!readOnly && onRemoveRecipe),
+        canMove: Boolean(!readOnly && isReady && onMoveRecipe && hasMoveDestination),
+        canRemove: Boolean(!readOnly && isReady && onRemoveRecipe),
+        canReport: true,
       });
     },
     [
@@ -552,6 +560,8 @@ export function BookReader({
     return () => {
       if (entryOpenTimerRef.current) clearTimeout(entryOpenTimerRef.current);
       entryOpenTimerRef.current = null;
+      if (backCloseTimerRef.current) clearTimeout(backCloseTimerRef.current);
+      backCloseTimerRef.current = null;
     };
   }, [initialPageId, opening, reduceMotion]);
 
@@ -594,6 +604,11 @@ export function BookReader({
   }
 
   function closeBook() {
+    if (backCloseTimerRef.current) {
+      clearTimeout(backCloseTimerRef.current);
+      backCloseTimerRef.current = null;
+    }
+    if (usesTouchPaging && readingView === 'page') return;
     setFocusedPage(null);
     setOverviewActionPage(null);
     setIsOverview(false);
@@ -611,6 +626,26 @@ export function BookReader({
   }
 
   function closeBackBook() {
+    if (backCloseTimerRef.current) {
+      clearTimeout(backCloseTimerRef.current);
+      backCloseTimerRef.current = null;
+    }
+
+    if (usesTouchPaging && readingView === 'page') {
+      // Phase 1: Smoothly zoom out to the two-page spread showing the last spread
+      setReadingView('spread');
+      setSpreadIndex(Math.max(0, spreads.length - 1));
+      pokeChrome();
+
+      // Phase 2: After the spread view has mounted and settled (matching STAGE_ENTER_DURATION), swing the back cover shut
+      backCloseTimerRef.current = setTimeout(() => {
+        setIsBackClosed(true);
+        pokeChrome();
+        backCloseTimerRef.current = null;
+      }, 260);
+      return;
+    }
+
     setReadingView('spread');
     setSpreadIndex(Math.max(0, spreads.length - 1));
     setIsBackClosed(true);
@@ -618,12 +653,20 @@ export function BookReader({
   }
 
   function openBackBook() {
+    if (backCloseTimerRef.current) {
+      clearTimeout(backCloseTimerRef.current);
+      backCloseTimerRef.current = null;
+    }
     setIsBackClosed(false);
     pokeChrome();
   }
 
   const goToSpread = useCallback(
     (index: number) => {
+      if (backCloseTimerRef.current) {
+        clearTimeout(backCloseTimerRef.current);
+        backCloseTimerRef.current = null;
+      }
       const nextIndex = Math.max(0, Math.min(spreads.length - 1, index));
       if (nextIndex === spreadIndex) return;
       setSpreadIndex(nextIndex);
@@ -641,6 +684,10 @@ export function BookReader({
   );
 
   function goToLeaf(offset: -1 | 1) {
+    if (backCloseTimerRef.current) {
+      clearTimeout(backCloseTimerRef.current);
+      backCloseTimerRef.current = null;
+    }
     if (recipeLeaves.length === 0) return;
     const nextIndex = Math.max(0, Math.min(recipeLeaves.length - 1, leafIndex + offset));
     if (nextIndex === leafIndex) return;
@@ -819,7 +866,37 @@ export function BookReader({
     }
     if (actionId === 'remove_recipe') {
       void onRemoveRecipe?.(page);
+      return;
     }
+    if (actionId === 'report_recipe') {
+      if (onReportRecipe) {
+        void onReportRecipe(page);
+        return;
+      }
+      handleReportRecipe(page);
+    }
+  }
+
+  function handleReportRecipe(page: CookbookPage) {
+    Alert.alert(
+      'Report recipe',
+      `Would you like to report "${page.title}" for inappropriate content, safety concerns, or an AI generation issue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report to Support',
+          onPress: () => {
+            const subject = encodeURIComponent(`Content Report: ${page.title} (${page.id})`);
+            const body = encodeURIComponent(
+              `I would like to report an issue with the recipe "${page.title}".\n\nPage ID: ${page.id}\nCookbook: ${cookbook?.title ?? 'Cookbook'}\nReason (offensive content, safety concern, inaccurate text, other):\n`,
+            );
+            void Linking.openURL(`mailto:support@nutriai.app?subject=${subject}&body=${body}`).catch(() => {
+              Alert.alert('Report received', 'Thank you for your feedback. Our team reviews all reported content promptly.');
+            });
+          },
+        },
+      ],
+    );
   }
 
   function runCaptureContextAction(capture: RecipeCapture, actionId: ContextActionId) {
@@ -1194,7 +1271,7 @@ export function BookReader({
         </Animated.View>
       ) : null}
 
-      {!isOverview && pages.length > 0 && isOpen && (selectedPage || (!readOnly && cookbookId)) ? (
+      {!isOverview && isOpen && cookbook ? (
         <Animated.View
           style={[styles.readerActionDock, { top: insets.top + 58 }, floatingIdleStyle]}
           pointerEvents={chromeVisible ? 'auto' : 'none'}
@@ -1208,8 +1285,14 @@ export function BookReader({
               cookbookPages={pages}
               onOpen={showFirstNoshTip ? dismissFirstNoshTip : undefined}
             />
-          ) : null}
-          {!readOnly && cookbookId && (!usesTouchPaging || !isCompactReading) ? (
+          ) : (
+            <NoshCookbookChatButton
+              cookbook={cookbook}
+              cookbookPages={pages}
+              compact={isCompactReading}
+            />
+          )}
+          {!readOnly && cookbookId && pages.length > 0 && (!usesTouchPaging || !isCompactReading) ? (
             <Pressable
               style={({ pressed }) => [styles.floatingAddButton, pressed && styles.actionPressed]}
               onPress={openAddPage}
@@ -1274,6 +1357,7 @@ export function BookReader({
           onRedesign={onGeneratePageCandidate && onUsePageCandidate ? () => setRevisionMode('design') : undefined}
           onMove={onMoveRecipe}
           onRemove={onRemoveRecipe}
+          onReport={handleReportRecipe}
           readOnly={readOnly}
         />
       ) : null}

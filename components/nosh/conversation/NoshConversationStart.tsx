@@ -12,25 +12,28 @@ import { getNoshStartConfig } from './noshConversationPresentation';
 
 export function NoshConversationStart({
   interaction,
-  contextModelEnabled,
+  disabled = false,
 }: {
   interaction: NoshInteractionSession;
-  contextModelEnabled: boolean;
+  disabled?: boolean;
 }) {
   const { close } = useNoshConversation();
-  const config = getNoshStartConfig(interaction, contextModelEnabled);
+  const config = getNoshStartConfig(interaction);
   return (
     <AuiIf condition={(state) => state.thread.isEmpty}>
       <View style={styles.container}>
         <Text variant="h2" style={styles.title}>{config.title}</Text>
+        <Text style={styles.copy}>{config.copy}</Text>
         <View style={styles.actions}>
           {config.prompts.map((prompt) => prompt === 'Save or check a recipe' ? (
             <Pressable
               key={prompt}
-              style={styles.action}
+              style={[styles.action, disabled && styles.disabled]}
+              disabled={disabled}
               accessibilityRole="button"
               accessibilityLabel={prompt}
               onPress={() => {
+                if (disabled) return;
                 close();
                 router.push('/(book)/save');
               }}
@@ -38,7 +41,14 @@ export function NoshConversationStart({
               <Text variant="bodySmall" style={styles.actionText}>{prompt}</Text>
             </Pressable>
           ) : (
-            <ThreadPrimitive.Suggestion key={prompt} prompt={prompt} send style={styles.action} accessibilityLabel={prompt}>
+            <ThreadPrimitive.Suggestion
+              key={prompt}
+              prompt={prompt}
+              send
+              disabled={disabled}
+              style={[styles.action, disabled && styles.disabled]}
+              accessibilityLabel={prompt}
+            >
               <Text variant="bodySmall" style={styles.actionText}>{prompt}</Text>
             </ThreadPrimitive.Suggestion>
           ))}
@@ -62,4 +72,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   actionText: { color: Colors.textSecondary, fontFamily: Fonts.ui.medium },
+  disabled: { opacity: Colors.state.disabledOpacity },
 });

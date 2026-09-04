@@ -6,6 +6,7 @@ import {
   Download,
   ExternalLink,
   FileDown,
+  Flag,
   Palette,
   Pencil,
   RefreshCw,
@@ -34,6 +35,7 @@ interface RecipeActionsSheetProps {
   onRedesign?: (page: CookbookPage) => void;
   onMove?: (page: CookbookPage, destination: Cookbook) => Promise<void> | void;
   onRemove?: (page: CookbookPage) => Promise<void> | void;
+  onReport?: (page: CookbookPage) => void;
   readOnly?: boolean;
   initialView?: 'actions' | 'move';
 }
@@ -51,6 +53,7 @@ export function RecipeActionsSheet({
   onRedesign,
   onMove,
   onRemove,
+  onReport,
   readOnly = false,
   initialView = 'actions',
 }: RecipeActionsSheetProps) {
@@ -63,7 +66,7 @@ export function RecipeActionsSheet({
   const canRevise = Boolean(!readOnly && page?.recipeGraph && (onEdit || onRedesign));
   const canMove = Boolean(!readOnly && onMove && destinations.length > 0);
   const hasStandardActions = Boolean(
-    canRevise || (sourceUrl && onVisitSource) || (hasPageImage && (onExport || onShare)) || canMove,
+    canRevise || (sourceUrl && onVisitSource) || (hasPageImage && (onExport || onShare)) || canMove || onReport,
   );
 
   useEffect(() => {
@@ -190,6 +193,18 @@ export function RecipeActionsSheet({
                   onPress={() => {
                     setError(null);
                     setView('move');
+                  }}
+                />
+              ) : null}
+              {onReport ? (
+                <ActionRow
+                  icon={<Flag size={19} color={Colors.text} />}
+                  title="Report issue or content"
+                  pending={false}
+                  disabled={Boolean(pendingAction)}
+                  onPress={() => {
+                    onClose();
+                    onReport(page);
                   }}
                 />
               ) : null}
