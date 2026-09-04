@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { CreationStudio } from '@/components/create/CreationStudio';
+import { COOKBOOK_PAGE_STYLES, getCookbookPageStylePreview } from '@/constants/cookbookCustomization';
 
 jest.mock('expo-haptics', () => ({
   selectionAsync: jest.fn().mockResolvedValue(undefined),
@@ -26,6 +27,22 @@ jest.mock('@/components/physical-book/SkiaBookCover', () => ({
 }));
 
 describe('CreationStudio', () => {
+  it('uses the saved Illustrated portrait sample while editing an older book', () => {
+    const screen = render(
+      <CreationStudio mode="edit" existingPageStylePreview={getCookbookPageStylePreview('illustrated', 1)} />,
+    );
+    fireEvent.press(screen.getByRole('button', { name: 'Open cookbook preview' }));
+    expect(screen.getByLabelText('Illustrated brownie recipe sample').props.source)
+      .toBe(COOKBOOK_PAGE_STYLES.watercolor.samples.brownies);
+  });
+
+  it('keeps the cover visible when a saved revision has no matching sample', () => {
+    const screen = render(<CreationStudio mode="edit" existingPageStylePreview={null} />);
+    expect(screen.queryByRole('button', { name: 'Open cookbook preview' })).toBeNull();
+    expect(screen.getByLabelText('Cookbook cover preview')).toBeTruthy();
+    expect(screen.queryByLabelText('Studio brownie recipe sample')).toBeNull();
+  });
+
   it('creates one canonical book with independent texture, color, and recipe-page style', async () => {
     const onCreateBook = jest.fn().mockResolvedValue(undefined);
     const screen = render(

@@ -6,6 +6,22 @@ import {
 import { resolveRecipePageStyleVersion } from '@/constants/recipePageStyles';
 
 describe('complete recipe page generation contract', () => {
+  it.each([3, 8, 14])('keeps illustrated ingredient and step artwork at %i ingredients', (count) => {
+    const graph = {
+      title: 'Style consistency fixture',
+      ingredientGroups: [{ ingredients: Array.from({ length: count }, (_, i) => ({ name: `Ingredient ${i + 1}` })) }],
+      stepGroups: [{ steps: [{ text: 'Mix the ingredients.' }, { text: 'Bake until set.' }] }],
+    };
+    const illustrated = buildRecipePagePrompt(graph, 'illustrated');
+    expect(illustrated.payload.styleRevision).toBe(3);
+    expect(illustrated.payload.styleDescriptor).toContain('each ingredient');
+    expect(illustrated.payload.styleDescriptor).toContain('every numbered method step');
+    const watercolor = buildRecipePagePrompt(graph, 'watercolor');
+    expect(watercolor.payload.styleRevision).toBe(2);
+    expect(watercolor.payload.styleDescriptor).toContain('one integrated food illustration');
+    expect(watercolor.payload.recipe).toEqual(illustrated.payload.recipe);
+  });
+
   const recipe = {
     title: 'Roasted Tomato Pasta',
     cuisine: 'Italian',

@@ -66,8 +66,14 @@ export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyle
     cookies: require('../assets/cookbook/style-previews/editorial-v2-cookies.png'),
   }),
   illustrated: option('illustrated', {
+    // These existing assets depict the ingredient-and-step layout locked by revision 3.
     brownies: require('../assets/cookbook/style-previews/illustrated-v2-brownies.png'),
     cookies: require('../assets/cookbook/style-previews/illustrated-v2-cookies.png'),
+  }),
+  watercolor: option('watercolor', {
+    // The original portrait samples match the preserved Illustrated 1 art direction.
+    brownies: require('../assets/cookbook/style-previews/illustrated-brownies.png'),
+    cookies: require('../assets/cookbook/style-previews/illustrated-cookies.png'),
   }),
   heritage: option('heritage', {
     brownies: require('../assets/cookbook/style-previews/heritage-v2-brownies.png'),
@@ -84,6 +90,23 @@ export const COOKBOOK_PAGE_STYLES: Record<CreationPageStyleId, CookbookPageStyle
 };
 
 export const DEFAULT_CREATION_PAGE_STYLE_ID: CreationPageStyleId = DEFAULT_RECIPE_PAGE_STYLE_ID;
+
+export type CookbookPageStylePreview = Pick<CookbookPageStyleOption, 'name' | 'samples'>;
+
+/** Never show today's sample as the appearance of an older saved revision. */
+export function getCookbookPageStylePreview(
+  styleId: CookbookPageStyleId,
+  revision: number,
+): CookbookPageStylePreview | null {
+  if (styleId === 'illustrated' && revision === 1) {
+    return { name: 'Illustrated', samples: COOKBOOK_PAGE_STYLES.watercolor.samples };
+  }
+  if (isActiveRecipePageStyleId(styleId)) {
+    const option = COOKBOOK_PAGE_STYLES[styleId];
+    if (option.revision === revision) return option;
+  }
+  return null;
+}
 
 export function listCreationPageStyles(): CookbookPageStyleOption[] {
   return listActiveRecipePageStyles().map((style) => COOKBOOK_PAGE_STYLES[style.id as CreationPageStyleId]);

@@ -30,6 +30,7 @@ import {
   type CookbookCoverColorOption,
   type CookbookCoverFinishOption,
   type CookbookPageStyleOption,
+  type CookbookPageStylePreview,
   type CreationPageStyleId,
 } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
@@ -89,6 +90,7 @@ interface CreationStudioProps {
   onSaveBook?: (details: CreateCookbookDetails) => Promise<void | boolean>;
   onSignIn?: () => void;
   initialDetails?: CreateCookbookDetails;
+  existingPageStylePreview?: CookbookPageStylePreview | null;
   bottomInset?: number;
   mode?: 'standard' | 'first-run' | 'edit';
   shelfStyleId?: ShelfStyleId;
@@ -103,6 +105,7 @@ export function CreationStudio({
   onSaveBook,
   onSignIn,
   initialDetails,
+  existingPageStylePreview,
   bottomInset = 0,
   mode = 'standard',
   shelfStyleId = DEFAULT_BOOKSHELF_SCENE.shelfStyleId,
@@ -264,7 +267,7 @@ export function CreationStudio({
                 coverColorId={coverColorId}
                 coverTitleColorId={coverTitleColorId}
                 coverTitlePlacementId={coverTitlePlacementId}
-                pageStyleId={pageStyleId}
+                pageStyle={isEditing ? existingPageStylePreview : COOKBOOK_PAGE_STYLES[pageStyleId]}
                 face={previewFace}
                 availableWidth={Math.min(width - Spacing.xl * 2, 640)}
                 onPress={() => selectPreviewFace(previewFace === 'cover' ? 'inside' : 'cover')}
@@ -604,7 +607,7 @@ function BookPreview({
   coverColorId,
   coverTitleColorId,
   coverTitlePlacementId,
-  pageStyleId,
+  pageStyle,
   face,
   availableWidth,
   onPress,
@@ -614,7 +617,7 @@ function BookPreview({
   coverColorId: CookbookCoverColorId;
   coverTitleColorId: CookbookCoverTitleColorId;
   coverTitlePlacementId: CookbookCoverTitlePlacementId;
-  pageStyleId: CreationPageStyleId;
+  pageStyle?: CookbookPageStylePreview | null;
   face: PreviewFace;
   availableWidth: number;
   onPress: () => void;
@@ -632,15 +635,16 @@ function BookPreview({
         pressed && styles.bookStagePressed,
       ]}
       onPress={onPress}
+      disabled={!pageStyle}
       accessibilityRole="button"
-      accessibilityLabel={face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
+      accessibilityLabel={!pageStyle ? 'Cookbook cover preview' : face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
       accessibilityHint={
-        face === 'cover'
+        !pageStyle ? 'Read your saved pages in the cookbook' : face === 'cover'
           ? 'Opens the selected sample recipe pages'
           : 'Returns to the cookbook cover'
       }
     >
-      {face === 'cover' ? (
+      {face === 'cover' || !pageStyle ? (
         <>
           <View pointerEvents="none" style={styles.stageHalo} />
           <PhysicalBook
@@ -657,7 +661,7 @@ function BookPreview({
         <GeneratedRecipeSpread
           coverFinishId={coverFinishId}
           coverColorId={coverColorId}
-          pageStyleId={pageStyleId}
+          pageStyle={pageStyle}
           width={spreadWidth}
         />
       )}
@@ -668,16 +672,15 @@ function BookPreview({
 function GeneratedRecipeSpread({
   coverFinishId,
   coverColorId,
-  pageStyleId,
+  pageStyle,
   width,
 }: {
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
-  pageStyleId: CreationPageStyleId;
+  pageStyle: CookbookPageStylePreview;
   width: number;
 }) {
   const binding = resolveCookbookBinding({ finishId: coverFinishId, colorId: coverColorId });
-  const pageStyle = COOKBOOK_PAGE_STYLES[pageStyleId];
   const height = resolveCookbookSpreadHeight(width);
   const pageWidth = width / 2;
 

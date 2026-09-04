@@ -20,7 +20,10 @@ describe('versioned recipe page style registry', () => {
 
   it('preserves previous style definitions as legacy versions', () => {
     expect(resolveRecipePageStyleVersion('illustrated', 1)?.status).toBe('legacy');
-    expect(resolveRecipePageStyleVersion('illustrated', 2)?.status).toBe('active');
+    expect(resolveRecipePageStyleVersion('illustrated', 2)?.status).toBe('legacy');
+    expect(resolveRecipePageStyleVersion('illustrated', 3)?.status).toBe('active');
+    expect(resolveRecipePageStyleVersion('watercolor', 1)?.status).toBe('legacy');
+    expect(resolveRecipePageStyleVersion('watercolor', 2)?.status).toBe('active');
     expect(resolveRecipePageStyleVersion('heritage', 1)?.status).toBe('legacy');
     expect(resolveRecipePageStyleVersion('heritage', 2)?.status).toBe('active');
     expect(resolveRecipePageStyleVersion('studio-editorial', 1)?.status).toBe('legacy');

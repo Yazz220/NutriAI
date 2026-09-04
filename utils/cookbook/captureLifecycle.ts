@@ -102,7 +102,7 @@ export function normalizeRecipeCapturePageStatus(value: unknown): RecipeCaptureP
 
 /**
  * Compatibility boundary for captures created before the simplified lifecycle
- * migration. This keeps stale server/cache values from becoming UI success.
+ * migration. Opening a completed capture still requires a live page link.
  */
 export function normalizeRecipeCaptureStatus(input: {
   status: unknown;
@@ -113,7 +113,10 @@ export function normalizeRecipeCaptureStatus(input: {
   const hasPublishedPage = input.pageStatus === 'ready' && Boolean(input.pageId);
 
   if (input.status === 'ready') {
-    if (hasPublishedPage) return 'ready';
+    // Deleting a page or cookbook clears its foreign keys, but does not undo
+    // the completed capture. Keep it terminal so it cannot look like new work
+    // or trigger endless polling. isCaptureReadyToOpen checks the live links.
+    if (input.pageStatus === 'ready') return 'ready';
     return input.pageStatus === 'failed' ? 'needs_attention' : 'processing';
   }
   if (input.status === 'processing' || input.status === 'saved' || input.status === 'reading') {

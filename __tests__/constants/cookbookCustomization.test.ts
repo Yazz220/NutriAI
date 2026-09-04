@@ -7,6 +7,7 @@ import {
   listCookbookCoverFinishes,
   listCreationPageStyles,
   normalizeCookbookPageStyleId,
+  getCookbookPageStylePreview,
 } from '@/constants/cookbookCustomization';
 import {
   isRecipePageStyleId,
@@ -14,6 +15,17 @@ import {
 } from '@/constants/recipePageStyles';
 
 describe('cookbook customization catalog', () => {
+  it('previews the saved revision instead of substituting the current style', () => {
+    expect(getCookbookPageStylePreview('illustrated', 1)?.samples)
+      .toBe(COOKBOOK_PAGE_STYLES.watercolor.samples);
+    expect(getCookbookPageStylePreview('illustrated', 3)?.samples)
+      .toBe(COOKBOOK_PAGE_STYLES.illustrated.samples);
+    expect(getCookbookPageStylePreview('illustrated', 2)).toBeNull();
+    expect(getCookbookPageStylePreview('editorial', 1)).toBeNull();
+    expect(getCookbookPageStylePreview('editorial', 2)?.samples)
+      .toBe(COOKBOOK_PAGE_STYLES.editorial.samples);
+  });
+
   it('offers four ordered finishes without changing book construction', () => {
     const finishes = listCookbookCoverFinishes();
 
@@ -42,13 +54,14 @@ describe('cookbook customization catalog', () => {
       .toBe(Object.keys(COOKBOOK_COVER_COLORS).length);
   });
 
-  it('keeps the six selectable page identities aligned with generation', () => {
+  it('keeps the seven selectable page identities aligned with generation', () => {
     const pageStyles = listCreationPageStyles();
 
     expect(pageStyles.map((style) => style.id)).toEqual([
       'studio',
       'editorial',
       'illustrated',
+      'watercolor',
       'heritage',
       'journal',
       'artisan',
@@ -60,7 +73,7 @@ describe('cookbook customization catalog', () => {
       expect(style.samples.brownies).toBeTruthy();
       expect(style.samples.cookies).toBeTruthy();
     });
-    expect(Object.keys(COOKBOOK_PAGE_STYLES)).toHaveLength(6);
+    expect(Object.keys(COOKBOOK_PAGE_STYLES)).toHaveLength(7);
     expect(DEFAULT_CREATION_PAGE_STYLE_ID).toBe('studio');
   });
 

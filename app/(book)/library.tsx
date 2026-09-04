@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Colors } from '@/constants/colors';
 import {
   DEFAULT_CREATION_PAGE_STYLE_ID,
+  getCookbookPageStylePreview,
   isCreationPageStyleId,
 } from '@/constants/cookbookCustomization';
 import { Spacing } from '@/constants/spacing';
@@ -170,6 +171,9 @@ export default function BookLibraryScreen() {
         bottomInset={insets.bottom}
         canCreate={!!user}
         mode={editingCookbook ? 'edit' : isFirstRun ? 'first-run' : 'standard'}
+        existingPageStylePreview={editingCookbook
+          ? getCookbookPageStylePreview(editingCookbook.pageStyleId, editingCookbook.styleRevision)
+          : undefined}
         initialDetails={editingCookbook ? {
           title: editingCookbook.title,
           coverFinishId: editingCookbook.coverFinishId,

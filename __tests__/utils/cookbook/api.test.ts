@@ -6,12 +6,15 @@ import {
   deleteCookbook,
   discardRecipeCapture,
   mapRecipeCapture,
+  listRecipeCaptures,
   retryReaderStorageCleanup,
   startRecipeCapture,
   updateCookbookTitle,
   updateCookbookAppearance,
 } from '@/utils/cookbook/api';
 import { supabase } from '@/lib/supabase';
+import { buildCookbookPageGridItems } from '@/utils/cookbook/pageGrid';
+import { isCaptureProcessing, isCaptureReadyToOpen } from '@/utils/cookbook/captureLifecycle';
 import type { RecipeGraphDraft } from '@/types/recipeGraph';
 import { callAuthenticatedFunction, FunctionTimeoutError } from '@/utils/supabaseEdge';
 
@@ -189,6 +192,27 @@ describe('createRecipePageWithGraph', () => {
 });
 
 describe('mapRecipeCapture', () => {
+  it('does not restart completed captures whose cookbook and page were deleted', async () => {
+    const row = {
+      id: 'deleted-page-capture', user_id: 'user-1', source_type: 'text' as const,
+      source_payload: {}, status: 'ready', art_status: 'ready',
+      destination_cookbook_id: null, pending_page_id: null,
+      idempotency_key: 'original-capture-key', processing_attempt: 1,
+      created_at: '2026-08-30T12:00:00.000Z', updated_at: '2026-09-03T12:00:00.000Z',
+    };
+    const order = jest.fn().mockResolvedValue({ data: [row], error: null });
+    mockSchema.mockReturnValue({ from: jest.fn(() => ({ select: jest.fn(() => ({ eq: jest.fn(() => ({ order })) })) })) });
+    mockedCallAuthenticatedFunction.mockClear();
+    for (let open = 0; open < 2; open += 1) {
+      const captures = await listRecipeCaptures('user-1');
+      expect(captures[0].status).toBe('ready');
+      expect(isCaptureProcessing(captures[0].status)).toBe(false);
+      expect(isCaptureReadyToOpen(captures[0])).toBe(false);
+      expect(buildCookbookPageGridItems({ cookbookId: 'new-book', pageSlots: [], captures, includeUnassignedCaptures: true })).toEqual([]);
+    }
+    expect(mockedCallAuthenticatedFunction).not.toHaveBeenCalled();
+  });
+
   it('maps durable stage diagnostics without trusting unknown stage names', () => {
     const mapped = mapRecipeCapture({
       id: 'capture-1',
