@@ -1,70 +1,58 @@
-# App Store Review Notes & Submission Guide
+# App Store review notes
 
-This document contains the exact information and credentials to enter into **App Store Connect** under **App Review Information** when submitting Folio for review.
+This is the current copy-and-paste template for App Store Connect. Replace every bracketed value before submission. Do not store a real review password in the repository.
 
----
+## Sign-in information
 
-## 1. Sign-In Credentials (Guideline 2.1 Compliance)
+- Sign-in required: Yes
+- User name: `[APP REVIEW ACCOUNT EMAIL]`
+- Password: `[APP REVIEW ACCOUNT PASSWORD]`
 
-In App Store Connect, configure the **Sign-in information** section as follows:
+Before submission, create the account, confirm its email, and give it one or two cookbooks with finished recipe pages. Keep a separate disposable account available if Apple needs to verify account deletion.
 
-* **Sign-in required**: `Yes` (checked)
-* **User name**: `reviewer@folio.app` (or your created demo account)
-* **Password**: `FolioReview2026!`
-
-> **Pre-submission Step**:
-> Before submitting the build, ensure this account exists in your Supabase Auth dashboard (`Users` table) with:
-> 1. `Email Confirmed`: `True`
-> 2. 1–2 cookbooks created on this account containing generated recipe pages so the reviewer can immediately browse and test the 3D book reader without having to import their own recipes first.
-
----
-
-## 2. Notes for App Reviewer (Copy & Paste into App Store Connect)
+## Notes for App Review
 
 ```text
-Welcome to Folio — the book-first personal cookbook app.
+Welcome to Folio, a book-first personal cookbook app.
 
-DEMO ACCOUNT CREDENTIALS:
-Username: reviewer@folio.app
-Password: FolioReview2026!
+REVIEW ACCOUNT
+Username: [APP REVIEW ACCOUNT EMAIL]
+Password: [APP REVIEW ACCOUNT PASSWORD]
 
-KEY FEATURES & TESTING WALKTHROUGH:
-1. THE COOKBOOK SHELF & READER:
-   - Upon signing in, you will land on the digital bookshelf containing pre-created cookbooks.
-   - Tap any cookbook to open the 3D book reader.
-   - Swipe horizontally to turn pages with real paper curl physics.
-   - Tap any recipe page to enter single-page focused reading view.
-   - Tap the top-right button while in reader mode to access the table of contents or recipe options (Export PDF, Share, Redesign, Edit).
+TESTING WALKTHROUGH
 
-2. RECIPE CAPTURE & IMPORT:
-   - Tap the "+" button inside an open book or on the shelf to add a new recipe.
-   - Folio accepts text recipes, public recipe URLs, or photos from your library or camera.
-   - Note: Camera and Photo Library permissions are only requested when you tap to take a photo or select an image from your library.
+1. Cookbook shelf and reader
+- After signing in, tap a cookbook on the shelf.
+- Swipe horizontally to turn pages.
+- Tap a recipe page for focused reading.
+- Use the page actions menu to share, save, move, edit, redesign, report, or remove a recipe when those actions are available.
 
-3. PERSISTENT AI ASSISTANT (FOLIO):
-   - Tap the Folio chef icon in the navigation bar to open the kitchen assistant.
-   - You can ask questions about the currently open recipe (e.g., "What can I substitute for miso?"), convert units, or request adjustments.
+2. Recipe capture
+- Open a cookbook and tap Add recipe, or use the recipe activity surface.
+- Folio accepts pasted recipe text, supported public links, and existing image, video, or audio files that the user has permission to use.
+- Photo Library access is requested only when the user chooses an existing image or video.
 
-4. IN-APP PURCHASES & SUBSCRIPTION (FOLIO PLUS):
-   - The app includes an auto-renewable subscription: "Folio Plus" (Monthly and Annual).
-   - You can test purchase and restore flows via the StoreKit Sandbox environment.
-   - Tap the account settings icon on the shelf -> "Subscription" to open the Paywall.
-   - The Paywall includes clear auto-renewal terms, links to Terms of Use and Privacy Policy, and a "Restore purchases" button.
+3. Folio assistant
+- Tap Ask Folio from the shelf or reader.
+- The assistant can answer questions about an open recipe and can start a recipe capture through the same durable capture flow used elsewhere in the app.
 
-5. ACCOUNT DELETION (GUIDELINE 5.1.1):
-   - In accordance with App Store guidelines, users can permanently delete their account and all associated data at any time.
-   - To test: Go to Settings (gear icon on the shelf) -> "Delete account". Two explicit confirmation prompts prevent accidental deletion before permanent removal.
+4. Account controls
+- Open Settings from the shelf to view legal and privacy information, AI data-use controls, and account controls.
+- To test account deletion, choose Delete account and complete the confirmation prompts. This permanently removes the account and associated data.
 
-CONTACT INFORMATION:
-If you have any questions or require additional information during review, please contact us at support@nutriai.app.
+SUBSCRIPTION REVIEW
+[ADD THE FINAL FOLIO PLUS PRODUCTS, PURCHASE/RESTORE WALKTHROUGH, AND REVIEW-SAFE PLAN LIMITS AFTER THE FINAL SUBSCRIPTION PASS.]
+
+SUPPORT
+folio.cookbook.help@outlook.com
 ```
 
----
+## Privacy and permission notes
 
-## 3. Privacy & Permission Usage Disclosures (for App Privacy Details)
+| Capability | Purpose |
+|---|---|
+| Photo Library | The user may select an existing recipe photo, screenshot, or video for recipe capture. |
+| Sign in with Apple | Native account authentication. |
+| User-provided content | Recipe sources and conversation context are processed only after the in-app AI data-use disclosure and consent flow. |
 
-| Permission | Purpose | Where Used |
-|---|---|---|
-| **Camera** (`NSCameraUsageDescription`) | App Functionality | Capturing photos of physical cookbooks or handwritten recipe cards to import into the user's cookbook. |
-| **Photo Library** (`NSPhotoLibraryUsageDescription`) | App Functionality | Selecting existing recipe photos or screenshots to create cookbook pages. |
-| **Sign in with Apple** | Authentication | Compliant native authentication matching HIG standards with official Apple-provided buttons. |
+The App Store Connect privacy answers must be checked against the final binary and the published privacy policy immediately before submission.

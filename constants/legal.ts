@@ -9,6 +9,12 @@ export const SUPADATA_PRIVACY_URL = 'https://supadata.ai/privacy';
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim();
 
-export const SUPPORT_CONTACT_URL = supportEmail
-  ? `mailto:${supportEmail}?subject=${encodeURIComponent('Folio support')}`
-  : SUPPORT_URL;
+export function buildSupportContactUrl(subject = 'Folio support', body?: string): string {
+  if (!supportEmail) return SUPPORT_URL;
+
+  const params = new URLSearchParams({ subject });
+  if (body) params.set('body', body);
+  return `mailto:${supportEmail}?${params.toString()}`;
+}
+
+export const SUPPORT_CONTACT_URL = buildSupportContactUrl();

@@ -49,6 +49,10 @@ function readyCapture(index: number): RecipeCapture {
   };
 }
 
+type RefetchIntervalQuery = {
+  state: { data?: RecipeCapture[] };
+};
+
 describe('useRecipeCaptures page synchronization', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -85,7 +89,7 @@ describe('useRecipeCaptures page synchronization', () => {
     renderHook(() => useRecipeCaptures(), { wrapper });
 
     const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
-    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+    const refetchIntervalFn = query?.options.refetchInterval as (query: RefetchIntervalQuery) => number | false;
 
     const recentProcessingCapture: RecipeCapture = {
       ...readyCapture(1),
@@ -94,7 +98,7 @@ describe('useRecipeCaptures page synchronization', () => {
       createdAt: new Date().toISOString(),
     };
 
-    const interval = refetchIntervalFn({ state: { data: [recentProcessingCapture] } } as any);
+    const interval = refetchIntervalFn({ state: { data: [recentProcessingCapture] } });
     expect(interval).toBe(2500);
   });
 
@@ -110,7 +114,7 @@ describe('useRecipeCaptures page synchronization', () => {
     renderHook(() => useRecipeCaptures(), { wrapper });
 
     const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
-    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+    const refetchIntervalFn = query?.options.refetchInterval as (query: RefetchIntervalQuery) => number | false;
 
     const longRunningCapture: RecipeCapture = {
       ...readyCapture(1),
@@ -119,7 +123,7 @@ describe('useRecipeCaptures page synchronization', () => {
       createdAt: new Date(Date.now() - 45_000).toISOString(),
     };
 
-    const interval = refetchIntervalFn({ state: { data: [longRunningCapture] } } as any);
+    const interval = refetchIntervalFn({ state: { data: [longRunningCapture] } });
     expect(interval).toBe(5000);
   });
 
@@ -136,7 +140,7 @@ describe('useRecipeCaptures page synchronization', () => {
     renderHook(() => useRecipeCaptures(), { wrapper });
 
     const query = queryClient.getQueryCache().find({ queryKey: ['recipe-captures', 'user-1'] });
-    const refetchIntervalFn = query?.options.refetchInterval as (query: any) => number | false;
+    const refetchIntervalFn = query?.options.refetchInterval as (query: RefetchIntervalQuery) => number | false;
 
     const processingCapture: RecipeCapture = {
       ...readyCapture(1),
@@ -145,7 +149,7 @@ describe('useRecipeCaptures page synchronization', () => {
       createdAt: new Date().toISOString(),
     };
 
-    const interval = refetchIntervalFn({ state: { data: [processingCapture] } } as any);
+    const interval = refetchIntervalFn({ state: { data: [processingCapture] } });
     expect(interval).toBe(false);
   });
 });

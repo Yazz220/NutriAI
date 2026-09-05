@@ -87,6 +87,14 @@ export async function getAccessToken(): Promise<string> {
   return token;
 }
 
+async function refreshAccessToken(): Promise<string> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) throw error;
+  const token = data.session?.access_token;
+  if (!token) throw new Error('You must be signed in to use this feature.');
+  return token;
+}
+
 export async function callAuthenticatedFunction<T>(
   functionName: string,
   body: Record<string, unknown>,
@@ -142,19 +150,27 @@ export async function* streamAuthenticatedFunction<T>(
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
-    const token = await abortable(getAccessToken(), controller.signal);
     let res: Response;
     try {
-      res = await abortable((Platform.OS === 'web' ? fetch : expoFetch)(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      }), controller.signal);
+      const send = async (token: string) => abortable(
+        (Platform.OS === 'web' ? fetch : expoFetch)(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        }),
+        controller.signal,
+      );
+      const token = await abortable(getAccessToken(), controller.signal);
+      res = await send(token);
+      if (res.status === 401) {
+        const refreshedToken = await abortable(refreshAccessToken(), controller.signal);
+        res = await send(refreshedToken);
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         if (options.signal?.aborted) throw new FunctionCanceledError();

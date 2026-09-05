@@ -24,7 +24,6 @@
       "bundleIdentifier": "com.yaz12.nosh",
       "buildNumber": "14",
       "infoPlist": {
-        "NSCameraUsageDescription": "Folio uses your camera to capture recipe images.",
         "NSPhotoLibraryUsageDescription": "Folio needs access to your photo library to import images for recipes.",
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -124,7 +123,6 @@
         "backgroundColor": "#F7F2EA"
       },
       "permissions": [
-        "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
@@ -132,14 +130,6 @@
       ]
     },
     "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Folio uses your camera to capture recipe images.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
       "expo-font",
       [
         "expo-image-picker",

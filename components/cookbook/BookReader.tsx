@@ -37,6 +37,7 @@ import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
+import { buildSupportContactUrl } from '@/constants/legal';
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
 import {
@@ -886,12 +887,10 @@ export function BookReader({
         {
           text: 'Report to Support',
           onPress: () => {
-            const subject = encodeURIComponent(`Content Report: ${page.title} (${page.id})`);
-            const body = encodeURIComponent(
-              `I would like to report an issue with the recipe "${page.title}".\n\nPage ID: ${page.id}\nCookbook: ${cookbook?.title ?? 'Cookbook'}\nReason (offensive content, safety concern, inaccurate text, other):\n`,
-            );
-            void Linking.openURL(`mailto:support@nutriai.app?subject=${subject}&body=${body}`).catch(() => {
-              Alert.alert('Report received', 'Thank you for your feedback. Our team reviews all reported content promptly.');
+            const body =
+              `I would like to report an issue with the recipe "${page.title}".\n\nPage ID: ${page.id}\nCookbook: ${cookbook?.title ?? 'Cookbook'}\nReason (offensive content, safety concern, inaccurate text, other):\n`;
+            void Linking.openURL(buildSupportContactUrl(`Content Report: ${page.title} (${page.id})`, body)).catch(() => {
+              Alert.alert('Unable to open support', 'Please open Help and support from Settings.');
             });
           },
         },

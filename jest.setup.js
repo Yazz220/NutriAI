@@ -50,6 +50,12 @@ jest.mock('@sentry/react-native', () => ({
   reactNavigationIntegration: () => ({ registerNavigationContainer: jest.fn() }),
 }));
 
+// expo/fetch subclasses native response classes that are not available in
+// Jest's React Native environment. The app only needs its fetch export here.
+jest.mock('expo/fetch', () => ({
+  fetch: (...args) => globalThis.fetch(...args),
+}));
+
 // Silence non-critical console warnings in tests
 const originalWarn = console.warn;
 console.warn = (...args) => {

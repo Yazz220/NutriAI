@@ -3,13 +3,14 @@ import {
   fetchWithTimeout,
   FunctionCanceledError,
   FunctionNetworkError,
+  FunctionResponseError,
   FunctionTimeoutError,
   streamAuthenticatedFunction,
 } from '@/utils/supabaseEdge';
 import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase', () => ({
-  supabase: { auth: { getSession: jest.fn() } },
+  supabase: { auth: { getSession: jest.fn(), refreshSession: jest.fn() } },
 }));
 
 describe('fetchWithTimeout', () => {
@@ -84,6 +85,10 @@ describe('streamAuthenticatedFunction', () => {
       data: { session: { access_token: 'test-access-token' } },
       error: null,
     });
+    (supabase.auth.refreshSession as jest.Mock).mockResolvedValue({
+      data: { session: { access_token: 'refreshed-access-token' } },
+      error: null,
+    });
   });
 
   afterEach(() => {
@@ -126,6 +131,44 @@ describe('streamAuthenticatedFunction', () => {
       },
     ]);
   });
+
+  it('refreshes the session and retries once after an unauthorized response', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('{"error":"Unauthorized"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ type: 'result' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+
+    const stream = streamAuthenticatedFunction('nosh-chat', {});
+    await expect(stream.next()).resolves.toEqual({
+      done: false,
+      value: { type: 'result' },
+    });
+    await stream.return(undefined);
+
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-access-token' }),
+    });
+    expect(fetchSpy.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer refreshed-access-token' }),
+    });
+  });
+
+  it('does not retry indefinitely when the refreshed session is still unauthorized', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"error":"Unauthorized"}', { status: 401 }));
+
+    await expect(streamAuthenticatedFunction('nosh-chat', {}).next()).rejects.toBeInstanceOf(
+      FunctionResponseError,
+    );
+
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('cancels the reader when a terminal event ends consumption before EOF', async () => {
     const cancel = jest.fn().mockResolvedValue(undefined);
     const read = jest.fn().mockResolvedValueOnce({

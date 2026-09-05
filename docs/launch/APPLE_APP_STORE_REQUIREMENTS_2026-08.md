@@ -9,7 +9,7 @@ Checked against Apple's published requirements on 2026-08-26. This is a launch c
 - No packaged `Info.plist` contains `NSMicrophoneUsageDescription`. Camera and photo-library purpose strings remain for explicit recipe-capture actions.
 - Signed Mach-O entitlements were inspected for both targets. `com.yaz12.nosh` includes Sign in with Apple and `group.com.yaz12.nosh.share`; `com.yaz12.nosh.share` includes the same App Group. Both use App Store profiles with `get-task-allow` set to `false` and expire on 2027-02-21.
 - The build log contains no matched warning or error lines and confirms that the IPA was exported and signed successfully.
-- GitHub Pages is enabled from this branch's `/docs` directory. The configured [privacy policy](https://yazz220.github.io/NutriAI/privacy.html) and [support page](https://yazz220.github.io/NutriAI/support.html) both return HTTP 200 over HTTPS.
+- The standalone public site provides the configured [privacy policy](https://yazz220.github.io/folio-support/privacy.html) and [support page](https://yazz220.github.io/folio-support/support.html); both return HTTP 200 over HTTPS.
 - This Windows/EAS audit does not replace Xcode Organizer's **Generate Privacy Report** action. Run that action from the exact archive on macOS before submission, or use App Store Connect's validation feedback after upload.
 
 ## Current Folio findings

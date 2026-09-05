@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { LockKeyhole, Mail } from 'lucide-react-native';
 import { AuthScaffold } from '@/components/auth/AuthScaffold';

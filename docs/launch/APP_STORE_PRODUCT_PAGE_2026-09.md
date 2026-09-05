@@ -1,6 +1,6 @@
 # Folio App Store product page
 
-_Working launch copy and screenshot brief. Last reviewed: 2026-09-02._
+_Working launch copy and screenshot brief. Last reviewed: 2026-09-05._
 
 This document is the canonical working draft for Folio's first iPhone App Store product page. It covers the customer-facing listing and screenshot campaign only. Subscription validation, end-to-end import testing, paywall polish, and production allowance changes remain separate launch tasks.
 
@@ -16,15 +16,15 @@ The product page should make the transformation visible: a recipe source goes in
 
 | Field | Launch value | Limit check |
 |---|---|---:|
-| App name | `Folio` | 5 / 30 characters |
+| App name | `Folio: Personal Cookbooks` | 25 / 30 characters; accepted in App Store Connect |
 | Subtitle | `Recipes become cookbooks` | 24 / 30 characters |
 | Primary category | `Food & Drink` | Recommended |
 | Secondary category | None at launch | Avoid a weak or misleading category |
 | Promotional text | `Turn a recipe link, photo, video, or note into a finished page in your own cookbook. Folio keeps the recipe context close, so you can ask questions while you cook.` | 163 / 170 characters |
 | Keywords | `recipe,cookbook,cooking,organizer,import,save,chef,kitchen,ingredients,substitution` | 83 / 100 ASCII bytes |
-| Support URL | `https://yazz220.github.io/NutriAI/support.html` | Already used by the app |
+| Support URL | `https://yazz220.github.io/folio-support/support.html` | Published with the monitored support address |
 | Marketing URL | Leave empty at launch | The current website root is a legal/support hub, not a product landing page |
-| Privacy policy URL | `https://yazz220.github.io/NutriAI/privacy.html` | Already used by the app |
+| Privacy policy URL | `https://yazz220.github.io/folio-support/privacy.html` | Published Folio privacy policy |
 | Copyright | `© 2026 [legal seller name]` | Replace the bracketed value with the exact App Store Connect seller/legal name |
 
 The app name, subtitle, and keyword field deliberately avoid stuffing terms such as “AI,” “meal planner,” and competitor names. “AI” is not the reason a user should choose Folio; the finished cookbook is.
@@ -70,7 +70,7 @@ Welcome to Folio—a new way to turn the recipes you save into cookbooks you lov
 
 ### Creative direction
 
-Build one connected editorial canvas, then crop it into seven portrait screenshots. Use Folio's real UI and real generated pages as the product evidence. The surrounding art direction should feel like a modern cookbook publisher: paper ivory, plum, restrained sage and coral accents, generous whitespace, subtle page texture, and display typography that echoes the app.
+The selected launch set is the second “midnight editorial” concept: a deep aubergine book-cloth canvas with restrained copper botanical detail, ivory app screens, and white editorial headlines. It uses Folio's real UI and real generated pages as the product evidence.
 
 Do not use generic neon AI gradients, floating feature badges, fake chat answers, fabricated app screens, or a different device frame on every slide. AI-generated imagery may support a background or food accent only when Folio owns the result and it does not imply nonexistent functionality.
 
@@ -83,7 +83,7 @@ The first three slides must work as a self-contained acquisition story because A
 | 3 | **Every page feels made for you** | One excellent finished page, large enough to read visually | Let the page art dominate. This is Folio's strongest visual proof, not a list of customization controls. |
 | 4 | **Ask Folio as you cook** | Assistant open over a real active recipe | Use a short fictional substitution question whose answer is visibly grounded in the open recipe. |
 | 5 | **A style for every book** | Creation studio or a small set of clearly different books | Show coherent variety, not a dense feature grid. |
-| 6 | **Everything lives on your shelf** | Mature shelf with several fictional cookbooks | Communicate collection, memory, and return value. |
+| 6 | **Set the scene your way** | Cookbook environment customization | Show customization without turning the slide into a dense control grid. |
 | 7 | **Your recipes. Your cookbooks.** | Calm reader/shelf closing image plus icon or wordmark | Emotional close; no new feature claim and no hard sell. |
 
 ### Required source captures
@@ -133,12 +133,10 @@ Tool pricing and packaging change frequently. Verify them again immediately befo
 
 ## Production sequence
 
-1. Capture the six real Folio screens listed above from the release candidate.
-2. Build the connected-canvas screenshot studio from those captures and the existing Folio brand assets.
-3. Review slide 1 at actual App Store search-result size before polishing the rest.
-4. Export and verify all seven PNGs for dimensions, alpha, safe areas, fictional data, and claim accuracy.
-5. Enter the approved metadata and upload the screenshots in App Store Connect.
-6. After launch traffic is meaningful, run Product Page Optimization on one variable at a time—first the slide-1 headline/composition, then the subtitle. Do not redesign the whole set between variants.
+1. Use the selected files in `marketing/app-store/2026-09-05-native/final-contrast/`.
+2. Upload the seven PNGs to the English (U.S.) iPhone screenshot slot in numbered order.
+3. Enter the approved metadata and final URLs in App Store Connect.
+4. Treat visual refinements as post-launch or Product Page Optimization work unless a screenshot makes an inaccurate claim.
 
 ## Primary references
 
