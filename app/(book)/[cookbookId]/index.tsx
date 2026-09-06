@@ -28,6 +28,7 @@ import {
   updatePageSelectedVersion,
 } from '@/utils/cookbook/api';
 import { finishRecipePageCandidate } from '@/utils/cookbook/pageProduction';
+import { resolveCookbookPageRemoteImageUri } from '@/utils/cookbook/pageImageResolver';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
@@ -268,6 +269,8 @@ export default function BookReaderScreen() {
           effectiveCookbook.styleRevision,
         );
 
+    const referenceArtUrl = await resolveCookbookPageRemoteImageUri(page);
+
     return finishRecipePageCandidate({
       cookbookId,
       pageId: page.id,
@@ -277,7 +280,7 @@ export default function BookReaderScreen() {
       styleReferences: styleReferences?.length ? [...styleReferences] : undefined,
       idempotencyKey,
       artDirection: instruction,
-      referenceArtUrl: page.pageImage?.imageUrl ?? page.artAsset?.artUrl,
+      referenceArtUrl: referenceArtUrl ?? undefined,
     });
   };
 

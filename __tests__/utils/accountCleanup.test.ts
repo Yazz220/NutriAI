@@ -1,5 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { purgeLocalUserData } from '@/utils/accountCleanup';
+import { purgeStoredPageImages } from '@/utils/cookbook/localPageImages';
+
+jest.mock('@/utils/cookbook/localPageImages', () => ({ purgeStoredPageImages: jest.fn().mockResolvedValue(undefined) }));
 
 describe('local account cleanup', () => {
   beforeEach(async () => {
@@ -35,6 +38,7 @@ describe('local account cleanup', () => {
     });
 
     expect(result).toEqual({ complete: true, failed: [] });
+    expect(purgeStoredPageImages).toHaveBeenCalledWith('user-a');
     expect(await AsyncStorage.getAllKeys()).toEqual(expect.arrayContaining([
       '@nosh:assistant:user-b:threads',
       'nosh:first-run:user-b:v1',

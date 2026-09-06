@@ -1,10 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type AccessibilityActionEvent } from 'react-native';
 import { AlertTriangle, BookOpen, Ellipsis } from 'lucide-react-native';
-import Animated, { FadeIn, FadeOut, useReducedMotion, type AnimatedRef } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useReducedMotion, useScrollOffset, type AnimatedRef } from 'react-native-reanimated';
+import { VisiblePageThumbnail } from '@/components/cookbook/VisiblePageThumbnail';
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import Sortable, { type SortableGridDragEndParams, type SortableGridRenderItem } from 'react-native-sortables';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 import { PageGenerationPreview, PageGenerationStatus } from '@/components/cookbook/PageGenerationState';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
 import { Text } from '@/components/ui/Text';
@@ -12,7 +14,7 @@ import { Colors } from '@/constants/colors';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import type { CookbookPage } from '@/types/cookbook';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { hasCompleteCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
 import { buildCookbookPageGridItems, type CookbookPageGridItem } from '@/utils/cookbook/pageGrid';
 import { getBeforePageId } from '@/utils/cookbook/pageOrder';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
@@ -85,13 +87,13 @@ function ProcessingPage({ item }: { item: CookbookPageGridItem }) {
 }
 
 const PageThumbnail = memo(function PageThumbnail({ page }: { page: CookbookPage }) {
-  const source = getCookbookPageImageSource(page);
-  if (source !== null) {
+  if (hasCompleteCookbookPageImage(page)) {
     return (
-      <Image
-        source={typeof source === 'number' ? source : { uri: source }}
+      <CookbookPageImage
+        page={page}
+        variant="thumbnail"
         style={styles.pageImage}
-        resizeMode="contain"
+        contentFit="contain"
         accessible={false}
       />
     );
@@ -127,6 +129,7 @@ export function CookbookPageGrid({
 }: CookbookPageGridProps) {
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
+  const scrollOffset = useScrollOffset(scrollableRef ?? null);
   const columns = width >= 720 ? 4 : width >= 520 ? 3 : 2;
   const items = useMemo(
     () =>
@@ -277,7 +280,11 @@ export function CookbookPageGrid({
                     exiting={reduceMotion ? undefined : FadeOut.duration(120)}
                     style={StyleSheet.absoluteFill}
                   >
-                    <PageThumbnail page={item.page} />
+                    {scrollableRef ? (
+                      <VisiblePageThumbnail scrollOffset={scrollOffset} position={index}>
+                        <PageThumbnail page={item.page} />
+                      </VisiblePageThumbnail>
+                    ) : <PageThumbnail page={item.page} />}
                   </Animated.View>
                 ) : (
                   <ProcessingPage item={item} />
@@ -364,6 +371,8 @@ export function CookbookPageGrid({
       onPageActions,
       orderedItems,
       reduceMotion,
+      scrollableRef,
+      scrollOffset,
       unseenPageIds,
     ],
   );

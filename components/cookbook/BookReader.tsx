@@ -32,6 +32,7 @@ import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnseenCookbookPages } from '@/hooks/useUnseenCookbookPages';
+import { PageImageLoadingContext, useReaderPageImageUrls } from '@/hooks/useCookbookPageImage';
 import { PageCanvas } from '@/components/cookbook/PageCanvas';
 import { StaleDataNotice } from '@/components/ui/StaleDataNotice';
 import { ContextActionMenu } from '@/components/ui/ContextActionMenu';
@@ -50,7 +51,11 @@ import {
   type CookbookLeaf,
 } from '@/utils/cookbook/reader';
 import { getRecipeSourceUrl } from '@/utils/cookbook/readerActions';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import {
+  applyCookbookPageImageUrl,
+  getCookbookPageStoragePath,
+  hasCookbookPageImage,
+} from '@/utils/cookbook/pageImageDelivery';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
@@ -106,6 +111,34 @@ interface BookReaderProps {
   isStale?: boolean;
   onRefresh?: () => void;
   readOnly?: boolean;
+}
+
+interface ReaderPageImageDeliveryProps {
+  pages: CookbookPage[];
+  activePageId?: string | null;
+  enabled: boolean;
+  children: (pages: CookbookPage[]) => React.ReactNode;
+}
+
+function StoredReaderPageImageDelivery({
+  pages,
+  activePageId,
+  enabled,
+  children,
+}: ReaderPageImageDeliveryProps) {
+  const readerImageUrls = useReaderPageImageUrls(pages, activePageId, enabled);
+  const deliveredPages = useMemo(
+    () => pages.map((page) => applyCookbookPageImageUrl(page, readerImageUrls.get(page.id))),
+    [pages, readerImageUrls],
+  );
+  return children(deliveredPages);
+}
+
+function ReaderPageImageDelivery(props: ReaderPageImageDeliveryProps) {
+  const content = props.pages.some((page) => getCookbookPageStoragePath(page))
+    ? <StoredReaderPageImageDelivery {...props} />
+    : props.children(props.pages);
+  return <PageImageLoadingContext.Provider value={props.enabled}>{content}</PageImageLoadingContext.Provider>;
 }
 
 // Unified open/close durations and easings shared with Cookbook3DScene so
@@ -305,6 +338,7 @@ export function BookReader({
   const readingPage = pages.find((page) => page.id === readingPageId) ?? preferredSpreadPage;
   const isCompactReading = !isOverview && usesTouchPaging && readingView === 'page';
   const selectedPage = isCompactReading ? readingPage : preferredSpreadPage;
+  const activeImagePageId = focusedPage?.id ?? selectedPage?.id;
   const actionPage = overviewActionPage ?? focusedPage ?? selectedPage;
   const readingPageIndex = readingPage ? pages.findIndex((page) => page.id === readingPage.id) : -1;
   const counterCurrent = isCompactReading && readingPageIndex >= 0 ? readingPageIndex + 1 : spreadIndex + 1;
@@ -312,7 +346,7 @@ export function BookReader({
   const recipeContextActionsFor = useCallback(
     (page: CookbookPage) => {
       const isReady = page.lifecycleStatus !== 'processing';
-      const hasPageImage = getCookbookPageImageSource(page) !== null;
+      const hasPageImage = hasCookbookPageImage(page);
       const canRevise = Boolean(!readOnly && isReady && page.recipeGraph && onGeneratePageCandidate && onUsePageCandidate);
       const hasMoveDestination = availableCookbooks.some((destination) => destination.id !== cookbookId);
 
@@ -1115,32 +1149,42 @@ export function BookReader({
           </Animated.ScrollView>
         ) : (
           <>
-            <Cookbook3DScene
-              cookbook={cookbook}
+            <ReaderPageImageDelivery
               pages={renderedPages}
-              spreads={spreads}
-              spreadIndex={spreadIndex}
-              isOpen={isOpen}
-              reduceMotion={reduceMotion}
-              opening={opening}
-              readingView={readingView}
-              readingPageId={readingPageId}
-              leaves={recipeLeaves}
-              leafIndex={leafIndex}
-              turnRequest={nativeTurnRequest}
-              onOpen={openBook}
-              onClose={closeBook}
-              isBackClosed={isBackClosed}
-              onCloseBack={closeBackBook}
-              onOpenBack={openBackBook}
-              onNext={() => (usesTouchPaging && readingView === 'page' ? goToLeaf(1) : goToSpread(spreadIndex + 1))}
-              onPrevious={() =>
-                usesTouchPaging && readingView === 'page' ? goToLeaf(-1) : goToSpread(spreadIndex - 1)
-              }
-              onStageTap={pokeChrome}
-              onEnterReadingView={enterReadingView}
-              onOpenRecipe={handleOpenRecipe}
-            />
+              activePageId={activeImagePageId}
+              enabled={isOpen && !isOverview}
+            >
+              {(deliveredPages) => (
+                <Cookbook3DScene
+                  cookbook={cookbook}
+                  pages={deliveredPages}
+                  spreads={spreads}
+                  spreadIndex={spreadIndex}
+                  isOpen={isOpen}
+                  reduceMotion={reduceMotion}
+                  opening={opening}
+                  readingView={readingView}
+                  readingPageId={readingPageId}
+                  leaves={recipeLeaves}
+                  leafIndex={leafIndex}
+                  turnRequest={nativeTurnRequest}
+                  onOpen={openBook}
+                  onClose={closeBook}
+                  isBackClosed={isBackClosed}
+                  onCloseBack={closeBackBook}
+                  onOpenBack={openBackBook}
+                  onNext={() => (
+                    usesTouchPaging && readingView === 'page' ? goToLeaf(1) : goToSpread(spreadIndex + 1)
+                  )}
+                  onPrevious={() => (
+                    usesTouchPaging && readingView === 'page' ? goToLeaf(-1) : goToSpread(spreadIndex - 1)
+                  )}
+                  onStageTap={pokeChrome}
+                  onEnterReadingView={enterReadingView}
+                  onOpenRecipe={handleOpenRecipe}
+                />
+              )}
+            </ReaderPageImageDelivery>
             {!readOnly && isOpen && firstPageDataReady && firstPageInProgress ? (
               <View style={[styles.emptyBookPrompt, { bottom: insets.bottom + 82 }]}>
                 {unfinishedFirstCapture?.status === 'processing' || !unfinishedFirstCapture ? (

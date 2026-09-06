@@ -10,6 +10,7 @@ import { clearFirstRunOnboardingState } from '@/utils/cookbook/firstRunOnboardin
 import { clearNoshThreadStorage } from '@/utils/cookbook/noshThreadCleanup';
 import { clearBookshelfScene } from '@/utils/cookbook/shelfAppearanceStorage';
 import { clearUnseenCookbookPages } from '@/utils/cookbook/unseenPages';
+import { purgeStoredPageImages } from '@/utils/cookbook/localPageImages';
 
 const PENDING_PURGES_KEY = 'nosh:pending-user-data-purges:v1';
 
@@ -82,6 +83,7 @@ export async function purgeLocalUserData(
   }
 
   const tasks = [
+    ['cookbook images', () => purgeStoredPageImages(request.userId)],
     ['cookbook pages', () => clearCachedPages(cookbookIds)],
     ['recipe activity', () => clearCachedCaptures(request.userId)],
     ['cookbook shelf', () => clearCachedShelf(request.userId)],

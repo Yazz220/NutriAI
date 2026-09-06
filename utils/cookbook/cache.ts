@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
+import { applyCookbookPageImageUrl } from '@/utils/cookbook/pageImageDelivery';
 
 export const SHELF_CACHE_KEY = 'nosh:cookbook-shelf:v2';
 export const PAGES_CACHE_PREFIX = 'nosh:cookbook-pages:v2';
@@ -90,7 +91,7 @@ export async function loadCachedCookbook(userId: string, cookbookId: string): Pr
 }
 
 export async function saveCachedPages(cookbookId: string, pages: CookbookPage[]): Promise<void> {
-  const payload: CachedBookPages = { cookbookId, pages };
+  const payload: CachedBookPages = { cookbookId, pages: pages.map((page) => applyCookbookPageImageUrl(page)) };
   await AsyncStorage.setItem(pagesKey(cookbookId), JSON.stringify(payload));
 }
 
@@ -99,7 +100,7 @@ export async function loadCachedPages(cookbookId: string): Promise<CookbookPage[
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CachedBookPages;
-    return parsed.pages ?? null;
+    return parsed.pages?.map((page) => applyCookbookPageImageUrl(page)) ?? null;
   } catch {
     await AsyncStorage.removeItem(pagesKey(cookbookId));
     return null;

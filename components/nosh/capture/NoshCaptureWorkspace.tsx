@@ -73,7 +73,8 @@ import type { RecipeCaptureAudioAsset } from '@/utils/cookbook/recipeCaptureAudi
 import type { RecipeCaptureVideoAsset } from '@/utils/cookbook/recipeCaptureVideo';
 import { trackEvent } from '@/utils/analytics';
 import { classifyVideoSourceUrl } from '@/supabase/functions/_shared/videoSource';
-import { getCookbookPageImageSource } from '@/utils/cookbook/pageImage';
+import { hasCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
+import { resolveCookbookPageRemoteImageUri } from '@/utils/cookbook/pageImageResolver';
 import { finishRecipePageCandidate } from '@/utils/cookbook/pageProduction';
 import { getRecipeSourceUrl, openRecipeSource } from '@/utils/cookbook/readerActions';
 import { exportCookbookPageImage, shareCookbookPage } from '@/utils/cookbook/share';
@@ -180,7 +181,7 @@ export function NoshCaptureWorkspace({
   );
 
   const recipeContextActionsFor = useCallback((page: CookbookPage) => {
-    const hasPageImage = getCookbookPageImageSource(page) !== null;
+    const hasPageImage = hasCookbookPageImage(page);
     const canRevise = Boolean(page.recipeGraph && activeCookbook);
     const hasMoveDestination = availableCookbooks.some(
       (candidate) => candidate.id !== activeDestinationCookbookId,
@@ -662,6 +663,8 @@ export function NoshCaptureWorkspace({
       ? activeCookbook.pageStyleReferences
       : getCookbookPageStyleReferences(activeCookbook.pageStyleId, activeCookbook.styleRevision);
 
+    const referenceArtUrl = await resolveCookbookPageRemoteImageUri(page);
+
     return finishRecipePageCandidate({
       cookbookId: activeDestinationCookbookId,
       pageId: page.id,
@@ -671,7 +674,7 @@ export function NoshCaptureWorkspace({
       styleReferences: styleReferences?.length ? [...styleReferences] : undefined,
       idempotencyKey,
       artDirection: instruction,
-      referenceArtUrl: page.pageImage?.imageUrl ?? page.artAsset?.artUrl,
+      referenceArtUrl: referenceArtUrl ?? undefined,
     });
   }
 

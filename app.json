@@ -130,6 +130,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withLocalCookbookStorage",
       "expo-font",
       [
         "expo-image-picker",

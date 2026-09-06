@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 import { Text } from '@/components/ui/Text';
 import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
 import { Colors } from '@/constants/colors';
@@ -10,6 +11,7 @@ import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import { hasCompleteCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
 
 interface PageCanvasProps {
   page: CookbookPage;
@@ -89,39 +91,24 @@ export function resolveFocusedPageWidth(viewportWidth: number, viewportHeight: n
 
 export const PageCanvas = React.memo(function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
-  const [failedImageUrl, setFailedImageUrl] = useState<string>();
   const pageWidth = bookMode ? '100%' : resolveFocusedPageWidth(width, height);
   const maxHeight = bookMode ? undefined : Math.max(240, height - 210);
 
-  const completePageSource = page.pageImage?.imageUrl
-    ? { uri: page.pageImage.imageUrl }
-    : page.imageAsset
-      ?? (!page.recipeGraph && page.imageUrl ? { uri: page.imageUrl } : null);
+  const hasCompletePage = hasCompleteCookbookPageImage(page);
 
-  if (completePageSource) {
+  if (hasCompletePage) {
     const accessibilityLabel = buildRecipePageAccessibilityLabel(page);
-    const sourceUri = typeof completePageSource === 'object' && !Array.isArray(completePageSource)
-      ? completePageSource.uri
-      : undefined;
-    const imageFailed = Boolean(sourceUri && failedImageUrl === sourceUri);
     return (
       <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
-        <PageSkeleton page={page} hidden={!imageFailed} />
-        {!imageFailed ? (
-          <Image
-            key={sourceUri ?? page.id}
-            source={completePageSource}
-            style={[StyleSheet.absoluteFill, styles.image]}
-            resizeMode="contain"
-            onLoad={onRenderReady}
-            onError={() => {
-              if (sourceUri) setFailedImageUrl(sourceUri);
-            }}
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={accessibilityLabel}
-          />
-        ) : null}
+        <CookbookPageImage
+          page={page}
+          variant="full"
+          style={styles.image}
+          contentFit="contain"
+          onLoad={onRenderReady}
+          accessible
+          accessibilityLabel={accessibilityLabel}
+        />
       </View>
     );
   }

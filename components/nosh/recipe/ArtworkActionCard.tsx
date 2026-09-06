@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 import { ImageIcon, RotateCcw } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -84,11 +85,12 @@ export function ArtworkActionCard({
   if (candidate) {
     return (
       <View style={styles.card}>
-        {candidate.imageUrl ? (
-          <Image
-            source={{ uri: candidate.imageUrl }}
+        {candidate.storagePath || candidate.imageUrl ? (
+          <CookbookPageImage
+            page={{ pageImage: candidate, title: 'New recipe page candidate' }}
+            variant="full"
             style={styles.preview}
-            resizeMode="cover"
+            contentFit="contain"
             accessibilityLabel="New recipe page candidate"
           />
         ) : null}

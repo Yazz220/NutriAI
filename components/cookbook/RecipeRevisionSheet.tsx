@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import type { CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
 import { createGenerationRequestKey } from '@/utils/cookbook/generationAttempt';
 import { Fonts } from '@/utils/fonts';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 
 export type RecipeRevisionMode = 'edit' | 'design';
 
@@ -411,11 +411,12 @@ function Preview({
 }) {
   return (
     <View style={styles.previewWrap}>
-      {candidate.imageUrl ? (
-        <Image
-          source={{ uri: candidate.imageUrl }}
+      {candidate.storagePath || candidate.imageUrl ? (
+        <CookbookPageImage
+          page={{ pageImage: candidate, title: 'New recipe page candidate' }}
+          variant="full"
           style={styles.previewImage}
-          resizeMode="contain"
+          contentFit="contain"
           accessibilityLabel="New recipe page preview"
         />
       ) : null}
