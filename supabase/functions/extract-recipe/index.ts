@@ -147,6 +147,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 const EXTRACTION_TIMEOUT_MS = 90_000;
 const TEXT_MODEL_ATTEMPT_TIMEOUT_MS = 40_000;
 const EXTRACTION_VIDEO_TIMEOUT_MS = 150_000;
+const EXTRACTION_MAX_TOKENS = 8_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -966,7 +967,8 @@ serve(async (req: Request) => {
               { role: 'user', content: userContent },
             ],
             temperature: 0.1,
-            max_tokens: 4000,
+            max_tokens: EXTRACTION_MAX_TOKENS,
+            reasoning: { enabled: false, exclude: true },
             response_format: EXTRACTION_RESULT_SCHEMA,
             provider: { require_parameters: true },
           },
@@ -986,6 +988,9 @@ serve(async (req: Request) => {
       logError('extract-recipe model attempt failed', {
         error: message,
         type: body.type,
+        provider: 'openrouter',
+        operation: 'chat_completion',
+        model: extractionModel,
         durationMs: Date.now() - requestStartedAt,
       });
       // A failed whole-video pass is not a failed capture when decomposed
@@ -1013,7 +1018,8 @@ serve(async (req: Request) => {
                 },
               ],
               temperature: 0.1,
-              max_tokens: 4000,
+              max_tokens: EXTRACTION_MAX_TOKENS,
+              reasoning: { enabled: false, exclude: true },
               response_format: EXTRACTION_RESULT_SCHEMA,
               provider: { require_parameters: true },
             },
@@ -1026,6 +1032,9 @@ serve(async (req: Request) => {
           logError('extract-recipe degraded video retry failed', {
             error: fallbackErr instanceof Error ? fallbackErr.message : 'Extraction failed',
             type: body.type,
+            provider: 'openrouter',
+            operation: 'chat_completion',
+            model: EXTRACTION_MODEL,
           });
         }
       }

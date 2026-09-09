@@ -176,7 +176,7 @@ export function parseRecipeEvidenceCompletion(
 ): RecipeEvidenceDecision {
   const choice = response.choices?.[0];
   if (choice?.finish_reason && choice.finish_reason !== 'stop') {
-    throw new Error('Recipe extraction did not finish. Please try again.');
+    throw new Error(`Recipe extraction did not finish (${choice.finish_reason}). Please try again.`);
   }
 
   const content = choice?.message?.content;

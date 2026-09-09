@@ -122,7 +122,7 @@ export function classifyExternalFailure(message: string, status?: number): Exter
   if ((status != null && status >= 500) || /(?:temporarily unavailable|service unavailable|bad gateway)/.test(normalized)) {
     return 'unavailable';
   }
-  if (/(?:invalid|schema|validation|parse|empty response|did not include)/.test(normalized)) {
+  if (/(?:invalid|schema|validation|parse|empty response|did not include|did not finish|finish reason)/.test(normalized)) {
     return 'invalid_response';
   }
   return 'unknown';

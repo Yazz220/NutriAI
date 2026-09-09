@@ -32,7 +32,7 @@ import { loadFonts, Fonts } from '@/utils/fonts';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { LocalUserDataCleanupResume } from '@/components/account/LocalUserDataCleanupResume';
 import { supabase } from '@/lib/supabase';
-import { Sentry, sentryNavigationIntegration } from '@/utils/observability/sentry';
+import { isSentryConfigured, Sentry, sentryNavigationIntegration } from '@/utils/observability/sentry';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -332,4 +332,4 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default isSentryConfigured ? Sentry.wrap(RootLayout) : RootLayout;
