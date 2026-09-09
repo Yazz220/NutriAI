@@ -1,2 +1,11 @@
-# Supabase functions config (root)
-# Note: Per-function settings should live under supabase/functions/<func>/config.toml
+# Supabase Edge Function deployment settings.
+# Keep these in the root config so `supabase functions deploy` applies them.
+
+[functions.report-ai-response]
+verify_jwt = true
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.sync-subscription]
+verify_jwt = true

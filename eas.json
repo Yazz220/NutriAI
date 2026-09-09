@@ -10,8 +10,8 @@
       "env": {
         "APP_VARIANT": "development",
         "EXPO_PUBLIC_OFFLINE_ONLY": "false",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://fydixibsozngqiaekqii.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5ZGl4aWJzb3puZ3FpYWVrcWlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDg5NjEsImV4cCI6MjA4OTE4NDk2MX0.hVhBeELu5hTXXxs_QFpVChqnX4kJ-l33K9L60pnzmis",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jqngtejmhoibnzlzjlir.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_BNTaaXvSxoIL0ue5TDneqA_0gJ5sF3o",
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",
@@ -30,8 +30,8 @@
       },
       "env": {
         "EXPO_PUBLIC_OFFLINE_ONLY": "false",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://fydixibsozngqiaekqii.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5ZGl4aWJzb3puZ3FpYWVrcWlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDg5NjEsImV4cCI6MjA4OTE4NDk2MX0.hVhBeELu5hTXXxs_QFpVChqnX4kJ-l33K9L60pnzmis",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jqngtejmhoibnzlzjlir.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_BNTaaXvSxoIL0ue5TDneqA_0gJ5sF3o",
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",
@@ -47,8 +47,8 @@
       },
       "env": {
         "EXPO_PUBLIC_OFFLINE_ONLY": "false",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://fydixibsozngqiaekqii.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5ZGl4aWJzb3puZ3FpYWVrcWlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MDg5NjEsImV4cCI6MjA4OTE4NDk2MX0.hVhBeELu5hTXXxs_QFpVChqnX4kJ-l33K9L60pnzmis",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jqngtejmhoibnzlzjlir.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_BNTaaXvSxoIL0ue5TDneqA_0gJ5sF3o",
         "EXPO_PUBLIC_SUPABASE_REDIRECT_URL": "nosh://auth/callback",
         "EXPO_PUBLIC_AI_MODEL": "qwen/qwen3.6-35b-a3b",
         "EXPO_PUBLIC_AI_VISION_MODEL": "qwen/qwen3.6-35b-a3b",

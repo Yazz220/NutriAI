@@ -31,7 +31,7 @@ if (dsn) {
     normalizeDepth: 3,
     integrations: [sentryNavigationIntegration],
     tracePropagationTargets: [
-      /^https:\/\/fydixibsozngqiaekqii\.supabase\.co\/(?:auth|functions|rest|storage)\/v1\//,
+      /^https:\/\/jqngtejmhoibnzlzjlir\.supabase\.co\/(?:auth|functions|rest|storage)\/v1\//,
       /^http:\/\/localhost(?::\d+)?\//,
     ],
     beforeBreadcrumb(breadcrumb) {

@@ -180,7 +180,7 @@ describe('recipe evidence decision contract', () => {
   it('rejects incomplete, empty, and malformed model completions before accepting evidence', () => {
     expect(() => parseRecipeEvidenceCompletion({
       choices: [{ finish_reason: 'length', message: { content: '{}' } }],
-    })).toThrow('Recipe extraction did not finish');
+    })).toThrow('Recipe extraction did not finish (length)');
 
     expect(() => parseRecipeEvidenceCompletion({
       choices: [{ finish_reason: 'stop', message: { content: null } }],
