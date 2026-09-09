@@ -54,7 +54,8 @@ export function classifyUrlResponse(
 
 export function classifyUrlDocument(html: string): UrlRecipeAcquisitionError | null {
   const sample = html.slice(0, 200_000).toLowerCase();
-  const challengeMarker = /cf-chl-|challenge-platform|captcha|verify (?:that )?you are human|enable javascript and cookies to continue/.test(sample);
+  const challengeMarker = /cf-chl-|challenge-platform|verify (?:that )?you are human|enable javascript and cookies to continue/.test(sample)
+    || /<(?:div|iframe|form)[^>]+(?:g-recaptcha|h-captcha|hcaptcha|captcha-(?:container|widget)|(?:id|class)=["'][^"']*captcha)/.test(sample);
   const accessDeniedPage = /<title[^>]*>\s*(?:access denied|just a moment)/.test(sample);
   return challengeMarker || accessDeniedPage
     ? urlAcquisitionFailure('url_access_restricted')

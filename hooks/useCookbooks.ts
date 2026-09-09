@@ -7,8 +7,9 @@ import {
   deleteCookbook as deleteCookbookRow,
   listCookbooks,
   retryReaderStorageCleanup,
-  updateCookbookTitle as updateCookbookTitleRow,
+  updateCookbookAppearance as updateCookbookAppearanceRow,
   type CreateCookbookInput,
+  type UpdateCookbookAppearanceInput,
 } from '@/utils/cookbook/api';
 import { loadCachedShelf, saveCachedShelf } from '@/utils/cookbook/cache';
 import { isStaleCachedData } from '@/utils/cookbook/cacheStatus';
@@ -78,18 +79,24 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     },
   });
 
-  const renameMutation = useMutation({
-    mutationFn: async ({ cookbookId, title }: { cookbookId: string; title: string }) => {
-      const trimmedTitle = title.trim();
-      await updateCookbookTitleRow(cookbookId, trimmedTitle);
-      return { cookbookId, title: trimmedTitle };
-    },
-    onSuccess: ({ cookbookId, title }) => {
+  const customizeMutation = useMutation({
+    mutationFn: async ({
+      cookbookId,
+      details,
+    }: {
+      cookbookId: string;
+      details: UpdateCookbookAppearanceInput;
+    }) => updateCookbookAppearanceRow(cookbookId, details),
+    onSuccess: (updatedCookbook) => {
       queryClient.setQueryData<Cookbook[]>(SHELF_QUERY_KEY(user?.id), (existing = []) =>
-        existing.map((cookbook) => (cookbook.id === cookbookId ? { ...cookbook, title } : cookbook)),
+        existing.map((cookbook) => cookbook.id === updatedCookbook.id
+          ? { ...updatedCookbook, pageCount: cookbook.pageCount }
+          : cookbook),
       );
-      queryClient.setQueryData<Cookbook | null>(['cookbook', cookbookId], (existing) =>
-        existing ? { ...existing, title } : existing,
+      queryClient.setQueryData<Cookbook | null>(['cookbook', updatedCookbook.id], (existing) =>
+        existing
+          ? { ...updatedCookbook, pageCount: existing.pageCount }
+          : updatedCookbook,
       );
     },
   });
@@ -111,7 +118,7 @@ export const [CookbooksProvider, useCookbooks] = createContextHook(() => {
     isCreating: createMutation.isPending,
     deleteCookbook: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
-    updateCookbookTitle: renameMutation.mutateAsync,
-    isRenaming: renameMutation.isPending,
+    updateCookbookAppearance: customizeMutation.mutateAsync,
+    isCustomizing: customizeMutation.isPending,
   };
 });

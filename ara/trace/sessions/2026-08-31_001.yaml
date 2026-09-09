@@ -2,9 +2,9 @@ session:
   id: "2026-08-31_001"
   date: "2026-08-31"
   started: "2026-08-31T03:35+03:00"
-  last_turn: "2026-08-31T03:35+03:00"
-  turn_count: 1
-  summary: "Verified the layered native QA stack and recommended a commit-pinned, evidence-backed real-user testing loop; awaiting the PC commit."
+  last_turn: "2026-08-31T06:59+03:00"
+  turn_count: 3
+  summary: "Ran the first live iOS cohort, isolated core pipeline failures, and established evidence-only issue handoffs for the PC implementation agent."
 
 events_logged:
   - turn: 1
@@ -25,12 +25,85 @@ events_logged:
     routing: staged
     provenance: ai-suggested
     summary: "Assign accessibility actions, build diagnostics, fixtures, and fallback control to separate tools."
+  - turn: 2
+    type: experiment
+    id: N36
+    routing: direct
+    provenance: ai-executed
+    summary: "Synchronized commit 400188beb and exercised URL, text, image, YouTube, and audio capture on live iOS."
+  - turn: 2
+    type: experiment
+    id: N37
+    routing: direct
+    provenance: ai-executed
+    summary: "A/B tested Food Hero Guacamole as JSON-LD URL and screenshot, exposing confident structured-data corruption."
+  - turn: 2
+    type: experiment
+    id: N38
+    routing: direct
+    provenance: ai-executed
+    summary: "Grounded chat failed or hung against both malformed and correct recipe graphs."
+  - turn: 2
+    type: experiment
+    id: N39
+    routing: direct
+    provenance: ai-executed
+    summary: "Audio transcription succeeded, then transcript-to-RecipeGraph extraction failed."
+  - turn: 2
+    type: observation
+    id: O20
+    routing: staged
+    provenance: ai-suggested
+    summary: "Require structural quality checks before structured recipes can auto-publish."
+  - turn: 2
+    type: observation
+    id: O21
+    routing: staged
+    provenance: ai-suggested
+    summary: "Treat the shared text extraction seam as a release risk across pasted and transcribed inputs."
+  - turn: 2
+    type: observation
+    id: O22
+    routing: staged
+    provenance: ai-suggested
+    summary: "Verify chat completion, handled timeouts, and focus retention rather than focus labels alone."
+  - turn: 2
+    type: observation
+    id: O23
+    routing: staged
+    provenance: ai-suggested
+    summary: "Ensure first-use AI consent is visible above the active intake surface."
+  - turn: 3
+    type: decision
+    id: N40
+    routing: direct
+    provenance: user-revised
+    summary: "Use issue-only QA handoffs without root-cause or fix prescriptions."
 
 ai_actions:
   - turn: 1
     action: >-
       Fetched current official Codex, Expo, Mobile MCP, XcodeBuildMCP, AXe, Apple,
       and Supabase guidance relevant to interactive iOS testing and evidence capture.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 2
+    action: >-
+      Fast-forwarded the test branch to commit 400188beb, built and launched the native
+      Expo client, and created an isolated live Supabase QA user and cookbook.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 2
+    action: >-
+      Ran durable capture and generation flows for normal URLs, pasted text, a real
+      screenshot, a YouTube link, and an existing AIFF file, then inspected capture
+      checkpoints and RecipeGraphs against source truth.
+    provenance: ai-executed
+    files_changed: []
+  - turn: 2
+    action: >-
+      Asked grounded recipe questions through Chat with Nosh on both malformed and correct
+      generated pages and recorded failure, timeout, focus, and developer-toast evidence.
     provenance: ai-executed
     files_changed: []
   - turn: 1
@@ -48,12 +121,20 @@ key_context:
     excerpt: >-
       Keep this Mac task as the real-user testing side of a PC-fix/Mac-retest loop,
       focused on recipe ingestion, generated-page correctness, and grounded Chat with Nosh.
+  - turn: 2
+    excerpt: >-
+      Pull the latest settings-and-user-controls commit, continue solely against the Expo
+      iPhone experience, and begin the real-user test loop without changing product code.
+  - turn: 3
+    excerpt: >-
+      Describe what was tested and the issue encountered clearly; do not tell the engineer
+      how to diagnose or fix it.
 
 open_threads:
-  - "Receive the latest PC commit or branch, fetch it, preserve existing ARA changes, and synchronize without force-resetting."
-  - "Install or otherwise select the repository-required Node 20.19.4 for project commands while leaving the MCP runtime on Node 22."
-  - "Boot the fixed iPhone 17 Pro / iOS 26.2 simulator and confirm Mobile MCP, XcodeBuildMCP, and AXe can all inspect it."
-  - "Use the existing authenticated simulator state or obtain a dedicated QA login only if authentication blocks the first run."
+  - "After the PC fix commit, pull and rerun the exact Food Hero URL/screenshot A/B plus pasted-text and audio captures."
+  - "Retest grounded Chat with Nosh for ingredients, substitutions, steps, and cookbook context after timeout handling is fixed."
+  - "Expand the next cohort to a direct supported video file, TikTok or Reels links, another structured URL, and more cropped or noisy images."
+  - "Add targeted physical-iPhone coverage before launch for camera capture, native share extensions, social-app handoff, and device-only behavior."
 
 ai_suggestions_pending:
   - "Use Mobile MCP for direct user actions, XcodeBuildMCP for build/log/debug evidence, simctl for fixtures, and AXe as fallback."

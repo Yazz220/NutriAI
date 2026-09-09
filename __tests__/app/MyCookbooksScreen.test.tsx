@@ -4,10 +4,10 @@ import { Alert } from 'react-native';
 import MyCookbooksScreen from '@/app/(book)/index';
 
 const mockDeleteCookbook = jest.fn();
-const mockUpdateCookbookTitle = jest.fn();
+const mockPush = jest.fn();
 let mockCookbooks: Array<{ id: string; title: string; pageCount: number }> = [];
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { push: (...args: unknown[]) => mockPush(...args) } }));
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
@@ -19,7 +19,6 @@ jest.mock('@/hooks/useCookbooks', () => ({
     shelfError: null,
     refresh: jest.fn(),
     deleteCookbook: mockDeleteCookbook,
-    updateCookbookTitle: mockUpdateCookbookTitle,
   }),
 }));
 jest.mock('@/contexts/NoshNativeShareContext', () => ({
@@ -76,7 +75,7 @@ jest.mock('@/components/cookbook/NoshAssistantChat', () => {
     NoshShelfChatButton: () =>
       mockReact.createElement(MockPressable, {
         accessibilityRole: 'button',
-        accessibilityLabel: 'Ask Nosh about your cookbooks',
+        accessibilityLabel: 'Ask Folio about your cookbooks',
       }),
   };
 });
@@ -91,7 +90,7 @@ describe('MyCookbooksScreen first-run accessibility', () => {
   beforeEach(() => {
     mockCookbooks = [];
     mockDeleteCookbook.mockReset().mockResolvedValue(undefined);
-    mockUpdateCookbookTitle.mockReset().mockResolvedValue(undefined);
+    mockPush.mockReset();
   });
 
   it('hides every shelf control while the modal welcome is present', async () => {
@@ -105,24 +104,20 @@ describe('MyCookbooksScreen first-run accessibility', () => {
       expect(shelf.props.accessibilityElementsHidden).toBe(true);
       expect(shelf.props.importantForAccessibility).toBe('no-hide-descendants');
       expect(screen.queryByRole('button', { name: 'Create a new cookbook' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Ask Nosh about your cookbooks' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Save a recipe with Nosh' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Ask Folio about your cookbooks' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Save a recipe with Folio' })).toBeNull();
     });
   });
 
-  it('opens cookbook management from the shelf and saves a new title', async () => {
+  it('opens cookbook customization from shelf management', async () => {
     mockCookbooks = [{ id: 'book-1', title: 'Weeknight Table', pageCount: 6 }];
     const screen = render(<MyCookbooksScreen />);
 
     fireEvent.press(await screen.findByRole('button', { name: 'Actions for Weeknight Table' }));
-    fireEvent.changeText(screen.getByLabelText('Book name'), 'Weeknight Favorites');
-    fireEvent.press(screen.getByRole('button', { name: 'Save cookbook name' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Customize cookbook' }));
 
     await waitFor(() => {
-      expect(mockUpdateCookbookTitle).toHaveBeenCalledWith({
-        cookbookId: 'book-1',
-        title: 'Weeknight Favorites',
-      });
+      expect(mockPush).toHaveBeenCalledWith('/(book)/library?cookbookId=book-1');
     });
   });
 

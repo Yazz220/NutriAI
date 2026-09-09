@@ -28,18 +28,24 @@ import {
   updatePageSelectedVersion,
 } from '@/utils/cookbook/api';
 import { finishRecipePageCandidate } from '@/utils/cookbook/pageProduction';
+import { resolveCookbookPageRemoteImageUri } from '@/utils/cookbook/pageImageResolver';
 import type { Cookbook, CookbookPage, GeneratedRecipePage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import type { RecipeCapture } from '@/utils/cookbook/captureLifecycle';
+import { getCapturePresentation } from '@/utils/cookbook/capturePresentation';
+import { applyCookbookPageOrder } from '@/utils/cookbook/pageOrder';
 
 export default function BookReaderScreen() {
   const { showToast } = useToast();
   const { requestConsent } = useAiDataConsent();
   const queryClient = useQueryClient();
-  const { cookbookId, pageId } = useLocalSearchParams<{
+  const { cookbookId, pageId, returnTo } = useLocalSearchParams<{
     cookbookId: string;
     pageId?: string | string[];
+    returnTo?: string | string[];
   }>();
   const normalizedPageId = Array.isArray(pageId) ? pageId[0] : pageId;
+  const normalizedReturnTo = Array.isArray(returnTo) ? returnTo[0] : returnTo;
   const readOnly = isSampleCookbookId(cookbookId);
   const {
     cookbook,
@@ -53,7 +59,8 @@ export default function BookReaderScreen() {
     isStale,
     refresh,
   } = useCookbook(cookbookId);
-  const { captures } = useRecipeCaptures();
+  const captureState = useRecipeCaptures();
+  const { captures } = captureState;
   const pageOrder = useCookbookPageOrder(cookbookId);
 
   // The shelf already has the cookbook metadata cached. Use it to render
@@ -62,7 +69,6 @@ export default function BookReaderScreen() {
   const {
     cookbooks: shelfCookbooks,
     deleteCookbook,
-    updateCookbookTitle,
   } = useCookbooks();
   const shelfCookbook = shelfCookbooks.find((book) => book.id === cookbookId);
   const effectiveCookbook = cookbook ?? shelfCookbook ?? null;
@@ -75,18 +81,20 @@ export default function BookReaderScreen() {
 
     queryClient.setQueryData<CookbookPage[]>(
       COOKBOOK_PAGES_QUERY_KEY(cookbookId),
-      (current = []) => current.filter((page) => page.id !== removedPageId),
+      (current = []) => {
+        const remaining = current.filter((page) => page.id !== removedPageId);
+        return applyCookbookPageOrder(remaining, remaining.map((page) => page.id));
+      },
     );
     setSelectedPageId(fallbackPage?.id ?? null);
   };
 
   const refreshRecipeCollections = async (destinationCookbookId?: string) => {
     const invalidations = [
-      queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId) }),
       queryClient.invalidateQueries({ queryKey: ['cookbook-shelf'] }),
       queryClient.invalidateQueries({ queryKey: ['recipe-captures'] }),
     ];
-    if (destinationCookbookId) {
+    if (destinationCookbookId && destinationCookbookId !== cookbookId) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: COOKBOOK_PAGES_QUERY_KEY(destinationCookbookId) }),
       );
@@ -121,9 +129,8 @@ export default function BookReaderScreen() {
     }
   };
 
-  const handleRenameCookbook = async (title: string) => {
-    await updateCookbookTitle({ cookbookId, title });
-    showToast({ message: 'Cookbook name updated.', type: 'success' });
+  const handleCustomizeCookbook = () => {
+    router.push(`/(book)/library?cookbookId=${encodeURIComponent(cookbookId)}`);
   };
 
   const handleExportCookbook = async () => {
@@ -151,13 +158,52 @@ export default function BookReaderScreen() {
           params: {
             cookbookId: result.destinationCookbookId,
             pageId: result.resultPageId,
+            returnTo: 'previous',
           },
         }),
       },
     });
   };
 
+  const handleRemoveCapture = (capture: RecipeCapture) => {
+    Alert.alert(
+      'Remove unfinished recipe?',
+      'This removes the failed item and its saved source.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            void captureState
+              .discardCapture(capture.id)
+              .then(async () => {
+                if (capture.pageId) {
+                  removePageFromReader(capture.pageId);
+                }
+                await refreshRecipeCollections(capture.destinationCookbookId);
+                showToast({ message: 'The unfinished recipe was removed.', type: 'success' });
+              })
+              .catch((error) => {
+                const message = error instanceof Error ? error.message : 'The unfinished recipe could not be removed.';
+                Alert.alert('Remove failed', message);
+              });
+          },
+        },
+      ],
+    );
+  };
+
   const handleRemoveRecipe = (page: CookbookPage) => {
+    if (page.lifecycleStatus === 'processing') {
+      const capture = (page.captureId ? captures.find((c) => c.id === page.captureId) : undefined)
+        ?? captures.find((c) => c.pageId === page.id);
+      if (capture) {
+        handleRemoveCapture(capture);
+        return;
+      }
+    }
+
     Alert.alert(
       'Remove recipe?',
       `This permanently removes ${page.title} from ${effectiveCookbook?.title ?? 'this cookbook'}.`,
@@ -183,6 +229,30 @@ export default function BookReaderScreen() {
     );
   };
 
+  const handleResolveCapture = async (capture: RecipeCapture) => {
+    const presentation = getCapturePresentation(capture);
+    if (presentation.action === 'retry' && capture.failureCode !== 'designed_page_limit_reached') {
+      if (!await requestConsent()) return;
+      try {
+        await captureState.retryCapture(capture.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The recipe could not be retried.';
+        Alert.alert('Retry failed', message);
+      }
+      return;
+    }
+
+    router.push({
+      pathname: '/(book)/save',
+      params: {
+        captureId: capture.id,
+        ...(presentation.action === 'replace_source' || presentation.action === 'correct_recipe'
+          ? { captureAction: presentation.action }
+          : {}),
+      },
+    });
+  };
+
   const handleGeneratePageCandidate = async (
     page: CookbookPage,
     recipeGraph: RecipeGraph,
@@ -199,6 +269,8 @@ export default function BookReaderScreen() {
           effectiveCookbook.styleRevision,
         );
 
+    const referenceArtUrl = await resolveCookbookPageRemoteImageUri(page);
+
     return finishRecipePageCandidate({
       cookbookId,
       pageId: page.id,
@@ -208,7 +280,7 @@ export default function BookReaderScreen() {
       styleReferences: styleReferences?.length ? [...styleReferences] : undefined,
       idempotencyKey,
       artDirection: instruction,
-      referenceArtUrl: page.pageImage?.imageUrl ?? page.artAsset?.artUrl,
+      referenceArtUrl: referenceArtUrl ?? undefined,
     });
   };
 
@@ -257,10 +329,10 @@ export default function BookReaderScreen() {
     );
   };
 
-  // Only show the full-screen spinner if we have NO cookbook metadata at
-  // all (not even from the shelf). If we have the cookbook, render the
-  // reader immediately — the cover shows instantly and pages stream in.
-  if (isLoading && !effectiveCookbook) {
+  // Show the opening spinner if cookbook metadata is loading, or if
+  // pages are still loading from the network and no cached pages exist.
+  // This prevents flashing an alarming empty book before recipes arrive.
+  if (!effectiveCookbook || (!hasPageData && pages.length === 0 && (isLoading || (effectiveCookbook.pageCount ?? 0) > 0))) {
     return (
       <View style={styles.loading}>
         <LoadingSpinner text="Opening your cookbook…" />
@@ -297,7 +369,14 @@ export default function BookReaderScreen() {
       pages={pages}
       pageSlots={pageSlots}
       captures={captures}
+      pageDataReady={hasPageData}
+      captureDataReady={!captureState.isLoading}
       initialPageId={normalizedPageId}
+      onExit={normalizedReturnTo ? () => {
+        if (router.canGoBack()) router.back();
+        else router.dismissTo('/(book)');
+      } : undefined}
+      exitAccessibilityLabel={normalizedReturnTo === 'composer' ? 'Back to Composer' : undefined}
       onSelectPage={setSelectedPageId}
       onShare={handleShare}
       onExportPage={handleExportPage}
@@ -305,11 +384,13 @@ export default function BookReaderScreen() {
       availableCookbooks={movableCookbooks}
       onMoveRecipe={handleMoveRecipe}
       onRemoveRecipe={handleRemoveRecipe}
+      onResolveCapture={readOnly ? undefined : handleResolveCapture}
+      onRemoveCapture={readOnly ? undefined : handleRemoveCapture}
       onReorderPage={readOnly || pageOrder.isReordering ? undefined : pageOrder.movePage}
       reorderError={Boolean(pageOrder.error)}
       onGeneratePageCandidate={handleGeneratePageCandidate}
       onUsePageCandidate={handleUsePageCandidate}
-      onRenameCookbook={handleRenameCookbook}
+      onCustomizeCookbook={handleCustomizeCookbook}
       onExportCookbook={handleExportCookbook}
       onDeleteCookbook={handleDeleteCookbook}
       readOnly={readOnly}

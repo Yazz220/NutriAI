@@ -1,3 +1,6 @@
+import { abortable } from '@/utils/abortable';
+import { fetch as expoFetch } from 'expo/fetch';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 const DEFAULT_FUNCTION_TIMEOUT_MS = 60_000;
@@ -84,6 +87,14 @@ export async function getAccessToken(): Promise<string> {
   return token;
 }
 
+async function refreshAccessToken(): Promise<string> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) throw error;
+  const token = data.session?.access_token;
+  if (!token) throw new Error('You must be signed in to use this feature.');
+  return token;
+}
+
 export async function callAuthenticatedFunction<T>(
   functionName: string,
   body: Record<string, unknown>,
@@ -129,7 +140,6 @@ export async function* streamAuthenticatedFunction<T>(
     throw new Error('Supabase is not configured.');
   }
 
-  const token = await getAccessToken();
   const url = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/${functionName}`;
   const timeoutMs = options.timeoutMs ?? DEFAULT_FUNCTION_TIMEOUT_MS;
   const controller = new AbortController();
@@ -137,20 +147,30 @@ export async function* streamAuthenticatedFunction<T>(
   if (options.signal?.aborted) controller.abort();
   options.signal?.addEventListener('abort', abortFromExternal, { once: true });
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   try {
     let res: Response;
     try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      const send = async (token: string) => abortable(
+        (Platform.OS === 'web' ? fetch : expoFetch)(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        }),
+        controller.signal,
+      );
+      const token = await abortable(getAccessToken(), controller.signal);
+      res = await send(token);
+      if (res.status === 401) {
+        const refreshedToken = await abortable(refreshAccessToken(), controller.signal);
+        res = await send(refreshedToken);
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         if (options.signal?.aborted) throw new FunctionCanceledError();
@@ -161,30 +181,30 @@ export async function* streamAuthenticatedFunction<T>(
     }
 
     if (!res.ok) {
-      const responseText = await res.text().catch(() => '');
+      const responseText = await abortable(res.text(), controller.signal);
       throw new FunctionResponseError(res.status, functionName, responseText);
     }
 
     const contentType = res.headers.get('content-type') ?? '';
     if (contentType.includes('application/json')) {
-      yield await res.json() as T;
+      yield await abortable(res.json(), controller.signal) as T;
       return;
     }
 
     if (!res.body || typeof res.body.getReader !== 'function') {
-      const responseText = await res.text();
+      const responseText = await abortable(res.text(), controller.signal);
       for (const line of responseText.split('\n')) {
         const trimmed = line.trim();
         if (trimmed) yield JSON.parse(trimmed) as T;
       }
       return;
     }
-    const reader = res.body.getReader();
+    reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await abortable(reader.read(), controller.signal);
       buffer += decoder.decode(value, { stream: !done });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
@@ -205,5 +225,7 @@ export async function* streamAuthenticatedFunction<T>(
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener('abort', abortFromExternal);
+    // A semantic terminal event may end consumption before the peer closes.
+    void reader?.cancel().catch(() => {});
   }
 }

@@ -33,17 +33,34 @@ export type CookbookStyleId =
   | 'alabaster-linen'
   | 'umber-leather';
 
-/** Surface finish applied to the one canonical Nosh cover construction. */
-export type CookbookCoverFinishId = 'fine-cloth' | 'natural-linen';
+/** Surface finish applied to the one canonical Folio cover construction. */
+export type CookbookCoverFinishId =
+  | 'fine-cloth'
+  | 'natural-linen'
+  | 'pressed-paper'
+  | 'soft-grain';
 
 /** Curated cover color, independent from the surface finish. */
 export type CookbookCoverColorId =
   | 'sage'
   | 'clay'
+  | 'ochre'
   | 'midnight'
   | 'alabaster'
   | 'charcoal'
   | 'umber';
+
+/** Curated stamped title treatments for the physical cover. */
+export type CookbookCoverTitleColorId =
+  | 'auto'
+  | 'gilt'
+  | 'ivory'
+  | 'plum'
+  | 'charcoal'
+  | 'silver';
+
+/** Editorial title positions that stay consistent at every book size. */
+export type CookbookCoverTitlePlacementId = 'upper' | 'center' | 'lower' | 'bookplate';
 
 /** The versioned, book-owned visual language used by complete-page generation. */
 export type CookbookPageStyleId = RecipePageStyleId;
@@ -77,6 +94,10 @@ export interface Cookbook {
   coverFinishId: CookbookCoverFinishId;
   /** Curated color applied independently to the selected cover finish. */
   coverColorId: CookbookCoverColorId;
+  /** Stamped title treatment, independent from the cover color. */
+  coverTitleColorId: CookbookCoverTitleColorId;
+  /** Curated title position on the front board. */
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   /** Book-owned recipe-page visual language, independent of its cover. */
   pageStyleId: CookbookPageStyleId;
   /** Immutable page-style revision used by every generated page in this book. */
@@ -128,7 +149,7 @@ export interface CookbookPage {
   imageAsset?: ImageSourcePropType;
   imageUrl?: string;
   recipe?: StructuredRecipe;
-  /** Canonical recipe data used by Nosh for reasoning and future changes. */
+  /** Canonical recipe data used by Folio for reasoning and future changes. */
   recipeGraph?: RecipeGraph;
   /** Complete generated recipe page displayed to the user. */
   pageImage?: GeneratedRecipePage;
@@ -201,7 +222,7 @@ export interface TocSection {
 }
 
 // Generated pages keep structured culinary data and the user-facing page image
-// together. Nosh reasons from RecipeGraph. The reader displays the image.
+// together. Folio reasons from RecipeGraph. The reader displays the image.
 
 /** Status of the art generation process for a page. */
 export type PageArtStatus = 'pending' | 'generating' | 'ready' | 'failed';

@@ -67,6 +67,12 @@ const interaction: NoshInteractionSession = {
   focus: { kind: 'collection' },
 };
 
+const captureInteraction: NoshInteractionSession = {
+  entryPoint: 'cookbook-add',
+  task: 'capture',
+  focus: { kind: 'cookbook', cookbookId: 'book-1', title: 'Dinner' },
+};
+
 describe('NoshComposer', () => {
   beforeEach(() => {
     mockAuiState.composer.isEmpty = true;
@@ -84,7 +90,7 @@ describe('NoshComposer', () => {
 
   it('grows the native multiline input until the compact maximum height', () => {
     const screen = render(
-      <NoshComposer interaction={interaction} contextModelEnabled={false} />,
+      <NoshComposer interaction={interaction} />,
     );
     const input = screen.UNSAFE_getByType(TextInput);
 
@@ -108,13 +114,13 @@ describe('NoshComposer', () => {
 
   it('keeps send and stop in the same compact action position', () => {
     const screen = render(
-      <NoshComposer interaction={interaction} contextModelEnabled={false} />,
+      <NoshComposer interaction={interaction} />,
     );
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Stop response' })).toBeNull();
 
     mockAuiState.thread.isRunning = true;
-    screen.rerender(<NoshComposer interaction={interaction} contextModelEnabled={false} />);
+    screen.rerender(<NoshComposer interaction={interaction} />);
 
     const stop = screen.getByRole('button', { name: 'Stop response' });
     expect(StyleSheet.flatten(stop.props.style)).toEqual(expect.objectContaining({ width: 44, height: 44 }));
@@ -131,7 +137,7 @@ describe('NoshComposer', () => {
       }],
     });
     const screen = render(
-      <NoshComposer interaction={interaction} contextModelEnabled={false} />,
+      <NoshComposer interaction={captureInteraction} />,
     );
 
     fireEvent.press(screen.getByRole('button', { name: 'Attach image or screenshot' }));
@@ -140,7 +146,7 @@ describe('NoshComposer', () => {
       expect(mockComposer.setText).toHaveBeenCalledWith('Add this recipe from the attached photo');
     });
 
-    screen.rerender(<NoshComposer interaction={interaction} contextModelEnabled={false} />);
+    screen.rerender(<NoshComposer interaction={captureInteraction} />);
     expect(screen.getByLabelText('Attached recipe photo')).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'Remove recipe photo' }));
 

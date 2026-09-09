@@ -1,9 +1,9 @@
 /**
- * Recipe Graph — the canonical structured recipe format for Nosh.
+ * Recipe Graph — the canonical structured recipe format for Folio.
  *
  * This is the spine of the entire pipeline. It powers:
  * - Extraction: the AI model outputs this structure from any source (URL, image, video, text)
- * - Nosh reasoning: the assistant reads and mutates this (scale servings, substitute ingredients, update steps)
+ * - Folio reasoning: the assistant reads and mutates this (scale servings, substitute ingredients, update steps)
  * - The typesetter: the native renderer lays out the page from this data
  * - Search: finding recipes by ingredient, tag, cuisine, dietary info
  *
@@ -80,7 +80,7 @@ export interface RecipeIngredient {
   preparation?: string;
   /** Whether this ingredient is optional. */
   isOptional?: boolean;
-  /** When Nosh scales the recipe, the original quantity is preserved here. */
+  /** When Folio scales the recipe, the original quantity is preserved here. */
   originalQuantity?: string;
 }
 
@@ -106,7 +106,7 @@ export interface IngredientGroup {
  * A single instruction step.
  */
 export interface RecipeStep {
-  /** Stable id for referencing from Nosh tool calls. */
+  /** Stable id for referencing from Folio tool calls. */
   id: string;
   /** The instruction text. */
   text: string;
@@ -140,7 +140,7 @@ export interface StepGroup {
 // ---------------------------------------------------------------------------
 
 /**
- * Internal source and extraction metadata. It helps Nosh retry, diagnose,
+ * Internal source and extraction metadata. It helps Folio retry, diagnose,
  * and improve ingestion, but it is never cookbook-page copy.
  */
 export interface RecipeProvenance {
@@ -180,7 +180,7 @@ export interface RecipeProvenance {
 
 /**
  * The canonical structured recipe.
- * This is what extraction produces, what Nosh reasons about,
+ * This is what extraction produces, what Folio reasons about,
  * and what the typesetter renders.
  */
 export interface RecipeGraph {
@@ -232,7 +232,7 @@ export interface RecipeGraph {
 export type RecipeGraphDraft = Omit<RecipeGraph, 'id' | 'createdAt' | 'updatedAt'>;
 
 // ---------------------------------------------------------------------------
-// Nosh tool-call types — what the assistant uses to mutate the graph
+// Folio tool-call types — what the assistant uses to mutate the graph
 // ---------------------------------------------------------------------------
 
 /** Scale all ingredient quantities by a ratio. */
@@ -266,7 +266,7 @@ export interface GuideNextStepTool {
   stepId: string;
 }
 
-/** Update the recipe graph in place (Nosh edits the page live). */
+/** Update the recipe graph in place (Folio edits the page live). */
 export interface UpdatePageDataTool {
   tool: 'update_page_data';
   /** JSON-patch-style operations on the recipe graph. */

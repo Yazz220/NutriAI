@@ -1,199 +1,253 @@
 import {
-  buildPageCurlCurve,
-  computeRowTurnProgress,
-  estimateTurnSettleDuration,
-  getSheetTurnProgress,
-  resolveBookStageTranslation,
-  resolveNativeBookGeometry,
-  resolveNativeReadingPageGeometry,
+  clampPageTurnProgress,
+  resolveAnchoredTurnProgress,
+  resolveTurnGrabXForProgress,
   resolveTurnProgress,
   resolveTurnRelease,
   shouldCommitPageTurn,
 } from '@/utils/cookbook/physicalBook';
 
-describe('physical cookbook page turns', () => {
-  describe('native book geometry', () => {
-    it('keeps a compact open spread inside the iPhone viewport', () => {
-      const geometry = resolveNativeBookGeometry(430, 932, true);
+// Phone-like one-page geometry: a ~361pt reading page on a 393pt screen.
+const PAGE_WIDTH = 361;
 
-      expect(geometry.stageWidth).toBeLessThanOrEqual(430 - 16);
-      expect(geometry.hingeX).toBeCloseTo(215);
-      expect(geometry.pageHeight / geometry.pageWidth).toBeCloseTo(5 / 4);
-    });
-
-    it('attaches both closed covers to the same center hinge', () => {
-      const geometry = resolveNativeBookGeometry(430, 932, true);
-      const centeredCoverLeft = 430 / 2 - geometry.pageWidth / 2;
-
-      expect(centeredCoverLeft + geometry.frontCoverOffsetX).toBeCloseTo(geometry.hingeX);
-      expect(centeredCoverLeft + geometry.backCoverOffsetX + geometry.pageWidth).toBeCloseTo(geometry.hingeX);
-    });
-
-    it('centers the closed cover and settles the open spread at center', () => {
-      expect(resolveBookStageTranslation(0, 300)).toBe(-150);
-      expect(resolveBookStageTranslation(0.5, 300)).toBe(-75);
-      expect(resolveBookStageTranslation(1, 300)).toBe(0);
-    });
-
-    it('keeps the one-page binding directly across the page hinge', () => {
-      const geometry = resolveNativeReadingPageGeometry(430, 932);
-
-      expect(geometry.pageOffsetX).toBeLessThanOrEqual(10);
-      expect(geometry.bindingLeft).toBeLessThan(geometry.pageOffsetX);
-      expect(geometry.bindingLeft + geometry.bindingWidth).toBeGreaterThan(geometry.pageOffsetX);
-      expect(geometry.stageWidth).toBeLessThan(430);
-      expect(geometry.pageHeight / geometry.pageWidth).toBeCloseTo(5 / 4);
-    });
+describe('anchored turn progress (native drag-to-turn)', () => {
+  it('starts at zero when the pointer has not moved', () => {
+    expect(
+      resolveAnchoredTurnProgress({ grabX: 370, pointerX: 370, pageWidth: PAGE_WIDTH, direction: 1, canTurn: true }),
+    ).toBe(0);
   });
 
-  it('keeps every sheet on a stable side except the active sheet', () => {
-    expect(getSheetTurnProgress(0, 2, 0, 0)).toBe(1);
-    expect(getSheetTurnProgress(1, 2, 0, 0)).toBe(1);
-    expect(getSheetTurnProgress(2, 2, 0, 0)).toBe(0);
-    expect(getSheetTurnProgress(3, 2, 0, 0)).toBe(0);
-
-    expect(getSheetTurnProgress(2, 2, 1, 0.35)).toBeCloseTo(0.35);
-    expect(getSheetTurnProgress(1, 2, -1, 0.35)).toBeCloseTo(0.65);
+  it('crosses the spine at half progress and completes at the far side', () => {
+    const grabX = 370;
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX,
+        pointerX: grabX - PAGE_WIDTH,
+        pageWidth: PAGE_WIDTH,
+        direction: 1,
+        canTurn: true,
+      }),
+    ).toBe(0.5);
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX,
+        pointerX: grabX - 2 * PAGE_WIDTH,
+        pageWidth: PAGE_WIDTH,
+        direction: 1,
+        canTurn: true,
+      }),
+    ).toBe(1);
   });
 
-  it('projects release velocity in the direction of travel', () => {
-    expect(shouldCommitPageTurn(0.3, -900, 1, 390)).toBe(true);
-    expect(shouldCommitPageTurn(0.3, 900, 1, 390)).toBe(false);
-    expect(shouldCommitPageTurn(0.3, 900, -1, 390)).toBe(true);
-    expect(shouldCommitPageTurn(0.3, -900, -1, 390)).toBe(false);
+  it('mirrors the same travel for backward turns', () => {
+    const grabX = 20;
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX,
+        pointerX: grabX + PAGE_WIDTH,
+        pageWidth: PAGE_WIDTH,
+        direction: -1,
+        canTurn: true,
+      }),
+    ).toBe(0.5);
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX,
+        pointerX: grabX + 2 * PAGE_WIDTH,
+        pageWidth: PAGE_WIDTH,
+        direction: -1,
+        canTurn: true,
+      }),
+    ).toBe(1);
   });
 
-  it('starts and lands flat while lifting the page through the middle', () => {
-    const start = buildPageCurlCurve(2, 8, 0);
-    const middle = buildPageCurlCurve(2, 8, 0.5);
-    const end = buildPageCurlCurve(2, 8, 1);
-
-    expect(start.at(-1)).toEqual({ x: 2, z: 0 });
-    expect(middle.at(-1)?.z).toBeGreaterThan(0.75);
-    expect(end.at(-1)?.x).toBeCloseTo(-2);
-    expect(end.at(-1)?.z).toBeCloseTo(0);
+  it('is independent of the coordinate origin (screen and book units agree)', () => {
+    const shift = 137;
+    const base = resolveAnchoredTurnProgress({
+      grabX: 370,
+      pointerX: 200,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
+    });
+    const shifted = resolveAnchoredTurnProgress({
+      grabX: 370 + shift,
+      pointerX: 200 + shift,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
+    });
+    expect(shifted).toBeCloseTo(base, 10);
   });
 
-  describe('resolveTurnProgress', () => {
-    const pageWidth = 390;
-
-    it('tracks pointer position with symmetrical travel from a free-edge grab', () => {
-      const base = { grabX: pageWidth, pageWidth, direction: 1 as const, canTurn: true };
-      // travel = 2 * |targetX - grabX| = 2 * 390 = 780
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.25);
-      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBeCloseTo(0.5);
-      expect(resolveTurnProgress({ ...base, pointerX: -pageWidth })).toBeCloseTo(1);
+  it('keeps the same sensitivity when the page is grabbed mid-leaf', () => {
+    const edgeGrab = resolveAnchoredTurnProgress({
+      grabX: 370,
+      pointerX: 370 - 0.5 * PAGE_WIDTH,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
-
-    it('follows the finger back when the drag reverses', () => {
-      const base = { grabX: pageWidth, pageWidth, direction: 1 as const, canTurn: true };
-      // travel = 780; at pointerX=100: (390-100)/780 ≈ 0.37
-      expect(resolveTurnProgress({ ...base, pointerX: 100 })).toBeCloseTo(0.37, 1);
-      // at pointerX=300: (390-300)/780 ≈ 0.12
-      expect(resolveTurnProgress({ ...base, pointerX: 300 })).toBeCloseTo(0.12, 1);
+    const midGrab = resolveAnchoredTurnProgress({
+      grabX: 200,
+      pointerX: 200 - 0.5 * PAGE_WIDTH,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
-
-    it('anchors travel to the grab point for mid-page grabs', () => {
-      const grabX = pageWidth * 0.5;
-      const base = { grabX, pageWidth, direction: 1 as const, canTurn: true };
-      // travel = 2 * |0 - 195| = 390; at pointerX=0: 195/390 = 0.5
-      expect(resolveTurnProgress({ ...base, pointerX: grabX })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBeCloseTo(0.5);
-    });
-
-    it('mirrors the mapping for backward turns', () => {
-      const base = { grabX: 0, pageWidth, direction: -1 as const, canTurn: true };
-      // travel = 2 * |390 - 0| = 780; at pointerX=195: 195/780 = 0.25
-      expect(resolveTurnProgress({ ...base, pointerX: 0 })).toBe(0);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth / 2 })).toBeCloseTo(0.25);
-      expect(resolveTurnProgress({ ...base, pointerX: pageWidth })).toBeCloseTo(0.5);
-    });
-
-    it('resists when no page exists in the grab direction', () => {
-      const atEdge = {
-        grabX: pageWidth,
-        pointerX: 0,
-        pageWidth,
-        direction: 1 as const,
-        canTurn: false,
-      };
-      expect(resolveTurnProgress(atEdge)).toBeLessThan(0.1);
-    });
+    expect(midGrab).toBeCloseTo(edgeGrab, 10);
+    expect(midGrab).toBeCloseTo(0.25, 10);
   });
 
-  describe('resolveTurnRelease', () => {
-    it('commits past the midpoint even without velocity', () => {
-      const release = resolveTurnRelease({ progress: 0.6, velocityX: 0, direction: 1, pageWidth: 390 });
-      expect(release.commit).toBe(true);
-      expect(release.settleVelocity).toBeGreaterThan(0);
-    });
-
-    it('commits on a flick below the midpoint and carries the flick velocity', () => {
-      const release = resolveTurnRelease({ progress: 0.2, velocityX: -1200, direction: 1, pageWidth: 390 });
-      expect(release.commit).toBe(true);
-      expect(release.settleVelocity).toBeGreaterThan(1.6);
-    });
-
-    it('cancels slow drags below the midpoint with negative settle velocity', () => {
-      const release = resolveTurnRelease({ progress: 0.3, velocityX: 0, direction: 1, pageWidth: 390 });
-      expect(release.commit).toBe(false);
-      expect(release.settleVelocity).toBeLessThan(0);
-    });
-
-    it('mirrors velocity handling for backward turns', () => {
-      const forwardFlick = resolveTurnRelease({ progress: 0.2, velocityX: 1200, direction: -1, pageWidth: 390 });
-      const wrongWayFlick = resolveTurnRelease({ progress: 0.2, velocityX: -1200, direction: -1, pageWidth: 390 });
-      expect(forwardFlick.commit).toBe(true);
-      expect(wrongWayFlick.commit).toBe(false);
-    });
+  it('clamps to the 0..1 range instead of over-rotating', () => {
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX: 370,
+        pointerX: -500,
+        pageWidth: PAGE_WIDTH,
+        direction: 1,
+        canTurn: true,
+      }),
+    ).toBe(1);
+    expect(
+      resolveAnchoredTurnProgress({
+        grabX: 370,
+        pointerX: 500,
+        pageWidth: PAGE_WIDTH,
+        direction: 1,
+        canTurn: true,
+      }),
+    ).toBe(0);
   });
 
-  describe('estimateTurnSettleDuration', () => {
-    it('settles faster after a flick than after a slow release', () => {
-      const flick = estimateTurnSettleDuration(0.2, 1, 4);
-      const slow = estimateTurnSettleDuration(0.2, 1, 1.6);
-      expect(flick).toBeLessThan(slow);
+  it('resists when there is no page to turn to', () => {
+    const free = resolveAnchoredTurnProgress({
+      grabX: 370,
+      pointerX: 100,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
+    const resisted = resolveAnchoredTurnProgress({
+      grabX: 370,
+      pointerX: 100,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: false,
+    });
+    expect(resisted).toBeCloseTo(free * 0.08, 10);
+  });
+});
 
-    it('stays within the perceptual bounds', () => {
-      expect(estimateTurnSettleDuration(0.99, 1, 0.5)).toBeGreaterThanOrEqual(0.18);
-      expect(estimateTurnSettleDuration(0, 1, 0.5)).toBeLessThanOrEqual(1);
-    });
+describe('turn grab inversion', () => {
+  it.each([0.05, 0.3, 0.5, 0.8, 1])(
+    'round-trips progress %d through the anchored formula (forward)',
+    (progress) => {
+      const pointerX = 123;
+      const grabX = resolveTurnGrabXForProgress({ pointerX, progress, pageWidth: PAGE_WIDTH, direction: 1 });
+      expect(
+        resolveAnchoredTurnProgress({ grabX, pointerX, pageWidth: PAGE_WIDTH, direction: 1, canTurn: true }),
+      ).toBeCloseTo(progress, 10);
+    },
+  );
+
+  it.each([0.05, 0.5, 1])('round-trips progress %d through the anchored formula (backward)', (progress) => {
+    const pointerX = 123;
+    const grabX = resolveTurnGrabXForProgress({ pointerX, progress, pageWidth: PAGE_WIDTH, direction: -1 });
+    expect(
+      resolveAnchoredTurnProgress({ grabX, pointerX, pageWidth: PAGE_WIDTH, direction: -1, canTurn: true }),
+    ).toBeCloseTo(progress, 10);
   });
 
-  describe('computeRowTurnProgress', () => {
-    it('starts and ends flat across all rows regardless of grab position', () => {
-      expect(computeRowTurnProgress(0, 0, 1)).toBe(0);
-      expect(computeRowTurnProgress(0, 1, 1)).toBe(0);
-      expect(computeRowTurnProgress(1, 0, 1)).toBe(1);
-      expect(computeRowTurnProgress(1, 1, 1)).toBe(1);
+  it('stays continuous when re-grabbing exactly at the spine (progress 0.5)', () => {
+    // The old grab-relative travel model was singular here: progress 0.5
+    // forced pointerX === targetX for any grab point, so re-grabbing a
+    // half-turned page always snapped. The anchored inversion has no
+    // singularity.
+    const pointerX = 200;
+    const grabX = resolveTurnGrabXForProgress({ pointerX, progress: 0.5, pageWidth: PAGE_WIDTH, direction: 1 });
+    const beforeNudge = resolveAnchoredTurnProgress({
+      grabX,
+      pointerX,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
-
-    it('returns uniform progress when grabbed at the vertical center', () => {
-      expect(computeRowTurnProgress(0.5, 0, 0.5)).toBeCloseTo(0.5);
-      expect(computeRowTurnProgress(0.5, 0.5, 0.5)).toBeCloseTo(0.5);
-      expect(computeRowTurnProgress(0.5, 1, 0.5)).toBeCloseTo(0.5);
+    const afterNudge = resolveAnchoredTurnProgress({
+      grabX,
+      pointerX: pointerX - 2,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
+    expect(beforeNudge).toBe(0.5);
+    expect(afterNudge - beforeNudge).toBeCloseTo(2 / (2 * PAGE_WIDTH), 10);
+  });
+});
 
-    it('accelerates bottom rows and delays top rows on bottom-corner grab', () => {
-      const topRow = computeRowTurnProgress(0.5, 0, 1);
-      const bottomRow = computeRowTurnProgress(0.5, 1, 1);
-      const midRow = computeRowTurnProgress(0.5, 0.5, 1);
-
-      expect(bottomRow).toBeGreaterThan(0.5);
-      expect(topRow).toBeLessThan(0.5);
-      expect(midRow).toBeCloseTo(0.5);
+describe('spine-crossing commit with anchored progress', () => {
+  // Simulates a slow drag-and-hold from the page corner toward the binding,
+  // released without flick velocity, using the same helpers the gesture
+  // handler wires together.
+  function releaseAfterDrag(dragDistance: number, velocityX = 0) {
+    const pointerX = 370;
+    const grabX = resolveTurnGrabXForProgress({ pointerX, progress: 0.05, pageWidth: PAGE_WIDTH, direction: 1 });
+    const progress = resolveAnchoredTurnProgress({
+      grabX,
+      pointerX: pointerX - dragDistance,
+      pageWidth: PAGE_WIDTH,
+      direction: 1,
+      canTurn: true,
     });
+    return resolveTurnRelease({ progress, velocityX, direction: 1, pageWidth: PAGE_WIDTH });
+  }
 
-    it('accelerates top rows and delays bottom rows on top-corner grab', () => {
-      const topRow = computeRowTurnProgress(0.5, 0, 0);
-      const bottomRow = computeRowTurnProgress(0.5, 1, 0);
-      const midRow = computeRowTurnProgress(0.5, 0.5, 0);
+  it('commits a slow drag that carries the corner past the spine', () => {
+    expect(releaseAfterDrag(PAGE_WIDTH).commit).toBe(true);
+    expect(releaseAfterDrag(1.2 * PAGE_WIDTH).commit).toBe(true);
+  });
 
-      expect(topRow).toBeGreaterThan(0.5);
-      expect(bottomRow).toBeLessThan(0.5);
-      expect(midRow).toBeCloseTo(0.5);
-    });
+  it('commits a near-full-width hold that used to snap back', () => {
+    // Regression: with the old screen/page coordinate mix, releasing 95% of
+    // the way across the page produced progress < 0.5 and cancelled.
+    expect(releaseAfterDrag(0.95 * PAGE_WIDTH).commit).toBe(true);
+  });
+
+  it('cancels a slow drag released well before the spine', () => {
+    expect(releaseAfterDrag(0.5 * PAGE_WIDTH).commit).toBe(false);
+    expect(releaseAfterDrag(0.2 * PAGE_WIDTH).commit).toBe(false);
+  });
+
+  it('commits an early release when flicked with real velocity', () => {
+    expect(releaseAfterDrag(0.2 * PAGE_WIDTH, -900).commit).toBe(true);
+  });
+
+  it('cancels a past-spine release when flicked hard back toward rest', () => {
+    expect(releaseAfterDrag(1.3 * PAGE_WIDTH, 900).commit).toBe(false);
+  });
+});
+
+describe('existing turn math contracts', () => {
+  it('keeps the web scene grab-mirror travel semantics intact', () => {
+    // The web scene passes targetX = grabX ∓ 2·(grabX − spineX) — the mirror
+    // of the grab point across the canvas-center spine — and
+    // resolveTurnProgress applies its own 2× mirror on top. Pin the resulting
+    // calibration so the shared helper can't drift under the web scene.
+    const spineX = 500;
+    const startX = 900;
+    const targetX = startX - 2 * (startX - spineX);
+    expect(
+      resolveTurnProgress({ grabX: startX, pointerX: spineX, pageWidth: 1000, direction: 1, canTurn: true, targetX }),
+    ).toBe(0.25);
+    expect(
+      resolveTurnProgress({ grabX: startX, pointerX: targetX, pageWidth: 1000, direction: 1, canTurn: true, targetX }),
+    ).toBe(0.5);
+  });
+
+  it('keeps the commit thresholds and progress clamp stable', () => {
+    expect(clampPageTurnProgress(-1)).toBe(0);
+    expect(clampPageTurnProgress(2)).toBe(1);
+    expect(shouldCommitPageTurn(0.5, 0, 1, PAGE_WIDTH)).toBe(true);
+    expect(shouldCommitPageTurn(0.49, 0, 1, PAGE_WIDTH)).toBe(false);
   });
 });

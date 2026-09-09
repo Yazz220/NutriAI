@@ -1,6 +1,8 @@
-# Nosh
+# Folio
 
-Nosh turns recipes people find elsewhere into personal cookbooks they can read and cook from. The cookbook is the product. Nosh is the chef who understands the recipes inside it.
+Folio turns recipes people find elsewhere into personal cookbooks they can read and cook from. The cookbook is the product. Folio is the chef who understands the recipes inside it.
+
+Folio is the current product and assistant name. Nosh was the early working name. Existing code may retain `Nosh`, `nosh`, or `NOSH` in stable technical identifiers until a separate compatibility migration replaces them.
 
 ## Books and pages
 
@@ -21,11 +23,11 @@ A curated wall treatment behind the bookshelf scene. It changes presentation wit
 _Avoid_: App theme, cookbook background
 
 **Cookbook**:
-A named physical-looking Nosh book personalized by its title, cover texture, and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
+A named physical-looking Folio book personalized by its title, cover texture, and cover color. It also owns the recipe-page style chosen for the recipes inside it. Every cookbook shares the same physical architecture, opening behavior, page system, and interactions.
 _Avoid_: Folder, collection
 
 **Cover texture**:
-The user-selected surface finish applied to the canonical Nosh cover construction. Fine cloth and Natural linen change only weave and grain; they never change geometry or behavior.
+The user-selected surface finish applied to the canonical Folio cover construction. Fine cloth and Natural linen change only weave and grain; they never change geometry or behavior.
 _Avoid_: Book type, binding, page style
 
 **Cover color**:
@@ -33,15 +35,15 @@ The user-selected curated color applied independently to either canonical cover 
 _Avoid_: Book type, recipe style, page template
 
 **Recipe-page style**:
-The versioned, book-owned visual language shared by every generated recipe page inside it. New cookbooks choose Studio, Editorial, Illustrated, Heritage, Journal, or Bold. Style changes art direction and composition, never recipe data, page geometry, or book behavior. It is independent from the cover color.
+The versioned, book-owned visual language shared by every generated recipe page inside it. New cookbooks choose Studio, Editorial, Illustrated, Watercolor, Heritage, Journal, or Artisan. Illustrated pairs ingredients and method steps with individual drawings. Watercolor uses one painted dish with clean recipe columns, preserving the original Illustrated look as a separate choice. Style changes art direction and composition, never recipe data, page geometry, or book behavior. It is independent from the cover color.
 _Avoid_: Per-recipe theme, cover color, page template
 
 **Canonical page geometry**:
-The 4:5 portrait leaf shared by every Nosh cookbook. Two leaves form an 8:5 spread, and 8 × 10 inches is its physical-print mapping. Geometry never varies by cover color, recipe-page style, or user choice.
+The 4:5 portrait leaf shared by every Folio cookbook. Two leaves form an 8:5 spread, and 8 × 10 inches is its physical-print mapping. Geometry never varies by cover color, recipe-page style, or user choice.
 _Avoid_: Page-size option, image crop, recipe-page style
 
 **Default cookbook**:
-The cookbook Nosh chooses when a recipe capture has no explicit destination.
+The cookbook Folio chooses when a recipe capture has no explicit destination.
 _Avoid_: Most recent cookbook
 
 **Recipe page**:
@@ -59,15 +61,15 @@ _Avoid_: Draft page
 ## Recipe capture
 
 **Recipe source**:
-A URL, pasted recipe, photo, video link, or existing audio recording that the user gives to Nosh.
+A URL, pasted recipe, photo, video link, or existing audio recording that the user gives to Folio.
 _Avoid_: Upload job
 
 **Video source**:
-A public video that Nosh can retrieve or that its configured video reader explicitly supports. A social post page is not video evidence merely because it contains a video.
+A public video that Folio can retrieve or that its configured video reader explicitly supports. A social post page is not video evidence merely because it contains a video.
 _Avoid_: Any social link, reel page
 
 **Audio source**:
-An existing audio recording selected by the user as recipe evidence. It is not a live recording made inside Nosh.
+An existing audio recording selected by the user as recipe evidence. It is not a live recording made inside Folio.
 _Avoid_: Voice mode, microphone input
 
 **Audio transcript**:
@@ -75,7 +77,7 @@ The written evidence derived from an audio source before recipe interpretation. 
 _Avoid_: Recipe Graph, voice recipe
 
 **Recipe evidence**:
-The source-derived facts Nosh uses to decide whether one complete recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions.
+The source-derived facts Folio uses to decide whether one usable recipe can be created, such as structured website data, visible text, captions, ingredients, and cooking instructions. Evidence can be imperfect: missing optional details or some quantities do not make an otherwise usable recipe insufficient.
 _Avoid_: Model guess, generated recipe
 
 **Extraction diagnostics**:
@@ -83,7 +85,7 @@ Internal source provenance, confidence, inferred-field, and quality information 
 _Avoid_: Recipe notes, source commentary, page warnings
 
 **Insufficient recipe evidence**:
-A source that is not a recipe, is blank or unreadable, lacks core ingredients or instructions, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
+A source that is not a recipe, is blank or unreadable, has no usable ingredient list or actionable cooking method, or contains multiple recipes that cannot be separated safely. It never creates a Recipe Graph or page.
 _Avoid_: Failed page, low-quality recipe
 
 **Recipe capture**:
@@ -95,11 +97,11 @@ A versioned record that a recipe capture completed one trustworthy stage. Retry 
 _Avoid_: Screen progress, temporary loader state, processing attempt
 
 **Recipe Graph**:
-The canonical cooking data Nosh uses to render pages, answer questions, scale servings, substitute ingredients, and prepare revisions. It contains the recipe rather than an explanation of how Nosh extracted it.
+The canonical cooking data Folio uses to render pages, answer questions, scale servings, substitute ingredients, and prepare revisions. It contains the recipe rather than an explanation of how Folio extracted it.
 _Avoid_: OCR text, generated page text
 
 **Recipe quality assessment**:
-Nosh's check that an understood recipe has consistent, usable cooking details before it becomes a page. Missing optional metadata never blocks the recipe.
+Folio's check that an understood recipe has consistent, usable cooking details before it becomes a page. Missing optional metadata never blocks the recipe.
 _Avoid_: Model confidence, approval step, style review
 
 **Recipe correction**:
@@ -122,22 +124,22 @@ _Avoid_: Needs help, rejected
 The compact status section inside Save a recipe, including work in progress, destination choices, failures, and completed pages.
 _Avoid_: Approval inbox, separate imports queue
 
-## Nosh
+## Folio
 
-**Nosh**:
+**Folio**:
 The single assistant identity shared across the bookshelf, reader, capture, and cooking interactions.
 _Avoid_: Chatbot, separate capture assistant
 
 **Active context**:
-The recipe, cookbook, capture, or collection currently in focus for a Nosh conversation.
+The recipe, cookbook, capture, or collection currently in focus for a Folio conversation.
 _Avoid_: Screen state
 
 **Recipe collection**:
-Every completed recipe page across the user's cookbooks. Nosh can search the collection regardless of which book is open.
+Every completed recipe page across the user's cookbooks. Folio can search the collection regardless of which book is open.
 _Avoid_: Active cookbook
 
 **Cooking conversation**:
-A focused conversation where Nosh answers questions and helps the user cook or adapt a recipe.
+A focused conversation where Folio answers questions and helps the user cook or adapt a recipe.
 _Avoid_: Generic chat
 
 **Walkthrough**:

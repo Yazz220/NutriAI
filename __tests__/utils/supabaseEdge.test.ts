@@ -1,14 +1,16 @@
+jest.mock('expo/fetch', () => ({ fetch: (...args: unknown[]) => global.fetch(...args as Parameters<typeof fetch>) }));
 import {
   fetchWithTimeout,
   FunctionCanceledError,
   FunctionNetworkError,
+  FunctionResponseError,
   FunctionTimeoutError,
   streamAuthenticatedFunction,
 } from '@/utils/supabaseEdge';
 import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase', () => ({
-  supabase: { auth: { getSession: jest.fn() } },
+  supabase: { auth: { getSession: jest.fn(), refreshSession: jest.fn() } },
 }));
 
 describe('fetchWithTimeout', () => {
@@ -83,12 +85,17 @@ describe('streamAuthenticatedFunction', () => {
       data: { session: { access_token: 'test-access-token' } },
       error: null,
     });
+    (supabase.auth.refreshSession as jest.Mock).mockResolvedValue({
+      data: { session: { access_token: 'refreshed-access-token' } },
+      error: null,
+    });
   });
 
   afterEach(() => {
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   it('reads a completed NDJSON response when native fetch has no readable stream', async () => {
@@ -124,4 +131,87 @@ describe('streamAuthenticatedFunction', () => {
       },
     ]);
   });
+
+  it('refreshes the session and retries once after an unauthorized response', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('{"error":"Unauthorized"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ type: 'result' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+
+    const stream = streamAuthenticatedFunction('nosh-chat', {});
+    await expect(stream.next()).resolves.toEqual({
+      done: false,
+      value: { type: 'result' },
+    });
+    await stream.return(undefined);
+
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-access-token' }),
+    });
+    expect(fetchSpy.mock.calls[1]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer refreshed-access-token' }),
+    });
+  });
+
+  it('does not retry indefinitely when the refreshed session is still unauthorized', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"error":"Unauthorized"}', { status: 401 }));
+
+    await expect(streamAuthenticatedFunction('nosh-chat', {}).next()).rejects.toBeInstanceOf(
+      FunctionResponseError,
+    );
+
+    expect(supabase.auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels the reader when a terminal event ends consumption before EOF', async () => {
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    const read = jest.fn().mockResolvedValueOnce({
+      done: false, value: new TextEncoder().encode('{"type":"result"}\n'),
+    });
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
+      body: { getReader: () => ({ read, cancel }) },
+    } as unknown as Response);
+    for await (const event of streamAuthenticatedFunction('nosh-chat', {})) {
+      expect(event).toEqual({ type: 'result' });
+      break;
+    }
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('times out even when session loading never settles', async () => {
+    jest.useFakeTimers();
+    (supabase.auth.getSession as jest.Mock).mockReturnValue(new Promise(() => {}));
+    const pending = streamAuthenticatedFunction('nosh-chat', {}, { timeoutMs: 100 }).next();
+    let settled = false;
+    const checked = pending.catch(error => { settled = true; expect(error).toBeInstanceOf(FunctionTimeoutError); });
+    await jest.advanceTimersByTimeAsync(101);
+    expect(settled).toBe(true);
+    await checked;
+    jest.useRealTimers();
+  });
+  it('settles a native read that ignores abort instead of leaving chat running', async () => {
+    jest.useFakeTimers();
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
+      body: { getReader: () => ({ read: () => new Promise(() => {}), cancel }) },
+    } as unknown as Response);
+    const pending = streamAuthenticatedFunction('nosh-chat', {}, { timeoutMs: 100 }).next();
+    let settled = false;
+    const checked = pending.catch(error => { settled = true; expect(error).toBeInstanceOf(FunctionTimeoutError); });
+    await jest.advanceTimersByTimeAsync(101);
+    expect(settled).toBe(true);
+    await checked;
+    expect(cancel).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
 });

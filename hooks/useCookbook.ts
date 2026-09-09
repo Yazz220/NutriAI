@@ -10,6 +10,7 @@ import { approvedPages } from '@/utils/cookbook/captureLifecycle';
 
 export const COOKBOOK_QUERY_KEY = (id?: string | null) => ['cookbook', id];
 export const COOKBOOK_PAGES_QUERY_KEY = (id?: string | null) => ['cookbook-pages', id];
+const COOKBOOK_DATA_STALE_TIME_MS = 5 * 60_000;
 
 export interface UseCookbookResult {
   cookbook: Cookbook | null;
@@ -39,12 +40,14 @@ export function useCookbook(cookbookId: string | null | undefined): UseCookbookR
     queryKey: COOKBOOK_QUERY_KEY(cookbookId),
     enabled: !!cookbookId && !isSampleCookbook,
     queryFn: () => getCookbook(cookbookId!),
+    staleTime: COOKBOOK_DATA_STALE_TIME_MS,
   });
 
   const pagesQuery = useQuery({
     queryKey: COOKBOOK_PAGES_QUERY_KEY(cookbookId),
     enabled: !!cookbookId && !isSampleCookbook,
     queryFn: () => fetchCookbookPages(cookbookId!),
+    staleTime: COOKBOOK_DATA_STALE_TIME_MS,
   });
 
   // Restore the book metadata from the user's shelf so cached pages remain readable after a restart.

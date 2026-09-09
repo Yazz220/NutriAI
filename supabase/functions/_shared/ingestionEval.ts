@@ -54,6 +54,7 @@ export interface IngestionEvalExecution {
   mode: IngestionEvalExecutionMode;
   request?: Record<string, unknown>;
   assetPath?: string;
+  assetPaths?: string[];
   sourceUrl?: string;
   description?: string;
 }

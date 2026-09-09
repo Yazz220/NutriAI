@@ -27,8 +27,16 @@ import {
 import { selectRecipeLayoutStrategy } from '../_shared/recipeLayout.ts';
 import { resolveAudioRecipeEvidence } from '../_shared/audioRecipeEvidence.ts';
 import { transcribeAudioRecipeEvidence } from '../_shared/audioTranscription.ts';
-import { inspectUploadedVideoRecipeSource } from '../_shared/videoRecipeEvidence.ts';
+import { transcribeVideoRecipeEvidence } from '../_shared/videoTranscription.ts';
 import {
+  acquireDirectVideoRecipeSource,
+  canReuseSavedVideoTranscript,
+  inspectUploadedVideoRecipeSource,
+  MAX_VIDEO_FRAMES,
+} from '../_shared/videoRecipeEvidence.ts';
+import { assertPublicDnsHostname, validatePublicHttpUrl } from '../_shared/publicUrl.ts';
+import {
+  recipeTextSourceIsTooLarge,
   recipeEvidenceFeedback,
   type RecipeEvidenceFailureCode,
 } from '../_shared/recipeEvidence.ts';
@@ -39,23 +47,58 @@ import {
   LEGACY_CAPTURE_STAGE_VERSION,
   recipeQualityStageVersion,
   RECIPE_CAPTURE_PUBLICATION_STAGE_VERSION,
+  RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION,
   RECIPE_GRAPH_NORMALIZATION_STAGE_VERSION,
   RECIPE_PAGE_GENERATION_STAGE_VERSION,
   sourceStageVersion,
+  VIDEO_TRANSCRIPTION_STAGE_VERSION,
   type CaptureCheckpointName,
 } from '../_shared/captureStages.ts';
 import { isCanonicalCookbookPageGenerationPayload } from '../_shared/cookbookPageGeometry.ts';
 import { toCanonicalCookbookRecipe } from '../_shared/canonicalRecipe.ts';
+import {
+  normalizeAcquiredVideoEvidenceBundle,
+  socialVideoPlatformSupportsExternalAcquisition,
+  type ExternalVideoAcquisitionResult,
+  type ExternalVideoAcquisitionState,
+  type ExternalVideoEvidenceAdapter,
+} from '../_shared/recipeEvidenceAcquisition.ts';
+import {
+  createSupadataVideoEvidenceAdapter,
+  SupadataVideoEvidenceError,
+} from '../_shared/supadataVideoEvidence.ts';
+import {
+  classifyVideoSourceUrl,
+  socialVideoPlatformLabel,
+  type SocialVideoPlatform,
+} from '../_shared/videoSource.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const CAPTURE_BUCKET = 'recipe-captures';
+const MAX_CAPTURE_IMAGE_COUNT = 4;
+const MAX_CAPTURE_IMAGE_TOTAL_BYTES = 16_000_000;
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
 const AI_API_BASE = Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1';
-const AUDIO_TRANSCRIPTION_API_KEY = Deno.env.get('AUDIO_TRANSCRIPTION_API_KEY') || AI_API_KEY;
-const AUDIO_TRANSCRIPTION_API_BASE = Deno.env.get('AUDIO_TRANSCRIPTION_API_BASE') || AI_API_BASE;
-const AUDIO_TRANSCRIPTION_MODEL = Deno.env.get('AUDIO_TRANSCRIPTION_MODEL') || 'openai/whisper-large-v3';
+const TRANSCRIPTION_API_KEY = Deno.env.get('TRANSCRIPTION_API_KEY') || AI_API_KEY;
+const TRANSCRIPTION_API_BASE = Deno.env.get('TRANSCRIPTION_API_BASE') || AI_API_BASE;
+const TRANSCRIPTION_MODEL = Deno.env.get('TRANSCRIPTION_MODEL')
+  || 'mistralai/voxtral-small-24b-2507-stt';
+const SOCIAL_VIDEO_ACQUISITION_PROVIDER = (Deno.env.get('SOCIAL_VIDEO_ACQUISITION_PROVIDER') || 'guided')
+  .trim()
+  .toLowerCase();
+const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY') || '';
+const SUPADATA_API_BASE = Deno.env.get('SUPADATA_API_BASE') || 'https://api.supadata.ai/v1';
+const SUPADATA_ENABLED_PLATFORMS = new Set(
+  (Deno.env.get('SUPADATA_ENABLED_PLATFORMS') || 'youtube,tiktok,instagram,facebook')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean),
+);
+const EXTERNAL_ACQUISITION_POLL_INTERVAL_MS = 1_500;
+const EXTERNAL_ACQUISITION_POLL_WINDOW_MS = 45_000;
+const EXTERNAL_ACQUISITION_MAX_AGE_MS = 8 * 60_000;
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 type JsonRecord = Record<string, unknown>;
@@ -83,6 +126,18 @@ function toBase64(bytes: Uint8Array): string {
   }
   return btoa(binary);
 }
+
+/**
+ * Uploaded capture artifacts always live under the owning user's prefix.
+ * Rejecting foreign prefixes keeps a crafted source payload from reading
+ * another user's private storage through the service-role client.
+ */
+function isOwnedCaptureStoragePath(storagePath: string, userId: string): boolean {
+  return storagePath.startsWith(`${userId}/`);
+}
+
+// Raw frame bound that stays below the extractor's 1.5 MB base64 frame limit.
+const MAX_VIDEO_FRAME_SOURCE_BYTES = 1_125_000;
 
 function publicCapture(row: JsonRecord): JsonRecord {
   return {
@@ -150,13 +205,311 @@ async function callFunction(
 }
 
 type PreparedExtractionSource =
-  | { ready: true; payload: JsonRecord }
+  | { status: 'ready'; payload: JsonRecord }
+  | { status: 'continue'; stage: Extract<CaptureFailureStage, 'acquisition' | 'transcription'> }
   | {
-      ready: false;
+      status: 'rejected';
       reasonCode: RecipeEvidenceFailureCode;
       diagnostic: string;
-      failedStage: Extract<CaptureFailureStage, 'source' | 'transcription'>;
+      failedStage: Extract<CaptureFailureStage, 'source' | 'acquisition' | 'transcription'>;
     };
+
+function wait(durationMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+function configuredExternalVideoAdapter(platform: SocialVideoPlatform): ExternalVideoEvidenceAdapter | null {
+  if (
+    SOCIAL_VIDEO_ACQUISITION_PROVIDER === 'guided'
+    || !socialVideoPlatformSupportsExternalAcquisition(platform)
+    || !SUPADATA_ENABLED_PLATFORMS.has(platform)
+  ) return null;
+  if (SOCIAL_VIDEO_ACQUISITION_PROVIDER !== 'supadata') {
+    throw new CaptureProcessingError('acquisition', 'The social video acquisition provider is not supported');
+  }
+  if (!SUPADATA_API_KEY.trim()) {
+    throw new CaptureProcessingError('acquisition', 'Social video acquisition is enabled but SUPADATA_API_KEY is missing');
+  }
+  return createSupadataVideoEvidenceAdapter({
+    apiKey: SUPADATA_API_KEY,
+    apiBase: SUPADATA_API_BASE,
+  });
+}
+
+function savedExternalAcquisitionState(value: unknown): ExternalVideoAcquisitionState | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.provider !== 'string'
+    || typeof value.adapterVersion !== 'string'
+    || typeof value.jobId !== 'string'
+    || typeof value.platform !== 'string'
+    || !socialVideoPlatformSupportsExternalAcquisition(value.platform as SocialVideoPlatform)
+    || typeof value.canonicalUrl !== 'string'
+    || typeof value.startedAt !== 'string'
+  ) return null;
+  return {
+    provider: value.provider,
+    adapterVersion: value.adapterVersion,
+    jobId: value.jobId,
+    platform: value.platform as ExternalVideoAcquisitionState['platform'],
+    canonicalUrl: value.canonicalUrl,
+    startedAt: value.startedAt,
+    pollCount: typeof value.pollCount === 'number' ? Math.max(0, Math.floor(value.pollCount)) : 0,
+    ...(isRecord(value.metadata) ? { metadata: value.metadata } : {}),
+  };
+}
+
+async function saveAcquisitionResult(
+  admin: SupabaseClient,
+  capture: JsonRecord,
+  result: ExternalVideoAcquisitionResult,
+): Promise<void> {
+  await recordCaptureCheckpoint(
+    admin,
+    String(capture.user_id),
+    String(capture.id),
+    'acquisition',
+    RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION,
+    result.status === 'ready'
+      ? {
+          status: 'ready',
+          provider: result.state.provider,
+          adapterVersion: result.state.adapterVersion,
+          jobId: result.state.jobId,
+          pollCount: result.state.pollCount,
+          evidence: result.evidence,
+        }
+      : result.status === 'pending'
+        ? { status: 'pending', ...result.state }
+        : {
+            status: 'failed',
+            reasonCode: result.reasonCode,
+            diagnostic: result.diagnostic.slice(0, 500),
+          },
+  );
+}
+
+async function prepareSocialVideoSource(
+  admin: SupabaseClient,
+  capture: JsonRecord,
+  platform: SocialVideoPlatform,
+  canonicalUrl: string,
+): Promise<PreparedExtractionSource> {
+  const adapter = configuredExternalVideoAdapter(platform);
+  if (!adapter || !adapter.supports(platform)) {
+    return {
+      status: 'rejected',
+      reasonCode: 'video_source_unsupported',
+      diagnostic: `${socialVideoPlatformLabel(platform)} is not enabled for hosted video acquisition.`,
+      failedStage: 'acquisition',
+    };
+  }
+
+  const checkpoint = captureCheckpoint(capture, 'acquisition');
+  if (
+    checkpoint?.version === RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION
+    && checkpoint.status === 'ready'
+    && checkpoint.provider === adapter.id
+    && checkpoint.adapterVersion === adapter.version
+  ) {
+    const evidence = normalizeAcquiredVideoEvidenceBundle(checkpoint.evidence);
+    return { status: 'ready', payload: { type: 'video', acquiredVideoEvidence: evidence } };
+  }
+
+  try {
+    let result: ExternalVideoAcquisitionResult;
+    const savedState = checkpoint?.version === RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION
+      && checkpoint.status === 'pending'
+      ? savedExternalAcquisitionState(checkpoint)
+      : null;
+    if (savedState && savedState.provider === adapter.id && savedState.adapterVersion === adapter.version) {
+      result = { status: 'pending', state: savedState };
+    } else {
+      result = await adapter.start({ platform, canonicalUrl });
+      await saveAcquisitionResult(admin, capture, result);
+    }
+
+    const pollDeadline = Date.now() + EXTERNAL_ACQUISITION_POLL_WINDOW_MS;
+    while (result.status === 'pending' && Date.now() < pollDeadline) {
+      const startedAt = new Date(result.state.startedAt).getTime();
+      if (!Number.isFinite(startedAt) || Date.now() - startedAt > EXTERNAL_ACQUISITION_MAX_AGE_MS) {
+        await recordCaptureCheckpoint(
+          admin,
+          String(capture.user_id),
+          String(capture.id),
+          'acquisition',
+          RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION,
+          {
+            status: 'failed',
+            provider: result.state.provider,
+            adapterVersion: result.state.adapterVersion,
+            jobId: result.state.jobId,
+            diagnostic: 'Social video acquisition timed out',
+          },
+        );
+        throw new CaptureProcessingError('acquisition', 'Social video acquisition timed out');
+      }
+      await wait(EXTERNAL_ACQUISITION_POLL_INTERVAL_MS);
+      result = await adapter.poll(result.state);
+    }
+
+    await saveAcquisitionResult(admin, capture, result);
+    // Provider polling can consume most of an Edge invocation's wall-clock
+    // budget. Resume from the durable checkpoint so extraction always starts
+    // in a fresh invocation and never loses a completed acquisition job.
+    if (result.status === 'pending' || result.status === 'ready') {
+      return { status: 'continue', stage: 'acquisition' };
+    }
+    if (result.status === 'unavailable') {
+      return {
+        status: 'rejected',
+        reasonCode: result.reasonCode,
+        diagnostic: result.diagnostic,
+        failedStage: 'acquisition',
+      };
+    }
+    throw new CaptureProcessingError('acquisition', 'Social video acquisition returned an invalid status');
+  } catch (error) {
+    if (error instanceof CaptureProcessingError) throw error;
+    const diagnostic = error instanceof Error ? error.message : 'Social video acquisition failed';
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'acquisition',
+      RECIPE_EVIDENCE_ACQUISITION_STAGE_VERSION,
+      {
+        status: 'failed',
+        provider: adapter.id,
+        adapterVersion: adapter.version,
+        diagnostic: diagnostic.slice(0, 500),
+      },
+    );
+    if (error instanceof SupadataVideoEvidenceError) {
+      throw new CaptureProcessingError('acquisition', error.message);
+    }
+    throw new CaptureProcessingError('acquisition', diagnostic);
+  }
+}
+
+async function videoTranscriptForSource(
+  admin: SupabaseClient,
+  capture: JsonRecord,
+  payload: JsonRecord,
+  input: {
+    bytes: Uint8Array;
+    mimeType: 'video/mp4' | 'video/mov' | 'video/mpeg' | 'video/webm';
+    byteSize: number;
+    fileName: string;
+    sourceAdapterVersion: string;
+    sourceKind: 'owned_upload' | 'direct_file';
+  },
+): Promise<string | undefined> {
+  const savedTranscript = typeof payload.transcript === 'string' ? payload.transcript.trim() : '';
+  if (savedTranscript && canReuseSavedVideoTranscript(capture, payload)) {
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'transcription',
+      VIDEO_TRANSCRIPTION_STAGE_VERSION,
+      isRecord(payload.transcription) ? payload.transcription : { recoveredLegacyMetadata: true },
+    );
+    logInfo('Recipe capture reused saved video transcript', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      transcriptCharacters: savedTranscript.length,
+    });
+    return savedTranscript;
+  }
+
+  const transcriptionStartedAt = Date.now();
+  const transcription = await transcribeVideoRecipeEvidence(
+    {
+      bytes: input.bytes,
+      mimeType: input.mimeType,
+      fileName: input.fileName,
+    },
+    {
+      apiBase: TRANSCRIPTION_API_BASE,
+      apiKey: TRANSCRIPTION_API_KEY,
+      model: TRANSCRIPTION_MODEL,
+    },
+  );
+  if (!transcription.ready) {
+    const logTranscriptionFailure = transcription.reasonCode === 'audio_transcription_failed'
+      ? logError
+      : logInfo;
+    logTranscriptionFailure('Recipe capture video transcription unavailable; continuing with whole-video evidence', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      provider: 'openrouter',
+      operation: 'speech_to_text',
+      model: TRANSCRIPTION_MODEL,
+      reasonCode: transcription.reasonCode,
+      error: transcription.diagnostic,
+      durationMs: Date.now() - transcriptionStartedAt,
+    });
+    return undefined;
+  }
+
+  logInfo('Recipe capture video transcription completed', {
+    captureId: capture.id,
+    sourceKind: input.sourceKind,
+    provider: transcription.provider,
+    operation: 'speech_to_text',
+    model: transcription.model,
+    durationMs: Date.now() - transcriptionStartedAt,
+    providerDurationSeconds: transcription.usage?.seconds,
+    providerCostUsd: transcription.usage?.cost,
+  });
+
+  const transcriptionMetadata = {
+    model: transcription.model,
+    provider: transcription.provider,
+    sourceAdapterVersion: input.sourceAdapterVersion,
+    transcriptionAdapterVersion: VIDEO_TRANSCRIPTION_STAGE_VERSION,
+    speechToTextAdapterVersion: transcription.adapterVersion,
+    sourceKind: input.sourceKind,
+    mimeType: input.mimeType,
+    byteSize: input.byteSize,
+    providerDurationSeconds: transcription.usage?.seconds,
+    providerCostUsd: transcription.usage?.cost,
+    transcribedAt: new Date().toISOString(),
+  };
+  const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
+    source_payload: {
+      ...payload,
+      transcript: transcription.transcript,
+      transcription: transcriptionMetadata,
+    },
+  }).eq('id', capture.id).eq('user_id', capture.user_id);
+  if (transcriptSaveError) {
+    logInfo('Recipe capture saved the video transcript for this attempt only', {
+      captureId: capture.id,
+      sourceKind: input.sourceKind,
+      error: transcriptSaveError.message,
+    });
+  } else {
+    await recordCaptureCheckpoint(
+      admin,
+      String(capture.user_id),
+      String(capture.id),
+      'transcription',
+      VIDEO_TRANSCRIPTION_STAGE_VERSION,
+      transcriptionMetadata,
+    );
+  }
+  logInfo('Recipe capture video audio transcribed', {
+    captureId: capture.id,
+    sourceKind: input.sourceKind,
+    byteSize: input.byteSize,
+    mimeType: input.mimeType,
+    transcriptCharacters: transcription.transcript.length,
+    transcriptionModel: transcription.model,
+  });
+  return transcription.transcript;
+}
 
 async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<PreparedExtractionSource> {
   const sourceType = String(capture.source_type);
@@ -168,34 +521,104 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new CaptureProcessingError('source', 'The saved recipe source is empty');
     }
+    const videoClassification = sourceType === 'url' || sourceType === 'video'
+      ? classifyVideoSourceUrl(input)
+      : null;
+    if (videoClassification?.kind === 'platform_link') {
+      await recordCaptureCheckpoint(
+        admin,
+        String(capture.user_id),
+        String(capture.id),
+        'source',
+        sourceStageVersion(sourceType),
+        {
+          sourceType,
+          sourceKind: 'platform_link',
+          platform: videoClassification.platform,
+        },
+      );
+      return prepareSocialVideoSource(
+        admin,
+        capture,
+        videoClassification.platform,
+        videoClassification.canonicalUrl,
+      );
+    }
+
+    if (sourceType === 'video') {
+      const directVideo = await acquireDirectVideoRecipeSource(input, {
+        rightsConfirmed: payload.rightsConfirmed === true,
+        checkPublicUrl: async (url) => {
+          validatePublicHttpUrl(url.toString());
+          await assertPublicDnsHostname(url.hostname);
+        },
+      });
+      if (!directVideo.ready) return { status: 'rejected', ...directVideo, failedStage: 'source' };
+
+      const directVideoFileName = (() => {
+        try {
+          const name = new URL(directVideo.canonicalUrl).pathname.split('/').filter(Boolean).at(-1);
+          return name ? decodeURIComponent(name) : 'direct-video';
+        } catch {
+          return 'direct-video';
+        }
+      })();
+      await recordCaptureCheckpoint(
+        admin,
+        String(capture.user_id),
+        String(capture.id),
+        'source',
+        directVideo.adapterVersion,
+        {
+          sourceType,
+          sourceKind: 'direct_file',
+          canonicalUrl: directVideo.canonicalUrl,
+          byteSize: directVideo.byteSize,
+          mimeType: directVideo.mimeType,
+          rightsConfirmed: true,
+        },
+      );
+      const videoTranscript = await videoTranscriptForSource(admin, capture, payload, {
+        bytes: directVideo.bytes,
+        mimeType: directVideo.mimeType,
+        byteSize: directVideo.byteSize,
+        fileName: directVideoFileName,
+        sourceAdapterVersion: directVideo.adapterVersion,
+        sourceKind: 'direct_file',
+      });
+      return {
+        status: 'ready',
+        payload: {
+          type: 'video',
+          videoBase64: toBase64(directVideo.bytes),
+          videoMimeType: directVideo.mimeType,
+          videoFileName: directVideoFileName,
+          videoRightsConfirmed: true,
+          notes: typeof payload.notes === 'string' ? payload.notes : undefined,
+          ...(videoTranscript ? { videoTranscript } : {}),
+        },
+      };
+    }
+
     await recordCaptureCheckpoint(
       admin,
       String(capture.user_id),
       String(capture.id),
       'source',
       sourceStageVersion(sourceType),
-      sourceType === 'video'
-        ? {
-            sourceType,
-            sourceKind: 'url',
-            rightsConfirmed: payload.rightsConfirmed === true,
-          }
-        : { sourceType },
+      { sourceType },
     );
     return {
-      ready: true,
-      payload: sourceType === 'video'
-        ? {
-            type: 'video',
-            videoUrl: input,
-            videoRightsConfirmed: payload.rightsConfirmed === true,
-          }
-        : { type: sourceType, input },
+      status: 'ready',
+      payload: { type: sourceType, input },
     };
   }
 
   if (typeof storagePath !== 'string') {
     throw new CaptureProcessingError('source', 'The saved recipe attachment is missing');
+  }
+  if (!isOwnedCaptureStoragePath(storagePath, String(capture.user_id))) {
+    throw new CaptureProcessingError('source', 'The saved recipe attachment is unavailable');
   }
   const { data, error } = await admin.storage.from(CAPTURE_BUCKET).download(storagePath);
   if (error || !data) {
@@ -203,6 +626,31 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
   }
   const bytes = new Uint8Array(await data.arrayBuffer());
   if (sourceType === 'image') {
+    const additionalImagePaths = Array.isArray(payload.additionalImagePaths)
+      ? payload.additionalImagePaths.filter((candidate): candidate is string =>
+        typeof candidate === 'string' && isOwnedCaptureStoragePath(candidate, String(capture.user_id)))
+        .slice(0, MAX_CAPTURE_IMAGE_COUNT - 1)
+      : [];
+    const images = [{
+      bytes,
+      mimeType: typeof payload.mimeType === 'string' ? payload.mimeType : data.type,
+    }];
+    for (const imagePath of additionalImagePaths) {
+      const { data: imageData, error: imageError } = await admin.storage
+        .from(CAPTURE_BUCKET)
+        .download(imagePath);
+      if (imageError || !imageData) {
+        throw new CaptureProcessingError('source', imageError?.message ?? 'Could not read every saved recipe image');
+      }
+      images.push({
+        bytes: new Uint8Array(await imageData.arrayBuffer()),
+        mimeType: imageData.type || 'image/jpeg',
+      });
+    }
+    const totalByteSize = images.reduce((total, image) => total + image.bytes.byteLength, 0);
+    if (totalByteSize > MAX_CAPTURE_IMAGE_TOTAL_BYTES) {
+      throw new CaptureProcessingError('source', 'The combined recipe images are too large to read safely');
+    }
     await recordCaptureCheckpoint(
       admin,
       String(capture.user_id),
@@ -211,16 +659,19 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       sourceStageVersion(sourceType),
       {
         sourceType,
-        byteSize: bytes.byteLength,
+        byteSize: totalByteSize,
+        imageCount: images.length,
         mimeType: typeof payload.mimeType === 'string' ? payload.mimeType : data.type,
       },
     );
     return {
-      ready: true,
+      status: 'ready',
       payload: {
         type: 'image',
-        imageBase64: toBase64(bytes),
-        imageMimeType: typeof payload.mimeType === 'string' ? payload.mimeType : 'image/jpeg',
+        images: images.map((image) => ({
+          imageBase64: toBase64(image.bytes),
+          imageMimeType: image.mimeType || 'image/jpeg',
+        })),
         input: typeof payload.notes === 'string' ? payload.notes : undefined,
       },
     };
@@ -234,7 +685,26 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       rightsConfirmed: payload.rightsConfirmed === true,
       headerBytes: bytes.subarray(0, 64),
     });
-    if (!inspection.ready) return { ...inspection, failedStage: 'source' };
+    if (!inspection.ready) return { status: 'rejected', ...inspection, failedStage: 'source' };
+
+    // Sampled frames are supplementary evidence. Skip any frame that is
+    // missing, oversized, not a JPEG, or stored outside this user's prefix.
+    const ownedPrefix = `${String(capture.user_id)}/`;
+    const framePaths = Array.isArray(payload.framePaths)
+      ? payload.framePaths.filter((candidate): candidate is string =>
+        typeof candidate === 'string' && candidate.startsWith(ownedPrefix))
+      : [];
+    const videoFrames: Array<{ base64: string; mimeType: 'image/jpeg' }> = [];
+    for (const framePath of framePaths.slice(0, MAX_VIDEO_FRAMES)) {
+      const { data: frameData, error: frameError } = await admin.storage
+        .from(CAPTURE_BUCKET)
+        .download(framePath);
+      if (frameError || !frameData) continue;
+      const frameBytes = new Uint8Array(await frameData.arrayBuffer());
+      if (frameBytes.byteLength === 0 || frameBytes.byteLength > MAX_VIDEO_FRAME_SOURCE_BYTES) continue;
+      if (frameBytes[0] !== 0xff || frameBytes[1] !== 0xd8 || frameBytes[2] !== 0xff) continue;
+      videoFrames.push({ base64: toBase64(frameBytes), mimeType: 'image/jpeg' });
+    }
 
     await recordCaptureCheckpoint(
       admin,
@@ -247,10 +717,21 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
         sourceKind: 'owned_upload',
         byteSize: inspection.byteSize,
         mimeType: inspection.mimeType,
+        frameCount: videoFrames.length,
       },
     );
+
+    const videoTranscript = await videoTranscriptForSource(admin, capture, payload, {
+      bytes,
+      mimeType: inspection.mimeType,
+      byteSize: inspection.byteSize,
+      fileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
+      sourceAdapterVersion: inspection.adapterVersion,
+      sourceKind: 'owned_upload',
+    });
+
     return {
-      ready: true,
+      status: 'ready',
       payload: {
         type: 'video',
         videoBase64: toBase64(bytes),
@@ -258,6 +739,8 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
         videoFileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
         videoRightsConfirmed: true,
         notes: typeof payload.notes === 'string' ? payload.notes : undefined,
+        ...(videoTranscript ? { videoTranscript } : {}),
+        ...(videoFrames.length > 0 ? { videoFrames } : {}),
       },
     };
   }
@@ -269,7 +752,7 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       mimeType: typeof payload.mimeType === 'string' ? payload.mimeType : data.type,
       fileName: typeof payload.fileName === 'string' ? payload.fileName : storagePath,
     });
-    if (!evidence.ready) return { ...evidence, failedStage: 'source' };
+    if (!evidence.ready) return { status: 'rejected', ...evidence, failedStage: 'source' };
 
     await recordCaptureCheckpoint(
       admin,
@@ -299,7 +782,7 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
         transcriptCharacters: savedTranscript.length,
       });
       return {
-        ready: true,
+        status: 'ready',
         payload: {
           type: 'audio',
           input: savedTranscript,
@@ -308,19 +791,45 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       };
     }
 
+    const transcriptionStartedAt = Date.now();
     const transcription = await transcribeAudioRecipeEvidence(evidence, {
-      apiBase: AUDIO_TRANSCRIPTION_API_BASE,
-      apiKey: AUDIO_TRANSCRIPTION_API_KEY,
-      model: AUDIO_TRANSCRIPTION_MODEL,
+      apiBase: TRANSCRIPTION_API_BASE,
+      apiKey: TRANSCRIPTION_API_KEY,
+      model: TRANSCRIPTION_MODEL,
     });
-    if (!transcription.ready) return { ...transcription, failedStage: 'transcription' };
+    if (!transcription.ready) {
+      if (transcription.reasonCode === 'audio_transcription_failed') {
+        logError('Recipe capture audio transcription failed', {
+          captureId: capture.id,
+          provider: 'openrouter',
+          operation: 'speech_to_text',
+          model: TRANSCRIPTION_MODEL,
+          error: transcription.diagnostic,
+          durationMs: Date.now() - transcriptionStartedAt,
+        });
+      }
+      return { status: 'rejected', ...transcription, failedStage: 'transcription' };
+    }
+
+    logInfo('Recipe capture audio transcription completed', {
+      captureId: capture.id,
+      provider: transcription.provider,
+      operation: 'speech_to_text',
+      model: transcription.model,
+      durationMs: Date.now() - transcriptionStartedAt,
+      providerDurationSeconds: transcription.usage?.seconds,
+      providerCostUsd: transcription.usage?.cost,
+    });
 
     const transcriptionMetadata = {
       model: transcription.model,
+      provider: transcription.provider,
       sourceAdapterVersion: evidence.adapterVersion,
       transcriptionAdapterVersion: transcription.adapterVersion,
       format: evidence.format,
       byteSize: evidence.byteSize,
+      providerDurationSeconds: transcription.usage?.seconds,
+      providerCostUsd: transcription.usage?.cost,
       transcribedAt: new Date().toISOString(),
     };
     const { error: transcriptSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
@@ -352,12 +861,8 @@ async function readSource(admin: SupabaseClient, capture: JsonRecord): Promise<P
       transcriptionModel: transcription.model,
     });
     return {
-      ready: true,
-      payload: {
-        type: 'audio',
-        input: transcription.transcript,
-        notes: typeof payload.notes === 'string' ? payload.notes : undefined,
-      },
+      status: 'continue',
+      stage: 'transcription',
     };
   }
 
@@ -380,6 +885,40 @@ async function recordCaptureCheckpoint(
     p_metadata: metadata,
   });
   if (error) throw new CaptureProcessingError(stage, error.message);
+}
+
+async function persistCaptureAnalysis(
+  admin: SupabaseClient,
+  input: {
+    userId: string;
+    captureId: string;
+    recipeGraph: JsonRecord;
+    confidence: number;
+    extractionNotes: unknown[];
+    inferredFields: unknown[];
+    extractionVersion: string;
+    extractionMetadata: JsonRecord;
+    normalizationVersion: string;
+    normalizationMetadata: JsonRecord;
+    qualityVersion: string;
+    qualityMetadata: JsonRecord;
+  },
+): Promise<void> {
+  const { error } = await admin.schema('nutriai').rpc('persist_recipe_capture_analysis', {
+    p_user_id: input.userId,
+    p_capture_id: input.captureId,
+    p_recipe_graph: input.recipeGraph,
+    p_confidence: input.confidence,
+    p_extraction_notes: input.extractionNotes,
+    p_inferred_fields: input.inferredFields,
+    p_extraction_version: input.extractionVersion,
+    p_extraction_metadata: input.extractionMetadata,
+    p_normalization_version: input.normalizationVersion,
+    p_normalization_metadata: input.normalizationMetadata,
+    p_quality_version: input.qualityVersion,
+    p_quality_metadata: input.qualityMetadata,
+  });
+  if (error) throw new CaptureProcessingError('quality', error.message);
 }
 
 function extractionStageVersion(data: JsonRecord, stage: 'extraction' | 'normalization'): string {
@@ -475,6 +1014,14 @@ async function processCapture(
     let confidence: number;
     let extractionNotes: unknown[];
     let inferredFields: unknown[];
+    let qualityAssessment: ReturnType<typeof assessRecipeQuality>;
+    const expectedQualityVersion = recipeQualityStageVersion(RECIPE_QUALITY_ASSESSMENT_VERSION);
+    let freshAnalysis: {
+      extractionVersion: string;
+      extractionMetadata: JsonRecord;
+      normalizationVersion: string;
+      normalizationMetadata: JsonRecord;
+    } | null = null;
 
     if (savedExtraction) {
       ({ recipeGraph, confidence, extractionNotes, inferredFields } = savedExtraction);
@@ -486,7 +1033,7 @@ async function processCapture(
     } else {
       activeStage = 'source';
       const preparedSource = await readSource(admin, capture);
-      if (!preparedSource.ready) {
+      if (preparedSource.status === 'rejected') {
         const failureMessage = recipeEvidenceFeedback(preparedSource.reasonCode);
         const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture', {
           p_user_id: userId,
@@ -496,7 +1043,7 @@ async function processCapture(
           p_failed_stage: preparedSource.failedStage,
         });
         if (failureError) throw new Error(failureError.message);
-        logInfo('Recipe capture audio needs attention', {
+        logInfo('Recipe capture source needs attention', {
           captureId,
           reasonCode: preparedSource.reasonCode,
           diagnostic: preparedSource.diagnostic,
@@ -504,25 +1051,46 @@ async function processCapture(
         });
         return;
       }
+      if (preparedSource.status === 'continue') {
+        activeStage = preparedSource.stage;
+        const { error: releaseError } = await admin.schema('nutriai').from('recipe_captures').update({
+          processing_started_at: null,
+        }).eq('id', captureId).eq('user_id', userId).eq('status', 'processing');
+        if (releaseError) throw new Error(releaseError.message);
+        const continuation = await callFunction('capture-recipe', authHeader, { captureId });
+        if (!continuation.response.ok && continuation.response.status !== 202) {
+          throw new CaptureProcessingError(preparedSource.stage, 'Folio could not continue this recipe capture');
+        }
+        logInfo('Recipe capture continued after a checkpointed stage', {
+          captureId,
+          stage: preparedSource.stage,
+          durationMs: Date.now() - processingStartedAt,
+        });
+        return;
+      }
       activeStage = 'extraction';
       const extraction = await callFunction('extract-recipe', authHeader, preparedSource.payload);
       if (!extraction.response.ok) {
-        throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Nosh could not read this recipe');
+        throw new Error(typeof extraction.data.error === 'string' ? extraction.data.error : 'Folio could not read this recipe');
       }
 
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'extraction',
-        extractionStageVersion(extraction.data, 'extraction'),
-        extractionStageMetadata(extraction.data, 'extraction'),
-      );
+      const extractionVersion = extractionStageVersion(extraction.data, 'extraction');
+      const extractionMetadata = extractionStageMetadata(extraction.data, 'extraction');
+      const normalizationVersion = extractionStageVersion(extraction.data, 'normalization');
+      const normalizationMetadata = extractionStageMetadata(extraction.data, 'normalization');
 
       // During rolling deployments, captureEvidencePolicy accepts the previous
       // success shape but requires the evidence envelope for every rejection.
       const evidence = captureEvidencePolicy(extraction.data);
       if (!evidence.accepted) {
+        await recordCaptureCheckpoint(
+          admin,
+          userId,
+          captureId,
+          'extraction',
+          extractionVersion,
+          extractionMetadata,
+        );
         const { error: failureError } = await admin.schema('nutriai').rpc('fail_recipe_capture', {
           p_user_id: userId,
           p_capture_id: captureId,
@@ -546,56 +1114,57 @@ async function processCapture(
       confidence = typeof extraction.data.confidence === 'number' ? extraction.data.confidence : 0;
       extractionNotes = Array.isArray(extraction.data.extractionNotes) ? extraction.data.extractionNotes : [];
       inferredFields = Array.isArray(extraction.data.inferredFields) ? extraction.data.inferredFields : [];
-
-      activeStage = 'normalization';
-      const { error: graphSaveError } = await admin.schema('nutriai').from('recipe_captures').update({
-        recipe_graph: recipeGraph,
-        confidence,
-        extraction_notes: extractionNotes,
-        inferred_fields: inferredFields,
-      }).eq('id', captureId).eq('user_id', userId);
-      if (graphSaveError) throw new Error(graphSaveError.message);
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'normalization',
-        extractionStageVersion(extraction.data, 'normalization'),
-        extractionStageMetadata(extraction.data, 'normalization'),
-      );
+      freshAnalysis = {
+        extractionVersion,
+        extractionMetadata,
+        normalizationVersion,
+        normalizationMetadata,
+      };
     }
 
     activeStage = 'quality';
-    const expectedQualityVersion = recipeQualityStageVersion(RECIPE_QUALITY_ASSESSMENT_VERSION);
     const savedQualityAssessment = readRecipeQualityAssessment(recipeGraph);
-    const reuseSavedQuality = Boolean(savedQualityAssessment) && captureCheckpointIsCompatible(
-      capture,
-      'quality',
-      expectedQualityVersion,
-    );
-    const qualityAssessment = reuseSavedQuality
+    const reuseSavedQuality = !freshAnalysis
+      && Boolean(savedQualityAssessment)
+      && captureCheckpointIsCompatible(capture, 'quality', expectedQualityVersion);
+    qualityAssessment = reuseSavedQuality
       ? savedQualityAssessment!
       : assessRecipeQuality(recipeGraph);
     if (!reuseSavedQuality) {
       recipeGraph = withRecipeQualityAssessment(recipeGraph, qualityAssessment);
-      const { error: qualitySaveError } = await admin.schema('nutriai').from('recipe_captures').update({
-        recipe_graph: recipeGraph,
-        confidence,
-        extraction_notes: extractionNotes,
-        inferred_fields: inferredFields,
-      }).eq('id', captureId).eq('user_id', userId);
-      if (qualitySaveError) throw new Error(qualitySaveError.message);
-      await recordCaptureCheckpoint(
-        admin,
-        userId,
-        captureId,
-        'quality',
-        expectedQualityVersion,
-        {
-          decision: qualityAssessment.decision,
-          issueCodes: qualityAssessment.issues.map((issue) => issue.code),
-        },
-      );
+      const qualityMetadata = {
+        decision: qualityAssessment.decision,
+        issueCodes: qualityAssessment.issues.map((issue) => issue.code),
+      };
+      if (freshAnalysis) {
+        await persistCaptureAnalysis(admin, {
+          userId,
+          captureId,
+          recipeGraph,
+          confidence,
+          extractionNotes,
+          inferredFields,
+          ...freshAnalysis,
+          qualityVersion: expectedQualityVersion,
+          qualityMetadata,
+        });
+      } else {
+        const { error: qualitySaveError } = await admin.schema('nutriai').from('recipe_captures').update({
+          recipe_graph: recipeGraph,
+          confidence,
+          extraction_notes: extractionNotes,
+          inferred_fields: inferredFields,
+        }).eq('id', captureId).eq('user_id', userId);
+        if (qualitySaveError) throw new Error(qualitySaveError.message);
+        await recordCaptureCheckpoint(
+          admin,
+          userId,
+          captureId,
+          'quality',
+          expectedQualityVersion,
+          qualityMetadata,
+        );
+      }
     } else {
       logInfo('Recipe capture retry reused saved quality assessment', {
         captureId,
@@ -688,9 +1257,12 @@ async function processCapture(
         } else if (pageGeneration.response.status === 202 && typeof pageGeneration.data.requestId === 'string') {
           ({ pageStatus, pageWarning } = capturePagePolicy(true));
         } else {
+          if (pageGeneration.data.code === 'designed_page_limit_reached') {
+            throw new CaptureProcessingError('page_generation', 'designed_page_limit_reached');
+          }
           throw new Error(typeof pageGeneration.data.error === 'string'
             ? pageGeneration.data.error
-            : 'Nosh could not generate this recipe page');
+            : 'Folio could not generate this recipe page');
         }
       }
     }
@@ -805,9 +1377,12 @@ async function prepareCaptureDestination(
         idempotencyKey: capturePageIdempotencyKey(captureId, Number(capture.processing_attempt ?? 1)),
       });
       if (!pageGeneration.response.ok && pageGeneration.response.status !== 202) {
+        if (pageGeneration.data.code === 'designed_page_limit_reached') {
+          throw new CaptureProcessingError('page_generation', 'designed_page_limit_reached');
+        }
         throw new Error(typeof pageGeneration.data.error === 'string'
           ? pageGeneration.data.error
-          : 'Nosh could not generate this recipe page');
+          : 'Folio could not generate this recipe page');
       }
     }
     logInfo('Recipe capture destination selected and page production started', {
@@ -963,8 +1538,23 @@ serve(async (req: Request) => {
       }
       const sourceType = body.source.type;
       if (!['url', 'text', 'image', 'video', 'audio'].includes(String(sourceType))) return jsonError('Invalid source type', 400, req);
+      if (sourceType === 'text' && recipeTextSourceIsTooLarge(body.source.input)) {
+        return jsonError('Recipe text is too long. Paste one recipe at a time.', 413, req);
+      }
+      const additionalImagePaths = sourceType === 'image' && Array.isArray(body.source.additionalImagePaths)
+        ? body.source.additionalImagePaths
+          .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0)
+          .slice(0, MAX_CAPTURE_IMAGE_COUNT - 1)
+        : [];
+      if (additionalImagePaths.some((path) => !isOwnedCaptureStoragePath(path, user!.id))) {
+        return jsonError('Invalid recipe image path', 400, req);
+      }
       const sourcePayload = sourceType === 'image'
-        ? { mimeType: body.source.mimeType, notes: body.source.notes }
+        ? {
+            mimeType: body.source.mimeType,
+            notes: body.source.notes,
+            additionalImagePaths,
+          }
         : sourceType === 'video'
           ? {
               input: body.source.input,
@@ -973,6 +1563,11 @@ serve(async (req: Request) => {
               byteSize: body.source.byteSize,
               rightsConfirmed: body.source.rightsConfirmed === true,
               notes: body.source.notes,
+              framePaths: Array.isArray(body.source.framePaths)
+                ? body.source.framePaths
+                  .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0)
+                  .slice(0, MAX_VIDEO_FRAMES)
+                : undefined,
             }
         : sourceType === 'audio'
           ? {

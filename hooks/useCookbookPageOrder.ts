@@ -49,7 +49,6 @@ export function useCookbookPageOrder(cookbookId: string | null | undefined) {
         applyCookbookPageOrder(current, result.orderedPageIds),
       );
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
 
   return {

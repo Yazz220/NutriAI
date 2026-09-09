@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { Check, Clock3, Share2, TriangleAlert } from 'lucide-react-native';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
@@ -13,7 +13,7 @@ import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { Fonts } from '@/utils/fonts';
 
 export default function NativeShareReceiptScreen() {
-  const { receipt, retry, setReceipt } = useNoshNativeShare();
+  const { confirmVideoPermission, receipt, retry, setReceipt } = useNoshNativeShare();
   const { resetShareIntent } = useShareIntentContext();
 
   function finish() {
@@ -30,13 +30,23 @@ export default function NativeShareReceiptScreen() {
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={styles.card} accessibilityLiveRegion="polite">
         <View style={styles.brand} accessibilityElementsHidden>
-          <NoshHorizontalLockup width={132} />
+          <FolioHorizontalLockup width={132} />
         </View>
-        {receipt.status === 'saving' ? (
+        {receipt.status === 'needs_video_permission' ? (
+          <>
+            <View style={styles.icon}><Share2 size={24} color={Colors.text} /></View>
+            <Text style={styles.title}>Confirm this video</Text>
+            <Text style={styles.copy}>
+              Only add a video you made or have permission to use. Folio keeps it private and uses it to create your recipe page.
+            </Text>
+            <Button title="I have permission" onPress={confirmVideoPermission} fullWidth />
+            <Button title="Cancel shared item" variant="ghost" onPress={cancel} fullWidth />
+          </>
+        ) : receipt.status === 'saving' ? (
           <>
             <View style={styles.icon}><ActivityIndicator color={Colors.primary} /></View>
             <Text style={styles.title}>Saving your recipe</Text>
-            <Text style={styles.copy}>Nosh is securing the shared item before page creation begins.</Text>
+            <Text style={styles.copy}>Folio is securing the shared item before page creation begins.</Text>
           </>
         ) : receipt.status === 'saved' ? (
           <>
@@ -54,7 +64,7 @@ export default function NativeShareReceiptScreen() {
         ) : receipt.status === 'failed' ? (
           <>
             <View style={[styles.icon, styles.errorIcon]}><TriangleAlert size={24} color={Colors.error} /></View>
-            <Text style={styles.title}>Nosh still has the handoff</Text>
+            <Text style={styles.title}>Folio still has the handoff</Text>
             <Text style={styles.copy}>{receipt.message}</Text>
             <Button title="Try saving again" onPress={retry} fullWidth />
             <Button title="Cancel shared item" variant="ghost" onPress={cancel} fullWidth />

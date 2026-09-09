@@ -11,16 +11,55 @@
   { "id": "exclusion-filter", "task": "collection", "focus": "collection", "input": "Show dinners without dairy.", "expectTools": ["browse_recipe_collection"], "forbidTools": [] },
   { "id": "time-filter", "task": "collection", "focus": "collection", "input": "What can I cook in under 30 minutes?", "expectTools": ["browse_recipe_collection"], "forbidTools": [] },
   { "id": "cookbook-filter", "task": "collection", "focus": "collection", "input": "List the vegan recipes in Weeknights.", "expectTools": ["browse_recipe_collection"], "forbidTools": ["load_recipe"] },
+  { "id": "active-cookbook-inventory", "task": "cookbook-help", "focus": "cookbook", "input": "What can I cook from this book?", "expectTools": ["browse_recipe_collection"], "forbidTools": ["search_recipe_collection", "load_recipe"] },
   { "id": "ambiguous-title", "task": "collection", "focus": "collection", "input": "Tell me about my cheesecake.", "expectTools": ["search_recipe_collection"], "forbidTools": ["open_recipe"] },
   { "id": "capture-url", "task": "collection", "focus": "collection", "input": "Save https://example.com/pasta", "expectTools": ["start_recipe_capture"], "forbidTools": [] },
   { "id": "capture-workspace-isolation", "task": "capture", "focus": "capture", "input": "Continue importing this.", "expectTools": [], "forbidTools": ["start_recipe_capture", "search_recipe_collection", "load_recipe"] },
   { "id": "remember-preference", "task": "collection", "focus": "collection", "input": "Remember that I always use metric measurements.", "expectTools": ["save_cooking_preference"], "forbidTools": [] },
+  { "id": "settings-preference", "task": "preferences", "focus": "collection", "input": "I usually cook for two.", "expectTools": ["save_cooking_preference"], "forbidTools": ["search_recipe_collection", "browse_recipe_collection"] },
   { "id": "do-not-infer-preference", "task": "recipe-help", "focus": "recipe", "input": "Use metric for this one.", "expectTools": [], "forbidTools": ["save_cooking_preference"] },
   { "id": "forget-preference", "task": "collection", "focus": "collection", "input": "Forget that I dislike mushrooms.", "expectTools": ["save_cooking_preference"], "forbidTools": [] },
-  { "id": "explicit-walkthrough", "task": "recipe-help", "focus": "recipe", "input": "Walk me through this step by step.", "expectTools": ["set_walkthrough"], "forbidTools": [] },
-  { "id": "ordinary-next-question", "task": "recipe-help", "focus": "recipe", "input": "What should I prep first?", "expectTools": [], "forbidTools": ["set_walkthrough"] },
-  { "id": "timer", "task": "walkthrough", "focus": "recipe", "input": "Set a 12 minute timer for the pasta.", "expectTools": ["start_timer"], "forbidTools": [] },
+  { "id": "step-by-step-guidance", "task": "recipe-help", "focus": "recipe", "input": "Walk me through this step by step.", "expectTools": [], "forbidTools": ["search_recipe_collection", "browse_recipe_collection"] },
+  { "id": "timer", "task": "recipe-help", "focus": "recipe", "input": "Set a 12 minute timer for the pasta.", "expectTools": ["start_timer"], "forbidTools": [] },
   { "id": "move-recipe", "task": "collection", "focus": "collection", "input": "Move my focaccia to Baking.", "expectTools": ["search_recipe_collection", "list_cookbooks", "organize_recipe"], "forbidTools": ["open_recipe"] },
   { "id": "comparison", "task": "collection", "focus": "collection", "input": "Compare my two cheesecake recipes.", "expectTools": ["search_recipe_collection", "load_recipe"], "forbidTools": ["open_recipe"] },
-  { "id": "current-focus-wins", "task": "recipe-help", "focus": "recipe", "input": "What is the next step in this recipe?", "expectTools": [], "forbidTools": ["search_recipe_collection", "load_recipe"] }
+  { "id": "current-focus-wins", "task": "recipe-help", "focus": "recipe", "input": "What is the next step in this recipe?", "expectTools": [], "forbidTools": ["search_recipe_collection", "load_recipe"] },
+  {
+    "id": "multi-turn-shopping-list-for-it",
+    "task": "collection",
+    "focus": "collection",
+    "turns": [
+      { "input": "Do I have a chicken fajita recipe?", "expectTools": ["search_recipe_collection"], "forbidTools": ["open_recipe"] },
+      { "input": "What ingredients do I need?", "expectTools": ["load_recipe"], "forbidTools": ["search_recipe_collection", "browse_recipe_collection"] },
+      { "input": "Make me a shopping list for it.", "expectTools": [], "forbidTools": ["search_recipe_collection", "browse_recipe_collection"], "expectTextIncludes": ["•"] }
+    ],
+    "input": "Make me a shopping list for it.",
+    "expectTools": [],
+    "forbidTools": ["search_recipe_collection", "browse_recipe_collection"]
+  },
+  {
+    "id": "multi-turn-second-result",
+    "task": "collection",
+    "focus": "collection",
+    "turns": [
+      { "input": "Which of my recipes is quickest?", "expectTools": ["browse_recipe_collection"], "forbidTools": ["load_recipe"] },
+      { "input": "The second one, what do I need for it?", "expectTools": ["load_recipe"], "forbidTools": ["search_recipe_collection", "browse_recipe_collection"] }
+    ],
+    "input": "The second one, what do I need for it?",
+    "expectTools": ["load_recipe"],
+    "forbidTools": ["search_recipe_collection", "browse_recipe_collection"]
+  },
+  {
+    "id": "multi-turn-focus-vs-subject",
+    "task": "recipe-help",
+    "focus": "recipe",
+    "turns": [
+      { "input": "Do I have a tomato soup?", "expectTools": ["search_recipe_collection"], "forbidTools": ["open_recipe"] },
+      { "input": "How long does it take?", "expectTools": ["load_recipe"], "forbidTools": ["search_recipe_collection"] },
+      { "input": "And how much garlic is in this recipe?", "expectTools": [], "forbidTools": ["search_recipe_collection", "load_recipe"] }
+    ],
+    "input": "And how much garlic is in this recipe?",
+    "expectTools": [],
+    "forbidTools": ["search_recipe_collection", "load_recipe"]
+  }
 ]

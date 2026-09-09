@@ -4,7 +4,7 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from 'expo-linking';
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { ShareIntentProvider } from 'expo-share-intent';
@@ -13,6 +13,7 @@ import { View, ActivityIndicator, Platform, Text, Text as RNText, StyleProp, Tex
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { RecipeCaptureCompletionObserver } from "@/components/cookbook/RecipeCaptureCompletionObserver";
 import { GlobalErrorBoundary } from "@/components/ui/GlobalErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { CookbooksProvider } from "@/hooks/useCookbooks";
@@ -20,15 +21,18 @@ import { NoshConversationProvider, useNoshConversation } from '@/contexts/NoshCo
 import { NoshConversationHost } from '@/components/cookbook/NoshAssistantChat';
 import { RecipeCaptureResume } from '@/components/nosh/capture/RecipeCaptureResume';
 import { NativeShareIngestion } from '@/components/nosh/capture/NativeShareIngestion';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { NoshNativeShareProvider } from '@/contexts/NoshNativeShareContext';
+import { NoshSubscriptionProvider } from '@/contexts/NoshSubscriptionContext';
 import { AiDataConsentProvider } from '@/contexts/AiDataConsentContext';
+import { SubscriptionHost, SubscriptionUiProvider } from '@/components/subscription/SubscriptionHost';
 import { Colors } from "@/constants/colors";
 import { StatusBar } from "expo-status-bar";
 import { loadFonts, Fonts } from '@/utils/fonts';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { LocalUserDataCleanupResume } from '@/components/account/LocalUserDataCleanupResume';
 import { supabase } from '@/lib/supabase';
+import { Sentry, sentryNavigationIntegration } from '@/utils/observability/sentry';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -258,7 +262,7 @@ function RootLayoutNav() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
         <StatusBar style="dark" />
-        <NoshHorizontalLockup width={164} />
+        <FolioHorizontalLockup width={164} />
         <View style={{ height: Spacing.xl }} />
         <ActivityIndicator color={Colors.primary} />
         <Text style={{ marginTop: Spacing.values[8], color: Colors.lightText }}>Opening your cookbook…</Text>
@@ -286,6 +290,7 @@ function RootLayoutNav() {
           <RecipeCaptureResume />
           <NativeShareIngestion />
           <LocalUserDataCleanupResume />
+          <SubscriptionHost />
           <OfflineBanner />
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -293,25 +298,38 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    sentryNavigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
+
   return (
     <ShareIntentProvider options={shareIntentOptions}>
       <NoshNativeShareProvider>
         <QueryClientProvider client={queryClient}>
-          <CookbooksProvider>
-            <NoshConversationProvider>
-              <ToastProvider>
-                <GlobalErrorBoundary>
-                  <>
-                    <WebInteractionStyles />
-                    <RootLayoutNav />
-                  </>
-                </GlobalErrorBoundary>
-              </ToastProvider>
-            </NoshConversationProvider>
-          </CookbooksProvider>
+          <NoshSubscriptionProvider>
+            <SubscriptionUiProvider>
+              <CookbooksProvider>
+                <NoshConversationProvider>
+                  <ToastProvider>
+                    <GlobalErrorBoundary>
+                      <>
+                        <WebInteractionStyles />
+                        <RootLayoutNav />
+                        <RecipeCaptureCompletionObserver />
+                      </>
+                    </GlobalErrorBoundary>
+                  </ToastProvider>
+                </NoshConversationProvider>
+              </CookbooksProvider>
+            </SubscriptionUiProvider>
+          </NoshSubscriptionProvider>
         </QueryClientProvider>
       </NoshNativeShareProvider>
     </ShareIntentProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

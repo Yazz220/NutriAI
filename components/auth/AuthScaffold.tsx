@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
@@ -59,7 +59,7 @@ export function AuthScaffold({
         ]}
       >
         <View style={styles.header}>
-          <NoshHorizontalLockup width={148} />
+          <FolioHorizontalLockup width={148} />
           {!compactHeader ? <View style={styles.brandSpacing} /> : null}
           <Text variant="h1" style={styles.title}>{title}</Text>
           {subtitle ? <Text variant="body" style={styles.subtitle}>{subtitle}</Text> : null}

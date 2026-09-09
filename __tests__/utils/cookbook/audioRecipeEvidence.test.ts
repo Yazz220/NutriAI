@@ -67,11 +67,12 @@ describe('audio recipe evidence', () => {
     await expect(transcribeAudioRecipeEvidence(evidence, {
       apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      model: 'openai/whisper-large-v3',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl,
     })).resolves.toMatchObject({
       ready: true,
       transcript: 'Two eggs. Whisk and cook in butter.',
+      provider: 'openrouter',
       adapterVersion: 'audio-transcription-v1',
     });
 
@@ -95,21 +96,21 @@ describe('audio recipe evidence', () => {
     await expect(transcribeAudioRecipeEvidence(evidence, {
       apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      model: 'openai/whisper-large-v3',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl: jest.fn().mockResolvedValue(new Response(JSON.stringify({ text: ' ' }), { status: 200 })),
     })).resolves.toMatchObject({ ready: false, reasonCode: 'audio_no_speech' });
 
     await expect(transcribeAudioRecipeEvidence(evidence, {
       apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      model: 'openai/whisper-large-v3',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl: jest.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'busy' }), { status: 503 })),
     })).resolves.toMatchObject({ ready: false, reasonCode: 'audio_transcription_failed' });
 
     await expect(transcribeAudioRecipeEvidence(evidence, {
       apiBase: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      model: 'openai/whisper-large-v3',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
       fetchImpl: jest.fn().mockResolvedValue(new Response(JSON.stringify({
         text: 'a'.repeat(MAX_AUDIO_TRANSCRIPT_CHARACTERS + 1),
       }), { status: 200 })),

@@ -139,6 +139,14 @@ const INGREDIENT_UNIT_PATTERN = [
 const QUANTITY_TOKEN = '(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:[.,]\\d+)?)';
 const LEADING_QUANTITY = new RegExp(`^(${QUANTITY_TOKEN}(?:\\s*(?:-|–|—|to)\\s*${QUANTITY_TOKEN})?)\\s+`, 'i');
 const LEADING_UNIT = new RegExp(`^(${INGREDIENT_UNIT_PATTERN})(?:\\s+|$)`, 'i');
+const LEADING_QUANTITY_AND_UNIT = new RegExp(
+  `^(${QUANTITY_TOKEN})\\s*(${INGREDIENT_UNIT_PATTERN})(?=\\s|/|$)`,
+  'i',
+);
+const LEADING_ALTERNATE_MEASURE = new RegExp(
+  `^/\\s*${QUANTITY_TOKEN}\\s*(?:${INGREDIENT_UNIT_PATTERN})(?:\\s+|$)`,
+  'i',
+);
 const VAGUE_AMOUNT = new RegExp(`^(a|an)\\s+(${INGREDIENT_UNIT_PATTERN})(?:\\s+of)?\\s+`, 'i');
 
 function normalizeUnicodeFractions(value: string): string {
@@ -160,18 +168,37 @@ export function parseStructuredIngredientLine(value: unknown): JsonRecord | null
     unit = vague[2].replace(/\.$/, '').toLowerCase();
     remainder = remainder.slice(vague[0].length);
   } else {
-    const amount = remainder.match(LEADING_QUANTITY);
-    if (amount) {
-      quantity = amount[1].replace(/\s+/g, ' ').replace(/,/g, '.');
-      remainder = remainder.slice(amount[0].length);
-      const unitMatch = remainder.match(LEADING_UNIT);
-      if (unitMatch) {
-        unit = unitMatch[1].replace(/\.$/, '').toLowerCase();
-        remainder = remainder.slice(unitMatch[0].length);
+    const amountWithUnit = remainder.match(LEADING_QUANTITY_AND_UNIT);
+    if (amountWithUnit) {
+      quantity = amountWithUnit[1].replace(/\s+/g, ' ').replace(/,/g, '.');
+      unit = amountWithUnit[2].replace(/\.$/, '').toLowerCase();
+      remainder = remainder.slice(amountWithUnit[0].length).trimStart();
+      remainder = remainder.replace(LEADING_ALTERNATE_MEASURE, '').trimStart();
+    } else {
+      const amount = remainder.match(LEADING_QUANTITY);
+      if (amount) {
+        quantity = amount[1].replace(/\s+/g, ' ').replace(/,/g, '.');
+        remainder = remainder.slice(amount[0].length);
+        const unitMatch = remainder.match(LEADING_UNIT);
+        if (unitMatch) {
+          unit = unitMatch[1].replace(/\.$/, '').toLowerCase();
+          remainder = remainder.slice(unitMatch[0].length);
+        }
+        remainder = remainder.replace(/^of\s+/i, '');
       }
-      remainder = remainder.replace(/^of\s+/i, '');
     }
   }
+
+  if (/\s+\(\s*,/.test(remainder)) {
+    remainder = remainder.replace(/\s+\(\s*,\s*/, ', ');
+    const openCount = (remainder.match(/\(/g) ?? []).length;
+    let closeCount = (remainder.match(/\)/g) ?? []).length;
+    while (closeCount > openCount && /\)\s*$/.test(remainder)) {
+      remainder = remainder.replace(/\)\s*$/, '').trimEnd();
+      closeCount -= 1;
+    }
+  }
+  remainder = remainder.replace(/\(\(([^()]*)\)\)(?=\s*$)/, '($1)');
 
   const isOptional = /(?:,|\s)optional\s*$/i.test(remainder);
   remainder = remainder.replace(/(?:,|\s)optional\s*$/i, '').trim();
@@ -214,6 +241,62 @@ function structuredIngredientGroups(value: unknown): JsonRecord[] {
   return ingredients.length > 0 ? [{ id: 'default', label: '', ingredients }] : [];
 }
 
+function normalizedStepGroupLabel(value: unknown): string {
+  return (cleanText(value) ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+const SUMMARY_STEP_GROUP_LABELS = new Set([
+  'abbreviated recipe',
+  'abridged recipe',
+  'condensed recipe',
+  'quick recipe',
+  'quick summary',
+  'recipe overview',
+  'recipe summary',
+  'short version',
+  'at a glance',
+]);
+
+const GENERIC_COMPLETE_STEP_GROUP_LABELS = new Set([
+  'complete recipe',
+  'directions',
+  'full recipe',
+  'instructions',
+  'method',
+  'recipe directions',
+  'recipe instructions',
+]);
+
+/**
+ * Remove publisher-provided summary directions when the complete directions are
+ * also present. Named cooking phases such as "Sauce" or "Assembly" are kept.
+ */
+export function compactRecipeStepGroups(value: unknown): JsonRecord[] {
+  if (!Array.isArray(value)) return [];
+  const groups = value.flatMap((group) => {
+    const groupRecord = record(group);
+    return groupRecord ? [groupRecord] : [];
+  });
+  const hasSummary = groups.some((group) => SUMMARY_STEP_GROUP_LABELS.has(
+    normalizedStepGroupLabel(group.label),
+  ));
+  const hasCompleteGroup = groups.some((group) => !SUMMARY_STEP_GROUP_LABELS.has(
+    normalizedStepGroupLabel(group.label),
+  ));
+  const compacted = hasSummary && hasCompleteGroup
+    ? groups.filter((group) => !SUMMARY_STEP_GROUP_LABELS.has(normalizedStepGroupLabel(group.label)))
+    : groups;
+
+  if (compacted.length !== 1) return compacted;
+  const [onlyGroup] = compacted;
+  return GENERIC_COMPLETE_STEP_GROUP_LABELS.has(normalizedStepGroupLabel(onlyGroup.label))
+    ? [{ ...onlyGroup, label: '' }]
+    : compacted;
+}
+
 function structuredStepGroups(value: unknown): JsonRecord[] {
   const entries = Array.isArray(value) ? value : [value];
   const groups: JsonRecord[] = [];
@@ -253,7 +336,7 @@ function structuredStepGroups(value: unknown): JsonRecord[] {
     });
   });
   flushUngrouped();
-  return groups;
+  return compactRecipeStepGroups(groups);
 }
 
 function structuredConfidence(input: {
@@ -348,7 +431,7 @@ export function recipeStructuredDataToDraft(
       ...(attribution ? { sourceAttribution: attribution } : {}),
       inferredFields: sourceCategories.length > 0 ? [] : ['category'],
       extractionNotes: [
-        'Nosh used the structured recipe data supplied by this site.',
+        'Folio used the structured recipe data supplied by this site.',
       ],
       confidence,
     },
@@ -462,7 +545,7 @@ export function normalizeRecipeGraphDraft(
   }
 
   draft.ingredientGroups = normalizeIngredientGroupIds(draft.ingredientGroups);
-  draft.stepGroups = normalizeStepGroupIds(draft.stepGroups);
+  draft.stepGroups = normalizeStepGroupIds(compactRecipeStepGroups(draft.stepGroups));
 
   draft.title = typeof source.title === 'string' && source.title.trim()
     ? source.title.trim()

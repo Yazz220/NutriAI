@@ -4,16 +4,20 @@ import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useNoshNativeShare } from '@/contexts/NoshNativeShareContext';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
+import { useSubscriptionUi } from '@/components/subscription/SubscriptionHost';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecipeCaptures } from '@/hooks/useRecipeCaptures';
-import { uploadRecipeCaptureImage } from '@/utils/cookbook/api';
+import { uploadRecipeCaptureImage, uploadRecipeCaptureVideo } from '@/utils/cookbook/api';
 import {
   getNativeShareRequestKey,
+  nativeShareNeedsVideoPermission,
   nativeShareReadiness,
   normalizeNativeShareIntent,
 } from '@/utils/cookbook/nativeShareAdapter';
 import type { RecipeCaptureSource } from '@/utils/cookbook/captureLifecycle';
 import type { RecipeSourceType } from '@/types/cookbook';
+import { isEffectivePlusAccess } from '@/utils/subscriptions/access';
 
 export function NativeShareIngestion() {
   const router = useRouter();
@@ -21,14 +25,17 @@ export function NativeShareIngestion() {
   const { session, user } = useAuth();
   const { hasShareIntent, shareIntent, resetShareIntent, error: nativeError } = useShareIntentContext();
   const { startCapture } = useRecipeCaptures();
-  const { setReceipt, retryToken } = useNoshNativeShare();
+  const { setReceipt, retryToken, videoPermissionToken } = useNoshNativeShare();
   const { requestConsent } = useAiDataConsent();
+  const { refresh: refreshSubscription } = useNoshSubscription();
+  const { requestPageAccess } = useSubscriptionUi();
   const processing = useRef(false);
   const failedAttempt = useRef<number | null>(null);
+  const usedVideoPermissionToken = useRef(0);
 
   useEffect(() => {
     if (nativeError) {
-      setReceipt({ status: 'failed', message: 'Nosh could not read the shared item. Please share it again.' });
+      setReceipt({ status: 'failed', message: 'Folio could not read the shared item. Please share it again.' });
     }
   }, [nativeError, setReceipt]);
 
@@ -59,16 +66,43 @@ export function NativeShareIngestion() {
     async function saveShare() {
       let sourceType: RecipeSourceType | undefined;
       try {
-        if (!await requestConsent()) {
+        const normalized = normalizeNativeShareIntent(shareIntent);
+        sourceType = normalized.type;
+        if (
+          nativeShareNeedsVideoPermission(normalized)
+          && videoPermissionToken <= usedVideoPermissionToken.current
+        ) {
+          setReceipt({ status: 'needs_video_permission', sourceType: 'video' });
+          router.replace('/(book)/share');
+          return;
+        }
+        if (nativeShareNeedsVideoPermission(normalized)) {
+          usedVideoPermissionToken.current = videoPermissionToken;
+        }
+        if (!await requestPageAccess('native_share')) {
+          failedAttempt.current = retryToken;
+          const latestAccess = await refreshSubscription().catch(() => null);
+          const resetAt = latestAccess?.features.designedPages.periodEnd;
           setReceipt({
             status: 'failed',
-            message: 'Allow AI processing before Nosh reads this shared recipe.',
+            sourceType,
+            message: isEffectivePlusAccess(latestAccess)
+              ? `This shared recipe is still waiting. Your page allowance${resetAt ? ` refreshes ${formatShareResetDate(resetAt)}` : ' will refresh with your next plan period'}.`
+              : latestAccess?.planId === 'free'
+                ? 'This shared recipe is still waiting. Upgrade to Folio Plus when you are ready to create another page.'
+                : 'This shared recipe is still waiting. Folio could not check your plan, so reconnect and try saving again.',
           });
           router.replace('/(book)/share');
           return;
         }
-        const normalized = normalizeNativeShareIntent(shareIntent);
-        sourceType = normalized.type;
+        if (!await requestConsent()) {
+          setReceipt({
+            status: 'failed',
+            message: 'Allow AI processing before Folio reads this shared recipe.',
+          });
+          router.replace('/(book)/share');
+          return;
+        }
         setReceipt({ status: 'saving', sourceType });
         router.replace('/(book)/share');
         const requestKey = await getNativeShareRequestKey(normalized);
@@ -82,11 +116,23 @@ export function NativeShareIngestion() {
             requestKey,
           });
           source = { type: 'image', ...upload, notes: normalized.notes };
+        } else if (normalized.type === 'video' && 'video' in normalized) {
+          const upload = await uploadRecipeCaptureVideo({
+            userId,
+            video: normalized.video,
+            requestKey,
+          });
+          source = {
+            type: 'video',
+            ...upload,
+            rightsConfirmed: true,
+            notes: normalized.notes,
+          };
         } else if (normalized.type === 'video') {
           source = {
             type: 'video',
             input: normalized.input,
-            rightsConfirmed: normalized.rightsConfirmed,
+            rightsConfirmed: nativeShareNeedsVideoPermission(normalized),
           };
         } else {
           source = { type: normalized.type, input: normalized.input };
@@ -94,6 +140,7 @@ export function NativeShareIngestion() {
 
         const result = await startCapture({ source, idempotencyKey: requestKey });
         if (cancelled) return;
+        void refreshSubscription();
         resetShareIntent(true);
         failedAttempt.current = null;
         setReceipt({ status: 'saved', sourceType, captureId: result.capture.id });
@@ -103,7 +150,7 @@ export function NativeShareIngestion() {
         setReceipt({
           status: 'failed',
           sourceType,
-          message: error instanceof Error ? error.message : 'Nosh could not save this shared recipe.',
+          message: error instanceof Error ? error.message : 'Folio could not save this shared recipe.',
         });
       } finally {
         processing.current = false;
@@ -117,7 +164,9 @@ export function NativeShareIngestion() {
     network.isConnected,
     network.isInternetReachable,
     resetShareIntent,
+    requestPageAccess,
     requestConsent,
+    refreshSubscription,
     retryToken,
     router,
     session,
@@ -125,7 +174,14 @@ export function NativeShareIngestion() {
     shareIntent,
     startCapture,
     user,
+    videoPermissionToken,
   ]);
 
   return null;
+}
+
+function formatShareResetDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'soon';
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long' }).format(date);
 }

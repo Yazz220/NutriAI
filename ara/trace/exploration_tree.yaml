@@ -642,3 +642,92 @@ tree:
       N34 showed that both MCP layers are enabled and that the empty device list reflected
       shutdown simulator state rather than missing capability.
     status: resolved
+  - id: N36
+    type: experiment
+    title: "Run the first commit-pinned real-user iOS ingestion cohort"
+    provenance: ai-executed
+    timestamp: "2026-08-31T06:48+03:00"
+    result: >-
+      Fast-forwarded codex/prelaunch-audit to origin commit 400188beb, built and launched
+      the Expo development client on an iPhone 17 Pro simulator, created a disposable live
+      Supabase user and cookbook, and exercised URL, pasted text, screenshot, YouTube, and
+      existing-audio inputs. Restricted BBC and unsupported YouTube sources failed with
+      accurate recovery guidance. A complete pasted recipe failed extraction twice. The
+      first capture submitted before AI consent created no durable row and left the reader
+      blocked until relaunch; enabling consent from Settings unblocked subsequent captures.
+    evidence:
+      - "Git HEAD 400188beb58e518b94953ccf8d11f5ac48e7a069"
+      - "iPhone 17 Pro simulator 90DAC4BA-A669-4723-9C3A-F9A2F4563E69"
+      - "BBC capture 94fefcb8-6778-4635-873c-896119f6fa5e: url_access_restricted"
+      - "Text capture 4ce6ed9e-d469-4a3c-9ea4-9cc20af4bd04: extraction_failed after retry"
+      - "YouTube capture eb20abc4-15ff-434e-a5e9-f223d770a87d: video_source_unsupported"
+    status: resolved
+  - id: N37
+    type: experiment
+    title: "Compare one recipe through URL JSON-LD and screenshot extraction"
+    provenance: ai-executed
+    timestamp: "2026-08-31T06:48+03:00"
+    result: >-
+      Imported Food Hero's Guacamole from its normal URL and from a Safari screenshot of
+      the same source. The deterministic JSON-LD path auto-published a confidence-0.89
+      graph with three ingredients and two steps, concatenating the remaining source
+      items, and generated a page that preserved the corruption plus literal TITLE and
+      DESCRIPTION labels. The screenshot path produced all seven ingredients and five
+      directions, correct timing and yield, confidence 0.95, and a readable generated
+      page. This A/B result localizes the correctness failure to structured-data
+      normalization and its quality gate rather than the source recipe.
+    evidence:
+      - "https://foodhero.org/recipes/guacamole"
+      - "URL capture 73a470e6-1bbb-4ee3-b076-425234ccd716"
+      - "Screenshot capture 10b90d15-55d5-4c62-bc89-3507f12d3564"
+      - "/tmp/nosh-qa-400188b/guacamole-generated-page.png"
+      - "/tmp/nosh-qa-400188b/guacamole-image-generated-page.png"
+    status: resolved
+  - id: N38
+    type: experiment
+    title: "Test grounded Chat with Nosh against malformed and correct recipe graphs"
+    provenance: ai-executed
+    timestamp: "2026-08-31T06:48+03:00"
+    result: >-
+      Chat opened with visible Guacamole focus on both generated pages but never answered
+      the grounded lime-juice and salt question. The malformed-graph attempt returned a
+      generic failure; its built-in retry hung longer than 65 seconds and later surfaced
+      an unhandled FunctionTimeout developer toast. A fresh thread on the correct
+      screenshot-derived graph remained in the typing state beyond 95 seconds until
+      stopped. Creating a new conversation while recipe-focused also changed focus to the
+      cookbook collection until chat was reopened from the recipe.
+    evidence:
+      - "/tmp/nosh-qa-400188b/chat-retry-stuck.png"
+      - "/tmp/nosh-qa-400188b/guacamole-image-generated-page.png"
+      - "Grounded prompt: How much lime juice and salt does this recipe use?"
+    status: resolved
+  - id: N39
+    type: experiment
+    title: "Exercise the existing-audio recipe path"
+    provenance: ai-executed
+    timestamp: "2026-08-31T06:48+03:00"
+    result: >-
+      Selected a 25-second, 1.1 MB AIFF file from the native Files picker containing a
+      complete spoken guacamole recipe. The transcription checkpoint completed with
+      openai/whisper-large-v3 in about four seconds, but transcript-to-RecipeGraph
+      extraction then failed and the capture entered needs_attention with no graph.
+    evidence:
+      - "Audio capture 7eaf2865-ecfb-438e-8472-40aaad07d07a"
+      - "/tmp/nosh-qa-400188b/guacamole-audio.aiff"
+      - "Capture failure_code=extraction_failed, failed_stage=extraction"
+    status: resolved
+  - id: N40
+    type: decision
+    title: "Use evidence-only engineering handoffs for QA findings"
+    provenance: user-revised
+    timestamp: "2026-08-31T06:59+03:00"
+    choice: >-
+      Report each issue using only the tested action, observed result, and why the result
+      is a product problem. Do not prescribe a root cause, implementation approach,
+      acceptance criteria, or fix; the implementation agent owns diagnosis and repair.
+    alternatives:
+      - "Include suggested fixes and likely implementation areas in each issue"
+      - "Include prescriptive acceptance criteria for the implementation agent"
+    evidence:
+      - "User revision: describe what was tested and what went wrong, and let the engineer trace and solve it independently"
+    status: resolved

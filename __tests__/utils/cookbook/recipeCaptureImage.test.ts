@@ -21,12 +21,15 @@ jest.mock('expo-image-manipulator', () => ({
 }));
 
 import { prepareRecipeCaptureImage } from '@/utils/cookbook/recipeCaptureImage';
+import { Platform } from 'react-native';
 import {
   RECIPE_CAPTURE_IMAGE_SOURCE_MAX_BYTES,
   RECIPE_CAPTURE_IMAGE_UPLOAD_MAX_BYTES,
 } from '@/utils/cookbook/recipeCaptureImageContract';
 
 describe('prepareRecipeCaptureImage', () => {
+  const originalPlatform = Platform.OS;
+
   beforeEach(() => {
     jest.clearAllMocks();
     const sourceRef = { width: 4032, height: 3024 };
@@ -46,6 +49,11 @@ describe('prepareRecipeCaptureImage', () => {
         ? { bytes: mockOutputBytes }
         : { uri, size: 4_000_000 }
     ));
+  });
+
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform });
+    jest.restoreAllMocks();
   });
 
   it('retries with a smaller boundary only when the first readable JPEG remains too large', async () => {
@@ -80,5 +88,28 @@ describe('prepareRecipeCaptureImage', () => {
     })).rejects.toThrow('larger than 15 MB');
 
     expect(mockManipulate).not.toHaveBeenCalled();
+  });
+
+  it('reads browser blob URLs without constructing an unsupported Expo File', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    const sourceBytes = Uint8Array.from([1, 2, 3, 4]);
+    const normalizedBytes = Uint8Array.from([5, 6, 7]);
+    jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response(sourceBytes))
+      .mockResolvedValueOnce(new Response(normalizedBytes));
+
+    await expect(prepareRecipeCaptureImage({
+      imageUri: 'blob:http://localhost/source-image',
+      mimeType: 'image/png',
+      requestKey: 'request-web',
+    })).resolves.toMatchObject({
+      bytes: normalizedBytes,
+      mimeType: 'image/jpeg',
+      width: 2400,
+      height: 1800,
+    });
+
+    expect(mockFile).not.toHaveBeenCalled();
+    expect(mockManipulate).toHaveBeenCalledWith('blob:http://localhost/source-image');
   });
 });

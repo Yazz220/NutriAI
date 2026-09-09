@@ -6,6 +6,8 @@
  * spread into the log object.
  */
 
+import { captureEdgeError } from './sentry.ts';
+
 type LogLevel = 'info' | 'warn' | 'error';
 
 export function log(level: LogLevel, message: string, meta?: Record<string, unknown>): void {
@@ -36,4 +38,5 @@ export function logWarn(message: string, meta?: Record<string, unknown>): void {
 
 export function logError(message: string, meta?: Record<string, unknown>): void {
   log('error', message, meta);
+  captureEdgeError(message, meta);
 }

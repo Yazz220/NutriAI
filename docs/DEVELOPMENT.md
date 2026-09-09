@@ -22,7 +22,7 @@ npm run typecheck
 npm run lint
 ```
 
-The dev server connects to the Nosh dev build on device. Web preview is useful for reader layout work, but iOS device builds are still required for native auth and platform checks.
+The dev server connects to the Folio dev build on device. Web preview is useful for reader layout work, but iOS device builds are still required for native auth and platform checks.
 
 Before a Phase 9 release, follow `docs/PHASE9_RELEASE_RUNBOOK.md`. A passing web preview does not satisfy the native-share, dynamic-type, screen-reader, reduced-motion, or representative-device gates.
 
@@ -40,33 +40,47 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 EXPO_PUBLIC_SUPABASE_REDIRECT_URL=nosh://auth/callback
 EXPO_PUBLIC_AI_MODEL=qwen/qwen3.6-35b-a3b
 EXPO_PUBLIC_ART_MODEL=qwen/qwen-image-3-pro
+EXPO_PUBLIC_SENTRY_DSN=
+EXPO_PUBLIC_SENTRY_ENVIRONMENT=development
+EXPO_PUBLIC_SUPPORT_EMAIL=
 EXPO_PUBLIC_DEV_BYPASS_AUTH=false
 EXPO_PUBLIC_SHOW_DEMO_COOKBOOK=false
-EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2=false
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 ```
 
-`EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2` changes conversation presentation only. It must not select a different capture, extraction, or page-generation implementation.
-
-Only `EXPO_PUBLIC_*` values are bundled into the app. Never put provider API keys or service-role keys in client env vars.
+Only `EXPO_PUBLIC_*` values are bundled into the app. The RevenueCat iOS value is a public SDK key. `EXPO_PUBLIC_SUPPORT_EMAIL` must be a monitored private inbox in release builds; Settings otherwise falls back to the public support page. Keep Android and web RevenueCat keys unset for the App Store launch; `docs/MONETIZATION.md` defines the store-mapping work required before enabling them. Never put secret provider keys or service-role keys in client env vars.
 
 Supabase Edge Function secrets:
 
 | Secret | Used by |
 |---|---|
-| `AI_API_KEY` | `extract-recipe`, `nosh-chat` |
-| `AI_API_BASE` | `extract-recipe`, `nosh-chat` |
-| `AI_MODEL` | `extract-recipe`, `nosh-chat` |
-| `VIDEO_MODEL` | optional video-specific override for `extract-recipe`; defaults to `AI_MODEL` |
-| `AUDIO_TRANSCRIPTION_MODEL` | speech-to-text model used by `capture-recipe`; defaults to `openai/whisper-large-v3` |
-| `AUDIO_TRANSCRIPTION_API_BASE` | optional OpenAI-compatible speech-to-text base URL; defaults to `AI_API_BASE` |
-| `AUDIO_TRANSCRIPTION_API_KEY` | optional speech-to-text provider key; defaults to `AI_API_KEY` |
+| `AI_API_KEY` | shared OpenRouter credential for extraction, chat, transcription, and page art |
+| `AI_API_BASE` | shared OpenRouter-compatible base URL; defaults to `https://openrouter.ai/api/v1` |
+| `EXTRACTION_MODEL` | strict-schema recipe extraction; legacy fallback is `AI_MODEL`, then `qwen/qwen3.6-35b-a3b` |
+| `CHAT_MODEL` | Folio chat and tool calling; legacy fallback is `AI_MODEL`, then `qwen/qwen3.6-35b-a3b` |
+| `VIDEO_UNDERSTANDING_MODEL` | optional whole-video extraction override; legacy fallback is `VIDEO_MODEL`, then `EXTRACTION_MODEL` |
+| `TRANSCRIPTION_MODEL` | audio and video speech-to-text; defaults to `mistralai/voxtral-small-24b-2507-stt` |
+| `TRANSCRIPTION_API_BASE` | optional speech-to-text base URL; defaults to `AI_API_BASE` |
+| `TRANSCRIPTION_API_KEY` | optional independent speech credential; defaults to `AI_API_KEY` |
+| `SOCIAL_VIDEO_ACQUISITION_PROVIDER` | optional external social-video evidence adapter; `guided` by default, `supadata` enables the current adapter |
+| `SUPADATA_API_KEY` | server-only Supadata credential used only when the provider is `supadata` |
+| `SUPADATA_API_BASE` | optional Supadata base URL; defaults to `https://api.supadata.ai/v1` |
+| `SUPADATA_ENABLED_PLATFORMS` | optional comma-separated allowlist; defaults to `youtube,tiktok,instagram,facebook` |
 | `ART_MODEL` | `generate-page-art` |
+| `SENTRY_DSN` | privacy-scrubbed Edge Function errors and provider failure diagnostics |
+| `SENTRY_ENVIRONMENT` | optional environment label; defaults to `production` |
 | `APPLE_CLIENT_ID` | `delete-account` |
 | `APPLE_TEAM_ID` | `delete-account` |
 | `APPLE_KEY_ID` | `delete-account` |
 | `APPLE_PRIVATE_KEY` | `delete-account` |
+| `REVENUECAT_SECRET_API_KEY` | `sync-subscription`, `revenuecat-webhook`, `delete-account` |
+| `REVENUECAT_WEBHOOK_AUTH_TOKEN` | `revenuecat-webhook`; configured bearer token without the `Bearer ` prefix |
+| `REVENUECAT_WEBHOOK_SIGNING_SECRET` | `revenuecat-webhook`; RevenueCat HMAC signing secret |
+| `REVENUECAT_ACCEPT_SANDBOX_EVENTS` | subscription functions; verified sandbox is accepted by default for TestFlight and App Review; set `false` only as an emergency kill switch |
 
 Supabase also provides `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to functions that need them.
+
+Sentry uses separate `folio-mobile` and `folio-backend` projects in the `all-ot` organization. The mobile DSN is client-safe; `SENTRY_AUTH_TOKEN` is build-only and must be stored as a protected EAS environment secret so release source maps and native symbols can be uploaded. Never commit the token. See [OBSERVABILITY.md](./OBSERVABILITY.md) for privacy, verification, and incident-triage details.
 
 ## Routes To Know
 
@@ -95,11 +109,13 @@ Keep the root provider order in `app/_layout.tsx` aligned with the live tree:
 ShareIntentProvider
   NoshNativeShareProvider
     QueryClientProvider
-      CookbooksProvider
-        NoshConversationProvider
-          ToastProvider
-            GlobalErrorBoundary
-              RootLayoutNav
+      NoshSubscriptionProvider
+        SubscriptionUiProvider
+          CookbooksProvider
+            NoshConversationProvider
+              ToastProvider
+                GlobalErrorBoundary
+                  RootLayoutNav
 ```
 
 `RootLayoutNav` owns the auth redirect logic with `useAuth()` and renders the root Expo Router stack inside `GestureHandlerRootView` and `SafeAreaProvider`.
@@ -109,6 +125,7 @@ ShareIntentProvider
 - Shelf data comes from `useCookbooks`.
 - One-book reader state comes from `useCookbook(cookbookId)`.
 - Durable import state, polling, retry, and destination choice come from `useRecipeCaptures`.
+- Server-authoritative plan and usage plus StoreKit/RevenueCat state come from `useNoshSubscription`; feature surfaces request access through `useSubscriptionUi`.
 - Assistant chat uses `@assistant-ui/react-native` `LocalRuntime` bridging to `nosh-chat` via `utils/cookbook/noshChatAdapter.ts`.
 - Server state belongs in TanStack React Query.
 - Shelf and per-book page caches belong in `utils/cookbook/cache.ts`.
@@ -137,8 +154,16 @@ Live functions:
 - `credits` (legacy endpoint; not used by the active client or generation path)
 - `delete-account`
 - `delete-reader-content`
+- `sync-subscription`
+- `revenuecat-webhook` (`verify_jwt = false`; verifies RevenueCat Authorization and HMAC itself)
 
 Deploy migrations before deploying Edge Functions that depend on new columns, constraints, buckets, or RPCs. Apply `20260830174134_version_recipe_capture_stages.sql` before the matching capture workers, and apply `20260830210000_add_permissioned_video_captures.sql` before enabling video file selection in the mobile build.
+
+Apply `20260831011239_subscription_foundation.sql` before deploying subscription-aware `generate-page-art`, `capture-recipe`, `sync-subscription`, or `revenuecat-webhook`. Follow [MONETIZATION.md](./MONETIZATION.md) for App Store Connect, RevenueCat, webhook, EAS environment, and sandbox setup. Use TestFlight to exercise the real launch products. The `development` profile has bundle ID `com.yaz12.nosh.dev`; it needs its own matching RevenueCat app/Test Store configuration and profile-specific public key. Never put a test key in preview or production. Expo Go can preview only unavailable/loading presentation, not native purchasing.
+
+### Temporary pre-launch capacity override
+
+The currently linked pre-launch database temporarily gives Folio Free accounts 100 cookbooks and 100 lifetime designed pages so end-to-end development is not blocked by the purchase flow. This is operational test data, not a migration or launch-plan change. Before a production release, restore `nutriai.subscription_plan_features` to the canonical values in [MONETIZATION.md](./MONETIZATION.md): 2 Free cookbooks and 5 lifetime Free designed pages. Refresh `get_subscription_access()` after either change so clients do not retain a stale allowance snapshot.
 
 `APPLE_PRIVATE_KEY` is the Sign in with Apple `.p8` key. Store it as an Edge Function secret with literal newlines or escaped `\\n`; never put it in an Expo environment variable. The deletion function exchanges the fresh authorization code supplied by iOS and calls Apple's revocation endpoint before removing Supabase data.
 
@@ -148,9 +173,9 @@ Deploy migrations before deploying Edge Functions that depend on new columns, co
 
 | Profile | App name | Bundle ID | Scheme |
 |---|---|---|---|
-| development | Nosh (Dev) | `com.yaz12.nosh.dev` | `nosh` |
-| preview | Nosh | `com.yaz12.nosh` | `nosh` |
-| production | Nosh | `com.yaz12.nosh` | `nosh` |
+| development | Folio (Dev) | `com.yaz12.nosh.dev` | `nosh` |
+| preview | Folio | `com.yaz12.nosh` | `nosh` |
+| production | Folio | `com.yaz12.nosh` | `nosh` |
 
 ```bash
 npx eas-cli build --profile development --platform ios
@@ -186,11 +211,13 @@ npx eas-cli submit --platform ios
 | Generated image exists but the page is absent | capture publication failed after page generation | confirm `failed_stage = publication`, `art_status = ready`, and a ready `selected_version_id`; retry the same capture to publish that version |
 | Recipe image fails before capture starts | source exceeds 15 MB, native decoder cannot read it, or normalization cannot produce an artifact below 8 MB | reproduce through `recipeCaptureImage.ts`; inspect the original dimensions/size and the adaptive normalization attempts |
 | Image capture asks for another source | extractor classified it as blank, unreadable, blurry/low-resolution, cropped, or incomplete | inspect `extract-recipe` logs for the provider-neutral `reasonCode` and internal `diagnostic`; keep user-facing copy in `recipeEvidence.ts` |
-| Video capture says the source is unsupported | the URL is a social-platform bookmark or the file is not MP4, MOV, MPEG, or WebM | open the original, then add a permissioned video file, screenshots, audio, or pasted recipe text; never pass a social page URL straight to the model |
+| Social link fails before extraction | the external provider is disabled, the platform is not enabled, or the provider does not support the link | retry the saved link or open the original and choose another source; the composer should never interrupt a pasted link before this durable failure |
+| Social capture reaches technical retry | provider configuration, rate limiting, timeout, or temporary acquisition failure | inspect the `acquisition` checkpoint and `capture-recipe` logs; retry the same capture so a saved provider job resumes instead of starting another one |
+| Social capture reports unavailable | the public post is missing, private, restricted, or unsupported by the provider | keep the saved link and use Open original to add a video file, screenshots, audio, or recipe text |
 | Video capture asks for permission | the source did not pass through the Composer confirmation | add the video again and confirm that the user made it or has permission to process it |
-| Uploaded video reaches technical retry | `VIDEO_MODEL` does not accept the selected video format, or its provider is unavailable | choose a compatible video model or use a supported file format; keep the video adapter and capture lifecycle unchanged |
+| Uploaded video reaches technical retry | `TRANSCRIPTION_MODEL` cannot read the selected container, or `VIDEO_UNDERSTANDING_MODEL`/its provider is unavailable | inspect the transcription and extraction events separately; retry with a supported file or use frames/text while keeping the capture lifecycle unchanged |
 | Audio is rejected before capture | unsupported format or file exceeds 6 MB | choose MP3, M4A, WAV, AAC, AIFF, OGG, or FLAC below the source limit |
-| Saved audio cannot be transcribed | `AUDIO_TRANSCRIPTION_MODEL` is unavailable, misconfigured, or the provider is temporarily failing | inspect `capture-recipe` logs and retry the same capture; do not create another extraction path |
+| Saved audio cannot be transcribed | `TRANSCRIPTION_MODEL` is unavailable, misconfigured, quota-limited, or the provider is temporarily failing | inspect `capture-recipe` provider logs and retry the same capture; do not create another extraction path |
 | Capture asks for review or approval | stale client or stale documentation | confirm commit and deployed bundle; the current lifecycle has no review state |
 | New page uses the typesetter | caller bypassed the capture contract or page has no complete image | trace the source through `capture-recipe`; do not add another generation path |
 | Page style differs from its book | stale cookbook page-style fields or caller-defined references | inspect `page_style_id`, `style_revision`, and `page_style_references`; generation must read them from the database |

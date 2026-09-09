@@ -88,6 +88,12 @@ async function runLiveEndpointCase(evalCase: IngestionEvalCase): Promise<Ingesti
     const bytes = await Deno.readFile(absoluteAssetUrl(evalCase.execution.assetPath));
     request.imageBase64 = toBase64(bytes);
   }
+  if (evalCase.execution.assetPaths) {
+    request.images = await Promise.all(evalCase.execution.assetPaths.map(async (assetPath) => ({
+      imageBase64: toBase64(await Deno.readFile(absoluteAssetUrl(assetPath))),
+      imageMimeType: 'image/png',
+    })));
+  }
   try {
     const response = await fetch(endpoint, {
       method: 'POST',

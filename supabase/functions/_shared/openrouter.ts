@@ -11,6 +11,10 @@
 
 import { fetchWithRetry } from './fetchRetry.ts';
 import { logError } from './log.ts';
+import {
+  privateOpenRouterProviderPolicy,
+  type OpenRouterProviderPolicy,
+} from './openRouterProviderPolicy.ts';
 
 const AI_API_KEY = Deno.env.get('AI_API_KEY') || '';
 const AI_API_BASE = (Deno.env.get('AI_API_BASE') || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
@@ -69,9 +73,7 @@ export interface ChatCompletionRequest {
     effort?: 'low' | 'medium' | 'high';
     exclude?: boolean;
   };
-  provider?: {
-    require_parameters?: boolean;
-  };
+  provider?: OpenRouterProviderPolicy;
 }
 
 export interface ChatCompletionResponse {
@@ -131,9 +133,12 @@ export async function callChatCompletion(
         Authorization: `Bearer ${AI_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://nosh.app',
-        'X-Title': 'Nosh Cookbook',
+        'X-Title': 'Folio Cookbook',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify({
+        ...request,
+        provider: privateOpenRouterProviderPolicy(request.provider),
+      }),
       signal: controller.signal,
     });
 
@@ -146,7 +151,13 @@ export async function callChatCompletion(
           : typeof data?.error === 'string'
             ? data.error
             : `OpenRouter request failed (${res.status})`;
-      logError('OpenRouter chat completion failed', { status: res.status, message });
+      logError('OpenRouter chat completion failed', {
+        provider: 'openrouter',
+        operation: 'chat_completion',
+        model: request.model,
+        status: res.status,
+        error: message,
+      });
       throw new Error(message);
     }
 
@@ -178,10 +189,11 @@ export async function* streamChatCompletion(
         Authorization: `Bearer ${AI_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://nosh.app',
-        'X-Title': 'Nosh Cookbook',
+        'X-Title': 'Folio Cookbook',
       },
       body: JSON.stringify({
         ...request,
+        provider: privateOpenRouterProviderPolicy(request.provider),
         stream: true,
         stream_options: { include_usage: true },
       }),
@@ -196,7 +208,13 @@ export async function* streamChatCompletion(
           : typeof data?.error === 'string'
             ? data.error
             : `OpenRouter request failed (${res.status})`;
-      logError('OpenRouter chat stream failed', { status: res.status, message });
+      logError('OpenRouter chat stream failed', {
+        provider: 'openrouter',
+        operation: 'chat_stream',
+        model: request.model,
+        status: res.status,
+        error: message,
+      });
       throw new Error(message);
     }
 
@@ -215,7 +233,11 @@ export async function* streamChatCompletion(
         const trimmed = line.trim();
         if (!trimmed.startsWith('data:')) continue;
         const data = trimmed.slice(5).trim();
-        if (!data || data === '[DONE]') continue;
+        if (data === '[DONE]') {
+          void reader.cancel().catch(() => {});
+          return;
+        }
+        if (!data) continue;
         yield JSON.parse(data) as ChatCompletionStreamChunk;
       }
 

@@ -4,7 +4,7 @@ status: accepted
 
 # Gate page creation on semantic recipe quality
 
-Every accepted Recipe Graph receives one provider-neutral semantic assessment before Nosh creates a cookbook page or requests page art. Complete and warning-only graphs continue automatically. A graph with an open cooking-critical issue remains on the durable capture and enters focused recipe correction. Saving corrections reassesses and resumes that same capture.
+Every accepted Recipe Graph receives one provider-neutral semantic assessment before Folio creates a cookbook page or requests page art. Complete and warning-only graphs continue automatically. A graph with an open cooking-critical issue remains on the durable capture and enters focused recipe correction. Saving corrections reassesses and resumes that same capture.
 
 We rejected trusting the extractor's confidence score because schema compliance and model confidence do not establish that quantities, temperatures, yields, and timings agree. We also rejected a review screen for every recipe because strong imports should still assemble the cookbook without interruption. Missing optional metadata never blocks. Only deterministic, actionable issues do.
 

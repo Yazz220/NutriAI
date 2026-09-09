@@ -13,7 +13,7 @@
  * the same durable capture-recipe pipeline.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +30,12 @@ import {
   classifyVideoSourceUrl,
   isRecognizedVideoSourceUrl,
 } from '@/supabase/functions/_shared/videoSource';
+import { MAX_DIRECT_VIDEO_BYTES } from '@/supabase/functions/_shared/videoUploadContract';
+import { MAX_AUDIO_CAPTURE_BYTES } from '@/supabase/functions/_shared/audioRecipeEvidence';
+import {
+  MAX_RECIPE_TEXT_CHARACTERS,
+  recipeTextSourceIsTooLarge,
+} from '@/supabase/functions/_shared/recipeEvidence';
 
 export type UnifiedIntakePayload =
   | { type: 'url'; input: string }
@@ -51,8 +57,14 @@ export type UnifiedIntakePayload =
       imageUri?: string;
       imageBase64?: string;
       mimeType?: string;
+      additionalImages?: RecipeIntakeImage[];
       input?: string;
     };
+
+export interface RecipeIntakeImage {
+  uri: string;
+  mimeType?: string | null;
+}
 
 interface UnifiedIntakeComposerProps {
   isSubmitting?: boolean;
@@ -60,13 +72,16 @@ interface UnifiedIntakeComposerProps {
   imageBase64: string | null;
   imageUri?: string | null;
   imageMimeType?: string | null;
+  additionalImages?: RecipeIntakeImage[];
   audioAttachment?: RecipeCaptureAudioAsset | null;
   videoAttachment?: RecipeCaptureVideoAsset | null;
   error?: string | null;
   onInputChange: (value: string) => void;
   onImageBase64Change: (value: string | null) => void;
   onImageUriChange?: (uri: string | null, mimeType: string | null) => void;
+  onAdditionalImagesChange?: (images: RecipeIntakeImage[]) => void;
   onAudioAttachmentChange?: (audio: RecipeCaptureAudioAsset | null) => void;
+  onSourceChange?: () => void;
   onVideoAttachmentChange?: (video: RecipeCaptureVideoAsset | null) => void;
   onRetry?: () => Promise<void> | void;
   onSubmit: (payload: UnifiedIntakePayload) => Promise<void> | void;
@@ -96,6 +111,7 @@ export function buildIntakePayload(
   imageMimeType: string | null = null,
   audioAttachment: RecipeCaptureAudioAsset | null = null,
   videoAttachment: RecipeCaptureVideoAsset | null = null,
+  additionalImages: RecipeIntakeImage[] = [],
 ): UnifiedIntakePayload | null {
   const trimmed = input.trim();
 
@@ -121,6 +137,7 @@ export function buildIntakePayload(
       type: 'image',
       imageUri,
       mimeType: imageMimeType ?? undefined,
+      additionalImages: additionalImages.length > 0 ? additionalImages : undefined,
       input: trimmed || undefined,
     };
   }
@@ -148,17 +165,22 @@ export function UnifiedIntakeComposer({
   imageBase64,
   imageUri = null,
   imageMimeType = null,
+  additionalImages = [],
   audioAttachment = null,
   videoAttachment = null,
   error = null,
   onInputChange,
   onImageBase64Change,
   onImageUriChange,
+  onAdditionalImagesChange,
   onAudioAttachmentChange,
+  onSourceChange,
   onVideoAttachmentChange,
   onRetry,
   onSubmit,
 }: UnifiedIntakeComposerProps) {
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   async function pickMedia() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== ImagePicker.PermissionStatus.GRANTED) return;
@@ -168,23 +190,51 @@ export function UnifiedIntakeComposer({
       base64: false,
       quality: 0.8,
       allowsEditing: false,
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
     });
 
-    const asset = result.canceled ? null : result.assets?.[0] ?? null;
+    const assets = result.canceled ? [] : result.assets?.slice(0, 4) ?? [];
+    const asset = assets[0] ?? null;
     if (asset?.uri) {
-      onAudioAttachmentChange?.(null);
-      onImageBase64Change(null);
+      const containsVideo = assets.some(
+        (candidate) => candidate.type === 'video' || candidate.mimeType?.startsWith('video/'),
+      );
+      if (containsVideo && assets.length > 1) {
+        setValidationError('Choose one video, or up to four recipe photos.');
+        return;
+      }
+
       if (asset.type === 'video' || asset.mimeType?.startsWith('video/')) {
+        if (asset.fileSize && asset.fileSize > MAX_DIRECT_VIDEO_BYTES) {
+          setValidationError(
+            `This video is larger than ${Math.floor(MAX_DIRECT_VIDEO_BYTES / 1_000_000)} MB. Choose a shorter or smaller clip.`,
+          );
+          return;
+        }
+
+        onSourceChange?.();
+        onAudioAttachmentChange?.(null);
+        onImageBase64Change(null);
         onImageUriChange?.(null, null);
+        onAdditionalImagesChange?.([]);
         onVideoAttachmentChange?.({
           uri: asset.uri,
           name: asset.fileName ?? 'recipe-video.mp4',
           mimeType: asset.mimeType,
           size: asset.fileSize,
+          duration: asset.duration ?? null,
         });
       } else {
+        onSourceChange?.();
+        onAudioAttachmentChange?.(null);
+        onImageBase64Change(null);
         onVideoAttachmentChange?.(null);
         onImageUriChange?.(asset.uri, asset.mimeType ?? null);
+        onAdditionalImagesChange?.(assets.slice(1).map((candidate) => ({
+          uri: candidate.uri,
+          mimeType: candidate.mimeType ?? null,
+        })));
       }
     }
   }
@@ -197,8 +247,18 @@ export function UnifiedIntakeComposer({
     });
     const asset = result.canceled ? null : result.assets[0] ?? null;
     if (!asset) return;
+
+    if (asset.size && asset.size > MAX_AUDIO_CAPTURE_BYTES) {
+      setValidationError(
+        `This audio file is larger than ${Math.floor(MAX_AUDIO_CAPTURE_BYTES / 1_000_000)} MB. Choose a shorter recording.`,
+      );
+      return;
+    }
+
+    onSourceChange?.();
     onImageBase64Change(null);
     onImageUriChange?.(null, null);
+    onAdditionalImagesChange?.([]);
     onVideoAttachmentChange?.(null);
     onAudioAttachmentChange?.({
       uri: asset.uri,
@@ -210,6 +270,11 @@ export function UnifiedIntakeComposer({
 
   async function submit() {
     if (isSubmitting) return;
+    if (recipeTextSourceIsTooLarge(input)) {
+      setValidationError('Paste one recipe at a time, then try again.');
+      return;
+    }
+    setValidationError(null);
     const payload = buildIntakePayload(
       input,
       imageBase64,
@@ -217,19 +282,23 @@ export function UnifiedIntakeComposer({
       imageMimeType,
       audioAttachment,
       videoAttachment,
+      additionalImages,
     );
     if (!payload) return;
     if (payload.type !== 'video') {
       await onSubmit(payload);
       return;
     }
-    if (!('video' in payload) && classifyVideoSourceUrl(payload.input)?.kind === 'platform_link') {
-      await onSubmit(payload);
-      return;
+    if (!('video' in payload)) {
+      const classification = classifyVideoSourceUrl(payload.input);
+      if (classification?.kind === 'platform_link') {
+        await onSubmit(payload);
+        return;
+      }
     }
     Alert.alert(
       'Use a video you can process',
-      'Only add a video you made or have permission to use. Nosh keeps it private and uses it to create your recipe page.',
+      'Only add a video you made or have permission to use. Folio keeps it private and uses it to create your recipe page.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -240,7 +309,8 @@ export function UnifiedIntakeComposer({
     );
   }
 
-  const hasImage = Boolean(imageUri || imageBase64);
+  const imageCount = (imageUri || imageBase64 ? 1 : 0) + additionalImages.length;
+  const hasImage = imageCount > 0;
   const hasAudio = Boolean(audioAttachment);
   const hasVideo = Boolean(videoAttachment);
   const canSubmit = Boolean(hasImage || hasAudio || hasVideo || input.trim()) && !isSubmitting;
@@ -259,13 +329,17 @@ export function UnifiedIntakeComposer({
         </View>
         <TextInput
           value={input}
-          onChangeText={onInputChange}
+          onChangeText={(value) => {
+            setValidationError(null);
+            onInputChange(value);
+          }}
           multiline
           style={styles.input}
           placeholder="Paste a link, recipe, or notes…"
           placeholderTextColor={Colors.textMuted}
           editable={!isSubmitting}
           textAlignVertical="top"
+          maxLength={MAX_RECIPE_TEXT_CHARACTERS}
           maxFontSizeMultiplier={2}
           scrollEnabled
           accessibilityLabel="Recipe source"
@@ -279,17 +353,19 @@ export function UnifiedIntakeComposer({
               ? `${audioAttachment?.name ?? 'Audio'} attached${input.trim() ? ' with notes' : ''}`
               : hasVideo
                 ? `${videoAttachment?.name ?? 'Video'} attached${input.trim() ? ' with notes' : ''}`
-                : `Photo attached${input.trim() ? ' with notes' : ''}`}
+                : `${imageCount === 1 ? 'Photo' : `${imageCount} photos`} attached${input.trim() ? ' with notes' : ''}`}
           </Text>
           <Pressable
             onPress={() => {
+              onSourceChange?.();
               onImageBase64Change(null);
               onImageUriChange?.(null, null);
+              onAdditionalImagesChange?.([]);
               onAudioAttachmentChange?.(null);
               onVideoAttachmentChange?.(null);
             }}
             accessibilityRole="button"
-            accessibilityLabel={hasAudio ? 'Remove attached audio' : hasVideo ? 'Remove attached video' : 'Remove attached image'}
+            accessibilityLabel={hasAudio ? 'Remove attached audio' : hasVideo ? 'Remove attached video' : imageCount > 1 ? 'Remove attached images' : 'Remove attached image'}
             style={styles.removeAttachment}
             hitSlop={Spacing.sm}
           >
@@ -298,11 +374,13 @@ export function UnifiedIntakeComposer({
         </View>
       ) : null}
 
-      {error ? (
+      {validationError || error ? (
         <View style={styles.errorNotice} accessibilityRole="alert">
-          <Text style={styles.errorTitle}>Couldn&apos;t read this recipe</Text>
-          <Text style={styles.errorBody} selectable>{error}</Text>
-          {onRetry ? (
+          <Text style={styles.errorTitle}>
+            {validationError ? 'Recipe text is too long' : 'Couldn\'t read this recipe'}
+          </Text>
+          <Text style={styles.errorBody} selectable>{validationError ?? error}</Text>
+          {onRetry && !validationError ? (
             <Button
               title="Try again"
               variant="outline"

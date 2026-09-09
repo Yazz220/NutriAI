@@ -4,7 +4,7 @@ import {
   voiceTranscriptionQueries,
 } from '@/__tests__/fixtures/noshCollection';
 
-describe('Nosh collection retrieval fixtures', () => {
+describe('Folio collection retrieval fixtures', () => {
   it('represents two books with complete, overlapping cheesecake recipes', () => {
     expect(collectionCookbooks).toHaveLength(2);
     expect(new Set(collectionPages.map((page) => page.cookbookId))).toEqual(

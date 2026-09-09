@@ -1,23 +1,16 @@
 import { Platform, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { CookbookPage } from '@/types/cookbook';
-import { getCookbookPageImageUri } from '@/utils/cookbook/pageImage';
+import { resolveCookbookPageImageUri, resolveCookbookPageRemoteImageUri } from '@/utils/cookbook/pageImageResolver';
 
 export async function shareCookbookPage(page: CookbookPage): Promise<void> {
-  const imageUrl = getCookbookPageImageUri(page);
-  if (!imageUrl) {
-    throw new Error('This page does not have an image to share yet.');
-  }
-
-  await Share.share({
-    title: page.title,
-    message: `${page.title}\n${imageUrl}`,
-    url: imageUrl,
-  });
+  return exportCookbookPageImage(page);
 }
 
 export async function exportCookbookPageImage(page: CookbookPage): Promise<void> {
-  const imageUrl = getCookbookPageImageUri(page);
+  const imageUrl = await (Platform.OS === 'web'
+    ? resolveCookbookPageRemoteImageUri(page)
+    : resolveCookbookPageImageUri(page));
   if (!imageUrl) throw new Error('This page does not have an image to export yet.');
 
   if (Platform.OS === 'web') {
@@ -29,10 +22,10 @@ export async function exportCookbookPageImage(page: CookbookPage): Promise<void>
     ? await downloadPageImage(page, imageUrl)
     : imageUrl;
 
-  await Share.share({
-    title: page.title,
-    message: page.title,
-    url: exportUrl,
+  const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+  if (!await Sharing.isAvailableAsync()) throw new Error('File sharing is unavailable on this device.');
+  await Sharing.shareAsync(exportUrl, {
+    dialogTitle: page.title,
   });
 }
 
@@ -40,7 +33,7 @@ async function downloadPageImage(page: CookbookPage, imageUrl: string): Promise<
   if (!FileSystem.cacheDirectory) throw new Error('A temporary export folder is unavailable.');
   const extension = getImageExtension(imageUrl);
   const safeTitle = page.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'recipe';
-  const destination = `${FileSystem.cacheDirectory}nosh-${safeTitle}-${page.id}.${extension}`;
+  const destination = `${FileSystem.cacheDirectory}folio-${safeTitle}-${page.id}.${extension}`;
   const result = await FileSystem.downloadAsync(imageUrl, destination);
   return result.uri;
 }

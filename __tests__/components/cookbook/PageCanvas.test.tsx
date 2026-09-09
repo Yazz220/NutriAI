@@ -87,4 +87,16 @@ describe('PageCanvas accessibility', () => {
       'Tomato Pasta. Designed cookbook page.',
     );
   });
+
+  it('keeps a generated page in its artwork-loading state instead of rendering legacy text', () => {
+    const awaitingArtwork = {
+      ...page,
+      selectedVersionId: 'image-1',
+      pageImage: undefined,
+    };
+
+    const screen = render(<PageCanvas page={awaitingArtwork} />);
+
+    expect(screen.getByText('Page artwork is being prepared.')).toBeTruthy();
+  });
 });

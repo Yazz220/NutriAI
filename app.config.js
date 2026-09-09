@@ -1,16 +1,16 @@
 /**
  * Dynamic Expo config — reads APP_VARIANT to create separate dev/production apps.
  *
- * Production:  "Nosh"       com.yaz12.nosh       scheme: nosh
- * Development: "Nosh (Dev)" com.yaz12.nosh.dev   scheme: nosh
+ * Production:  "Folio"       com.yaz12.nosh       scheme: nosh
+ * Development: "Folio (Dev)" com.yaz12.nosh.dev   scheme: nosh
  *
  * Scheme stays "nosh" for both variants so Metro QR codes (exp+nosh://)
  * are handled correctly by the dev build. The bundle ID differentiates
  * the apps for side-by-side install.
  *
  * Build commands:
- *   eas build --profile development   → installs "Nosh (Dev)" on device
- *   eas build --profile preview       → installs "Nosh" for TestFlight
+ *   eas build --profile development   → installs "Folio (Dev)" on device
+ *   eas build --profile preview       → installs "Folio" for TestFlight
  *   eas build --profile production    → App Store submission
  */
 
@@ -33,9 +33,10 @@ function withVariantShareIdentifiers(plugins = []) {
 
 module.exports = ({ config }) => ({
   ...config,
-  // Keep name as "Nosh" always so the Xcode target stays consistent.
+  // Folio is the display and generated target name. Stable bundle identifiers
+  // and the nosh:// URL scheme remain unchanged for compatibility.
   // The home-screen display name is overridden via infoPlist for dev builds.
-  name: "Nosh",
+  name: "Folio",
   scheme: config.scheme || "nosh",
   plugins: withVariantShareIdentifiers(config.plugins),
   ios: {
@@ -46,7 +47,7 @@ module.exports = ({ config }) => ({
     infoPlist: {
       ...config.ios?.infoPlist,
       // Override the display name on the home screen for dev builds
-      ...(IS_DEV ? { CFBundleDisplayName: "Nosh (Dev)" } : {}),
+      ...(IS_DEV ? { CFBundleDisplayName: "Folio (Dev)" } : {}),
     },
   },
   android: {

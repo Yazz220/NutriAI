@@ -24,7 +24,8 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
-import { ArtLayer } from '@/components/cookbook/typesetter/ArtLayer';
+import { ArtLayer, type ArtLayerProps } from '@/components/cookbook/typesetter/ArtLayer';
+import { useCookbookPageImageUrl } from '@/hooks/useCookbookPageImage';
 import { TextLayer } from '@/components/cookbook/typesetter/TextLayer';
 import { getTypesetterStyleConfig } from '@/constants/typesetterStyles';
 import { getTypesetterLayoutConfig } from '@/constants/typesetterLayouts';
@@ -50,6 +51,17 @@ export interface TypesetterPageProps {
   fixedHeight?: number;
   /** Called after base layout, and again when the current art asset finishes loading. */
   onRenderReady?: () => void;
+}
+
+function StoredArtLayer({ storagePath, ...props }: Omit<ArtLayerProps, 'artUrl'> & { storagePath: string }) {
+  const image = useCookbookPageImageUrl(storagePath, 'full');
+  return <ArtLayer {...props} artUrl={image.data ?? null} />;
+}
+
+function ResolvedArtLayer({ artAsset, ...props }: Omit<ArtLayerProps, 'artUrl'> & { artAsset?: PageArtAsset | null }) {
+  return artAsset?.storagePath
+    ? <StoredArtLayer {...props} storagePath={artAsset.storagePath} />
+    : <ArtLayer {...props} artUrl={artAsset?.artUrl ?? null} />;
 }
 
 export const TypesetterPage = memo(function TypesetterPage({
@@ -131,10 +143,10 @@ export const TypesetterPage = memo(function TypesetterPage({
       {hasMeasuredPage ? (
         <>
           {/* Art layer (z-index 0) — Skia Canvas with art + decorative elements */}
-          <ArtLayer
+          <ResolvedArtLayer
             width={pageWidth}
             height={pageHeight}
-            artUrl={artUrl}
+            artAsset={artAsset}
             styleConfig={styleConfig}
             layoutConfig={layoutConfig}
             onImageReady={handleArtReady}

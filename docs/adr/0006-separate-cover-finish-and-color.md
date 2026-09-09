@@ -4,7 +4,7 @@ status: accepted
 
 # Separate cover finish from cover color
 
-The canonical Nosh book keeps one geometry, construction, reader, and physical behavior. Its surface appearance is modeled as two independent, curated choices: `cover_finish_id` selects Fine cloth or Natural linen, and `cover_color_id` selects one of six product-owned colors.
+The canonical Folio book keeps one geometry, construction, reader, and physical behavior. Its surface appearance is modeled as two independent, curated choices: `cover_finish_id` selects Fine cloth or Natural linen, and `cover_color_id` selects one of six product-owned colors.
 
 This decision refines ADR 0005. It supersedes only the statement that material categories are not exposed. The finishes are surface treatments, not separate book types: they change weave and grain parameters inside the shared cover renderer and do not change dimensions, boards, spine, page block, opening, physics, or page rendering.
 

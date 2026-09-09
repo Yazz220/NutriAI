@@ -3,13 +3,30 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { RecipeCaptureScreen } from '@/components/nosh/capture/RecipeCaptureScreen';
 
 export default function SaveRecipeScreen() {
-  const params = useLocalSearchParams<{ captureId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    captureId?: string | string[];
+    captureAction?: string | string[];
+  }>();
   const captureId = Array.isArray(params.captureId) ? params.captureId[0] : params.captureId;
+  const rawCaptureAction = Array.isArray(params.captureAction) ? params.captureAction[0] : params.captureAction;
+  const initialCaptureAction = rawCaptureAction === 'replace_source' || rawCaptureAction === 'correct_recipe'
+    ? rawCaptureAction
+    : undefined;
+
+  function exitComposer() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(book)');
+  }
+
   return (
     <RecipeCaptureScreen
       captureId={captureId}
-      onExit={() => router.replace('/(book)')}
-      exitAccessibilityLabel="Back to my cookbooks"
+      initialCaptureAction={initialCaptureAction}
+      onExit={exitComposer}
+      exitAccessibilityLabel="Back"
     />
   );
 }

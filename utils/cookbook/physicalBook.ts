@@ -174,6 +174,50 @@ export function resolveTurnProgress(grab: TurnGrab): number {
   return canTurn ? progress : progress * EDGE_RESISTANCE;
 }
 
+/**
+ * Spine-anchored turn progress used by the native scene. The leaf corner
+ * keeps a fixed offset from the pointer (captured as grabX at touch-down)
+ * and the travel is always one full leaf diameter (2 * pageWidth): a corner
+ * dragged one page width crosses the spine at progress 0.5 and lies flat on
+ * the far side at 1 — regardless of where the page was grabbed or how wide
+ * the screen is. Only the pointer/grab difference is used, so any shared
+ * coordinate origin (screen, stage, or page units) yields the same result.
+ * When no page exists in the grab direction the leaf resists instead of
+ * moving 1:1.
+ */
+export function resolveAnchoredTurnProgress(grab: {
+  grabX: number;
+  pointerX: number;
+  pageWidth: number;
+  direction: Exclude<PageTurnDirection, 0>;
+  canTurn: boolean;
+}): number {
+  'worklet';
+  const { grabX, pointerX, pageWidth, direction, canTurn } = grab;
+  const travel = Math.max(2 * pageWidth, 1);
+  const raw = direction === 1 ? (grabX - pointerX) / travel : (pointerX - grabX) / travel;
+  const progress = clampPageTurnProgress(raw);
+  return canTurn ? progress : progress * EDGE_RESISTANCE;
+}
+
+/**
+ * Exact inverse of resolveAnchoredTurnProgress: the grab point that yields
+ * `progress` while the pointer rests at `pointerX`. Used when a touch starts
+ * (corner lift) or re-grabs a leaf mid-turn, so the leaf stays exactly where
+ * it is instead of snapping to a recomputed pose.
+ */
+export function resolveTurnGrabXForProgress(input: {
+  pointerX: number;
+  progress: number;
+  pageWidth: number;
+  direction: Exclude<PageTurnDirection, 0>;
+}): number {
+  'worklet';
+  const travel = Math.max(2 * input.pageWidth, 1);
+  const offset = clampPageTurnProgress(input.progress) * travel;
+  return input.direction === 1 ? input.pointerX + offset : input.pointerX - offset;
+}
+
 export interface TurnRelease {
   commit: boolean;
   /**

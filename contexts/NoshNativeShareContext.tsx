@@ -4,6 +4,7 @@ import type { RecipeSourceType } from '@/types/cookbook';
 export type NativeShareReceipt =
   | { status: 'idle' }
   | { status: 'waiting_for_sign_in' }
+  | { status: 'needs_video_permission'; sourceType: 'video' }
   | { status: 'saving'; sourceType: RecipeSourceType }
   | { status: 'saved'; sourceType: RecipeSourceType; captureId: string }
   | { status: 'failed'; sourceType?: RecipeSourceType; message: string };
@@ -13,6 +14,8 @@ interface NoshNativeShareValue {
   setReceipt: (receipt: NativeShareReceipt) => void;
   retryToken: number;
   retry: () => void;
+  videoPermissionToken: number;
+  confirmVideoPermission: () => void;
 }
 
 const NoshNativeShareContext = createContext<NoshNativeShareValue | null>(null);
@@ -20,12 +23,15 @@ const NoshNativeShareContext = createContext<NoshNativeShareValue | null>(null);
 export function NoshNativeShareProvider({ children }: { children: React.ReactNode }) {
   const [receipt, setReceipt] = useState<NativeShareReceipt>({ status: 'idle' });
   const [retryToken, setRetryToken] = useState(0);
+  const [videoPermissionToken, setVideoPermissionToken] = useState(0);
   const value = useMemo<NoshNativeShareValue>(() => ({
     receipt,
     setReceipt,
     retryToken,
     retry: () => setRetryToken((current) => current + 1),
-  }), [receipt, retryToken]);
+    videoPermissionToken,
+    confirmVideoPermission: () => setVideoPermissionToken((current) => current + 1),
+  }), [receipt, retryToken, videoPermissionToken]);
   return <NoshNativeShareContext.Provider value={value}>{children}</NoshNativeShareContext.Provider>;
 }
 

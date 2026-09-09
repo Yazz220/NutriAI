@@ -1,6 +1,6 @@
 export type ContextActionId =
   | 'add_recipe'
-  | 'rename_cookbook'
+  | 'customize_cookbook'
   | 'export_cookbook'
   | 'delete_cookbook'
   | 'edit_recipe'
@@ -9,7 +9,10 @@ export type ContextActionId =
   | 'save_page_image'
   | 'share_recipe'
   | 'move_recipe'
-  | 'remove_recipe';
+  | 'remove_recipe'
+  | 'report_recipe'
+  | 'resolve_capture'
+  | 'remove_capture';
 
 export interface ContextAction {
   id: ContextActionId;
@@ -25,7 +28,7 @@ export interface ContextActionGroup {
 
 interface CookbookActionCapabilities {
   canAddRecipe?: boolean;
-  canRename?: boolean;
+  canCustomize?: boolean;
   canExport?: boolean;
   canDelete?: boolean;
 }
@@ -38,11 +41,25 @@ interface RecipeActionCapabilities {
   canShare?: boolean;
   canMove?: boolean;
   canRemove?: boolean;
+  canReport?: boolean;
+}
+
+export function buildCaptureContextActions(primaryTitle: string): ContextActionGroup[] {
+  return [
+    {
+      id: 'capture-primary',
+      actions: [{ id: 'resolve_capture', title: primaryTitle, systemImage: 'arrow.clockwise' }],
+    },
+    {
+      id: 'capture-destructive',
+      actions: [{ id: 'remove_capture', title: 'Remove', systemImage: 'trash', destructive: true }],
+    },
+  ];
 }
 
 export function buildCookbookContextActions({
   canAddRecipe = false,
-  canRename = false,
+  canCustomize = false,
   canExport = false,
   canDelete = false,
 }: CookbookActionCapabilities): ContextActionGroup[] {
@@ -53,8 +70,8 @@ export function buildCookbookContextActions({
   if (canAddRecipe) {
     primary.push({ id: 'add_recipe', title: 'Add recipe', systemImage: 'plus' });
   }
-  if (canRename) {
-    primary.push({ id: 'rename_cookbook', title: 'Rename cookbook', systemImage: 'pencil' });
+  if (canCustomize) {
+    primary.push({ id: 'customize_cookbook', title: 'Customize cookbook', systemImage: 'paintbrush' });
   }
   if (canExport) {
     sharing.push({ id: 'export_cookbook', title: 'Download cookbook PDF', systemImage: 'arrow.down.doc' });
@@ -83,10 +100,12 @@ export function buildRecipeContextActions({
   canShare = false,
   canMove = false,
   canRemove = false,
+  canReport = false,
 }: RecipeActionCapabilities): ContextActionGroup[] {
   const editing: ContextAction[] = [];
   const sharing: ContextAction[] = [];
   const organization: ContextAction[] = [];
+  const reporting: ContextAction[] = [];
   const destructive: ContextAction[] = [];
 
   if (canEdit) {
@@ -107,6 +126,9 @@ export function buildRecipeContextActions({
   if (canMove) {
     organization.push({ id: 'move_recipe', title: 'Move to another cookbook', systemImage: 'books.vertical' });
   }
+  if (canReport) {
+    reporting.push({ id: 'report_recipe', title: 'Report issue or content', systemImage: 'flag' });
+  }
   if (canRemove) {
     destructive.push({
       id: 'remove_recipe',
@@ -120,6 +142,7 @@ export function buildRecipeContextActions({
     { id: 'recipe-editing', actions: editing },
     { id: 'recipe-sharing', actions: sharing },
     { id: 'recipe-organization', actions: organization },
+    { id: 'recipe-reporting', actions: reporting },
     { id: 'recipe-destructive', actions: destructive },
   ]);
 }

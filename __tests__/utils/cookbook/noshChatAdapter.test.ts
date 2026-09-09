@@ -7,6 +7,16 @@ jest.mock('@/utils/supabaseEdge', () => ({
 }));
 
 const mockedStream = jest.mocked(streamAuthenticatedFunction);
+const pancakeCandidate = {
+  pageId: 'page-pancakes',
+  cookbookId: 'book-dinner',
+  cookbookTitle: 'Dinner recipe',
+  title: 'Quick Pancakes',
+  tags: [],
+  ingredientPreview: [],
+  updatedAt: '2026-09-03T12:00:00.000Z',
+  score: 10,
+};
 const collectionInteraction = {
   entryPoint: 'shelf-nosh' as const,
   task: 'collection' as const,
@@ -45,6 +55,44 @@ function runOptions(execute: jest.Mock): ChatModelRunOptions {
   } as unknown as ChatModelRunOptions;
 }
 
+function userMessage(text: string) {
+  return {
+    id: `user-${text}`,
+    role: 'user',
+    createdAt: new Date(),
+    content: [{ type: 'text', text }],
+    attachments: [],
+    metadata: { custom: {} },
+  } as never;
+}
+
+function assistantBrowseMessage() {
+  return {
+    id: 'assistant-browse',
+    role: 'assistant',
+    createdAt: new Date(),
+    content: [{
+      type: 'tool-call',
+      toolCallId: 'browse-chicken',
+      toolName: 'browse_recipe_collection',
+      args: { ingredientsAny: ['chicken'], maxTotalMinutes: 30 },
+      argsText: JSON.stringify({ ingredientsAny: ['chicken'], maxTotalMinutes: 30 }),
+      result: {
+        recipes: [{
+          pageId: 'page-fajitas',
+          cookbookId: 'book-dinner',
+          cookbookTitle: 'Dinner',
+          title: 'Chicken Fajitas',
+          totalTimeMinutes: 30,
+        }],
+        totalCount: 1,
+      },
+    }],
+    status: { type: 'complete', reason: 'stop' },
+    metadata: { custom: {} },
+  } as never;
+}
+
 function mockResponse(response: Record<string, unknown>) {
   mockedStream.mockImplementation(async function* () {
     yield { type: 'result', result: response };
@@ -79,14 +127,162 @@ describe('createNoshChatAdapter', () => {
     mockedStream.mockReset();
   });
 
-  it('yields cumulative assistant text as tokens arrive', async () => {
+  it('sends collection questions to the agent instead of answering from a local shortcut', async () => {
+    mockResponse({
+      message: { role: 'assistant', content: 'Yes, you have Quick Pancakes in Dinner recipe.' },
+      toolCalls: [],
+    });
+    const requestConsent = jest.fn().mockResolvedValue(true);
+    const adapter = createNoshChatAdapter(
+      () => ({ interaction: collectionInteraction }),
+      requestConsent,
+    );
+    const options = runOptions(jest.fn());
+    options.messages = [userMessage('Do I have a pancake recipe?')];
+
+    const result = await runAdapter(adapter, options);
+
+    expect(requestConsent).toHaveBeenCalledTimes(1);
+    expect(mockedStream).toHaveBeenCalledWith(
+      'nosh-chat',
+      expect.objectContaining({
+        messages: [{ role: 'user', content: 'Do I have a pancake recipe?' }],
+        tools: expect.arrayContaining(['search_recipe_collection', 'load_recipe']),
+      }),
+      expect.anything(),
+    );
+    expect(result.status).toEqual({ type: 'complete', reason: 'stop' });
+  });
+
+  it('renders a server-side search → load → answer chain from one streamed request', async () => {
+    const loaded = {
+      pageId: pancakeCandidate.pageId,
+      cookbookId: pancakeCandidate.cookbookId,
+      recipeGraph: { title: 'Quick Pancakes', ingredientGroups: [], stepGroups: [] },
+    };
     mockedStream.mockImplementation(async function* () {
-      yield { type: 'text-delta', delta: 'Hello' };
-      yield { type: 'text-delta', delta: ' from Nosh' };
+      yield {
+        type: 'tool-call',
+        toolCall: {
+          id: 'search-1',
+          type: 'function',
+          function: { name: 'search_recipe_collection', arguments: JSON.stringify({ query: 'pancake' }) },
+        },
+      };
+      yield {
+        type: 'tool-result',
+        toolCallId: 'search-1',
+        result: { status: 'resolved', candidate: pancakeCandidate, candidates: [pancakeCandidate] },
+        isError: false,
+      };
+      yield {
+        type: 'tool-call',
+        toolCall: {
+          id: 'load-1',
+          type: 'function',
+          function: { name: 'load_recipe', arguments: JSON.stringify({ pageId: pancakeCandidate.pageId }) },
+        },
+      };
+      yield { type: 'tool-result', toolCallId: 'load-1', result: loaded, isError: false };
+      yield { type: 'text-delta', delta: 'You need flour' };
+      yield { type: 'text-delta', delta: ' and eggs.' };
       yield {
         type: 'result',
         result: {
-          message: { role: 'assistant', content: 'Hello from Nosh' },
+          message: { role: 'assistant', content: 'You need flour and eggs.' },
+          toolCalls: [],
+          requestId: 'run-1',
+        },
+      };
+    });
+    const execute = jest.fn();
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
+    const options = runOptions(execute);
+    options.messages = [userMessage('What do I need for my pancakes?')];
+
+    const results = await collectAdapterResults(adapter, options);
+    const final = results.at(-1);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(final?.status).toEqual({ type: 'complete', reason: 'stop' });
+    expect(final?.content).toEqual([
+      expect.objectContaining({
+        type: 'tool-call',
+        toolCallId: 'search-1',
+        toolName: 'search_recipe_collection',
+        args: { query: 'pancake' },
+        result: expect.objectContaining({ status: 'resolved' }),
+        isError: false,
+      }),
+      expect.objectContaining({
+        type: 'tool-call',
+        toolCallId: 'load-1',
+        toolName: 'load_recipe',
+        result: loaded,
+      }),
+      { type: 'text', text: 'You need flour and eggs.' },
+    ]);
+    expect(final?.metadata).toEqual({ custom: { noshAgentRequestId: 'run-1' } });
+    // Intermediate yields show the running lookup before its result arrives.
+    expect(results[0]).toEqual({
+      content: [expect.objectContaining({ type: 'tool-call', toolCallId: 'search-1' })],
+    });
+    expect((results[0]?.content?.[0] as { result?: unknown }).result).toBeUndefined();
+  });
+
+  it('forwards earlier tool results so the server can derive the conversation subject', async () => {
+    mockResponse({ message: { role: 'assistant', content: 'Here is the list.' }, toolCalls: [] });
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
+    const options = runOptions(jest.fn());
+    options.messages = [
+      userMessage('Which saved recipes use chicken and take under 30 minutes?'),
+      assistantBrowseMessage(),
+      userMessage('Make me a shopping list for it.'),
+    ];
+
+    await runAdapter(adapter, options);
+
+    const body = mockedStream.mock.calls[0]?.[1] as { messages: Array<Record<string, unknown>> };
+    expect(body.messages).toEqual([
+      { role: 'user', content: 'Which saved recipes use chicken and take under 30 minutes?' },
+      expect.objectContaining({
+        role: 'assistant',
+        tool_calls: [expect.objectContaining({ id: 'browse-chicken' })],
+      }),
+      expect.objectContaining({
+        role: 'tool',
+        tool_call_id: 'browse-chicken',
+        content: expect.stringContaining('page-fajitas'),
+      }),
+      { role: 'user', content: 'Make me a shopping list for it.' },
+    ]);
+  });
+
+  it('sends the focus acceptance point so the server can rank focus against chat subjects', async () => {
+    mockResponse({ message: { role: 'assistant', content: 'Sure.' }, toolCalls: [] });
+    const adapter = createNoshChatAdapter(() => ({
+      interaction: { ...collectionInteraction, focusUserMessageCount: 2 },
+    }));
+
+    await runAdapter(adapter, runOptions(jest.fn()));
+
+    expect(mockedStream).toHaveBeenCalledWith(
+      'nosh-chat',
+      expect.objectContaining({
+        interactionContext: expect.objectContaining({ focusUserMessageCount: 2 }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('yields cumulative assistant text as tokens arrive', async () => {
+    mockedStream.mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Hello' };
+      yield { type: 'text-delta', delta: ' from Folio' };
+      yield {
+        type: 'result',
+        result: {
+          message: { role: 'assistant', content: 'Hello from Folio' },
           toolCalls: [],
         },
       };
@@ -97,9 +293,43 @@ describe('createNoshChatAdapter', () => {
 
     expect(results).toEqual([
       [{ type: 'text', text: 'Hello' }],
-      [{ type: 'text', text: 'Hello from Nosh' }],
+      [{ type: 'text', text: 'Hello from Folio' }],
       { status: { type: 'complete', reason: 'stop' } },
     ].map((result) => Array.isArray(result) ? { content: result } : result));
+  });
+
+  it('routes a short social turn through the quick path without action tools', async () => {
+    mockResponse({
+      message: { role: 'assistant', content: 'Hi. What are we cooking?' },
+      toolCalls: [],
+    });
+    const resolveRecipeGraph = jest.fn().mockResolvedValue({ title: 'Slow recipe context' });
+    const resolveCookingPreferences = jest.fn().mockResolvedValue([]);
+    const requestConsent = jest.fn().mockResolvedValue(true);
+    const adapter = createNoshChatAdapter(
+      () => ({
+        interaction: collectionInteraction,
+        resolveRecipeGraph,
+        resolveCookingPreferences,
+      }),
+      requestConsent,
+    );
+    const options = runOptions(jest.fn());
+    options.messages = [userMessage('Hi')];
+
+    await runAdapter(adapter, options);
+
+    expect(mockedStream).toHaveBeenCalledWith(
+      'nosh-chat',
+      expect.objectContaining({
+        responseMode: 'quick',
+        tools: [],
+      }),
+      expect.anything(),
+    );
+    expect(resolveRecipeGraph).not.toHaveBeenCalled();
+    expect(resolveCookingPreferences).not.toHaveBeenCalled();
+    expect(requestConsent).not.toHaveBeenCalled();
   });
 
   it('stops cleanly when the run is cancelled', async () => {
@@ -169,7 +399,7 @@ describe('createNoshChatAdapter', () => {
     );
 
     await expect(runAdapter(adapter, runOptions(jest.fn()))).rejects.toThrow(
-      'Allow AI processing to send messages to Nosh.',
+      'Allow AI processing to send messages to Folio.',
     );
     expect(requestConsent).toHaveBeenCalledTimes(1);
     expect(mockedStream).not.toHaveBeenCalled();
@@ -231,6 +461,10 @@ describe('createNoshChatAdapter', () => {
       }),
       expect.objectContaining({ type: 'text' }),
     ]));
+    expect(result.content).toContainEqual({
+      type: 'text',
+      text: 'I could not finish looking that up. Please try again.',
+    });
   });
 
   it('executes collection retrieval without injecting a capped page-title list', async () => {
@@ -287,6 +521,7 @@ describe('createNoshChatAdapter', () => {
           'open_recipe',
           'list_cookbooks',
           'organize_recipe',
+          'start_timer',
           'save_cooking_preference',
         ],
         cookbookContext: expect.not.objectContaining({ otherRecipes: expect.anything() }),
@@ -330,7 +565,7 @@ describe('createNoshChatAdapter', () => {
     );
   });
 
-  it('resolves recipe context before starting a recipe-scoped request', async () => {
+  it('lets the server resolve canonical context without a duplicate client lookup', async () => {
     const resolvedGraph = { title: 'Pasta', ingredientGroups: [], stepGroups: [] };
     const resolveRecipeGraph = jest.fn().mockResolvedValue(resolvedGraph);
     mockResponse({
@@ -350,7 +585,7 @@ describe('createNoshChatAdapter', () => {
 
     await runAdapter(adapter, runOptions(jest.fn()));
 
-    expect(resolveRecipeGraph).toHaveBeenCalledTimes(1);
+    expect(resolveRecipeGraph).not.toHaveBeenCalled();
     expect(mockedStream).toHaveBeenCalledWith(
       'nosh-chat',
       expect.objectContaining({
@@ -469,5 +704,40 @@ describe('createNoshChatAdapter', () => {
       }),
       expect.anything(),
     );
+  });
+});
+
+
+describe('terminal chat events', () => {
+  it('completes at result without consuming a delayed EOF', async () => {
+    let consumedAfterResult = false;
+    let released = false;
+    mockedStream.mockImplementation(async function* () {
+      try {
+        yield { type: 'result', result: { message: { role: 'assistant', content: 'Start with the onions.' }, toolCalls: [] } } as never;
+        consumedAfterResult = true;
+        throw new Error('Transport stayed open after the answer');
+      } finally { released = true; }
+    });
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }));
+    const updates = await runAdapter(adapter, runOptions(jest.fn()));
+    expect(updates.status).toEqual({ type: 'complete', reason: 'stop' });
+    expect(consumedAfterResult).toBe(false);
+    expect(released).toBe(true);
+  });
+});
+
+
+describe('chat preflight cancellation', () => {
+  it('releases the running turn when Stop is pressed while consent is pending', async () => {
+    const controller = new AbortController();
+    const consent = jest.fn(() => new Promise<boolean>(() => {}));
+    const adapter = createNoshChatAdapter(() => ({ interaction: collectionInteraction }), consent);
+    const options = { ...runOptions(jest.fn()), messages: [userMessage('Make this for two')], abortSignal: controller.signal };
+    const pending = collectAdapterResults(adapter, options);
+    const checked = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    await checked;
+    expect(consent).toHaveBeenCalledTimes(1);
   });
 });

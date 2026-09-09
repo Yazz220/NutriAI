@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/colors';
 
 /**
- * Product-owned material measurements for the canonical Nosh cookbook.
+ * Product-owned material measurements for the canonical Folio cookbook.
  *
  * Geometry defines the trimmed 4:5 leaf. This contract defines the physical
  * object around it: cloth-covered boards, hinge, page block, paper, and the

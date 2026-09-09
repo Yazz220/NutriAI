@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the live book-first Nosh app. Read [PRODUCT_FLOW.md](./PRODUCT_FLOW.md), [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md), and [ADR 0003](./adr/0003-suspend-internal-generation-credits.md) before changing recipe capture or page generation. Dated plans under `docs/superpowers/` are historical.
+This document describes the live book-first Folio app. Read [PRODUCT_FLOW.md](./PRODUCT_FLOW.md), [ADR 0002](./adr/0002-single-capture-and-complete-page-generation.md), and [ADR 0003](./adr/0003-suspend-internal-generation-credits.md) before changing recipe capture or page generation. Dated plans under `docs/superpowers/` are historical.
 
 ## Product Surface
 
@@ -11,14 +11,14 @@ Signed-out user
 Signed-in user
   -> app/(book)/index.tsx
      -> My Cookbooks shelf
-     -> persistent Nosh conversation for recipe intake and cooking help
+     -> persistent Folio conversation for recipe intake and cooking help
      -> Book Library for creating a styled cookbook
      -> BookReader for one cookbook
         -> cover page
         -> bookplate
         -> recipe pages
-        -> Nosh intake entry
-        -> the same Nosh conversation with active page context
+        -> Folio intake entry
+        -> the same Folio conversation with active page context
 ```
 
 There is no persistent bottom navigation. The shelf is the home surface, and a cookbook reader is the primary product surface after a book is opened.
@@ -64,7 +64,7 @@ Route responsibilities:
 | `app/(auth)/reset-password.tsx` | Password reset form reached via recovery callback |
 | `app/(book)/index.tsx` | My Cookbooks shelf and sample-book preview entry |
 | `app/(book)/library.tsx` | Single-book customization studio and cookbook creation |
-| `app/(book)/save.tsx` | The single recipe source composer plus processing, destination, retry, and ready activity |
+| `app/(book)/save.tsx` | The single recipe source composer plus physical-book destination carousel, processing, retry, and ready activity |
 | `app/(book)/imports.tsx` | Compatibility redirect into Save a recipe |
 | `app/(book)/share.tsx` | Native share receipt and retry screen |
 | `app/(book)/settings.tsx` | Account, library stats, sign out |
@@ -75,6 +75,8 @@ Route responsibilities:
 
 There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in the current branch. Reader page selection is state inside `app/(book)/[cookbookId]/index.tsx`. The review and generation routes are redirects retained only for old links. The reader now contains a bookplate and recipe pages; the table of contents has been retired.
 
+`CookbookDestinationCarousel` is a custom gesture surface built on the app's existing Gesture Handler, Reanimated, and Expo Haptics stack. It activates only after deliberate horizontal travel, fails early for vertical scrolling, maps logical positions into a continuous circular cookbook order, applies resistance beyond one-book travel, and clamps each gesture to one cookbook. Selection settles with a reduced-motion-aware spring; haptics occur only when crossing a cookbook detent or making an explicit tap.
+
 ## Root Provider Tree
 
 `app/_layout.tsx` wraps the app as follows:
@@ -83,24 +85,29 @@ There is no direct `app/(book)/[cookbookId]/[pageId].tsx` file in the current br
 ShareIntentProvider
   NoshNativeShareProvider
     QueryClientProvider
-      CookbooksProvider
-        NoshConversationProvider
-          ToastProvider
-            GlobalErrorBoundary
-              RootLayoutNav
-                GestureHandlerRootView
-                  SafeAreaProvider
-                    StatusBar
-                    Stack
-                      (auth)
-                      (book)
-                    NoshConversationHost
-                    RecipeCaptureResume
-                    NativeShareIngestion
-                    OfflineBanner
+      NoshSubscriptionProvider
+        SubscriptionUiProvider
+          CookbooksProvider
+            NoshConversationProvider
+              ToastProvider
+                GlobalErrorBoundary
+                  RootLayoutNav
+                    GestureHandlerRootView
+                      SafeAreaProvider
+                        StatusBar
+                        Stack
+                          (auth)
+                          (book)
+                        NoshConversationHost
+                        RecipeCaptureResume
+                        NativeShareIngestion
+                        SubscriptionHost
+                        OfflineBanner
 ```
 
-Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. `NoshConversationProvider` keeps the assistant sheet and interaction session alive across route changes. The session records an entry point, active task, stable conversation focus, and a separate visible route context. Its root-mounted `LocalRuntime` bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`.
+Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `AuthProvider` in the live code. Per-book state is managed by `useCookbook(cookbookId)`; there is no global `CookbookProvider`. `NoshConversationProvider` keeps the assistant sheet and interaction session alive across route changes. The session records an entry point, active task, stable conversation focus, and a separate visible route context. Its root-mounted `LocalRuntime` bridges to the `nosh-chat` Edge Function via `utils/cookbook/noshChatAdapter.ts`. Conversation presentation is always context-aware; there is no legacy flag-gated assistant UI. The adapter marks self-contained greetings and thanks for the deterministic quick path, while all other turns keep the normal streamed model and tool loop.
+
+Sentry is initialized before the root layout and wraps the Expo Router tree. `folio-mobile` owns client/native failures and sampled navigation performance; `folio-backend` owns Edge Function and external-provider failures. Recipe content and media are excluded by client and server scrubbers, and Session Replay is intentionally disabled. See [OBSERVABILITY.md](./OBSERVABILITY.md).
 
 ## Active Hooks
 
@@ -109,11 +116,24 @@ Auth is currently read through `useAuth()` in `RootLayoutNav`; there is no `Auth
 | `useAuth` | Supabase session, user, and sign-out |
 | `useCookbooks` | Shelf list, create/delete cookbook, and shelf cache hydration |
 | `useCookbook(cookbookId)` | One cookbook, its pages, selected page, refresh, and optimistic page upsert |
-| `useRecipeCaptures` | Durable capture list, polling, retry, and destination selection |
+| `useRecipeCaptures` | Durable capture list, polling, retry, destination selection, and page-cache reconciliation |
+| `useRecipeCaptureFeed` | Read-only shared capture feed used by passive app-level lifecycle observers |
+| `useUnseenCookbookPages` | Device-local New markers for pages that become ready after a cookbook baseline is established |
 | `useNoshConversation` | Persistent conversation visibility, intake state, and active book/page context |
 | `useNetworkStatus` | Connectivity state for the offline banner |
+| `useNoshSubscription` | Server-authoritative plan and usage plus RevenueCat offering, purchase, restore, and management state |
 
-`useCookbooks` is the context-backed shelf hook created with `@nkzw/create-context-hook`. Capture state is ordinary React Query state in `useRecipeCaptures`.
+`useCookbooks` is the context-backed shelf hook created with `@nkzw/create-context-hook`. Its cookbook-customization mutation writes the title and canonical physical-cover fields atomically, returns the RLS-filtered row, and reconciles both the shelf and active-book query caches. `CreationStudio` owns the shared create/edit interface; edit mode is prefilled from the selected cookbook, omits scene and recipe-page-style controls, and does not run cookbook-capacity checks. Capture state is ordinary React Query state in `useRecipeCaptures`.
+
+## Subscription and capacity
+
+Folio Free and Plus share the same assistant and capture formats. Capacity is attached to successful designed-page production and cookbook creation. RevenueCat supplies localized store products and subscription lifecycle; Supabase owns the effective plan and usage decision.
+
+`NoshSubscriptionProvider` configures RevenueCat only after a Supabase UUID is known, fetches `get_subscription_access()`, and explicitly synchronizes the backend after purchase or restore. `SubscriptionUiProvider` lets feature surfaces request access without importing store objects. The single root `SubscriptionHost` presents the Folio paywall, unknown-access recovery, or Plus reset state while the calling feature retains its draft.
+
+`generate-page-art` reserves one unit against its idempotent `generation_request` before provider work. Completion settles the reservation with the ready page version; failure releases it. Direct authenticated cookbook inserts are revoked and `create_cookbook_for_current_user` atomically checks the plan. RevenueCat webhooks are bearer- and HMAC-verified, event-idempotent, and re-read the subscriber before changing entitlement state.
+
+See [MONETIZATION.md](./MONETIZATION.md) for the plan contract and operational setup.
 
 ## Data Flow
 
@@ -128,16 +148,19 @@ Reader
   -> nutriai.cookbooks + nutriai.cookbook_pages (with recipe_graph JSONB)
   -> AsyncStorage per-book pages cache
 
-Capture from Share to Nosh, Add page, or assistant handoff
+Capture from Share to Folio, Add page, or assistant handoff
   -> image sources are orientation-normalized, bounded to 2400 px, and encoded below 8 MB
   -> image container preflight verifies the real format and dimensions before model extraction
   -> permissioned video files resolve to a bounded private video data payload
-  -> social-video links remain bookmarks and stop before extraction
+  -> supported video containers are submitted to the speech-to-text adapter and sampled frames are uploaded alongside the video
+  -> public YouTube, TikTok, Instagram, and Facebook links may use a replaceable acquisition adapter
+     -> the adapter returns bounded metadata and seen/heard observations, never a RecipeGraph
+     -> unsupported, disabled-provider, and unavailable cases retain the link and show file, screenshot, audio, or text recovery only after acquisition fails
   -> existing audio files are validated, stored privately, and transcribed into recipe evidence
   -> capture-recipe durably saves the source
   -> extract-recipe Edge Function
      -> deterministic schema.org Recipe JSON-LD or Microdata normalization for supported URLs
-     -> strict-schema replaceable model extraction for unstructured text/image/video/audio transcript
+     -> strict-schema replaceable model extraction for unstructured text/image/video with merged transcript and frame evidence/audio transcript
      -> provider-neutral recipe | not_recipe | insufficient_evidence decision
   -> only recipe evidence may produce a canonical RecipeGraph
   -> unusable evidence stops in needs_attention with a stable reason and source-replacement action
@@ -150,6 +173,7 @@ Capture from Share to Nosh, Add page, or assistant handoff
   -> generate-page-art receives only cookbook copy and creates one complete 4:5 recipe page including visible text
   -> finalize_recipe_capture_page publishes the page and marks the capture ready
   -> React Query polling adds the published page to the reader cache
+  -> user-scoped AsyncStorage marks the newly ready page unseen until its first open
 
 Assistant
   -> root-mounted NoshConversationHost (assistant-ui LocalRuntime)
@@ -173,45 +197,51 @@ All database writes are scoped by Supabase Auth and RLS. Edge Functions receive 
 
 The pipeline has five cooperating modules with one public capture lifecycle:
 
-1. **Recipe Evidence and Extraction:** Uses deterministic schema.org Recipe JSON-LD or Microdata for structured URLs and a replaceable strict-schema multimodal model for unstructured text, image, video, and audio transcripts. URL acquisition classifies unavailable, access-restricted, unsupported, and oversized responses before extraction, and recognizes common bot-challenge interstitials without treating them as recipe content. Image preflight reads only bounded container headers, trusts the real JPEG, PNG, WebP, or GIF signature over caller metadata, rejects corrupt and implausibly tiny files, and records dimensions and byte size. The multimodal extractor still owns pixel-level judgments about blankness, blur, handwriting, cropping, and recipe completeness. Nosh does not run a second OCR service or raster decoder in the Edge Function. The video adapter accepts permissioned private uploads or permission-confirmed direct files under a 20 MB bound and verifies MP4/MOV, MPEG, or WebM container signatures. YouTube, TikTok, Instagram, Facebook, and Pinterest links, including known platform media-CDN and redirect hosts, stay as source bookmarks and stop before a model call. The audio adapter accepts a bounded existing recording, transcribes it through a replaceable speech-to-text model, and sends the transcript through the same evidence decision. Only `recipe` carries a RecipeGraphDraft.
+1. **Recipe Evidence and Extraction:** Uses deterministic schema.org Recipe JSON-LD or Microdata for structured URLs and a replaceable strict-schema multimodal model for unstructured text, image, video, acquired social-video observations, and audio transcripts. The evidence boundary accepts a practical, usable recipe even when the source omits optional details or some quantities; it rejects only evidence that cannot support a usable ingredient set and actionable method without inventing material cooking facts. URL acquisition classifies unavailable, access-restricted, unsupported, and oversized responses before extraction, and recognizes common bot-challenge interstitials without treating them as recipe content. Image preflight reads only bounded container headers, trusts the real JPEG, PNG, WebP, or GIF signature over caller metadata, rejects corrupt and implausibly tiny files, and records dimensions and byte size. The multimodal extractor still owns pixel-level judgments about blankness, blur, handwriting, cropping, and whether the visible evidence supports a usable recipe. Folio does not run a second OCR service or raster decoder in the Edge Function. The video adapter accepts permissioned private uploads or permission-confirmed direct files under a 20 MB bound and verifies MP4/MOV, MPEG, or WebM container signatures. Video ingestion uses signal decomposition: `capture-recipe` submits supported containers to Folio's replaceable direct-media speech-to-text adapter, while the client samples up to eight evenly-spaced frames from uploaded videos and uploads them as supplementary on-screen-text evidence. For a direct-file URL, `capture-recipe` performs the bounded, redirect-safe acquisition once and shares the same validated bytes with transcription and extraction. `extract-recipe` merges the available transcript, sampled frames, and whole video into a single multimodal model call, with a degraded retry that drops the whole video and relies on the available decomposed signals if the first attempt fails. Public YouTube, TikTok, Instagram, and Facebook links may pass through the provider-neutral external-acquisition port in `_shared/recipeEvidenceAcquisition.ts`; the current optional Supadata adapter returns bounded metadata and seen/heard observations, then Folio's extractor makes the only recipe-evidence decision and constructs the only RecipeGraph. Every pasted social-video link enters the durable capture immediately. Unsupported or unavailable sources show saved-link recovery only after acquisition fails. External acquisition does not call a transcript endpoint: uploaded audio transcription remains inside Folio's `_shared/audioTranscription.ts` abstraction, while uploaded and direct-file video transcription uses `_shared/videoTranscription.ts`. Only `recipe` carries a RecipeGraphDraft.
 2. **Recipe Quality Assessment:** Runs provider-neutral semantic checks, records field-level issues and measured coverage, and decides whether the graph can continue automatically or needs focused correction.
-3. **Culinary Reasoning / Nosh Agent (Qwen3.6-35B-A3B):** Multi-turn chat with tool calls that mutate the graph live
+3. **Culinary Reasoning / Folio Agent (Qwen3.6-35B-A3B):** Multi-turn chat with tool calls that mutate the graph live
 4. **Capture Orchestration:** Resolves the destination, owns retry/idempotency, creates one processing page, and publishes it when complete
 5. **Complete Page Generation (Qwen Image 3 Pro):** Produces the dish imagery, visible recipe text, typography, paper, and composition as one style-conditioned portrait page
 
-The selected generated image is the page the user reads. The canonical `recipe_graph` is a separate machine-readable layer used by Nosh for questions, substitutions, scaling, and revisions. Legacy vector/typesetter pages remain readable, but new captures do not use that rendering pipeline.
+The selected generated image is the page the user reads. The canonical `recipe_graph` is a separate machine-readable layer used by Folio for questions, substitutions, scaling, and revisions. Legacy vector/typesetter pages remain readable, but new captures do not use that rendering pipeline.
 
 Internal generation credits are suspended during product development. `generate-page-art` does not reserve a ledger credit, new page versions record `credit_cost = 0`, and OpenRouter provider availability is the only cost-side generation dependency. The historical ledger and reservation RPC remain dormant until a future product policy supersedes [ADR 0003](./adr/0003-suspend-internal-generation-credits.md).
 
 ### Assistant Chat
 
-`components/cookbook/NoshAssistantChat.tsx` hosts a root-mounted `@assistant-ui/react-native` `LocalRuntime` wrapped by its remote-thread-list runtime. `utils/cookbook/noshThreadStorage.ts` supplies a user-scoped AsyncStorage adapter, so users can start a clean conversation, browse generated conversation titles, restore messages after an app reload, switch sessions, and delete a session through a two-step confirmation. This history is device-local rather than cross-device cloud history. Each thread stores compact Nosh interaction metadata in its custom record. Capture scratch data is not restored with a general thread. The sheet can be launched from the shelf or reader without remounting. Tools in `utils/cookbook/noshToolkit.tsx` handle capture handoff, collection retrieval, explicit navigation, organization, and focused RecipeGraph changes.
+`components/cookbook/NoshAssistantChat.tsx` hosts a root-mounted `@assistant-ui/react-native` `LocalRuntime` wrapped by its remote-thread-list runtime. `utils/cookbook/noshThreadStorage.ts` supplies a user-scoped AsyncStorage adapter, so users can start a clean conversation, browse generated conversation titles, restore messages after an app reload, switch sessions, and delete a session through a two-step confirmation. This history is device-local rather than cross-device cloud history. Each thread stores compact Folio interaction metadata in its custom record. Capture scratch data is not restored with a general thread. The sheet can be launched from the shelf or reader without remounting. Tools in `utils/cookbook/noshToolkit.tsx` handle capture handoff, collection retrieval, explicit navigation, organization, and focused RecipeGraph changes.
 
 `nosh-chat` owns the server safety policy. It ignores client-supplied system messages, refuses clear intentional harm, self-harm, sexual-content, and malicious non-cooking requests before calling the model, and places conservative allergy, contamination, doneness, and urgent-care rules in the server system prompt. Completed text responses expose a Report action. `report-ai-response` verifies the current user and writes the response to a service-role-only table; report text is never logged.
 
-`types/noshInteraction.ts` defines the interaction contract. Reader swipes update `visibleContext`; they do not update `focus`. When a recipe is focused, "this recipe" keeps that meaning until an explicit focus change. Opening Ask Nosh from a different recipe offers two choices: move the current conversation's focus or start a new conversation. The adapter sends one focused RecipeGraph plus compact focus and visible-route metadata. It also selects tools by active task: collection, recipe help, capture, or walkthrough. Collection search returns at most five compact candidates, and one user request may load at most three canonical RecipeGraphs; larger comparisons are narrowed conversationally instead of placing the collection in model context.
+`types/noshInteraction.ts` defines the interaction contract. Reader swipes update `visibleContext`; they do not update `focus`. When a recipe is focused, "this recipe" keeps that meaning until an explicit focus change. Opening Ask Folio from a different recipe moves the conversation focus immediately. The adapter sends compact focus and visible-route metadata, plus a RecipeGraph only for a temporary session preview. It also selects tools by active task: collection, cookbook help, recipe help, capture, or preferences. Collection search returns at most five compact candidates, and one user request may load at most three canonical RecipeGraphs; larger comparisons are narrowed conversationally instead of placing the collection in model context.
 
-Recipe changes use `utils/cookbook/recipeActions.ts`. Scaling, substitutions, and graph patches produce a cloned proposal. A human action card offers temporary Session preview, saved update, saved copy, or cancel. Session preview lives in `NoshConversationContext` and does not write React Query, AsyncStorage, or Postgres. A saved update generates its matching complete page first, then switches the canonical graph and selected version. Walkthrough is temporary conversation state and starts only after the user explicitly asks for step-by-step guidance.
+Recipe changes use `utils/cookbook/recipeActions.ts`. Scaling, substitutions, and graph patches produce a cloned proposal. A human action card offers temporary Session preview, saved update, saved copy, or cancel. Session preview lives in `NoshConversationContext` and does not write React Query, AsyncStorage, or Postgres. A saved update generates its matching complete page first, then switches the canonical graph and selected version. Cooking guidance is ordinary conversation history.
 
-Purpose-built presentation modules live under `components/nosh/`. The shelf opens with collection jobs, recipe Ask Nosh opens with recipe-specific prompts, and capture alone exposes recipe-source attachments. All wrappers share the single root runtime, thread list, identity, and focus rules. When a recipe source appears outside capture, the `start_recipe_capture` human tool asks for confirmation before changing the task; the capture tools are not exposed to general collection or recipe-help turns.
+Chat answers from the supplied recipe whenever possible. Explicitly opening Ask Folio from a recipe adopts that focus in the existing conversation without a transition dialog. Cooking progress stays in the conversation; there is no walkthrough mode. Substitution and scaling advice stays in text unless the user requests an applied change or interactive preview.
+
+The server loads canonical focused context and the resolved conversation subject under the caller's RLS permissions before inference; session previews remain client-supplied. Older tool graphs are compacted, but the current subject is freshly hydrated for follow-ups. Client canonical recipe loading no longer delays the chat request. Server reads stay server-side, including mixed read/action rounds, with at most three read rounds followed by a tool-free answer. A 60-second request signal bounds model and database fetches. Provider retries honor cancellation, including backoff.
+
+Native chat uses Expo's streaming fetch. The client completes on the terminal result and releases the reader without waiting for EOF. The server runs completion bookkeeping as a background task, preserving user-authorized state writes independently of client cancellation. Context-ready and first-text logs include request IDs and elapsed time. Missing-recipe proposal failures resolve their human tool rather than leaving it pending.
+
+Purpose-built presentation modules live under `components/nosh/`. The shelf opens with collection jobs, recipe Ask Folio opens with recipe-specific prompts, and capture alone exposes recipe-source attachments. All wrappers share the single root runtime, thread list, identity, and focus rules. When a recipe source appears outside capture, the `start_recipe_capture` human tool asks for confirmation before changing the task; the capture tools are not exposed to general collection or recipe-help turns.
 
 Durable recipe intake uses `nutriai.recipe_captures`. The database enforces `processing -> needs_destination | ready | needs_attention`, with `needs_destination` and `needs_attention` resuming only to `processing`. The `capture-recipe` Edge Function saves first, runs extraction in `EdgeRuntime.waitUntil`, assesses the saved graph, resolves a destination, creates one `processing` cookbook page, and invokes the idempotent complete-page generator. Generator finalization atomically publishes the page and capture. There is no general approval gate. A missing destination is the normal pause, while an open cooking-critical quality issue creates a focused correction exception before any page row or art request exists. Stable failure codes distinguish source replacement, recipe correction, and the technical stage that should retry.
 
-Each capture stores `stage_checkpoints` for source reading, audio transcription when applicable, extraction, normalization, quality assessment, complete-page generation, and publication. A checkpoint contains the code contract version that produced the artifact plus bounded diagnostic metadata such as the model slug or decision. Provider and model names are observations, not compatibility keys, so switching providers does not create another pipeline. Retry reuses a compatible normalized graph, a compatible audio transcript, and any ready selected page version. If page generation succeeded but publication failed, retry calls publication again and does not request another image. `failed_stage` identifies the stopping point, while `failure_code` owns the recovery behavior and user copy.
+Each capture stores `stage_checkpoints` for source reading, optional external acquisition, audio transcription when applicable (standalone audio or video audio track), extraction, normalization, quality assessment, complete-page generation, and publication. A checkpoint contains the code contract version that produced the artifact plus bounded diagnostic metadata such as the model slug or decision. Accepted extraction, normalization, and quality results are persisted together by `persist_recipe_capture_analysis`, so the canonical graph and its compatible checkpoints cannot drift and do not require repeated database round trips. The acquisition checkpoint may be `pending`, `ready`, or `failed`; a pending entry stores the external job identity and polling state so a continuation never starts or bills a second job. Provider and model names are observations, not compatibility keys, so switching providers does not create another pipeline. Retry reuses compatible acquired observations, a compatible normalized graph, a compatible audio or video transcript, and any ready selected page version. If page generation succeeded but publication failed, retry calls publication again and does not request another image. `failed_stage` identifies the stopping point, while `failure_code` owns the recovery behavior and user copy.
 
-`supabase/functions/extract-recipe/evals/corpus.v1.json` is the versioned ingestion-quality contract. `_shared/ingestionEval.ts` scores provider output at the evidence, critical Recipe Graph field, and semantic-quality levels rather than treating schema validity or model confidence as correctness. Automated release cases cover every source type and fail on any missing observation, false recipe acceptance, missed recipe, lost critical fact, invented forbidden fact, or unexpected quality route. Diagnostic cases keep known hard inputs visible until Nosh has stable and properly licensed fixtures. See [Recipe ingestion evaluations](./INGESTION_EVALS.md) and [ADR 0014](./adr/0014-gate-ingestion-changes-with-a-versioned-corpus.md).
+`supabase/functions/extract-recipe/evals/corpus.v1.json` is the versioned ingestion-quality contract. `_shared/ingestionEval.ts` scores provider output at the evidence, critical Recipe Graph field, and semantic-quality levels rather than treating schema validity or model confidence as correctness. Automated release cases cover every source type and fail on any missing observation, false recipe acceptance, missed recipe, lost critical fact, invented forbidden fact, or unexpected quality route. Diagnostic cases keep known hard inputs visible until Folio has stable and properly licensed fixtures. See [Recipe ingestion evaluations](./INGESTION_EVALS.md) and [ADR 0014](./adr/0014-gate-ingestion-changes-with-a-versioned-corpus.md).
 
-The root-mounted `RecipeCaptureResume` query restores the user-scoped capture cache, polls while work is processing, and retries explicit needs-attention captures. Processing pages stay out of cookbook counts, reader queries, and collection search until publication.
+The root-mounted `RecipeCaptureResume` query restores the user-scoped capture cache, polls while work is processing, and retries explicit needs-attention captures. `RecipeCaptureCompletionObserver` watches that shared query without reconciling page caches a second time. It ignores historical ready captures on mount, announces only a live transition to a published page, names the destination cookbook, and offers a direct reader action. Processing pages stay out of cookbook counts, reader queries, and collection search until publication.
 
-Native Share to Nosh uses `expo-share-intent` 5.1.1. The iOS extension stores one URL, text selection, or image in a variant-specific App Group and opens the main app. Android registers single-item `ACTION_SEND` filters for `text/*` and `image/*`. `NativeShareIngestion` waits for an authenticated and reachable main app, then sends shared images through the same preparation boundary as the in-app picker: source files may be at most 15 MB, decoded orientation is applied, the longest edge is bounded at 2400 pixels, and adaptive JPEG passes keep the stored artifact below the extractor's 8 MB decoded limit. It uploads that canonical artifact to the private `recipe-captures` bucket, starts the same durable capture lifecycle, and clears the native payload only after the database confirms Saved.
+Native Share to Folio uses `expo-share-intent` 5.1.1. The iOS extension stores one URL, text selection, or image in a variant-specific App Group and opens the main app. Android registers single-item `ACTION_SEND` filters for `text/*` and `image/*`. `NativeShareIngestion` waits for an authenticated and reachable main app, then sends shared images through the same preparation boundary as the in-app picker: source files may be at most 15 MB, decoded orientation is applied, the longest edge is bounded at 2400 pixels, and adaptive JPEG passes keep the stored artifact below the extractor's 8 MB decoded limit. It uploads that canonical artifact to the private `recipe-captures` bucket, starts the same durable capture lifecycle, and clears the native payload only after the database confirms Saved.
 
-Available tools: `start_recipe_capture`, `search_recipe_collection`, `load_recipe`, `open_recipe`, `list_cookbooks`, `organize_recipe`, `scale_servings`, `substitute_ingredient`, `start_timer`, `guide_next_step`, `set_walkthrough`, `update_page_data`, `regenerate_recipe_page`.
+Available tools: `browse_recipe_collection`, `save_cooking_preference`, `start_recipe_capture`, `search_recipe_collection`, `load_recipe`, `open_recipe`, `list_cookbooks`, `organize_recipe`, `scale_servings`, `substitute_ingredient`, `start_timer`, `update_page_data`, `regenerate_recipe_page`.
 
-Collection retrieval is lexical by design. `cookbook_pages.recipe_graph` produces a weighted stored search vector, title trigram matching covers small voice-to-text spacing errors, and `nutriai.search_recipe_collection` ranks no more than five candidates under the caller's RLS identity. Nosh loads one full graph only after resolving a match; normal chat no longer receives a capped list of titles from the active cookbook. Embeddings are deferred until measured retrieval failures justify them.
+Collection retrieval is lexical by design. `cookbook_pages.recipe_graph` produces a weighted stored search vector, title trigram matching covers small voice-to-text spacing errors, and `nutriai.search_recipe_collection` ranks no more than five candidates under the caller's RLS identity. Folio loads one full graph only after resolving a match; normal chat no longer receives a capped list of titles from the active cookbook. Embeddings are deferred until measured retrieval failures justify them.
 
-Collection organization follows the same conversation-for-reasoning, guided-UI-for-commitment boundary. Nosh resolves an exact page and destination before rendering `CollectionActionCard`. Cancel returns to conversation without a write. Confirm calls the idempotent `organize_recipe_page` RPC, reloads the shelf and affected books from Supabase, writes React Query and AsyncStorage, then opens the moved or copied page. The client does not expose conversational delete, bulk, or reorder actions.
+Collection organization follows the same conversation-for-reasoning, guided-UI-for-commitment boundary. Folio resolves an exact page and destination before rendering `CollectionActionCard`. Cancel returns to conversation without a write. Confirm calls the idempotent `organize_recipe_page` RPC, reloads the shelf and affected books from Supabase, writes React Query and AsyncStorage, then opens the moved or copied page. The client does not expose conversational delete, bulk, or reorder actions.
 
-Reader deletion uses the authenticated `delete-reader-content` Edge Function. Ownership-checked RPCs delete a recipe page or cookbook and write unreferenced generated-page and capture-source paths to `storage_cleanup_jobs` in the same database transaction. The function removes those paths through the Storage API and deletes completed jobs. A shelf session retries pending jobs after a transient Storage failure. Copied pages may share one generated object, so the database queues a page path only after its last `page_versions` reference is gone. Deleting a cookbook keeps its capture history and source upload; removing one recipe deletes its capture and queues that source upload.
+Reader and unfinished-capture deletion use the authenticated `delete-reader-content` Edge Function. Ownership-checked RPCs delete a recipe page, cookbook, or settled `needs_attention` / `needs_destination` capture and write unreferenced generated-page and capture-source paths to `storage_cleanup_jobs` in the same database transaction. In Composer and the reader's page overview, unfinished cards open the shared detailed recovery sheet on tap and expose their presentation-specific primary action plus destructive Remove through the shared context-action presenter on hold; non-iOS surfaces use the shared terse fallback sheet. Discarding a capture also removes its unpublished processing page and orphan recipe row when present. Active processing captures and completed pages cannot use this discard path. The function removes queued paths through the Storage API and deletes completed jobs. A shelf session retries pending jobs after a transient Storage failure. Copied pages may share one generated object, so the database queues a page path only after its last `page_versions` reference is gone. Deleting a cookbook keeps its capture history and source upload; removing one recipe deletes its capture and queues that source upload.
 
 Account deletion obtains a fresh native Apple authorization code for Apple-linked users. `delete-account` exchanges that code and revokes the returned refresh token through Apple's REST API before it removes Storage objects or the Supabase user. Apple private-key material remains in Edge Function secrets.
 
@@ -229,14 +259,14 @@ Secrets:
 ```text
 AI_API_KEY
 AI_API_BASE
-AI_MODEL
+CHAT_MODEL
 ```
 
 ### Recipe Import
 
 `_shared/canonicalRecipe.ts` is the publication boundary: it projects the internal extraction record into clean cooking data and removes provenance, confidence, quality diagnostics, and extraction commentary before a cookbook page or page-generation prompt is created.
 
-Share to Nosh, Cookbook Add, assistant handoff, and Save a recipe activity all use `capture-recipe` through `utils/cookbook/api.ts`. Structured recipe pages bypass the extraction model through schema.org Recipe JSON-LD or Microdata normalization; other text, images, resolved video evidence, and audio transcripts use strict-schema model extraction. Every path crosses the provider-neutral recipe-evidence boundary in `_shared/recipeEvidence.ts`. Its accepted result must contain one RecipeGraph; its `not_recipe` and `insufficient_evidence` results cannot contain a graph and therefore cannot create a page. Stable failure codes distinguish unrelated or blank sources; unavailable, access-restricted, unsupported, or oversized URLs; generally unreadable sources; blurry or low-resolution images; visibly cropped images; unsupported, unconfirmed, unavailable, or oversized videos; unsupported or oversized audio; audio without useful speech; temporary transcription failure; missing ingredients; missing instructions; and multiple recipes. The model's diagnostic is logged for debugging, while deterministic Nosh copy is stored on the capture and shown in the app. Image sources are normalized to JPEG before private Storage upload, and optional user notes attached to images, videos, or audio are passed to extraction as additional evidence rather than discarded. `_shared/videoUploadContract.ts` validates MP4, MOV, MPEG, or WebM uploads below 20 MB and checks their real container signature before private Storage upload. `_shared/videoRecipeEvidence.ts` repeats that check on saved bytes and converts them into bounded model evidence only after the persisted permission confirmation. Direct video URLs use the same permission gate, container check, network protections, and per-redirect platform-host rejection. Social-platform links are never downloaded; even an older client that submits one through ordinary URL extraction is stopped by the server classifier. The activity view retains an Open original fallback. `_shared/audioRecipeEvidence.ts` validates MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files below 6 MB before `_shared/audioTranscription.ts` converts them into bounded text. The transcript and versioned transcription metadata remain on the durable capture, so an extraction retry reuses the same evidence instead of paying for or varying speech-to-text a second time. `VIDEO_MODEL` and `AUDIO_TRANSCRIPTION_MODEL` may select compatible readers independently without changing capture orchestration. The Composer deliberately selects existing video and audio files and does not request microphone access or implement recording. The retired imports and review routes redirect into the capture workspace and do not own state or generation.
+Share to Folio, Cookbook Add, assistant handoff, and the Composer all use `capture-recipe` through `utils/cookbook/api.ts`. Structured recipe pages bypass the extraction model through schema.org Recipe JSON-LD or Microdata normalization; other text, images, resolved video evidence with merged transcript and frame signals, acquired social-video observations, and audio transcripts use strict-schema model extraction. Every path crosses the provider-neutral recipe-evidence boundary in `_shared/recipeEvidence.ts`. Its accepted result must contain one RecipeGraph; its `not_recipe` and `insufficient_evidence` results cannot contain a graph and therefore cannot create a page. Stable failure codes distinguish unrelated or blank sources; unavailable, access-restricted, unsupported, or oversized URLs; generally unreadable sources; blurry or low-resolution images; visibly cropped images; unsupported, unconfirmed, unavailable, or oversized videos; unavailable external acquisition; unsupported or oversized audio; audio without useful speech; temporary transcription failure; missing ingredients; missing instructions; and multiple recipes. The model's diagnostic is logged for debugging, while deterministic Folio copy is stored on the capture and shown in the app. Image sources are normalized to JPEG before private Storage upload, and optional user notes attached to images, videos, or audio are passed to extraction as additional evidence rather than discarded. `_shared/videoUploadContract.ts` validates MP4, MOV, MPEG, or WebM uploads below 20 MB and checks their real container signature before private Storage upload. `_shared/videoRecipeEvidence.ts` repeats that check on saved bytes and converts them into bounded model evidence only after the persisted permission confirmation. For supported containers, `capture-recipe` submits the inspected file to the replaceable OpenRouter speech adapter in `_shared/videoTranscription.ts`; ordinary audio uses the same `TRANSCRIPTION_MODEL` through `_shared/audioTranscription.ts`. The current default is `mistralai/voxtral-small-24b-2507-stt`. Folio stores the transcript, usage, and adapter metadata in `source_payload.transcription` with a versioned checkpoint so retry can reuse it. The client also samples up to eight frames via `utils/cookbook/recipeCaptureVideoFrames.ts` and uploads them as JPEGs alongside the video; `capture-recipe` downloads and forwards up to `MAX_VIDEO_FRAMES` frames as supplementary image evidence. `extract-recipe` merges the transcript, sampled frames, and whole video into one multimodal call via `buildVideoRecipeEvidencePrompt`, with a degraded retry that drops the whole video and relies on transcript plus frames if the first attempt fails. Direct video URLs use the same permission gate and container check plus public-network validation and per-redirect platform-host rejection. `capture-recipe` downloads a direct file once, sends those exact bounded bytes through Folio-owned transcription, checkpoints the transcript, and forwards the same bytes to extraction rather than asking `extract-recipe` to acquire the URL again. Public YouTube, TikTok, Instagram, and Facebook page links are never sent through ordinary URL or direct-file acquisition. When `SOCIAL_VIDEO_ACQUISITION_PROVIDER=supadata`, `_shared/supadataVideoEvidence.ts` starts the provider's async analysis and stores its job state in the acquisition checkpoint; `_shared/recipeEvidenceAcquisition.ts` bounds and labels the returned observations before `extract-recipe` converts them into the canonical evidence decision. When the adapter is disabled, unsupported, or unavailable, the Composer recovery popup keeps the link and an Open original fallback. Pinterest always uses that guided fallback. The social-acquisition provider's transcript endpoint is not used. `_shared/audioRecipeEvidence.ts` validates MP3, M4A, WAV, AAC, AIFF, OGG, and FLAC files below 6 MB before transcription. The Composer deliberately selects existing video and audio files and does not request microphone access or implement recording. The retired imports and review routes redirect into the capture workspace and do not own state or generation.
 
 The URL adapter scans every JSON-LD block and schema.org Microdata Recipe scope rather than accepting the first structured node. It tolerates common comment, CDATA, and trailing-semicolon wrappers around otherwise valid JSON-LD. It prefers an explicit `mainEntity`, then a Recipe whose URL matches the fetched or publisher-canonical URL, then a substantially more complete candidate; when both formats exist, complete structured evidence wins and JSON-LD wins equivalent ties. Equally plausible candidates remain ambiguous and go through the evidence model instead of auto-publishing an arbitrary recipe. The deterministic normalizer preserves the exact recipe yield, ingredient `rawText`, parsed quantity and unit when reliable, `HowToSection` labels, source cuisine and category, canonical URL, language, page title, content hash, fetched time, parser identity and version, structured-data identity, candidate count, and selection reason. Numeric `servings` is optional and exists only when the source explicitly means servings. Page copy uses `yieldText` when present, and serving-scaling refuses recipes without a numeric serving count.
 
@@ -249,14 +279,17 @@ Secrets:
 ```text
 AI_API_KEY
 AI_API_BASE
-AI_MODEL
+EXTRACTION_MODEL
+VIDEO_UNDERSTANDING_MODEL
+TRANSCRIPTION_MODEL
+TRANSCRIPTION_API_BASE
 ```
 
 ### Complete Cookbook Page Generation
 
-`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the clean canonical cooking-data projection, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` and `complete-recipe-page-4x5-v3` so geometry and generation contracts remain identifiable. Before upload, the function reads the generated PNG dimensions and rejects any output that is not physically 4:5. Publication retries reuse a ready image only when its recorded geometry matches the current contract, preventing an older deployment from silently restoring a 3:4 page or source-analysis copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, outer padding, or extraction commentary. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Authenticated page reads create one-hour signed URLs after page and Storage ownership checks. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
+`generate-page-art` keeps its route name for deployment compatibility, but its contract is a complete recipe page. It receives the clean canonical cooking-data projection, versioned cookbook style, and optional immutable style-reference images. Qwen Image 3 Pro creates a full-canvas 4:5, 2K page containing the dish imagery and exact visible title, ingredients, instructions, and supporting copy. The prompt payload records `nosh-cookbook-4x5-v1` and `complete-recipe-page-4x5-v4` so geometry and generation contracts remain identifiable. Before upload, the function reads the generated PNG dimensions and rejects any output that is not physically 4:5. Settling a ready generation selects its version and publishes any linked capture in one database transaction; the Edge Function does not perform a second publication call. Publication retries reuse a ready image only when its recorded geometry matches the current contract, preventing an older deployment from silently restoring a 3:4 page or source-analysis copy. The prompt treats the output canvas as the physical page and forbids an inset sheet, surrounding background, drop shadow, outer padding, or extraction commentary. The version is stored in the private `cookbook-pages` bucket and linked by `storage_path`; durable rows do not contain public image URLs. Image delivery checks account-scoped local files first and creates one-hour signed URLs only for missing bytes or explicit remote provider references; Storage ownership checks remain authoritative for downloads. Explicit visual regeneration remains a candidate until the user selects it. Saved recipe-data changes first produce a matching replacement image, then switch the canonical graph and selected version together.
 
-The reader exposes this flow through two compact recipe actions: `Edit recipe` and `Try another design`. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Nosh. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
+The reader and Composer expose this flow through the same compact recipe action system, including `Edit recipe` and `Try another design`. Both surfaces reuse `buildRecipeContextActions`, `RecipeActionsSheet`, and `RecipeRevisionSheet`; processing and recovery items do not receive ready-page controls. `RecipeRevisionSheet` generates an unselected candidate through the same page-generation path used by Folio. `apply_recipe_page_revision` applies corrected RecipeGraph data, synchronizes the compatibility recipe row, and selects the approved candidate in one transaction.
 
 Book settings exposes `Download cookbook PDF` without adding reader chrome. `utils/cookbook/cookbookExport.ts` builds a canonical 8 × 10 inch PDF with a minimal title page followed by each selected recipe-page image in `sort_order`. Recipe images fill the matching 4:5 page canvas without aspect-ratio cropping. Native builds create a named cache file with `expo-print` and open the system share sheet through `expo-sharing`; web opens the browser print dialog for Save as PDF.
 
@@ -287,7 +320,7 @@ alabaster-linen
 umber-leather
 ```
 
-`constants/cookbookBindings.ts` is the cover-appearance seam. It combines one of two finishes (Fine cloth or Natural linen) with one of six curated colors and returns the binding consumed by the Studio, shelf, and native reader. `constants/recipePageStyles.ts` is the single versioned recipe-page style registry shared by the Expo client and Edge Functions. `constants/cookbookCustomization.ts` is only the React Native adapter that attaches bundled brownie and cookie samples to the six active Studio identities. Legacy cover identifiers and previous style revisions remain readable adapters for existing books.
+`constants/cookbookBindings.ts` is the cover-appearance seam. It combines one of two finishes (Fine cloth or Natural linen) with one of six curated colors and returns the binding consumed by the Studio, shelf, and native reader. `constants/recipePageStyles.ts` is the single versioned recipe-page style registry shared by the Expo client and Edge Functions. `constants/cookbookCustomization.ts` is only the React Native adapter that attaches bundled brownie and cookie samples to the seven active Studio identities. Legacy cover identifiers and previous style revisions remain readable adapters for existing books.
 
 `cover_finish_id` and `cover_color_id` on `nutriai.cookbooks` own the physical book skin independently. `cover_style` remains a derived compatibility field for older builds. `page_style_id` and `style_revision` identify one immutable entry in `nutriai.recipe_page_style_versions`; `page_style_references` stores optional visual anchors. Together the page fields own paper, palette, typography, image medium, graphic language, signature cues, and density-aware composition. `_shared/artGeneration.ts` resolves that exact shared-registry version and compiles it with exact RecipeGraph copy into the complete-page prompt.
 
@@ -303,8 +336,10 @@ Page requests include the exact visible recipe copy and structured visual ingred
 
 - `nosh:cookbook-shelf:v2:<userId>`: cached `Cookbook[]` for the shelf.
 - `nosh:cookbook-pages:v2:<cookbookId>`: cached `CookbookPage[]` for one book.
+- `nosh:unseen-cookbook-pages:v1:<userId>`: per-cookbook known and unseen ready-page IDs used by the local New marker.
 
 The caches are hydrated before network responses and then updated from React Query results.
+Expiring signed URLs and local file URIs are stripped from persisted metadata when a `storage_path` exists. `localPageImages.ts` checks persistent, project- and account-scoped files before signing or downloading and coalesces byte transfers across the reader, Skia, previews, sharing, and PDF export. Native files live under Documents/folio-page-images-v1, excluded from iOS backup by the local config plugin. `expo-image` supplies memory caching; web uses Cache Storage and shared blob URLs. Grids mount images in the viewport, and the reader resolves its active neighborhood. Auth revisions fence late responses and file writers; account cleanup purges the files. See [the delivery audit](PAGE_IMAGE_DELIVERY_AUDIT.md) and [ADR 0016](adr/0016-deliver-page-images-lazily-by-immutable-storage-path.md).
 
 ## Current Boundaries
 

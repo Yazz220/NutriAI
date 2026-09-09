@@ -1,8 +1,10 @@
+import { View } from 'react-native';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import {
   AiDataConsentProvider,
+  AiDataConsentPromptHost,
   useAiDataConsent,
 } from '@/contexts/AiDataConsentContext';
 import { loadAiDataConsent } from '@/utils/privacy/aiDataConsent';
@@ -41,14 +43,17 @@ describe('AiDataConsentProvider', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Request permission' }));
 
     expect(await screen.findByText('AI data use')).toBeTruthy();
-    expect(screen.getByText(/OpenRouter routes this content/)).toBeTruthy();
+    expect(screen.getByText(/uploaded audio and video, sampled video frames/)).toBeTruthy();
+    expect(screen.getByText(/OpenRouter routes recipe understanding/)).toBeTruthy();
+    expect(screen.getByText(/Supadata receives supported public social-video links/)).toBeTruthy();
+    expect(screen.getByText(/ElevenLabs receives uploaded or directly linked video files/)).toBeTruthy();
     expect(await loadAiDataConsent('user-1')).toBeNull();
 
     fireEvent.press(screen.getByTestId('allow-ai-data-processing'));
 
     await waitFor(() => expect(screen.getByText('granted')).toBeTruthy());
     await expect(loadAiDataConsent('user-1')).resolves.toEqual(expect.objectContaining({
-      version: 1,
+      version: 2,
       grantedAt: expect.any(String),
     }));
   });
@@ -70,4 +75,24 @@ describe('AiDataConsentProvider', () => {
     await waitFor(() => expect(screen.getByText('not granted')).toBeTruthy());
     await expect(loadAiDataConsent('user-1')).resolves.toBeNull();
   });
+  it('presents consent inside the active conversation modal host', async () => {
+    const screen = render(
+      <AiDataConsentProvider>
+        <View testID="conversation-modal">
+          <ConsentProbe />
+          <AiDataConsentPromptHost />
+        </View>
+      </AiDataConsentProvider>,
+    );
+    await screen.findByText('ready');
+    fireEvent.press(screen.getByRole('button', { name: 'Request permission' }));
+    const allowButton = await screen.findByTestId('allow-ai-data-processing');
+    let parent = allowButton.parent;
+    while (parent && parent.props.testID !== 'conversation-modal') parent = parent.parent;
+    expect(parent).not.toBeNull();
+    expect(screen.getAllByTestId('allow-ai-data-processing')).toHaveLength(1);
+    fireEvent.press(allowButton);
+    await screen.findByText('granted');
+  });
+
 });

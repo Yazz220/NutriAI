@@ -9,6 +9,8 @@ import {
 import { clearFirstRunOnboardingState } from '@/utils/cookbook/firstRunOnboarding';
 import { clearNoshThreadStorage } from '@/utils/cookbook/noshThreadCleanup';
 import { clearBookshelfScene } from '@/utils/cookbook/shelfAppearanceStorage';
+import { clearUnseenCookbookPages } from '@/utils/cookbook/unseenPages';
+import { purgeStoredPageImages } from '@/utils/cookbook/localPageImages';
 
 const PENDING_PURGES_KEY = 'nosh:pending-user-data-purges:v1';
 
@@ -81,13 +83,15 @@ export async function purgeLocalUserData(
   }
 
   const tasks = [
+    ['cookbook images', () => purgeStoredPageImages(request.userId)],
     ['cookbook pages', () => clearCachedPages(cookbookIds)],
     ['recipe activity', () => clearCachedCaptures(request.userId)],
     ['cookbook shelf', () => clearCachedShelf(request.userId)],
-    ['Nosh conversations', () => clearNoshThreadStorage(request.userId)],
+    ['Folio conversations', () => clearNoshThreadStorage(request.userId)],
     ['AI data permission', () => withdrawAiDataConsent(request.userId)],
     ['onboarding state', () => clearFirstRunOnboardingState(request.userId)],
     ['shelf appearance', () => clearBookshelfScene(request.userId)],
+    ['new page markers', () => clearUnseenCookbookPages(request.userId)],
   ] as const;
 
   const results = await Promise.allSettled(tasks.map(([, task]) => task()));

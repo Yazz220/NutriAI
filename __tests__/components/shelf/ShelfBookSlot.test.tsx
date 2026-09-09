@@ -27,7 +27,7 @@ describe('ShelfBookSlot', () => {
         contextActions={[
           {
             id: 'book-actions',
-            actions: [{ id: 'rename_cookbook', title: 'Rename cookbook', systemImage: 'pencil' }],
+            actions: [{ id: 'customize_cookbook', title: 'Customize cookbook', systemImage: 'paintbrush' }],
           },
         ]}
         onContextAction={jest.fn()}

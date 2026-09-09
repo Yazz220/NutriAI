@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 import { render } from '@testing-library/react-native';
 import { PHYSICAL_BOOK_ASPECT, PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { SAMPLE_COOKBOOK } from '@/utils/cookbook/sampleCookbook';
@@ -25,7 +25,14 @@ describe('PhysicalBook canonical shell', () => {
 
     expect(screen.UNSAFE_getByType(Image).props.source).toBe(SAMPLE_COOKBOOK.coverImageAsset);
     expect(screen.getAllByText('Week Night Table Recipes')).toHaveLength(3);
-    expect(screen.getByText('NOSH')).toBeTruthy();
+    expect(screen.queryByText('NOSH')).toBeNull();
+    const makerMark = screen.getByTestId('nosh-cover-maker-mark', { includeHiddenElements: true });
+    expect(makerMark).toBeTruthy();
+    expect(StyleSheet.flatten(makerMark.props.style)).toEqual(expect.objectContaining({
+      top: expect.any(Number),
+      right: expect.any(Number),
+    }));
+    expect(StyleSheet.flatten(makerMark.props.style).bottom).toBeUndefined();
   });
 
   it('reuses artwork on the canonical back without adding front-cover text', () => {
@@ -42,6 +49,7 @@ describe('PhysicalBook canonical shell', () => {
     expect(screen.UNSAFE_getByType(Image).props.source).toBe(SAMPLE_COOKBOOK.coverImageAsset);
     expect(screen.queryByText('Untitled')).toBeNull();
     expect(screen.queryByText('NOSH')).toBeNull();
+    expect(screen.queryByTestId('nosh-cover-maker-mark', { includeHiddenElements: true })).toBeNull();
   });
 
   it('keeps a legacy back face free of placeholder copy', () => {
@@ -55,6 +63,7 @@ describe('PhysicalBook canonical shell', () => {
     const screen = render(<PhysicalBook title="Family Recipes" coverStyle="handwritten" showShadow={false} />);
 
     expect(screen.getAllByText('Family Recipes')).toHaveLength(3);
-    expect(screen.getByText('NOSH')).toBeTruthy();
+    expect(screen.queryByText('NOSH')).toBeNull();
+    expect(screen.getByTestId('nosh-cover-maker-mark', { includeHiddenElements: true })).toBeTruthy();
   });
 });

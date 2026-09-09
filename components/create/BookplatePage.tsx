@@ -57,7 +57,7 @@ export const BookplatePage = React.memo(function BookplatePage({
 
           <View style={[styles.titleRule, { backgroundColor: withAlpha(foil, 0.7) }]} />
 
-          <Text style={[styles.foot, { color: Colors.book.caption, fontSize: eyebrowSize }]}>NOSH BINDERY</Text>
+          <Text style={[styles.foot, { color: Colors.book.caption, fontSize: eyebrowSize }]}>FOLIO BINDERY</Text>
         </View>
       </View>
     </View>

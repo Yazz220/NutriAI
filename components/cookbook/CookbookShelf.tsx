@@ -51,7 +51,7 @@ export function CookbookShelf({
   return (
     <LinearGradient colors={Colors.book.shelfGradient} style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
-        <Text style={styles.logo}>Nosh</Text>
+        <Text style={styles.logo}>Folio</Text>
         {onOpenTemplates || onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}

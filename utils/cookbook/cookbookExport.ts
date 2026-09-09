@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Cookbook, CookbookPage } from '@/types/cookbook';
 import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
-import { getCookbookPageImageUri } from '@/utils/cookbook/pageImage';
+import { hasCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
+import { resolveCookbookPageImageUri } from '@/utils/cookbook/pageImageResolver';
 
 const PDF_POINTS_PER_INCH = 72;
 const PDF_WIDTH = COOKBOOK_GEOMETRY.print.widthInches * PDF_POINTS_PER_INCH;
@@ -20,12 +21,12 @@ export async function exportCookbookPdf(
   const orderedPages = [...pages].sort((a, b) => a.sortOrder - b.sortOrder || a.pageNumber - b.pageNumber);
   if (orderedPages.length === 0) throw new Error('Add a recipe before exporting this cookbook.');
 
-  const missingPage = orderedPages.find((page) => !getCookbookPageImageUri(page));
+  const missingPage = orderedPages.find((page) => !hasCookbookPageImage(page));
   if (missingPage) throw new Error(`${missingPage.title} is not ready to export yet.`);
 
   const pdfPages: PdfRecipePage[] = [];
   for (const page of orderedPages) {
-    const imageUrl = getCookbookPageImageUri(page);
+    const imageUrl = await resolveCookbookPageImageUri(page);
     if (!imageUrl) continue;
     pdfPages.push({
       title: page.title,
@@ -60,7 +61,7 @@ async function loadPrintModule(): Promise<typeof import('expo-print')> {
   try {
     return require('expo-print') as typeof import('expo-print');
   } catch {
-    throw new Error('Cookbook export needs a newer Nosh development build. Rebuild the app once, then try again.');
+    throw new Error('Cookbook export needs a newer Folio development build. Rebuild the app once, then try again.');
   }
 }
 
@@ -68,7 +69,7 @@ async function loadSharingModule(): Promise<typeof import('expo-sharing')> {
   try {
     return require('expo-sharing') as typeof import('expo-sharing');
   } catch {
-    throw new Error('Cookbook export needs a newer Nosh development build. Rebuild the app once, then try again.');
+    throw new Error('Cookbook export needs a newer Folio development build. Rebuild the app once, then try again.');
   }
 }
 
@@ -157,7 +158,7 @@ export function buildCookbookPdfHtml(
       <div class="mark"></div>
       <h1>${safeTitle}</h1>
       <div class="count">${recipeLabel}</div>
-      <div class="brand">NOSH</div>
+      <div class="brand">FOLIO</div>
     </section>${recipePages}
   </body>
 </html>`;
@@ -188,7 +189,7 @@ async function imageToDataUri(imageUrl: string, pageId: string): Promise<string>
 async function namePdfFile(uri: string, title: string): Promise<string> {
   if (!FileSystem.cacheDirectory) return uri;
   const safeTitle = slugify(title) || 'cookbook';
-  const destination = `${FileSystem.cacheDirectory}nosh-${safeTitle}.pdf`;
+  const destination = `${FileSystem.cacheDirectory}folio-${safeTitle}.pdf`;
   await FileSystem.deleteAsync(destination, { idempotent: true });
   await FileSystem.moveAsync({ from: uri, to: destination });
   return destination;

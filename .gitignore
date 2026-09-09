@@ -37,12 +37,18 @@ credentials.json
 *.mobileprovision
 *.orig.*
 
-# Testing
+# Testing and scratch outputs
 coverage/
-output/ingestion-evals/
+output/
 
 # Supabase local
 supabase/.temp/
+
+# Local agent & tooling scratch
+.agents/
+.claude/
+.playwright-cli/
+skills-lock.json
 
 # Misc
 *.tsbuildinfo

@@ -303,3 +303,67 @@ observations:
     promoted_to: null
     crystallized_via: null
     stale: false
+  - id: O20
+    timestamp: "2026-08-31T06:48+03:00"
+    provenance: ai-suggested
+    content: >-
+      Structured-recipe quality gates should detect list collapse and concatenation before
+      auto-publication; a high model or parser confidence must not substitute for comparing
+      normalized ingredient and instruction structure with the acquired source evidence.
+    context: >-
+      The Food Hero URL path confidently auto-published three collapsed ingredients and
+      two collapsed steps, while an image of the same source recovered seven and five.
+    potential_type: heuristic
+    bound_to: [N37]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O21
+    timestamp: "2026-08-31T06:48+03:00"
+    provenance: ai-suggested
+    content: >-
+      The strict-schema text extraction seam is currently a release risk independent of
+      transport: both pasted recipe text and a successfully transcribed audio recipe
+      stopped at extraction, while multimodal screenshot extraction succeeded.
+    context: >-
+      One text fixture contained an accidentally duplicated trailing fragment, but the
+      clean audio transcript independently failed at the same downstream stage.
+    potential_type: claim
+    bound_to: [N36, N39]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O22
+    timestamp: "2026-08-31T06:48+03:00"
+    provenance: ai-suggested
+    content: >-
+      Recipe-focus presentation is not sufficient evidence of grounded chat reliability;
+      the response path must complete within a bounded time, preserve focus across thread
+      operations, and convert provider timeouts into handled user recovery states.
+    context: >-
+      Chat showed Guacamole focus but failed or hung against both malformed and correct
+      graphs, and retry later surfaced an unhandled FunctionTimeout developer toast.
+    potential_type: heuristic
+    bound_to: [N38]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false
+  - id: O23
+    timestamp: "2026-08-31T06:48+03:00"
+    provenance: ai-suggested
+    content: >-
+      First-use AI consent must be presented above any active Nosh or composer modal and
+      must fail visibly if it cannot be shown; otherwise the first core capture can appear
+      indefinitely busy without creating durable work.
+    context: >-
+      Submission with consent disabled created no recipe_captures row and blocked reader
+      interaction until relaunch, whereas enabling consent in Settings restored capture.
+    potential_type: constraint
+    bound_to: [N36]
+    promoted: false
+    promoted_to: null
+    crystallized_via: null
+    stale: false

@@ -19,6 +19,8 @@ export const SAMPLE_COOKBOOK: Cookbook = {
   coverStyle: 'sage-linen',
   coverFinishId: 'fine-cloth',
   coverColorId: 'sage',
+  coverTitleColorId: 'auto',
+  coverTitlePlacementId: 'center',
   pageStyleId: 'illustrated',
   styleRevision: 1,
   isDefault: false,

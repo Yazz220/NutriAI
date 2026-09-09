@@ -49,6 +49,8 @@ describe('cookbook PDF export', () => {
     ]);
 
     expect(html).toContain('<h1>Yaz &amp; Family</h1>');
+    expect(html).toContain('<div class="brand">FOLIO</div>');
+    expect(html).not.toContain('NOSH');
     expect(html).toContain('1 recipe');
     expect(html).toContain('aria-label="Soup &lt;Special&gt;"');
     expect(html.match(/<section class="page/g)).toHaveLength(2);
@@ -86,9 +88,9 @@ describe('cookbook PDF export', () => {
     expect(html.indexOf('FIRST_IMAGE')).toBeLessThan(html.indexOf('SECOND_IMAGE'));
     expect(mockedFileSystem.moveAsync).toHaveBeenCalledWith({
       from: 'file:///cache/generated.pdf',
-      to: 'file:///cache/nosh-weeknight-table.pdf',
+      to: 'file:///cache/folio-weeknight-table.pdf',
     });
-    expect(mockedShare).toHaveBeenCalledWith('file:///cache/nosh-weeknight-table.pdf', expect.objectContaining({
+    expect(mockedShare).toHaveBeenCalledWith('file:///cache/folio-weeknight-table.pdf', expect.objectContaining({
       mimeType: 'application/pdf',
       UTI: 'com.adobe.pdf',
     }));

@@ -44,7 +44,7 @@ export function captureEvidencePolicy(
   if (typeof recipeGraph === 'object' && recipeGraph !== null && !Array.isArray(recipeGraph)) {
     return { accepted: true, recipeGraph: recipeGraph as Record<string, unknown>, legacy: true };
   }
-  throw new Error('Nosh could not read this recipe');
+  throw new Error('Folio could not read this recipe');
 }
 
 export type CaptureQualityPolicyResult =
@@ -66,7 +66,7 @@ export function captureQualityPolicy(
   return {
     accepted: false,
     failureCode: 'needs_recipe_correction',
-    failureMessage: openIssues[0]?.message ?? 'Check the recipe details before Nosh creates the page.',
+    failureMessage: openIssues[0]?.message ?? 'Check the recipe details before Folio creates the page.',
     issueCount: openIssues.length,
   };
 }
@@ -119,7 +119,7 @@ export function capturePagePolicy(
   if (result === 'failed') {
     return {
       pageStatus: 'failed',
-      pageWarning: 'Nosh could not finish this recipe page. Try again.',
+      pageWarning: 'Folio could not finish this recipe page. Try again.',
     };
   }
   return { pageStatus: 'generating', pageWarning: null };
@@ -129,6 +129,7 @@ export type CaptureFailureStage = CaptureCheckpointName | 'destination';
 
 const FAILURE_CODE_BY_STAGE = {
   source: 'source_read_failed',
+  acquisition: 'source_acquisition_failed',
   transcription: 'audio_transcription_failed',
   extraction: 'extraction_failed',
   normalization: 'extraction_failed',
@@ -139,28 +140,42 @@ const FAILURE_CODE_BY_STAGE = {
 } as const satisfies Record<CaptureFailureStage, string>;
 
 const FAILURE_MESSAGE_BY_STAGE = {
-  source: 'Nosh could not read the saved recipe source. Try again.',
-  transcription: 'Nosh could not transcribe this audio. Try again.',
-  extraction: 'Nosh could not understand this recipe right now. Try again.',
-  normalization: 'Nosh could not structure this recipe right now. Try again.',
-  quality: 'Nosh could not verify the recipe details right now. Try again.',
-  destination: 'Nosh could not open the selected cookbook. Choose it again or try another cookbook.',
-  page_generation: 'Nosh understood the recipe, but could not finish its cookbook page. Try again.',
-  publication: 'Nosh finished the page, but could not add it to the cookbook. Try again.',
+  source: 'Folio could not read the saved recipe source. Try again.',
+  acquisition: 'Folio could not read this social video right now. The link is saved, so you can try again.',
+  transcription: 'Folio could not transcribe this audio. Try again.',
+  extraction: 'Folio could not understand this recipe right now. Try again.',
+  normalization: 'Folio could not structure this recipe right now. Try again.',
+  quality: 'Folio could not verify the recipe details right now. Try again.',
+  destination: 'Folio could not open the selected cookbook. Choose it again or try another cookbook.',
+  page_generation: 'Folio understood the recipe, but could not finish its cookbook page. Try again.',
+  publication: 'Folio finished the page, but could not add it to the cookbook. Try again.',
 } as const satisfies Record<CaptureFailureStage, string>;
 
 export function captureFailure(message: unknown, stage: CaptureFailureStage = 'extraction'): {
   status: 'needs_attention';
-  failureCode: typeof FAILURE_CODE_BY_STAGE[CaptureFailureStage];
+  failureCode: typeof FAILURE_CODE_BY_STAGE[CaptureFailureStage] | 'designed_page_limit_reached';
   failureMessage: string;
   failedStage: CaptureFailureStage;
   diagnostic: string;
 } {
+  const diagnostic = message instanceof Error
+    ? message.message
+    : String(message ?? 'Recipe capture failed');
+  if (diagnostic === 'designed_page_limit_reached') {
+    return {
+      status: 'needs_attention',
+      failureCode: 'designed_page_limit_reached',
+      failureMessage: 'You have used all of your designed pages for now.',
+      failedStage: 'page_generation',
+      diagnostic,
+    };
+  }
+
   return {
     status: 'needs_attention',
     failureCode: FAILURE_CODE_BY_STAGE[stage],
     failureMessage: FAILURE_MESSAGE_BY_STAGE[stage],
     failedStage: stage,
-    diagnostic: message instanceof Error ? message.message : String(message ?? 'Recipe capture failed'),
+    diagnostic,
   };
 }

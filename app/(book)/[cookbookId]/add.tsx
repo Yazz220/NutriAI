@@ -12,7 +12,7 @@ export default function AddPageScreen() {
     <RecipeCaptureScreen
       destinationCookbookId={cookbookId}
       cookbookTitle={cookbookTitle}
-      onExit={() => router.replace(`/(book)/${cookbookId}`)}
+      onExit={() => router.dismissTo(`/(book)/${cookbookId}`)}
       exitAccessibilityLabel="Back to cookbook"
     />
   );

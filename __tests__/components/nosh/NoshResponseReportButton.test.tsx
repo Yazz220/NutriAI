@@ -9,7 +9,7 @@ jest.mock('@/utils/cookbook/aiResponseReport', () => ({
 }));
 
 describe('NoshResponseReportButton', () => {
-  it('privately submits the selected Nosh response after confirmation', async () => {
+  it('privately submits the selected Folio response after confirmation', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     jest.mocked(reportAiResponse).mockResolvedValue({ reportId: 'report-1' });
     const screen = render(
@@ -20,7 +20,7 @@ describe('NoshResponseReportButton', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: 'Report this Nosh response' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Report this Folio response' }));
     const send = alert.mock.calls[0]?.[2]?.find((button) => button.text === 'Send report');
     await act(async () => { await send?.onPress?.(); });
 

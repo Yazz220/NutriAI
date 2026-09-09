@@ -23,7 +23,7 @@ export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen,
         compact && styles.recipeButtonCompact,
         pressed && styles.recipeButtonPressed,
       ]}
-      accessibilityLabel={`Ask Nosh about ${page.title}`}
+      accessibilityLabel={`Ask Folio about ${page.title}`}
       accessibilityRole="button"
       onPress={() => {
         onOpen?.();
@@ -32,7 +32,7 @@ export function NoshAssistantChatButton({ page, cookbook, cookbookPages, onOpen,
       }}
     >
       <NoshSymbol size={24} />
-      {compact ? null : <Text style={styles.recipeLabel}>Ask Nosh</Text>}
+      {compact ? null : <Text style={styles.recipeLabel}>Ask Folio</Text>}
     </Pressable>
   );
 }
@@ -43,13 +43,43 @@ export function NoshShelfChatButton() {
     <Pressable
       style={({ pressed }) => [styles.shelfButton, pressed && styles.shelfButtonPressed]}
       accessibilityRole="button"
-      accessibilityLabel="Ask Nosh about your cookbooks"
+      accessibilityLabel="Ask Folio about your cookbooks"
       onPress={() => {
         setVisibleBookContext({ cookbook: null, pages: [], page: null });
         open('shelf-nosh', { kind: 'collection' });
       }}
     >
       <NoshSymbol size={30} tone="ivory" />
+    </Pressable>
+  );
+}
+
+export function NoshCookbookChatButton({ cookbook, cookbookPages, compact = false }: {
+  cookbook: Cookbook;
+  cookbookPages: CookbookPage[];
+  compact?: boolean;
+}) {
+  const { open, setVisibleBookContext } = useNoshConversation();
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.recipeButton,
+        compact && styles.recipeButtonCompact,
+        pressed && styles.recipeButtonPressed,
+      ]}
+      accessibilityLabel={`Ask Folio about ${cookbook.title}`}
+      accessibilityRole="button"
+      onPress={() => {
+        setVisibleBookContext({ cookbook, pages: cookbookPages, page: null });
+        open('cookbook-nosh', {
+          kind: 'cookbook',
+          cookbookId: cookbook.id,
+          title: cookbook.title,
+        });
+      }}
+    >
+      <NoshSymbol size={24} />
+      {compact ? null : <Text style={styles.recipeLabel}>Ask Folio</Text>}
     </Pressable>
   );
 }

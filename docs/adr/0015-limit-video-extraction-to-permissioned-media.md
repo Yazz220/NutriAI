@@ -2,9 +2,9 @@
 
 ## Decision
 
-Nosh processes a video only when the user confirms that they made it or have permission to use it. The Composer can select one MP4, MOV, MPEG, or WebM file, validate its size and real container signature below 20 MB, save it privately, and send it through the existing `capture-recipe` pipeline. A direct video-file URL uses the same permission requirement, signature check, and acquisition bounds.
+Folio processes a video only when the user confirms that they made it or have permission to use it. The Composer can select one MP4, MOV, MPEG, or WebM file, validate its size and real container signature below 20 MB, save it privately, and send it through the existing `capture-recipe` pipeline. A direct video-file URL uses the same permission requirement, signature check, and acquisition bounds.
 
-YouTube, TikTok, Instagram, Facebook, and Pinterest links remain durable source bookmarks. They stop before media acquisition or model extraction, show deterministic guidance, and retain an Open original action. Nosh does not bundle Cobalt, yt-dlp, a browser scraper, user cookies, FFmpeg, or undocumented transcript clients.
+YouTube, TikTok, Instagram, Facebook, and Pinterest links remain durable source bookmarks. They stop before media acquisition or model extraction, show deterministic guidance, and retain an Open original action. Folio does not bundle Cobalt, yt-dlp, a browser scraper, user cookies, FFmpeg, or undocumented transcript clients.
 
 ## Why
 

@@ -98,7 +98,7 @@ export async function organizeRecipePage(input: {
       p_idempotency_key: input.idempotencyKey,
     });
   if (error) throw error;
-  if (!data || typeof data !== 'object') throw new Error('Nosh could not confirm the collection change.');
+  if (!data || typeof data !== 'object') throw new Error('Folio could not confirm the collection change.');
   return data as CollectionActionRpcRow;
 }
 
@@ -117,7 +117,7 @@ export async function reorderCookbookPage(input: {
       p_idempotency_key: input.idempotencyKey,
     });
   if (error) throw error;
-  if (!data || typeof data !== 'object') throw new Error('Nosh could not confirm the new page order.');
+  if (!data || typeof data !== 'object') throw new Error('Folio could not confirm the new page order.');
   return data as ReorderCookbookPageResult;
 }
 
@@ -127,7 +127,7 @@ export async function removeRecipePage(pageId: string): Promise<RemoveRecipePage
     { action: 'removeRecipe', pageId },
   );
   if (!response.result || typeof response.result !== 'object') {
-    throw new Error('Nosh could not confirm the recipe removal.');
+    throw new Error('Folio could not confirm the recipe removal.');
   }
   return response.result;
 }

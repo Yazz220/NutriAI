@@ -1,6 +1,6 @@
-# Contributing to Nosh
+# Contributing to Folio
 
-Nosh is a book-first Expo app. Read [AGENTS.md](./AGENTS.md), [CONTEXT.md](./CONTEXT.md), and [docs/PRODUCT_FLOW.md](./docs/PRODUCT_FLOW.md) before changing product behavior.
+Folio is a book-first Expo app. Read [AGENTS.md](./AGENTS.md), [CONTEXT.md](./CONTEXT.md), and [docs/PRODUCT_FLOW.md](./docs/PRODUCT_FLOW.md) before changing product behavior.
 
 ## Setup
 
@@ -44,7 +44,7 @@ Reader motion, native sharing, safe areas, large text, and touch behavior also n
 ## Pipeline rules
 
 - Every URL, text, image, or video source enters `capture-recipe`.
-- Screens and Nosh tools may start or resume a capture. They must not extract and create a page directly.
+- Screens and Folio tools may start or resume a capture. They must not extract and create a page directly.
 - `generate-page-art` generates the complete recipe page with visible text. Do not add an artwork-only generator for new pages.
 - The Recipe Graph is the canonical reasoning record. The selected generated image is the page the user reads.
 - Cookbook style comes from the persisted cookbook identity. Do not add per-recipe aesthetic choices.

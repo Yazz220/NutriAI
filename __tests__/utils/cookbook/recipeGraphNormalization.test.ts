@@ -111,6 +111,40 @@ describe('recipe graph normalization', () => {
     });
   });
 
+  it('removes a publisher summary method when complete directions are also present', () => {
+    const fallback = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'One-pan dinner',
+      recipeIngredient: ['2 chicken thighs', '500 g potatoes'],
+      recipeInstructions: [
+        {
+          '@type': 'HowToSection',
+          name: 'Abbreviated Recipe',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Season and roast everything.' },
+          ],
+        },
+        {
+          '@type': 'HowToSection',
+          name: 'Full Recipe',
+          itemListElement: [
+            { '@type': 'HowToStep', text: 'Season the chicken and potatoes.' },
+            { '@type': 'HowToStep', text: 'Roast until the chicken is cooked through.' },
+          ],
+        },
+      ],
+    }, sourceUrl);
+
+    expect(fallback?.stepGroups).toEqual([{
+      id: 'full-recipe',
+      label: '',
+      steps: [
+        { id: 'step-2', text: 'Season the chicken and potatoes.' },
+        { id: 'step-3', text: 'Roast until the chicken is cooked through.' },
+      ],
+    }]);
+  });
+
   it('sets numeric servings only when the structured yield means servings', () => {
     const servingsRecipe = recipeJsonLdToDraft({
       '@type': 'Recipe',
@@ -139,6 +173,53 @@ describe('recipe graph normalization', () => {
     expect(cookiesRecipe?.yieldText).toBe('Makes 24 cookies');
     expect(rangeRecipe?.servings).toBeUndefined();
     expect(rangeRecipe?.yieldText).toBe('6-8 servings');
+  });
+
+  it('keeps compact and dual-unit ingredient facts out of the ingredient name', () => {
+    const fallback = recipeJsonLdToDraft({
+      '@type': 'Recipe',
+      name: 'Chicken Fajitas',
+      recipeYield: '4 servings',
+      recipeIngredient: [
+        '1/4 cup / 65 ml lime juice',
+        '1/4 cup / 65 ml orange juice ((Note 1 for subs))',
+        '700g / 1.2 lb skinless chicken thighs or 2 large chicken breasts (, halved horizontally (Note 2))',
+        '2 garlic cloves (, minced)',
+        '3 capsicums / bell peppers (, deseeded and sliced (red, yellow or green))',
+      ],
+      recipeInstructions: ['Cook the fajitas.'],
+    }, sourceUrl);
+
+    expect(fallback?.ingredientGroups[0].ingredients).toEqual([
+      expect.objectContaining({
+        quantity: '1/4',
+        unit: 'cup',
+        name: 'lime juice',
+        rawText: '1/4 cup / 65 ml lime juice',
+      }),
+      expect.objectContaining({
+        quantity: '1/4',
+        unit: 'cup',
+        name: 'orange juice (Note 1 for subs)',
+        rawText: '1/4 cup / 65 ml orange juice ((Note 1 for subs))',
+      }),
+      expect.objectContaining({
+        quantity: '700',
+        unit: 'g',
+        name: 'skinless chicken thighs or 2 large chicken breasts',
+        preparation: 'halved horizontally (Note 2)',
+      }),
+      expect.objectContaining({
+        quantity: '2',
+        name: 'garlic cloves',
+        preparation: 'minced',
+      }),
+      expect.objectContaining({
+        quantity: '3',
+        name: 'capsicums / bell peppers',
+        preparation: 'deseeded and sliced (red, yellow or green)',
+      }),
+    ]);
   });
 
   it('repairs common top-level ingredients and instructions aliases', () => {

@@ -19,25 +19,27 @@ export async function fetchWithRetry(
   let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    options.signal?.throwIfAborted();
     try {
       const res = await fetch(url, options);
 
       if (res.status === 429 && attempt < maxRetries) {
         const waitMs = Math.pow(2, attempt) * 1000;
-        await sleep(waitMs);
+        await sleep(waitMs, options.signal);
         continue;
       }
 
       if (res.status >= 500 && attempt < maxRetries) {
-        await sleep(attempt * 500);
+        await sleep(attempt * 500, options.signal);
         continue;
       }
 
       return res;
     } catch (error) {
+      if (options.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxRetries) {
-        await sleep(attempt * 500);
+        await sleep(attempt * 500, options.signal);
       }
     }
   }
@@ -45,6 +47,17 @@ export async function fetchWithRetry(
   throw lastError ?? new Error('Max retries exceeded');
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }

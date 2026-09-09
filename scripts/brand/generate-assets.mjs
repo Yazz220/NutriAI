@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -25,10 +25,7 @@ async function renderSquare(source, destination, size, options = {}) {
     image = image.flatten({ background: options.background ?? '#F7F2EA' }).removeAlpha();
   }
 
-  await image
-    .withMetadata({ icc: 'srgb' })
-    .png({ compressionLevel: 9, adaptiveFiltering: true })
-    .toFile(destination);
+  await image.withMetadata({ icc: 'srgb' }).png({ compressionLevel: 9, adaptiveFiltering: true }).toFile(destination);
 }
 
 async function renderSplash(source, destination) {
@@ -52,15 +49,22 @@ async function renderSplash(source, destination) {
     .toFile(destination);
 }
 
-async function copySvgDirectory(sourceDirectory, destinationDirectory) {
+async function copyBrandAssetDirectory(sourceDirectory, destinationDirectory, includedNames) {
   await mkdir(destinationDirectory, { recursive: true });
   const entries = await readdir(sourceDirectory, { withFileTypes: true });
   await Promise.all(
     entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.svg'))
+      .filter((entry) => entry.isFile() && /\.(?:png|svg)$/i.test(entry.name))
+      .filter((entry) => !includedNames || includedNames.includes(entry.name))
       .map(async (entry) => {
         const source = path.join(sourceDirectory, entry.name);
         const destination = path.join(destinationDirectory, entry.name);
+
+        if (entry.name.endsWith('.png')) {
+          await copyFile(source, destination);
+          return;
+        }
+
         const svg = await readFile(source, 'utf8');
 
         // Some supplied masters encode line breaks as literal `\\n` text.
@@ -82,10 +86,15 @@ const iosSizes = [1024, 512, 180, 120, 87, 80, 60, 58, 40, 29];
 const webSizes = [512, 192, 180, 48, 32];
 
 await Promise.all([
-  ...iosSizes.map((size) => renderSquare(lightIcon, output('ios', `nosh-app-icon-${size}.png`), size, { opaque: true })),
+  ...iosSizes.map((size) =>
+    renderSquare(lightIcon, output('ios', `nosh-app-icon-${size}.png`), size, { opaque: true }),
+  ),
   renderSquare(darkIcon, output('ios', 'nosh-app-icon-dark-1024.png'), 1024, { opaque: true, background: '#65436F' }),
   renderSquare(monochromeIcon, output('ios', 'nosh-app-icon-monochrome-1024.png'), 1024, { opaque: true }),
-  renderSquare(invertedIcon, output('ios', 'nosh-app-icon-inverted-1024.png'), 1024, { opaque: true, background: '#2B2B2B' }),
+  renderSquare(invertedIcon, output('ios', 'nosh-app-icon-inverted-1024.png'), 1024, {
+    opaque: true,
+    background: '#2B2B2B',
+  }),
   renderSquare(adaptiveForeground, output('android', 'nosh-adaptive-foreground-1024.png'), 1024),
   renderSquare(adaptiveBackground, output('android', 'nosh-adaptive-background-1024.png'), 1024, { opaque: true }),
   renderSquare(adaptiveMonochrome, output('android', 'nosh-adaptive-monochrome-1024.png'), 1024),
@@ -97,12 +106,12 @@ await Promise.all([
   renderSquare(adaptiveBackground, runtime('platform', 'adaptive-background.png'), 1024, { opaque: true }),
   renderSquare(adaptiveMonochrome, runtime('platform', 'adaptive-monochrome.png'), 1024),
   renderSquare(lightIcon, runtime('platform', 'favicon.png'), 48, { opaque: true }),
-  renderSplash(master('lockups', 'nosh-lockup-stacked-plum.svg'), runtime('platform', 'splash.png')),
-  renderSplash(master('lockups', 'nosh-lockup-stacked-ivory.svg'), runtime('platform', 'splash-dark.png')),
-  copySvgDirectory(master('symbol'), runtime('marks', 'symbol')),
-  copySvgDirectory(master('wordmark'), runtime('marks', 'wordmark')),
-  copySvgDirectory(master('lockups'), runtime('marks', 'lockups')),
-  copySvgDirectory(master('character'), runtime('characters')),
+  renderSplash(master('symbol', 'nosh-symbol-plum.svg'), runtime('platform', 'splash.png')),
+  renderSplash(master('symbol', 'nosh-symbol-ivory.svg'), runtime('platform', 'splash-dark.png')),
+  copyBrandAssetDirectory(master('symbol'), runtime('marks', 'symbol')),
+  copyBrandAssetDirectory(master('wordmark'), runtime('marks', 'wordmark'), ['folio-wordmark-plum.png']),
+  copyBrandAssetDirectory(master('lockups'), runtime('marks', 'lockups'), ['folio-lockup-horizontal-plum.png']),
+  copyBrandAssetDirectory(master('character'), runtime('characters')),
 ]);
 
-console.log('Generated Nosh platform exports and synchronized runtime brand assets.');
+console.log('Generated Folio platform exports and synchronized runtime brand assets.');

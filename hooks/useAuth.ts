@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { identifyUser } from '@/utils/analytics';
 import { withTimeout } from '@/utils/networkTimeout';
+import { setPageImageUser } from '@/utils/cookbook/pageImageSession';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -22,7 +23,7 @@ export function useAuth() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
-      identifyUser(s?.user?.id ?? null, { email: s?.user?.email });
+      identifyUser(s?.user?.id ?? null);
     });
 
     return () => {
@@ -45,6 +46,7 @@ export function useAuth() {
         console.warn('[Auth] signOut fallback failed, clearing local state anyway', err1, err2);
       }
     } finally {
+      setPageImageUser(null);
       setSession(null);
       setUser(null);
     }

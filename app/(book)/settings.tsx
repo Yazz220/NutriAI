@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   LogOut,
   Mail,
+  ScrollText,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -16,13 +17,15 @@ import {
 } from 'lucide-react-native';
 import { NoshSymbol } from '@/components/brand/NoshBrandAssets';
 import { CookingPreferencesSheet } from '@/components/settings/CookingPreferencesSheet';
+import { SubscriptionPlanCard } from '@/components/subscription/SubscriptionPlanCard';
 import { LibraryBackButton } from '@/components/navigation/LibraryBackButton';
 import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
-import { PRIVACY_POLICY_URL, SUPPORT_CONTACT_URL } from '@/constants/legal';
+import { PRIVACY_POLICY_URL, SUPPORT_CONTACT_URL, TERMS_OF_USE_URL } from '@/constants/legal';
 import { Spacing, Typography } from '@/constants/spacing';
 import { useAiDataConsent } from '@/contexts/AiDataConsentContext';
 import { useNoshConversation } from '@/contexts/NoshConversationContext';
+import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useCookbooks } from '@/hooks/useCookbooks';
 import { deleteAccount } from '@/utils/account';
@@ -33,13 +36,15 @@ import {
   type CookingPreference,
 } from '@/utils/cookbook/cookingPreferences';
 import { Fonts } from '@/utils/fonts';
+import { isEffectivePlusAccess } from '@/utils/subscriptions/access';
+import { trackEvent } from '@/utils/analytics';
 import {
   getAppleDeletionAuthorizationCode,
   isAppleCancellation,
 } from '@/utils/appleAuth';
 
 function deletionErrorMessage(): string {
-  return 'Nosh could not finish deleting your account. Please try again. If this keeps happening, contact support.';
+  return 'Folio could not finish deleting your account. Please try again. If this keeps happening, contact support.';
 }
 
 export default function CookbookSettingsScreen() {
@@ -49,6 +54,8 @@ export default function CookbookSettingsScreen() {
   const { cookbooks } = useCookbooks();
   const { isGranted, isReady, reviewConsent } = useAiDataConsent();
   const { open: openNosh } = useNoshConversation();
+  const subscription = useNoshSubscription();
+  const userId = user?.id;
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [preferencesVisible, setPreferencesVisible] = useState(false);
@@ -58,20 +65,20 @@ export default function CookbookSettingsScreen() {
   const [removingPreferenceId, setRemovingPreferenceId] = useState<string | null>(null);
 
   const refreshPreferences = useCallback(async () => {
-    if (!user?.id) {
+    if (!userId) {
       setPreferences([]);
       return;
     }
     setPreferencesLoading(true);
     setPreferencesError(null);
     try {
-      setPreferences(await loadCookingPreferences(user.id));
+      setPreferences(await loadCookingPreferences(userId));
     } catch {
       setPreferencesError('Could not load preferences. Check your connection and try again.');
     } finally {
       setPreferencesLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     void refreshPreferences();
@@ -99,7 +106,7 @@ export default function CookbookSettingsScreen() {
       await signOut();
       router.replace('/(auth)/sign-in');
     } catch {
-      Alert.alert('Sign out failed', 'Nosh could not sign you out. Please try again.');
+      Alert.alert('Sign out failed', 'Folio could not sign you out. Please try again.');
     } finally {
       setSigningOut(false);
     }
@@ -132,9 +139,57 @@ export default function CookbookSettingsScreen() {
 
   function confirmDeleteAccount() {
     if (deletingAccount) return;
+    const hasActivePlus = isEffectivePlusAccess(subscription.access);
+
+    if (hasActivePlus) {
+      const renewalCopy = subscription.access?.willRenew
+        ? 'Your Folio Plus subscription is set to renew.'
+        : 'Your Folio Plus access may remain active through the end of its current billing period.';
+      Alert.alert(
+        'Delete account',
+        `${renewalCopy} Deleting your Folio account does not cancel or refund an App Store subscription. You can manage the subscription first, or delete your account immediately.\n\nThis permanently deletes your cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Manage subscription',
+            onPress: () => {
+              void subscription.manage().then((opened) => {
+                if (!opened) {
+                  trackEvent({
+                    type: 'manage_subscription_failed',
+                    data: { reason: 'account_deletion' },
+                  });
+                  Alert.alert('Could not open subscriptions', 'Please open App Store subscription settings and try again.');
+                } else {
+                  trackEvent({
+                    type: 'manage_subscription_opened',
+                    data: { reason: 'account_deletion' },
+                  });
+                }
+              }).catch(() => {
+                trackEvent({
+                  type: 'manage_subscription_failed',
+                  data: { reason: 'account_deletion' },
+                });
+                Alert.alert('Could not open subscriptions', 'Please open App Store subscription settings and try again.');
+              });
+            },
+          },
+          {
+            text: 'Delete account',
+            style: 'destructive',
+            onPress: () => {
+              void handleDeleteAccount();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     Alert.alert(
       'Delete account',
-      'This permanently deletes your Nosh account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
+      'This permanently deletes your Folio account, cookbooks, recipe sources and pages, conversations, and saved preferences. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -152,7 +207,7 @@ export default function CookbookSettingsScreen() {
     if (!user?.id || removingPreferenceId) return;
     Alert.alert(
       'Forget this preference?',
-      `Nosh will stop using "${preference.value}" as a saved ${preference.key.replaceAll('_', ' ')}.`,
+      `Folio will stop using "${preference.value}" as a saved ${preference.key.replaceAll('_', ' ')}.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -215,6 +270,10 @@ export default function CookbookSettingsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <Section title="Your plan">
+          <SubscriptionPlanCard />
+        </Section>
+
         <Section title="Overview">
           <InfoRow
             icon={<Mail size={19} color={Colors.textSecondary} />}
@@ -235,6 +294,14 @@ export default function CookbookSettingsScreen() {
         </Section>
 
         <Section title="Privacy and support">
+          <ActionRow
+            icon={<ScrollText size={19} color={Colors.textSecondary} />}
+            label="Terms of use"
+            role="link"
+            onPress={() => {
+              void openLink(TERMS_OF_USE_URL);
+            }}
+          />
           <ActionRow
             icon={<ShieldCheck size={19} color={Colors.textSecondary} />}
             label="Privacy policy"
@@ -280,7 +347,7 @@ export default function CookbookSettingsScreen() {
           />
         </Section>
 
-        <Text style={styles.footer}>Nosh v{version}</Text>
+        <Text style={styles.footer}>Folio v{version}</Text>
       </ScrollView>
 
       <CookingPreferencesSheet
@@ -296,7 +363,7 @@ export default function CookbookSettingsScreen() {
         onRemove={confirmRemovePreference}
         onOpenNosh={() => {
           setPreferencesVisible(false);
-          openNosh('shelf-nosh', { kind: 'collection' });
+          openNosh('settings-preferences', { kind: 'collection' });
         }}
       />
     </View>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ellipsis, Settings as SettingsIcon } from 'lucide-react-native';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { PhysicalBook, resolveSpineWidth } from '@/components/physical-book/PhysicalBook';
 import { SpineFace } from '@/components/physical-book/SpineFace';
 import { CreateBookSpine, CreateBookVolume } from '@/components/shelf/CreateBookVolume';
@@ -15,9 +15,8 @@ import { Text } from '@/components/ui/Text';
 import { Colors } from '@/constants/colors';
 import { resolveCookbookBinding } from '@/constants/cookbookBindings';
 import { getShelfStyle } from '@/constants/shelfAppearance';
-import { Spacing, Typography } from '@/constants/spacing';
+import { Spacing } from '@/constants/spacing';
 import { useShelfAppearance } from '@/hooks/useShelfAppearance';
-import { Fonts } from '@/utils/fonts';
 import type { Cookbook } from '@/types/cookbook';
 import type { ContextActionGroup, ContextActionId } from '@/utils/cookbook/contextActions';
 import { presentContextActions } from '@/utils/cookbook/contextActionPresenter';
@@ -75,7 +74,7 @@ export function ShelfScene({
       <ShelfWallpaper wallpaperStyleId={scene.wallpaperStyleId} />
 
       <View style={[styles.topBar, { paddingTop: insets.top + Spacing.sm }]}>
-        <NoshHorizontalLockup width={112} />
+        <FolioHorizontalLockup width={112} />
         {onOpenSettings ? (
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
@@ -88,16 +87,11 @@ export function ShelfScene({
         ) : null}
       </View>
 
-      <View style={styles.heading}>
-        <Text variant="h1" style={styles.title} maxFontSizeMultiplier={shelfTextMultiplier}>
-          My Cookbooks
-        </Text>
-        {isStale && onRefresh ? (
-          <View style={styles.staleNotice}>
-            <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} />
-          </View>
-        ) : null}
-      </View>
+      {isStale && onRefresh ? (
+        <View style={styles.staleNotice}>
+          <StaleDataNotice subject="cookbooks" onRefresh={onRefresh} />
+        </View>
+      ) : null}
 
       <View style={styles.stage}>
         <ShelfBoard
@@ -131,6 +125,8 @@ export function ShelfScene({
               coverStyle={book.coverStyle}
               coverFinishId={book.coverFinishId}
               coverColorId={book.coverColorId}
+              coverTitleColorId={book.coverTitleColorId}
+              coverTitlePlacementId={book.coverTitlePlacementId}
               pageCount={book.pageCount}
               imageAsset={book.coverImageAsset}
               width={width}
@@ -251,21 +247,9 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.5,
   },
-  heading: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.xs,
-  },
-  title: {
-    color: Colors.text,
-  },
-  subtitle: {
-    color: Colors.slate,
-    fontSize: Typography.sizes.md,
-    lineHeight: Typography.metrics.lineHeight24,
-    fontFamily: Fonts.ui.regular,
-  },
   staleNotice: {
-    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
   },
   stage: {
     flex: 1,

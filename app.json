@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nosh",
+    "name": "Folio",
     "slug": "nosh",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "backgroundColor": "#F7F2EA",
     "primaryColor": "#65436F",
     "splash": {
-      "image": "./assets/brand/platform/splash.png",
+      "image": "./assets/brand/platform/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#F7F2EA"
     },
@@ -22,10 +22,9 @@
       },
       "supportsTablet": false,
       "bundleIdentifier": "com.yaz12.nosh",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "infoPlist": {
-        "NSCameraUsageDescription": "Nosh uses your camera to capture recipe images.",
-        "NSPhotoLibraryUsageDescription": "Nosh needs access to your photo library to import images for recipes.",
+        "NSPhotoLibraryUsageDescription": "Folio needs access to your photo library to import images for recipes.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
@@ -72,6 +71,15 @@
             ]
           },
           {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeAudioData",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeProductPersonalization"
+            ]
+          },
+          {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
@@ -82,6 +90,14 @@
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePurchaseHistory",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
@@ -107,7 +123,6 @@
         "backgroundColor": "#F7F2EA"
       },
       "permissions": [
-        "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
@@ -115,19 +130,12 @@
       ]
     },
     "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Nosh uses your camera to capture recipe images.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
+      "./plugins/withLocalCookbookStorage",
       "expo-font",
       [
         "expo-image-picker",
         {
-          "photosPermission": "Nosh needs access to your photos to import images for recipes.",
+          "photosPermission": "Folio needs access to your photos to import images for recipes.",
           "microphonePermission": false
         }
       ],
@@ -136,14 +144,22 @@
       "expo-router",
       "expo-asset",
       [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "all-ot",
+          "project": "folio-mobile"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F7F2EA",
-          "image": "./assets/brand/platform/splash.png",
-          "imageWidth": 220,
+          "image": "./assets/brand/platform/icon.png",
+          "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
-            "image": "./assets/brand/platform/splash-dark.png",
+            "image": "./assets/brand/platform/icon-dark.png",
             "backgroundColor": "#65436F"
           }
         }
@@ -151,7 +167,7 @@
       [
         "expo-share-intent",
         {
-          "iosShareExtensionName": "ShareToNosh",
+          "iosShareExtensionName": "ShareToFolio",
           "iosShareExtensionBundleIdentifier": "com.yaz12.nosh.share",
           "iosAppGroupIdentifier": "group.com.yaz12.nosh.share",
           "iosActivationRules": {
@@ -171,8 +187,8 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/brand/platform/favicon.png",
-      "name": "Nosh",
-      "shortName": "Nosh"
+      "name": "Folio",
+      "shortName": "Folio"
     },
     "extra": {
       "eas": {

@@ -1,6 +1,8 @@
 import {
+  acquireDirectVideoRecipeSource,
   buildVideoRecipeEvidencePrompt,
   classifyVideoModelFailure,
+  degradedVideoEvidenceNote,
   inspectUploadedVideoRecipeSource,
   MAX_DIRECT_VIDEO_BYTES,
   resolveUploadedVideoRecipeEvidence,
@@ -10,6 +12,7 @@ import {
   classifyVideoSourceUrl,
   isRecognizedVideoSourceUrl,
 } from '@/supabase/functions/_shared/videoSource';
+import { transcribeVideoRecipeEvidence } from '@/supabase/functions/_shared/videoTranscription';
 
 const allowPublicUrl = async () => {};
 
@@ -89,6 +92,30 @@ describe('video recipe evidence adapter', () => {
       new URL('https://cdn.example.com/recipe.mp4'),
       expect.objectContaining({ method: 'GET', redirect: 'manual' }),
     );
+  });
+
+  it('exposes the acquired direct-video bytes for capture-owned transcription and extraction', async () => {
+    const bytes = validMp4Bytes();
+    const fetchImpl = jest.fn().mockResolvedValue(new Response(
+      bytes,
+      { status: 200, headers: { 'content-type': 'video/mp4', 'content-length': '32' } },
+    ));
+
+    const result = await acquireDirectVideoRecipeSource('https://cdn.example.com/recipe.mp4', {
+      fetchImpl,
+      checkPublicUrl: allowPublicUrl,
+      rightsConfirmed: true,
+    });
+
+    expect(result).toEqual({
+      ready: true,
+      kind: 'direct_file',
+      canonicalUrl: 'https://cdn.example.com/recipe.mp4',
+      bytes,
+      mimeType: 'video/mp4',
+      byteSize: 32,
+      adapterVersion: 'video-source-v2',
+    });
   });
 
   it('rejects redirects into social-platform media hosts before downloading them', async () => {
@@ -189,6 +216,68 @@ describe('video recipe evidence adapter', () => {
     });
   });
 
+  it.each([
+    ['video/mp4', 'recipe.mp4'],
+    ['video/mov', 'recipe.mov'],
+    ['video/mpeg', 'recipe.mpeg'],
+    ['video/webm', 'recipe.webm'],
+  ] as const)('transcribes an inspected %s upload through the direct-media adapter', async (mimeType, fileName) => {
+    const fetchImpl = jest.fn().mockImplementation(async (_input, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      expect(form).toBeInstanceOf(FormData);
+      expect(form.get('model')).toBe('mistralai/voxtral-small-24b-2507-stt');
+      expect(form.get('response_format')).toBe('json');
+      expect(form.get('temperature')).toBe('0');
+      const file = form.get('file');
+      expect(file).toBeInstanceOf(Blob);
+      expect((file as Blob).type).toBe(mimeType);
+      return new Response(JSON.stringify({ text: 'Add two eggs, then whisk and fry.' }), { status: 200 });
+    });
+
+    await expect(transcribeVideoRecipeEvidence({
+      bytes: validMp4Bytes(),
+      mimeType,
+      fileName,
+    }, {
+      apiBase: 'https://openrouter.ai/api/v1',
+      apiKey: 'test-key',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
+      fetchImpl,
+    })).resolves.toMatchObject({
+      ready: true,
+      transcript: 'Add two eggs, then whisk and fry.',
+      provider: 'openrouter',
+      adapterVersion: 'video-transcription-openrouter-v1',
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/audio/transcriptions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
+      }),
+    );
+  });
+
+  it('degrades without calling an undocumented audio endpoint when video STT is not configured', async () => {
+    const fetchImpl = jest.fn();
+    await expect(transcribeVideoRecipeEvidence({
+      bytes: validMp4Bytes(),
+      mimeType: 'video/mp4',
+      fileName: 'recipe.mp4',
+    }, {
+      apiBase: 'https://openrouter.ai/api/v1',
+      apiKey: '',
+      model: 'mistralai/voxtral-small-24b-2507-stt',
+      fetchImpl,
+    })).resolves.toMatchObject({
+      ready: false,
+      reasonCode: 'audio_transcription_failed',
+      diagnostic: 'The video transcription provider is not configured.',
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('makes transcript availability explicit and recognizes access failures', () => {
     const prompt = buildVideoRecipeEvidencePrompt({
       ready: true,
@@ -197,13 +286,52 @@ describe('video recipe evidence adapter', () => {
       mimeType: 'video/mp4',
       transcriptStatus: 'not_supplied',
       adapterVersion: 'video-source-v2',
-    }, 'Use the creator\'s corrected quantity.');
+    }, { notes: 'Use the creator\'s corrected quantity.' });
 
-    expect(prompt).toContain('No separate transcript was supplied');
     expect(prompt).toContain('<UNTRUSTED_USER_NOTES>');
     expect(prompt).toContain("Use the creator's corrected quantity.");
     expect(prompt).toContain('return insufficient_evidence instead of inventing details');
     expect(classifyVideoModelFailure('The YouTube video is private and unavailable')).toBe('video_unavailable');
     expect(classifyVideoModelFailure('No endpoints support video input')).toBeNull();
+  });
+
+  it('includes narration transcript and sampled-frame guidance when supplied', () => {
+    const prompt = buildVideoRecipeEvidencePrompt({
+      ready: true,
+      kind: 'owned_upload',
+      videoUrl: 'data:video/mp4;base64,AQID',
+      mimeType: 'video/mp4',
+      transcriptStatus: 'supplied',
+      adapterVersion: 'video-source-v2',
+    }, { transcript: 'Add two cups of flour', frameCount: 4 });
+
+    expect(prompt).toContain('<UNTRUSTED_AUDIO_TRANSCRIPT>');
+    expect(prompt).toContain('Add two cups of flour');
+    expect(prompt).toContain('SAMPLED VIDEO FRAMES: 4 frames');
+    expect(prompt).toContain('treat the transcript as the textual record of it');
+  });
+
+  it('describes degraded evidence when the whole video is not attached', () => {
+    const prompt = buildVideoRecipeEvidencePrompt({
+      ready: true,
+      kind: 'owned_upload',
+      videoUrl: 'data:video/mp4;base64,AQID',
+      mimeType: 'video/mp4',
+      transcriptStatus: 'supplied',
+      adapterVersion: 'video-source-v2',
+    }, { transcript: 'Whisk three eggs', frameCount: 2, wholeVideoAttached: false });
+
+    expect(prompt).toContain('the whole video could not be attached');
+    expect(prompt).not.toContain('the full video is also attached');
+  });
+
+  it('records exactly which decomposed signals supported a degraded extraction', () => {
+    expect(degradedVideoEvidenceNote({ hasTranscript: true, frameCount: 3 }))
+      .toContain('narration transcript and sampled frames');
+    expect(degradedVideoEvidenceNote({ hasTranscript: true, frameCount: 0 }))
+      .toContain('narration transcript.');
+    expect(degradedVideoEvidenceNote({ hasTranscript: false, frameCount: 3 }))
+      .toContain('sampled frames.');
+    expect(degradedVideoEvidenceNote({ hasTranscript: false, frameCount: 0 })).toBeNull();
   });
 });

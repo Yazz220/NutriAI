@@ -1,7 +1,7 @@
 import { Radii, Spacing, Typography } from '@/constants/spacing';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { NoshHorizontalLockup } from '@/components/brand/NoshBrandAssets';
+import { FolioHorizontalLockup } from '@/components/brand/NoshBrandAssets';
 import { Colors } from '@/constants/colors';
 import { captureError } from '@/utils/analytics';
 import { Fonts } from '@/utils/fonts';
@@ -30,9 +30,9 @@ export class GlobalErrorBoundary extends React.Component<React.PropsWithChildren
       return (
         <View style={styles.container}>
           <View style={styles.content}>
-            <NoshHorizontalLockup width={136} />
+            <FolioHorizontalLockup width={136} />
             <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.subtitle}>Close and reopen Nosh. Your cookbooks are safe.</Text>
+            <Text style={styles.subtitle}>Close and reopen Folio. Your cookbooks are safe.</Text>
             {__DEV__ && this.state.error ? (
               <ScrollView style={styles.details}>
                 <Text style={styles.errorLabel}>Error</Text>

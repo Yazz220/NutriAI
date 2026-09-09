@@ -14,7 +14,7 @@
 
 This is a reconstruction of the current working tree as scanned on 2026-08-22. It describes what the code can render and how the implemented states connect. It does not treat older plans or architecture documents as product truth.
 
-The local `.env` does not set `EXPO_PUBLIC_NOSH_CONTEXT_MODEL_V2`, so the flag resolves to `false`. The default experience therefore uses the compact shelf Nosh button and the compatibility conversation copy that accepts recipe links, photos, video, and general questions in one composer. The V2 collection, recipe, and capture-specific presentation is implemented behind the flag and is recorded separately where it changes the UX.
+The original snapshot compared two flag-controlled conversation presentations. That split has since been retired: Folio now uses one contextual presentation for collection, cookbook, recipe, capture, walkthrough, and preference interactions.
 
 The working tree contains a large set of uncommitted changes. This inventory describes those files as they exist now. It is not a statement about what has reached production.
 

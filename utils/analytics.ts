@@ -1,6 +1,8 @@
-// Lightweight analytics & error-reporting shim.
-// Central place for product events and crash capture. For now it logs to console
-// and can be extended to forward to a real backend (Sentry, Amplitude, etc.) later.
+// Lightweight analytics and error-reporting boundary. Product analytics remain
+// local for now; diagnostics are forwarded to Sentry through privacy scrubbers.
+
+import { Sentry, isSentryConfigured } from '@/utils/observability/sentry';
+import { sanitizeForTelemetry } from '@/utils/observability/privacy';
 
 export type AppAnalyticsEvent = {
   type: string;
@@ -10,8 +12,7 @@ export type AppAnalyticsEvent = {
 };
 
 /**
- * Track a product event.
- * Replace the body with a real SDK call (e.g. Amplitude.track) when ready.
+ * Track a product event and retain a minimal breadcrumb for error diagnosis.
  */
 export function trackEvent(event: Omit<AppAnalyticsEvent, 'timestamp'>) {
   try {
@@ -20,15 +21,21 @@ export function trackEvent(event: Omit<AppAnalyticsEvent, 'timestamp'>) {
       // eslint-disable-next-line no-console
       console.log('[ANALYTICS]', withTime);
     }
-    // TODO: forward to Amplitude / Segment / PostHog
+    if (isSentryConfigured) {
+      Sentry.addBreadcrumb({
+        category: 'product',
+        type: 'default',
+        message: event.type,
+        data: sanitizeForTelemetry(event.data) as Record<string, unknown> | undefined,
+      });
+    }
   } catch {
     // swallow: analytics must never crash the app
   }
 }
 
 /**
- * Capture an error for crash reporting.
- * Replace with Sentry.captureException (or similar) when ready.
+ * Capture an error for crash reporting without recipe/source content.
  */
 export function captureError(error: unknown, context?: Record<string, unknown>) {
   try {
@@ -36,7 +43,11 @@ export function captureError(error: unknown, context?: Record<string, unknown>) 
       // eslint-disable-next-line no-console
       console.error('[ERROR_CAPTURE]', error, context);
     }
-    // TODO: Sentry.captureException(error, { extra: context })
+    if (isSentryConfigured) {
+      Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+        extra: sanitizeForTelemetry(context) as Record<string, unknown> | undefined,
+      });
+    }
   } catch {
     // swallow: error reporting must never crash the app
   }
@@ -46,14 +57,13 @@ export function captureError(error: unknown, context?: Record<string, unknown>) 
  * Set the authenticated user for analytics + error scoping.
  * Call on sign-in; call with null on sign-out.
  */
-export function identifyUser(userId: string | null, traits?: Record<string, unknown>) {
+export function identifyUser(userId: string | null) {
   try {
     if (__DEV__) {
       // eslint-disable-next-line no-console
-      console.log('[IDENTIFY]', userId, traits);
+      console.log('[IDENTIFY]', userId);
     }
-    // TODO: Sentry.setUser(userId ? { id: userId, ...traits } : null)
-    // TODO: Amplitude.setUserId(userId)
+    if (isSentryConfigured) Sentry.setUser(userId ? { id: userId } : null);
   } catch {
     // swallow
   }

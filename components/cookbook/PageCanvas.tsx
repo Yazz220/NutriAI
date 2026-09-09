@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { CookbookPageImage } from '@/components/cookbook/CookbookPageImage';
 import { Text } from '@/components/ui/Text';
 import { TypesetterPage } from '@/components/cookbook/typesetter/TypesetterPage';
 import { Colors } from '@/constants/colors';
@@ -10,6 +11,7 @@ import { COOKBOOK_GEOMETRY } from '@/constants/cookbookGeometry';
 import { DEFAULT_RECIPE_TEMPLATE_ID } from '@/constants/recipeTemplates';
 import type { CookbookPage } from '@/types/cookbook';
 import type { RecipeGraph } from '@/types/recipeGraph';
+import { hasCompleteCookbookPageImage } from '@/utils/cookbook/pageImageDelivery';
 
 interface PageCanvasProps {
   page: CookbookPage;
@@ -17,9 +19,13 @@ interface PageCanvasProps {
   onRenderReady?: () => void;
 }
 
-function PageSkeleton({ page }: { page: CookbookPage }) {
+function PageSkeleton({ page, hidden = false }: { page: CookbookPage; hidden?: boolean }) {
   return (
-    <View style={styles.skeleton}>
+    <View
+      style={styles.skeleton}
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
+    >
       <View style={styles.skeletonInner}>
         <Text style={styles.skeletonTitle} numberOfLines={2} adjustsFontSizeToFit>
           {page.title}
@@ -83,29 +89,34 @@ export function resolveFocusedPageWidth(viewportWidth: number, viewportHeight: n
   return Math.min(availableWidth, availableHeight * COOKBOOK_GEOMETRY.page.aspectRatio, 560);
 }
 
-export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
+export const PageCanvas = React.memo(function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvasProps) {
   const { width, height } = useWindowDimensions();
   const pageWidth = bookMode ? '100%' : resolveFocusedPageWidth(width, height);
   const maxHeight = bookMode ? undefined : Math.max(240, height - 210);
 
-  const completePageSource = page.pageImage?.imageUrl
-    ? { uri: page.pageImage.imageUrl }
-    : page.imageAsset
-      ?? (!page.recipeGraph && page.imageUrl ? { uri: page.imageUrl } : null);
+  const hasCompletePage = hasCompleteCookbookPageImage(page);
 
-  if (completePageSource) {
+  if (hasCompletePage) {
     const accessibilityLabel = buildRecipePageAccessibilityLabel(page);
     return (
       <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
-        <Image
-          source={completePageSource}
+        <CookbookPageImage
+          page={page}
+          variant="full"
           style={styles.image}
-          resizeMode="contain"
+          contentFit="contain"
           onLoad={onRenderReady}
           accessible
-          accessibilityRole="image"
           accessibilityLabel={accessibilityLabel}
         />
+      </View>
+    );
+  }
+
+  if (page.selectedVersionId && !page.artAsset) {
+    return (
+      <View style={[styles.frame, bookMode && styles.bookFrame, { width: pageWidth, maxHeight }]}>
+        <PageSkeleton page={page} />
       </View>
     );
   }
@@ -131,7 +142,7 @@ export function PageCanvas({ page, bookMode = false, onRenderReady }: PageCanvas
       <PageSkeleton page={page} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   frame: {

@@ -4,9 +4,9 @@ status: accepted
 
 # Suspend internal generation-credit enforcement during product development
 
-Nosh does not currently charge or gate users with an internal generation-credit balance. The credit system predates the book-first product model and has no settled product policy, entitlement model, purchase flow, or recovery experience. Blocking a valid recipe capture on that unfinished system prevents testing the core recipe-to-book experience.
+Folio does not currently charge or gate users with an internal generation-credit balance. The credit system predates the book-first product model and has no settled product policy, entitlement model, purchase flow, or recovery experience. Blocking a valid recipe capture on that unfinished system prevents testing the core recipe-to-book experience.
 
-The active `generate-page-art` path therefore calls the configured image provider directly, records new page versions with `credit_cost = 0`, and can complete a generation request without a credit-ledger spend. Settings and Nosh tool language do not expose a credit balance or one-credit cost.
+The active `generate-page-art` path therefore calls the configured image provider directly, records new page versions with `credit_cost = 0`, and can complete a generation request without a credit-ledger spend. Settings and Folio tool language do not expose a credit balance or one-credit cost.
 
 ## Consequences
 

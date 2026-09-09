@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Check } from 'lucide-react-native';
 import { PhysicalBook } from '@/components/physical-book/PhysicalBook';
 import { SkiaBookCover } from '@/components/physical-book/SkiaBookCover';
+import { PageStyleCarousel } from '@/components/create/PageStyleCarousel';
 import { ShelfWallpaper } from '@/components/shelf/ShelfWallpaper';
 import { Text } from '@/components/ui/Text';
 import {
@@ -29,6 +30,7 @@ import {
   type CookbookCoverColorOption,
   type CookbookCoverFinishOption,
   type CookbookPageStyleOption,
+  type CookbookPageStylePreview,
   type CreationPageStyleId,
 } from '@/constants/cookbookCustomization';
 import { Colors } from '@/constants/colors';
@@ -46,10 +48,24 @@ import {
   getLegacyCoverStyleForColor,
   resolveCookbookBinding,
 } from '@/constants/cookbookBindings';
+import {
+  DEFAULT_COVER_TITLE_COLOR_ID,
+  DEFAULT_COVER_TITLE_PLACEMENT_ID,
+  listCoverTitleColors,
+  listCoverTitlePlacements,
+  resolveCoverTitleFoil,
+  type CoverTitleColorOption,
+  type CoverTitlePlacementOption,
+} from '@/constants/cookbookCoverTypography';
 import { resolveCookbookSpreadHeight } from '@/constants/cookbookGeometry';
 import { Radii, Shadows, Spacing, Typography } from '@/constants/spacing';
 import { Fonts } from '@/utils/fonts';
-import type { CookbookCoverColorId, CookbookCoverFinishId } from '@/types/cookbook';
+import type {
+  CookbookCoverColorId,
+  CookbookCoverFinishId,
+  CookbookCoverTitleColorId,
+  CookbookCoverTitlePlacementId,
+} from '@/types/cookbook';
 
 /**
  * Cookbook creation keeps the physical book canonical while letting the user
@@ -63,15 +79,20 @@ export interface CreateCookbookDetails {
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   pageStyleId: CreationPageStyleId;
 }
 
 interface CreationStudioProps {
-  canCreate: boolean;
-  onCreateBook: (details: CreateCookbookDetails) => Promise<void>;
-  onSignIn: () => void;
+  canCreate?: boolean;
+  onCreateBook?: (details: CreateCookbookDetails) => Promise<void | boolean>;
+  onSaveBook?: (details: CreateCookbookDetails) => Promise<void | boolean>;
+  onSignIn?: () => void;
+  initialDetails?: CreateCookbookDetails;
+  existingPageStylePreview?: CookbookPageStylePreview | null;
   bottomInset?: number;
-  mode?: 'standard' | 'first-run';
+  mode?: 'standard' | 'first-run' | 'edit';
   shelfStyleId?: ShelfStyleId;
   wallpaperStyleId?: WallpaperStyleId;
   onShelfStyleChange?: (shelfStyleId: ShelfStyleId) => void | Promise<void>;
@@ -81,7 +102,10 @@ interface CreationStudioProps {
 export function CreationStudio({
   canCreate,
   onCreateBook,
+  onSaveBook,
   onSignIn,
+  initialDetails,
+  existingPageStylePreview,
   bottomInset = 0,
   mode = 'standard',
   shelfStyleId = DEFAULT_BOOKSHELF_SCENE.shelfStyleId,
@@ -92,14 +116,29 @@ export function CreationStudio({
   const { width } = useWindowDimensions();
   const coverFinishes = listCookbookCoverFinishes();
   const coverColors = listCookbookCoverColors();
+  const coverTitleColors = listCoverTitleColors();
+  const coverTitlePlacements = listCoverTitlePlacements();
   const pageStyles = listCreationPageStyles();
   const shelfStyles = listShelfStyles();
   const wallpaperStyles = listWallpaperStyles();
   const isFirstRun = mode === 'first-run';
-  const [title, setTitle] = useState(isFirstRun ? 'My Cookbook' : '');
-  const [coverFinishId, setCoverFinishId] = useState<CookbookCoverFinishId>(DEFAULT_COVER_FINISH_ID);
-  const [coverColorId, setCoverColorId] = useState<CookbookCoverColorId>(DEFAULT_COVER_COLOR_ID);
-  const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(DEFAULT_CREATION_PAGE_STYLE_ID);
+  const isEditing = mode === 'edit';
+  const [title, setTitle] = useState(initialDetails?.title ?? (isFirstRun ? 'My Cookbook' : ''));
+  const [coverFinishId, setCoverFinishId] = useState<CookbookCoverFinishId>(
+    initialDetails?.coverFinishId ?? DEFAULT_COVER_FINISH_ID,
+  );
+  const [coverColorId, setCoverColorId] = useState<CookbookCoverColorId>(
+    initialDetails?.coverColorId ?? DEFAULT_COVER_COLOR_ID,
+  );
+  const [coverTitleColorId, setCoverTitleColorId] = useState<CookbookCoverTitleColorId>(
+    initialDetails?.coverTitleColorId ?? DEFAULT_COVER_TITLE_COLOR_ID,
+  );
+  const [coverTitlePlacementId, setCoverTitlePlacementId] = useState<CookbookCoverTitlePlacementId>(
+    initialDetails?.coverTitlePlacementId ?? DEFAULT_COVER_TITLE_PLACEMENT_ID,
+  );
+  const [pageStyleId, setPageStyleId] = useState<CreationPageStyleId>(
+    initialDetails?.pageStyleId ?? DEFAULT_CREATION_PAGE_STYLE_ID,
+  );
   const [previewFace, setPreviewFace] = useState<PreviewFace>('cover');
   const [studioScope, setStudioScope] = useState<StudioScope>('book');
   const [submitting, setSubmitting] = useState(false);
@@ -131,6 +170,20 @@ export function CreationStudio({
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
+  function selectCoverTitleColor(value: CookbookCoverTitleColorId) {
+    setCoverTitleColorId(value);
+    setPreviewFace('cover');
+    setError(null);
+    void Haptics.selectionAsync().catch(() => undefined);
+  }
+
+  function selectCoverTitlePlacement(value: CookbookCoverTitlePlacementId) {
+    setCoverTitlePlacementId(value);
+    setPreviewFace('cover');
+    setError(null);
+    void Haptics.selectionAsync().catch(() => undefined);
+  }
+
   function selectStudioScope(value: StudioScope) {
     setStudioScope(value);
     setError(null);
@@ -155,21 +208,33 @@ export function CreationStudio({
     void Haptics.selectionAsync().catch(() => undefined);
   }
 
-  async function handleCreate() {
+  async function handleSubmit() {
     const trimmed = title.trim();
-    if (!trimmed || submitting || !canCreate) return;
+    if (!trimmed || submitting || (isEditing ? !onSaveBook : !canCreate || !onCreateBook)) return;
     setSubmitting(true);
     setError(null);
     try {
-      await onCreateBook({ title: trimmed, coverFinishId, coverColorId, pageStyleId });
+      const saved = await (isEditing ? onSaveBook : onCreateBook)?.({
+        title: trimmed,
+        coverFinishId,
+        coverColorId,
+        coverTitleColorId,
+        coverTitlePlacementId,
+        pageStyleId,
+      });
+      if (saved === false) {
+        setSubmitting(false);
+        return;
+      }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-    } catch (creationError) {
-      setError(getErrorMessage(creationError));
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, isEditing ? 'Could not save cookbook.' : 'Could not create cookbook.'));
       setSubmitting(false);
     }
   }
 
-  const ctaDisabled = canCreate ? !title.trim() || submitting : false;
+  const canSubmit = isEditing ? Boolean(onSaveBook) : Boolean(canCreate && onCreateBook);
+  const ctaDisabled = canSubmit ? !title.trim() || submitting : false;
 
   return (
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -185,11 +250,13 @@ export function CreationStudio({
               ? 'Set the scene'
               : isFirstRun
                 ? 'Give your recipes a home'
-                : 'Make it yours'}
+                : isEditing
+                  ? 'Customize your cookbook'
+                  : 'Make it yours'}
           </Text>
         </View>
 
-        <StudioScopeToggle value={studioScope} onChange={selectStudioScope} />
+        {!isEditing ? <StudioScopeToggle value={studioScope} onChange={selectStudioScope} /> : null}
 
         {studioScope === 'book' ? (
           <>
@@ -198,7 +265,9 @@ export function CreationStudio({
                 title={title}
                 coverFinishId={coverFinishId}
                 coverColorId={coverColorId}
-                pageStyleId={pageStyleId}
+                coverTitleColorId={coverTitleColorId}
+                coverTitlePlacementId={coverTitlePlacementId}
+                pageStyle={isEditing ? existingPageStylePreview : COOKBOOK_PAGE_STYLES[pageStyleId]}
                 face={previewFace}
                 availableWidth={Math.min(width - Spacing.xl * 2, 640)}
                 onPress={() => selectPreviewFace(previewFace === 'cover' ? 'inside' : 'cover')}
@@ -226,23 +295,37 @@ export function CreationStudio({
                 disabled={submitting}
                 onChange={selectCoverColor}
               />
-              <PageStyleSelector
-                value={pageStyleId}
-                options={pageStyles}
+              <TitleStyleSelector
+                colorValue={coverTitleColorId}
+                placementValue={coverTitlePlacementId}
+                coverColorId={coverColorId}
+                colorOptions={coverTitleColors}
+                placementOptions={coverTitlePlacements}
                 disabled={submitting}
-                onChange={selectPageStyle}
+                onColorChange={selectCoverTitleColor}
+                onPlacementChange={selectCoverTitlePlacement}
               />
+              {!isEditing ? (
+                <PageStyleSelector
+                  value={pageStyleId}
+                  options={pageStyles}
+                  disabled={submitting}
+                  onChange={selectPageStyle}
+                />
+              ) : null}
 
               {error ? <Text style={styles.error} selectable>{error}</Text> : null}
 
               <Pressable
                 style={[styles.finishButton, ctaDisabled && styles.disabledButton]}
-                onPress={canCreate ? () => void handleCreate() : onSignIn}
+                onPress={canSubmit ? () => void handleSubmit() : onSignIn}
                 disabled={ctaDisabled}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  canCreate
-                    ? isFirstRun
+                  canSubmit
+                    ? isEditing
+                      ? 'Save cookbook changes'
+                      : isFirstRun
                       ? 'Put this cookbook on my shelf'
                       : 'Add this cookbook to my shelf'
                     : 'Go to sign in'
@@ -252,7 +335,13 @@ export function CreationStudio({
                   <ActivityIndicator color={Colors.onPrimary} />
                 ) : (
                   <Text style={styles.finishText}>
-                    {canCreate ? (isFirstRun ? 'Create my cookbook' : 'Add to shelf') : 'Sign in to save'}
+                    {canSubmit
+                      ? isEditing
+                        ? 'Save changes'
+                        : isFirstRun
+                          ? 'Create my cookbook'
+                          : 'Add to shelf'
+                      : 'Sign in to save'}
                   </Text>
                 )}
               </Pressable>
@@ -264,6 +353,8 @@ export function CreationStudio({
               title={title}
               coverFinishId={coverFinishId}
               coverColorId={coverColorId}
+              coverTitleColorId={coverTitleColorId}
+              coverTitlePlacementId={coverTitlePlacementId}
               shelfStyleId={shelfStyleId}
               wallpaperStyleId={wallpaperStyleId}
               availableWidth={Math.min(width - Spacing.xl * 2, 640)}
@@ -290,9 +381,9 @@ export function CreationStudio({
   );
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
-  return 'Could not create cookbook.';
+  return fallback;
 }
 
 function StudioScopeToggle({
@@ -329,6 +420,8 @@ function ScenePreview({
   title,
   coverFinishId,
   coverColorId,
+  coverTitleColorId,
+  coverTitlePlacementId,
   shelfStyleId,
   wallpaperStyleId,
   availableWidth,
@@ -336,6 +429,8 @@ function ScenePreview({
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
   shelfStyleId: ShelfStyleId;
   wallpaperStyleId: WallpaperStyleId;
   availableWidth: number;
@@ -364,6 +459,8 @@ function ScenePreview({
           coverStyle={getLegacyCoverStyleForColor(coverColorId)}
           coverFinishId={coverFinishId}
           coverColorId={coverColorId}
+          coverTitleColorId={coverTitleColorId}
+          coverTitlePlacementId={coverTitlePlacementId}
           width={bookWidth}
           showShadow={false}
         />
@@ -462,7 +559,11 @@ function WallpaperStyleSelector({
               >
                 <ShelfWallpaper wallpaperStyleId={option.id} />
               </View>
-              <Text style={[styles.wallpaperName, selected && styles.wallpaperNameSelected]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.wallpaperName, selected && styles.wallpaperNameSelected]}
+              >
                 {option.name}
               </Text>
               {selected ? (
@@ -504,7 +605,9 @@ function BookPreview({
   title,
   coverFinishId,
   coverColorId,
-  pageStyleId,
+  coverTitleColorId,
+  coverTitlePlacementId,
+  pageStyle,
   face,
   availableWidth,
   onPress,
@@ -512,7 +615,9 @@ function BookPreview({
   title: string;
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
-  pageStyleId: CreationPageStyleId;
+  coverTitleColorId: CookbookCoverTitleColorId;
+  coverTitlePlacementId: CookbookCoverTitlePlacementId;
+  pageStyle?: CookbookPageStylePreview | null;
   face: PreviewFace;
   availableWidth: number;
   onPress: () => void;
@@ -530,15 +635,16 @@ function BookPreview({
         pressed && styles.bookStagePressed,
       ]}
       onPress={onPress}
+      disabled={!pageStyle}
       accessibilityRole="button"
-      accessibilityLabel={face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
+      accessibilityLabel={!pageStyle ? 'Cookbook cover preview' : face === 'cover' ? 'Open cookbook preview' : 'Close cookbook preview'}
       accessibilityHint={
-        face === 'cover'
+        !pageStyle ? 'Read your saved pages in the cookbook' : face === 'cover'
           ? 'Opens the selected sample recipe pages'
           : 'Returns to the cookbook cover'
       }
     >
-      {face === 'cover' ? (
+      {face === 'cover' || !pageStyle ? (
         <>
           <View pointerEvents="none" style={styles.stageHalo} />
           <PhysicalBook
@@ -546,6 +652,8 @@ function BookPreview({
             coverStyle={getLegacyCoverStyleForColor(coverColorId)}
             coverFinishId={coverFinishId}
             coverColorId={coverColorId}
+            coverTitleColorId={coverTitleColorId}
+            coverTitlePlacementId={coverTitlePlacementId}
             width={coverWidth}
           />
         </>
@@ -553,7 +661,7 @@ function BookPreview({
         <GeneratedRecipeSpread
           coverFinishId={coverFinishId}
           coverColorId={coverColorId}
-          pageStyleId={pageStyleId}
+          pageStyle={pageStyle}
           width={spreadWidth}
         />
       )}
@@ -564,16 +672,15 @@ function BookPreview({
 function GeneratedRecipeSpread({
   coverFinishId,
   coverColorId,
-  pageStyleId,
+  pageStyle,
   width,
 }: {
   coverFinishId: CookbookCoverFinishId;
   coverColorId: CookbookCoverColorId;
-  pageStyleId: CreationPageStyleId;
+  pageStyle: CookbookPageStylePreview;
   width: number;
 }) {
   const binding = resolveCookbookBinding({ finishId: coverFinishId, colorId: coverColorId });
-  const pageStyle = COOKBOOK_PAGE_STYLES[pageStyleId];
   const height = resolveCookbookSpreadHeight(width);
   const pageWidth = width / 2;
 
@@ -663,13 +770,13 @@ function CoverFinishSelector({
               disabled={disabled}
               accessibilityRole="button"
               accessibilityState={{ selected, disabled }}
-              accessibilityLabel={`${option.name} cover texture: ${option.description}`}
+              accessibilityLabel={`${option.name} cover finish`}
             >
               <View style={styles.finishSample} pointerEvents="none">
                 <SkiaBookCover
                   binding={binding}
-                  width={64}
-                  height={64}
+                  width={108}
+                  height={66}
                   spineWidth={0}
                   presentation="swatch"
                 />
@@ -692,6 +799,112 @@ function CoverFinishSelector({
   );
 }
 
+function TitleStyleSelector({
+  colorValue,
+  placementValue,
+  coverColorId,
+  colorOptions,
+  placementOptions,
+  disabled,
+  onColorChange,
+  onPlacementChange,
+}: {
+  colorValue: CookbookCoverTitleColorId;
+  placementValue: CookbookCoverTitlePlacementId;
+  coverColorId: CookbookCoverColorId;
+  colorOptions: CoverTitleColorOption[];
+  placementOptions: CoverTitlePlacementOption[];
+  disabled: boolean;
+  onColorChange: (value: CookbookCoverTitleColorId) => void;
+  onPlacementChange: (value: CookbookCoverTitlePlacementId) => void;
+}) {
+  const binding = resolveCookbookBinding({ colorId: coverColorId });
+  const selectedFoil = resolveCoverTitleFoil(colorValue, binding.foil);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Title treatment</Text>
+      <View style={styles.titleStyleGroup}>
+        <Text style={styles.controlLabel}>Stamp</Text>
+        <OptionRail testID="title-color-rail">
+          {colorOptions.map((option) => {
+            const selected = colorValue === option.id;
+            const foil = option.foil ?? binding.foil;
+            return (
+              <Pressable
+                key={option.id}
+                style={styles.titleColorOption}
+                onPress={() => onColorChange(option.id)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected, disabled }}
+                accessibilityLabel={`${option.name} title color`}
+              >
+                <View style={[styles.titleColorSwatchFrame, selected && styles.colorSwatchFrameSelected]}>
+                  <LinearGradient
+                    colors={[foil[0], foil[1], foil[2]]}
+                    start={{ x: 0, y: 1 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.titleColorSwatch}
+                  />
+                  {selected ? (
+                    <View style={styles.selectedMark}>
+                      <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.colorName, selected && styles.colorNameSelected]}>{option.name}</Text>
+              </Pressable>
+            );
+          })}
+        </OptionRail>
+      </View>
+
+      <View style={styles.titleStyleGroup}>
+        <Text style={styles.controlLabel}>Treatment</Text>
+        <OptionRail testID="title-position-rail">
+          {placementOptions.map((option) => {
+            const selected = placementValue === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                style={[styles.titlePlacementOption, selected && styles.titlePlacementOptionSelected]}
+                onPress={() => onPlacementChange(option.id)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected, disabled }}
+                accessibilityLabel={`${option.name} title treatment`}
+              >
+                <View style={[styles.titlePlacementBook, { backgroundColor: binding.cloth }]}>
+                  {option.treatment === 'editorial' ? (
+                    <View style={[styles.editorialSampleRule, { backgroundColor: selectedFoil[1] }]} />
+                  ) : null}
+                  {option.treatment === 'bookplate' ? (
+                    <View style={[styles.bookplateSampleFrame, { borderColor: selectedFoil[1] }]} />
+                  ) : null}
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      styles.titleTreatmentSample,
+                      option.treatment === 'editorial' && styles.titleTreatmentEditorial,
+                      option.treatment === 'modern' && styles.titleTreatmentModern,
+                      option.treatment === 'bookplate' && styles.titleTreatmentBookplate,
+                      { top: option.centerRatio * 72 - 8, color: selectedFoil[1] },
+                    ]}
+                  >
+                    {option.treatment === 'modern' ? 'FOLIO' : 'Folio'}
+                  </Text>
+                </View>
+                <Text style={[styles.colorName, selected && styles.colorNameSelected]}>{option.name}</Text>
+              </Pressable>
+            );
+          })}
+        </OptionRail>
+      </View>
+    </View>
+  );
+}
+
 function CoverColorSelector({
   value,
   options,
@@ -705,7 +918,7 @@ function CoverColorSelector({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Color</Text>
+      <Text style={styles.sectionTitle}>Cover color</Text>
       <OptionRail testID="cover-color-rail">
         {options.map((option) => {
           const selected = value === option.id;
@@ -721,12 +934,7 @@ function CoverColorSelector({
               accessibilityLabel={`${option.name} cover color`}
             >
               <View style={[styles.colorSwatchFrame, selected && styles.colorSwatchFrameSelected]}>
-                <View
-                  style={[
-                    styles.colorSwatch,
-                    { backgroundColor: binding.cloth, borderColor: binding.weave },
-                  ]}
-                />
+                <SkiaBookCover binding={binding} width={42} height={52} spineWidth={0} presentation="swatch" />
                 {selected ? (
                   <View style={styles.selectedMark}>
                     <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
@@ -762,42 +970,12 @@ function PageStyleSelector({
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Page style</Text>
-      <OptionRail testID="page-style-rail">
-        {options.map((option) => {
-          const selected = value === option.id;
-          return (
-            <Pressable
-              key={option.id}
-              style={[styles.pageStyleCard, selected && styles.pageStyleCardSelected]}
-              onPress={() => onChange(option.id)}
-              disabled={disabled}
-              accessibilityRole="button"
-              accessibilityState={{ selected, disabled }}
-              accessibilityLabel={`${option.name} recipe page style: ${option.description}`}
-            >
-              <Image
-                source={option.samples.brownies}
-                resizeMode="cover"
-                style={styles.pageStyleSample}
-                accessible={false}
-              />
-              <View style={styles.pageStyleCopy}>
-                <Text style={[styles.pageStyleName, selected && styles.pageStyleNameSelected]}>
-                  {option.name}
-                </Text>
-                <Text numberOfLines={2} style={styles.pageStyleDescription}>
-                  {option.description}
-                </Text>
-              </View>
-              {selected ? (
-                <View style={styles.pageStyleSelectedMark}>
-                  <Check size={10} color={Colors.onPrimary} strokeWidth={2.6} />
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </OptionRail>
+      <PageStyleCarousel
+        value={value}
+        options={options}
+        disabled={disabled}
+        onChange={onChange}
+      />
     </View>
   );
 }
@@ -961,8 +1139,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.lg,
   },
   finishCard: {
-    width: 108,
-    minHeight: 100,
+    width: 132,
+    minHeight: 104,
     padding: Spacing.sm,
     borderRadius: Radii.md,
     borderWidth: 1,
@@ -972,12 +1150,107 @@ const styles = StyleSheet.create({
     gap: Spacing.values[6],
     position: 'relative',
   },
+  controlLabel: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.ui.medium,
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.metrics.lineHeight17,
+  },
+  titleStyleGroup: {
+    gap: Spacing.values[6],
+  },
+  titleColorOption: {
+    width: 64,
+    alignItems: 'center',
+    gap: Spacing.values[6],
+  },
+  titleColorSwatchFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    position: 'relative',
+  },
+  titleColorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.legacySurface.v62,
+  },
+  titlePlacementOption: {
+    width: 96,
+    minHeight: 106,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.values[6],
+  },
+  titlePlacementOptionSelected: {
+    backgroundColor: Colors.surfaceMuted,
+  },
+  titlePlacementBook: {
+    width: 58,
+    height: 72,
+    borderRadius: Radii.numeric[4],
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.legacySurface.v62,
+  },
+  titleTreatmentSample: {
+    position: 'absolute',
+    left: 8,
+    right: 7,
+    fontFamily: Fonts.display.semibold,
+    fontSize: 10,
+    lineHeight: 10,
+    textAlign: 'center',
+  },
+  titleTreatmentEditorial: {
+    fontFamily: Fonts.display.bold,
+    fontSize: 11,
+    lineHeight: 11,
+    textAlign: 'left',
+  },
+  titleTreatmentModern: {
+    fontFamily: Fonts.ui.semibold,
+    fontSize: 7,
+    lineHeight: 8,
+    letterSpacing: 0.8,
+    textAlign: 'left',
+  },
+  titleTreatmentBookplate: {
+    fontSize: 8,
+    lineHeight: 9,
+    paddingHorizontal: 5,
+  },
+  editorialSampleRule: {
+    position: 'absolute',
+    left: 8,
+    top: 16,
+    width: 18,
+    height: 1,
+  },
+  bookplateSampleFrame: {
+    position: 'absolute',
+    left: 7,
+    right: 6,
+    top: 19,
+    bottom: 18,
+    borderWidth: 0.8,
+    borderRadius: 1,
+  },
   finishCardSelected: {
     backgroundColor: Colors.surfaceMuted,
   },
   finishSample: {
-    width: 64,
-    height: 64,
+    width: 108,
+    height: 66,
     overflow: 'hidden',
     borderRadius: Radii.md,
   },
@@ -1101,9 +1374,9 @@ const styles = StyleSheet.create({
     gap: Spacing.values[6],
   },
   colorSwatchFrame: {
-    width: 46,
-    height: 46,
-    borderRadius: Radii.full,
+    width: 52,
+    height: 62,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1114,13 +1387,6 @@ const styles = StyleSheet.create({
   colorSwatchFrameSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.surfaceMuted,
-  },
-  colorSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.full,
-    borderWidth: 1,
-    boxShadow: Shadows.custom.studioSmall,
   },
   selectedMark: {
     position: 'absolute',
@@ -1145,60 +1411,6 @@ const styles = StyleSheet.create({
   colorNameSelected: {
     color: Colors.primary,
     fontFamily: Fonts.ui.semibold,
-  },
-  pageStyleHeading: {
-    gap: Spacing.values[2],
-  },
-  pageStyleCard: {
-    width: 196,
-    minHeight: 116,
-    padding: Spacing.sm,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    position: 'relative',
-    gap: Spacing.values[6],
-  },
-  pageStyleCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  pageStyleSample: {
-    width: '100%',
-    aspectRatio: 4 / 5,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.book.page,
-  },
-  pageStyleCopy: {
-    gap: Spacing.values[2],
-  },
-  pageStyleName: {
-    color: Colors.text,
-    fontFamily: Fonts.ui.semibold,
-    fontSize: Typography.sizes.sm,
-    lineHeight: Typography.metrics.lineHeight17,
-  },
-  pageStyleNameSelected: {
-    color: Colors.primary,
-    fontFamily: Fonts.ui.semibold,
-  },
-  pageStyleDescription: {
-    color: Colors.textTertiary,
-    fontFamily: Fonts.ui.regular,
-    fontSize: Typography.sizes.xs,
-    lineHeight: Typography.metrics.lineHeight14,
-  },
-  pageStyleSelectedMark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
   },
   finishButton: {
     minHeight: 54,

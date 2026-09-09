@@ -12,15 +12,17 @@ export const LEGACY_RECIPE_PAGE_STYLE_IDS = [
   'alabaster-linen',
   'umber-leather',
   'studio-editorial',
+  'bold',
 ] as const;
 
 export const ACTIVE_RECIPE_PAGE_STYLE_IDS = [
   'studio',
   'editorial',
   'illustrated',
+  'watercolor',
   'heritage',
   'journal',
-  'bold',
+  'artisan',
 ] as const;
 
 export type LegacyRecipePageStyleId = typeof LEGACY_RECIPE_PAGE_STYLE_IDS[number];
@@ -237,10 +239,9 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
   'illustrated@2': {
     id: 'illustrated',
     revision: 2,
-    status: 'active',
+    status: 'legacy',
     name: 'Illustrated',
     description: 'Expressive artwork, never photography',
-    studioOrder: 2,
     paper: 'soft ivory artist paper with a visible but pristine watercolor tooth',
     typography: 'warm literary serif title with restrained humanist sans-serif recipe text and hand-lettered micro labels used sparingly',
     imagery: 'genuine hand-painted gouache and transparent watercolor food illustration with loose ink contours, visible brushwork, and simplified shapes; absolutely no photography',
@@ -253,6 +254,44 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
       dense: 'narrow painted header scene plus compact two-column copy, using tiny ingredient vignettes only where space remains',
     },
     exclusions: ['photography', 'photorealism', '3D rendering', 'magazine-style hero photo', 'engraving', 'rigid corporate grid'],
+    styleReferences: [],
+  },
+  'illustrated@3': {
+    id: 'illustrated',
+    revision: 3,
+    status: 'active',
+    name: 'Illustrated',
+    description: 'Painted ingredients and step-by-step pictures',
+    studioOrder: 2,
+    paper: 'soft ivory artist paper with a pristine watercolor tooth, filling the canvas edge to edge',
+    typography: 'warm literary serif title, highly legible humanist recipe text, and small hand-lettered section labels',
+    imagery: 'hand-painted watercolor and gouache with loose ink contours and visible brushwork; absolutely no photography',
+    palette: 'ivory, botanical green, warm chocolate ink, apricot, and restrained cobalt step numbers',
+    graphicLanguage: 'a visual cooking guide with illustrated ingredient rows and a numbered sequence of cooking actions',
+    signature: 'a small painted study beside each ingredient and a distinct action illustration beside every numbered method step; depict the action in that step, never repeat the finished dish as a step icon',
+    composition: {
+      sparse: 'small finished-dish portrait above generous ingredient rows and method panels; pair each ingredient with its own painted study and every numbered method step with its own action illustration',
+      standard: 'compact dish portrait above two aligned columns; pair each ingredient with its own painted study and every numbered method step with its own action illustration, directly beside the corresponding text',
+      dense: 'shrink the finished-dish portrait first; use compact illustrated rows in two columns, pairing each ingredient with a small study and every numbered method step with a small action illustration; preserve all copy and readable type rather than omitting steps or substituting decorative vignettes',
+    },
+    exclusions: ['photography', 'photorealism', '3D rendering', 'text-only method', 'unillustrated ingredient list', 'decorative vignettes replacing step illustrations', 'large hero crowding out instruction panels'],
+    styleReferences: [],
+  },
+  'watercolor@2': {
+    id: 'watercolor',
+    revision: 2,
+    status: 'active',
+    name: 'Watercolor',
+    description: 'One painted dish with clean recipe columns',
+    studioOrder: 2.5,
+    paper: 'warm alabaster paper with a subtle natural tooth and pristine finish',
+    typography: 'elegant warm serif display titles with calm, highly legible editorial sans-serif recipe text',
+    imagery: 'refined hand-drawn black ink food illustration with delicate translucent watercolor and natural ingredient detail',
+    palette: 'warm alabaster, muted sage green, restrained ochre, food-led natural color, and black ink',
+    graphicLanguage: 'restrained traditional cookbook publishing',
+    signature: 'one integrated food illustration with ingredients and method presented as clean text columns',
+    composition: repeatedComposition('airy contemporary cookbook publishing with generous safe margins, a balanced ingredient-and-method grid, and one integrated food illustration'),
+    exclusions: ['photography', 'photorealism', 'step-by-step picture panels', 'an image beside every ingredient'],
     styleReferences: [],
   },
   'heritage@2': {
@@ -300,10 +339,9 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
   'bold@1': {
     id: 'bold',
     revision: 1,
-    status: 'active',
+    status: 'legacy',
     name: 'Bold',
     description: 'Graphic, energetic, and poster-led',
-    studioOrder: 5,
     paper: 'bright matte stock with visible controlled risograph ink texture',
     typography: 'oversized condensed sans-serif display title, sturdy grotesk recipe text, large numerals, and unapologetic graphic labels',
     imagery: 'high-contrast screenprint or risograph food image reduced to bold color separations and halftone texture; not realistic photography',
@@ -318,15 +356,37 @@ export const RECIPE_PAGE_STYLE_VERSIONS: Readonly<Record<string, RecipePageStyle
     exclusions: ['soft watercolor', 'heritage ornament', 'beige neutral palette', 'delicate serif title', 'realistic glossy photography', 'subtle timid hierarchy'],
     styleReferences: [],
   },
+  'artisan@1': {
+    id: 'artisan',
+    revision: 1,
+    status: 'active',
+    name: 'Artisan',
+    description: 'Warm, tactile, and farm-to-table',
+    studioOrder: 5,
+    paper: 'warm unbleached oat-linen paper with subtle organic flecks, soft deckled edges, and matte natural warmth',
+    typography: 'warm humanist serif display titles with rustic hand-hewn elegance, paired with clean readable humanist sans-serif recipe text and gentle letterpressed numerals',
+    imagery: 'tactile rustic culinary photography in soft diffused window light, styled on raw linen, warm weathered wood, and handmade stoneware ceramics with scattered raw ingredients',
+    palette: 'warm oat, toasted wheat, deep terracotta, muted rosemary olive green, raw linen cream, and soft espresso charcoal ink',
+    graphicLanguage: 'farm-to-table culinary editorial, subtle earthy rule lines, botanical accents, generous breathable whitespace, and tactile organic textures',
+    signature: 'natural linen paper warmth and honest handmade stoneware photography anchored by warm humanist letterpressed typography',
+    composition: {
+      sparse: 'generous breathing room on warm oat paper; centered rustic dish presentation in stoneware ceramics with clean ingredient list and spacious method block',
+      standard: 'harmonious two-column balance with warm serif title, rustic window-lit dish hero, neatly divided tactile ingredient column, and clearly stepped method flow',
+      dense: 'compact yet warm editorial spread; organized dual-column ingredient and method layout anchored by subtle terracotta dividers and a focused overhead rustic dish capture',
+    },
+    exclusions: ['glossy synthetic stock', 'neon or electric saturated colors', 'sterile digital vectors', 'harsh flash photography', 'cold modern chrome or plastic', 'cluttered chaotic stickers'],
+    styleReferences: [],
+  },
 });
 
 export const ACTIVE_RECIPE_PAGE_STYLE_REVISIONS: Readonly<Record<CreationPageStyleId, number>> = Object.freeze({
   studio: 1,
   editorial: 2,
-  illustrated: 2,
+  illustrated: 3,
+  watercolor: 2,
   heritage: 2,
   journal: 1,
-  bold: 1,
+  artisan: 1,
 });
 
 const RECIPE_PAGE_STYLE_IDS = new Set<string>([
