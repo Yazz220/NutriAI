@@ -48,8 +48,8 @@ describe('complete recipe page generation contract', () => {
     expect(prompt).toContain('2 cups tomatoes');
     expect(prompt).toContain('Roast the tomatoes.');
     expect(payload.kind).toBe('complete-recipe-page');
-    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v4');
-    expect(payload.pageInstructions.length).toBeLessThan(1000);
+    expect(payload.generationContractVersion).toBe('complete-recipe-page-4x5-v5');
+    expect(payload.pageInstructions.length).toBeLessThan(1600);
     expect(payload.recipe.ingredientGroups[0].lines).toEqual([
       '2 cups tomatoes',
       '12 oz rigatoni',
@@ -193,5 +193,29 @@ describe('complete recipe page generation contract', () => {
     expect(payload.density).toBe('sparse');
     expect(payload.styleDescriptor).toContain('Composition for sparse recipe density');
     expect(payload.output.aspectRatio).toBe('4:5');
+  });
+
+  it('treats long recipe copy as dense even when it has few numbered lines', () => {
+    const verboseRecipe = {
+      ...recipe,
+      ingredientGroups: [{
+        ingredients: Array.from({ length: 6 }, (_, index) => ({
+          name: `ingredient ${index + 1} with a detailed preparation instruction that must remain visible`,
+          quantity: '1',
+          unit: 'cup',
+        })),
+      }],
+      stepGroups: [{
+        steps: Array.from({ length: 4 }, (_, index) => ({
+          text: `Complete step ${index + 1} carefully, preserving every temperature, timing cue, texture check, and serving instruction without squeezing the body copy into unreadable microtype.`,
+        })),
+      }],
+    };
+
+    const { prompt, payload } = buildRecipePagePrompt(verboseRecipe, 'editorial');
+
+    expect(payload.density).toBe('dense');
+    expect(prompt).toContain('Body-copy legibility and complete recipe copy outrank decorative scale and imagery');
+    expect(prompt).toContain('never compress the recipe into a narrow sidebar');
   });
 });

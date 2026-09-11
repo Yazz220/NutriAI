@@ -55,18 +55,18 @@ export function buildCookbookPageGridItems(input: {
       (capture.destinationCookbookId === input.cookbookId
         || (input.includeUnassignedCaptures && !capture.destinationCookbookId))
       && !placedCaptureIds.has(capture.id)
-      && capture.status !== 'ready'
-      && !capture.pageId,
+      && (capture.status !== 'ready' || Boolean(capture.pageId)),
     )
     .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
     .map<CookbookPageGridItem>((capture) => {
       const presentation = getCapturePresentation(capture);
+      const isAwaitingPublishedPage = capture.status === 'ready' && Boolean(capture.pageId);
       return {
         key: `capture:${capture.id}`,
         capture,
         title: capture.recipeGraph?.title ?? presentation.title,
-        phase: presentation.phase,
-        statusLabel: presentation.label,
+        phase: isAwaitingPublishedPage ? 'designing' : presentation.phase,
+        statusLabel: isAwaitingPublishedPage ? 'Adding page' : presentation.label,
         isDraggable: false,
       };
     });

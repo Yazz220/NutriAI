@@ -4,7 +4,7 @@ This document describes the experience implemented in the current branch. Use it
 
 ## Plan-aware creation
 
-Folio Free and Plus use the same chef, recipe context, capture formats, and reading experience. Free includes two cookbooks and five successful designed-page creations for the account lifetime. Plus removes the cookbook limit and includes 20 successful designed-page creations per UTC calendar month.
+Folio Free and Plus use the same chef, recipe context, capture formats, and reading experience. Free includes two cookbooks and five successful designed-page creations for the account lifetime. Plus removes the cookbook limit and includes 40 successful designed-page creations per UTC calendar month.
 
 The app explains capacity beside creation actions, then checks access without discarding the user's source, draft, proposed recipe change, or book customization. A Free limit opens the Folio Plus sheet. A Plus monthly limit shows the precise refresh date instead of another upsell. Unknown or offline access waits for verification. Server enforcement remains final when another device or concurrent request makes the local snapshot stale.
 

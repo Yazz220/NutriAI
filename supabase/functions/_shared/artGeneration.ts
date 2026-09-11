@@ -71,6 +71,7 @@ export interface RecipePagePromptPayload {
   styleId: RecipePageStyleId;
   styleRevision: number;
   density: RecipePageDensity;
+  copyCharacterCount: number;
   styleDescriptor: string;
   recipe: RecipePageCopy;
   output: {
@@ -136,10 +137,32 @@ export function buildRecipePageCopy(graph: RecipePageRecipeInput): RecipePageCop
 export function resolveRecipePageDensity(copy: RecipePageCopy): RecipePageDensity {
   const ingredientCount = copy.ingredientGroups.reduce((sum, group) => sum + group.lines.length, 0);
   const stepCount = copy.stepGroups.reduce((sum, group) => sum + group.steps.length, 0);
+  const copyCharacterCount = recipePageCopyCharacterCount(copy);
 
-  if (ingredientCount <= 6 && stepCount <= 4) return 'sparse';
-  if (ingredientCount <= 12 && stepCount <= 8) return 'standard';
+  if (ingredientCount <= 6 && stepCount <= 4 && copyCharacterCount <= 360) return 'sparse';
+  if (ingredientCount <= 12 && stepCount <= 8 && copyCharacterCount <= 700) return 'standard';
   return 'dense';
+}
+
+function recipePageCopyCharacterCount(copy: RecipePageCopy): number {
+  return [
+    copy.title,
+    copy.description,
+    ...copy.metadata,
+    ...copy.ingredientGroups.flatMap((group) => [group.label, ...group.lines]),
+    ...copy.stepGroups.flatMap((group) => [group.label, ...group.steps]),
+    ...copy.notes,
+  ].filter((value): value is string => Boolean(value)).join('\n').length;
+}
+
+function densityLayoutInstruction(density: RecipePageDensity): string {
+  if (density === 'dense') {
+    return 'This is a dense recipe. Give recipe body copy at least 75% of the usable page, limit the title to about 10% and the dish visual to about 15%, and use balanced full-width columns. Never compress the recipe into a narrow sidebar.';
+  }
+  if (density === 'standard') {
+    return 'This is a standard-length recipe. Give recipe body copy at least 60% of the usable page, keep the title compact, limit the dish visual to about 25%, and use broad readable columns rather than a narrow sidebar.';
+  }
+  return 'This is a short recipe. Keep generous whitespace, but still give the complete recipe body a clear primary reading area and keep the title and dish visual subordinate to legibility.';
 }
 
 function renderExactCopy(copy: RecipePageCopy): string {
@@ -178,6 +201,7 @@ export function buildRecipePagePrompt(
 
   const copy = buildRecipePageCopy(graph);
   const density = resolveRecipePageDensity(copy);
+  const copyCharacterCount = recipePageCopyCharacterCount(copy);
   const exactCopy = renderExactCopy(copy);
   const visualDirection = clean(options.visualDirection);
   const styleReferences = (options.styleReferences ?? [])
@@ -188,6 +212,8 @@ export function buildRecipePagePrompt(
     `Create one finished, flat, portrait cookbook page in the canonical ${COOKBOOK_GEOMETRY.generation.aspectRatio} aspect ratio, filling the canvas edge to edge; the canvas edges are the physical page edges.`,
     'Show the page itself—not a photograph, mockup, open book, loose sheet, or framed poster. Do not place a smaller page inside the canvas or add outer padding, shadow, or surrounding background.',
     'Typeset every supplied line exactly once; preserve quantities, units, times, temperatures, and order without inventing, omitting, paraphrasing, or duplicating content.',
+    'Body-copy legibility and complete recipe copy outrank decorative scale and imagery. Budget the page for every supplied line before composing it; shrink the title and artwork before the recipe body, never use microtype, and never compress the recipe into a narrow sidebar.',
+    densityLayoutInstruction(density),
     'Never print extraction analysis, provenance, source limitations, or a page number.',
     'Use an iPhone-readable hierarchy and keep all text and important artwork inside a generous safe margin.',
     'Include a finished-dish visual in the exact medium required by the locked style contract, following its typography, palette, spacing, graphic language, composition, and exclusions.',
@@ -217,6 +243,7 @@ export function buildRecipePagePrompt(
       styleId,
       styleRevision,
       density,
+      copyCharacterCount,
       styleDescriptor,
       recipe: copy,
       output: {

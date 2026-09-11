@@ -9,9 +9,18 @@ const mockComposer = {
   addAttachment: jest.fn(async () => undefined),
   clearAttachments: jest.fn(async () => undefined),
   setText: jest.fn((text: string) => {
-    mockAuiState.composer.text = text;
-    mockAuiState.composer.isEmpty = text.length === 0;
+    if (mockStoreEchoEnabled) {
+      mockAuiState.composer.text = text;
+      mockAuiState.composer.isEmpty = text.length === 0;
+    }
   }),
+  getState: jest.fn(() => mockAuiState.composer),
+  subscribe: jest.fn((_callback: () => void) => () => undefined),
+};
+let mockStoreEchoEnabled = true;
+const mockAui = {
+  composer: mockComposer,
+  subscribe: jest.fn((_callback: () => void) => () => undefined),
 };
 const mockAuiState = {
   composer: { isEmpty: true, text: '' },
@@ -42,14 +51,18 @@ jest.mock('@assistant-ui/react-native', () => {
   const ReactModule = require('react');
   const { Pressable, TextInput: NativeTextInput, View } = require('react-native');
   return {
-    useAui: () => ({ composer: mockComposer }),
+    useAui: () => mockAui,
     useAuiState: (selector: (state: typeof mockAuiState) => unknown) => selector(mockAuiState),
     ComposerPrimitive: {
       Root: ({ children, ...props }: { children: React.ReactNode }) => (
         ReactModule.createElement(View, props, children)
       ),
       Input: ({ submitMode: _submitMode, ...props }: { submitMode?: string }) => (
-        ReactModule.createElement(NativeTextInput, props)
+        ReactModule.createElement(NativeTextInput, {
+          ...props,
+          value: mockAuiState.composer.text,
+          onChangeText: mockComposer.setText,
+        })
       ),
       Send: ({ children, ...props }: { children: React.ReactNode }) => (
         ReactModule.createElement(Pressable, props, children)
@@ -78,6 +91,7 @@ describe('NoshComposer', () => {
     mockAuiState.composer.isEmpty = true;
     mockAuiState.composer.text = '';
     mockAuiState.thread.isRunning = false;
+    mockStoreEchoEnabled = true;
     mockConversation.pendingImageBase64 = null;
     mockConversation.pendingImageMimeType = null;
     mockComposer.addAttachment.mockClear();
@@ -96,7 +110,7 @@ describe('NoshComposer', () => {
 
     expect(input.props.multiline).toBe(true);
     expect(input.props.numberOfLines).toBe(1);
-    expect(input.props.scrollEnabled).toBe(true);
+    expect(input.props.scrollEnabled).toBe(Platform.OS === 'web');
     expect(input.props.maxFontSizeMultiplier).toBe(2);
 
     if (Platform.OS !== 'web') {
@@ -109,7 +123,48 @@ describe('NoshComposer', () => {
         nativeEvent: { contentSize: { width: 240, height: 180 } },
       });
       expect(StyleSheet.flatten(screen.UNSAFE_getByType(TextInput).props.style).height).toBe(120);
+      expect(screen.UNSAFE_getByType(TextInput).props.scrollEnabled).toBe(true);
     }
+  });
+
+  it('makes a newly entered second line visible before native content measurement catches up', () => {
+    if (Platform.OS === 'web') return;
+
+    const screen = render(<NoshComposer interaction={interaction} />);
+    const input = screen.getByLabelText('Message Folio');
+
+    fireEvent.changeText(input, 'Hey\nHg');
+
+    expect(StyleSheet.flatten(screen.getByLabelText('Message Folio').props.style).height).toBe(60);
+  });
+
+  it('does not inflate an empty native input when iOS reports its padded content height', () => {
+    if (Platform.OS === 'web') return;
+
+    const screen = render(<NoshComposer interaction={interaction} />);
+    const input = screen.getByLabelText('Message Folio');
+
+    fireEvent(input, 'contentSizeChange', {
+      nativeEvent: { contentSize: { width: 240, height: 44 } },
+    });
+
+    expect(StyleSheet.flatten(screen.getByLabelText('Message Folio').props.style).height).toBe(44);
+  });
+
+  it('keeps the native draft stable while the runtime store echoes text asynchronously', () => {
+    mockStoreEchoEnabled = false;
+    const screen = render(<NoshComposer interaction={interaction} />);
+    const input = screen.getByLabelText('Message Folio');
+
+    fireEvent.changeText(input, 'This sentence should not jump backwards while I type.');
+    fireEvent(input, 'contentSizeChange', {
+      nativeEvent: { contentSize: { width: 240, height: 88 } },
+    });
+
+    expect(screen.getByLabelText('Message Folio').props.value)
+      .toBe('This sentence should not jump backwards while I type.');
+    expect(mockComposer.setText)
+      .toHaveBeenLastCalledWith('This sentence should not jump backwards while I type.');
   });
 
   it('keeps send and stop in the same compact action position', () => {

@@ -32,7 +32,7 @@ export const NOSH_PLAN_CATALOG = {
     name: 'Folio Plus',
     limits: {
       cookbooks: null,
-      designedPagesPerPeriod: 20,
+      designedPagesPerPeriod: 40,
     },
   },
 } as const;

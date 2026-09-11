@@ -106,4 +106,27 @@ describe('cookbook page grid projection', () => {
       'capture:capture-failed',
     ]);
   });
+
+  it('keeps the generation placeholder until a ready capture page reaches the book query', () => {
+    const readyCapture = {
+      ...capture('pasta', 'pasta'),
+      status: 'ready' as const,
+      pageStatus: 'ready' as const,
+      recipeGraph: { title: 'Tomato Pasta' } as RecipeCapture['recipeGraph'],
+    };
+
+    expect(buildCookbookPageGridItems({
+      cookbookId: 'book-1',
+      pageSlots: [],
+      captures: [readyCapture],
+    })).toEqual([
+      expect.objectContaining({
+        key: 'capture:capture-pasta',
+        title: 'Tomato Pasta',
+        phase: 'designing',
+        statusLabel: 'Adding page',
+        isDraggable: false,
+      }),
+    ]);
+  });
 });

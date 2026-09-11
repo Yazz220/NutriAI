@@ -9,3 +9,10 @@ verify_jwt = false
 
 [functions.sync-subscription]
 verify_jwt = true
+
+# Hosted Supabase projects still require the dashboard to apply this template.
+# Keeping the local configuration here makes the launch email source-controlled
+# and gives local Auth the same subject and body after `supabase start`.
+[auth.email.template.confirmation]
+subject = "Confirm your email to open Folio"
+content_path = "./supabase/templates/confirm-sign-up.html"

@@ -31,11 +31,11 @@ interface SubscriptionPaywallSheetProps {
 const REASON_COPY: Record<PaywallReason, { title: string; body: string }> = {
   settings: {
     title: 'More room for your recipes.',
-    body: 'Create up to 20 beautifully designed recipe pages each month, with as many cookbooks as you like.',
+    body: 'Create up to 40 beautifully designed recipe pages each month, with as many cookbooks as you like.',
   },
   page_capture: {
     title: 'Keep filling your cookbooks.',
-    body: 'You have used the page creations included with Folio Free. Folio Plus includes 20 each month.',
+    body: 'You have used the page creations included with Folio Free. Folio Plus includes 40 each month.',
   },
   cookbook_limit: {
     title: 'Start another cookbook.',
@@ -43,27 +43,27 @@ const REASON_COPY: Record<PaywallReason, { title: string; body: string }> = {
   },
   recipe_revision: {
     title: 'Save the next edition.',
-    body: 'Folio Plus includes 20 designed page creations each month for new recipes and saved changes.',
+    body: 'Folio Plus includes 40 designed page creations each month for new recipes and saved changes.',
   },
   page_redesign: {
     title: 'Try a fresh page design.',
-    body: 'Folio Plus includes 20 designed page creations each month, including replacement designs.',
+    body: 'Folio Plus includes 40 designed page creations each month, including replacement designs.',
   },
   agent_capture: {
     title: 'Keep filling your cookbooks.',
-    body: 'Folio Plus includes 20 designed page creations each month and keeps the same helpful chef alongside them.',
+    body: 'Folio Plus includes 40 designed page creations each month and keeps the same helpful chef alongside them.',
   },
   agent_recipe_save: {
     title: 'Save this recipe change.',
-    body: 'Folio Plus includes 20 designed page creations each month for saved updates and copies.',
+    body: 'Folio Plus includes 40 designed page creations each month for saved updates and copies.',
   },
   agent_artwork: {
     title: 'Create the next design.',
-    body: 'Folio Plus includes 20 designed page creations each month, including artwork previews.',
+    body: 'Folio Plus includes 40 designed page creations each month, including artwork previews.',
   },
   native_share: {
     title: 'Bring this recipe into Folio.',
-    body: 'Your shared source is still here. Folio Plus includes 20 designed page creations each month.',
+    body: 'Your shared source is still here. Folio Plus includes 40 designed page creations each month.',
   },
 };
 
@@ -131,7 +131,7 @@ export function SubscriptionPaywallSheet({
         </View>
 
         <View style={styles.benefits}>
-          <Benefit icon={<BookOpen size={18} color={Colors.primary} />} copy="20 designed page creations each month" />
+          <Benefit icon={<BookOpen size={18} color={Colors.primary} />} copy="40 designed page creations each month" />
           <Benefit icon={<LibraryBig size={18} color={Colors.primary} />} copy="Unlimited cookbooks" />
         </View>
 

@@ -5,6 +5,7 @@ import Purchases, {
   PURCHASES_ERROR_CODE,
   type CustomerInfo,
   type CustomerInfoUpdateListener,
+  type LogHandler,
   type PurchasesConfiguration,
   type PurchasesOffering,
   type PurchasesPackage,
@@ -28,12 +29,43 @@ type PurchasesSdk = Pick<typeof Purchases,
   | 'purchasePackage'
   | 'removeCustomerInfoUpdateListener'
   | 'restorePurchases'
+  | 'setLogHandler'
   | 'setLogLevel'
   | 'showManageSubscriptions'
 >;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const APPLE_SUBSCRIPTION_MANAGEMENT_URL = 'https://apps.apple.com/account/subscriptions';
+
+export function isUnavailableStoreProductsLog(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes('none of the products registered in the revenuecat dashboard')
+    && normalized.includes('could be fetched from app store connect');
+}
+
+const handleRevenueCatLog: LogHandler = (level, message) => {
+  const formatted = `[RevenueCat] ${message}`;
+  if (isUnavailableStoreProductsLog(message)) {
+    // The paywall already presents this recoverable state. Keep the diagnostic
+    // in the developer console without turning Expo's LogBox into a red screen.
+    console.info('[RevenueCat] App Store products are not available yet; plans remain disabled.');
+    return;
+  }
+
+  switch (level) {
+    case LOG_LEVEL.ERROR:
+      console.error(formatted);
+      break;
+    case LOG_LEVEL.WARN:
+      console.warn(formatted);
+      break;
+    case LOG_LEVEL.INFO:
+      console.info(formatted);
+      break;
+    default:
+      console.debug(formatted);
+  }
+};
 
 export class RevenueCatUnavailableError extends Error {
   constructor(message = 'Purchases are not available in this build.') {
@@ -119,6 +151,7 @@ function isCancellation(error: unknown): boolean {
 export class RevenueCatClient {
   private activeUserId: string | null = null;
   private identityWork: Promise<void> = Promise.resolve();
+  private loggingConfigured = false;
 
   constructor(
     private readonly sdk: PurchasesSdk = Purchases,
@@ -137,11 +170,13 @@ export class RevenueCatClient {
     const work = this.identityWork
       .catch(() => undefined)
       .then(async () => {
+        if (!this.loggingConfigured) {
+          this.sdk.setLogHandler(handleRevenueCatLog);
+          await this.sdk.setLogLevel(LOG_LEVEL.ERROR);
+          this.loggingConfigured = true;
+        }
         const configured = await this.sdk.isConfigured();
         if (!configured) {
-          await this.sdk.setLogLevel(
-            typeof __DEV__ !== 'undefined' && __DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR,
-          );
           this.sdk.configure({
             apiKey: this.apiKey!,
             appUserID: userId,

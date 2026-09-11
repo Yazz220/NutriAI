@@ -6,6 +6,7 @@ import {
   RevenueCatClient,
   RevenueCatPurchaseCancelledError,
   RevenueCatUnavailableError,
+  isUnavailableStoreProductsLog,
 } from '@/utils/subscriptions/revenueCatClient';
 
 jest.mock('react-native-purchases', () => ({
@@ -22,6 +23,7 @@ jest.mock('react-native-purchases', () => ({
     purchasePackage: jest.fn(),
     removeCustomerInfoUpdateListener: jest.fn(),
     restorePurchases: jest.fn(),
+    setLogHandler: jest.fn(),
     setLogLevel: jest.fn(),
     showManageSubscriptions: jest.fn(),
   },
@@ -51,6 +53,7 @@ function makeSdk() {
     purchasePackage: jest.fn(),
     removeCustomerInfoUpdateListener: jest.fn(),
     restorePurchases: jest.fn(),
+    setLogHandler: jest.fn(),
     setLogLevel: jest.fn().mockResolvedValue(undefined),
     showManageSubscriptions: jest.fn().mockResolvedValue(undefined),
   };
@@ -85,6 +88,34 @@ function makePackage(productIdentifier = 'com.yaz12.nosh.plus.monthly') {
 }
 
 describe('RevenueCatClient', () => {
+  it('recognizes only the known unavailable App Store products diagnostic', () => {
+    expect(isUnavailableStoreProductsLog(
+      "There's a problem with your configuration. None of the products registered in the RevenueCat dashboard could be fetched from App Store Connect.",
+    )).toBe(true);
+    expect(isUnavailableStoreProductsLog('The receipt could not be validated.')).toBe(false);
+  });
+
+  it('keeps the known unavailable-product diagnostic out of Expo LogBox', async () => {
+    const sdk = makeSdk();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    const client = new RevenueCatClient(
+      sdk as unknown as ConstructorParameters<typeof RevenueCatClient>[0],
+      'ios',
+      'test_public_key',
+    );
+
+    await client.identify(USER_A);
+    const handler = sdk.setLogHandler.mock.calls[0]?.[0];
+    handler?.('ERROR', 'None of the products registered in the RevenueCat dashboard could be fetched from App Store Connect.');
+    handler?.('ERROR', 'Unexpected purchase failure.');
+
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('products are not available'));
+    expect(errorSpy).toHaveBeenCalledWith('[RevenueCat] Unexpected purchase failure.');
+    infoSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
   it('configures exactly once with the authenticated Supabase UUID', async () => {
     const sdk = makeSdk();
     const client = new RevenueCatClient(

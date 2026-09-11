@@ -9,12 +9,12 @@ Folio launches with two plans and one paid feature tier:
 | Capability | Folio Free | Folio Plus |
 |---|---:|---:|
 | Cookbooks | 2 | Unlimited |
-| Successful designed-page creations | 5 for the life of the account | 20 per UTC calendar month |
+| Successful designed-page creations | 5 for the life of the account | 40 per UTC calendar month |
 | URL, text, image, video, and audio capture | Included | Included |
 | Folio chef, collection context, cooking help, and tools | Included | Included |
 | Reading, sharing, and exporting existing pages | Included | Included |
 
-Plus has monthly and annual billing for the same entitlement. The launch merchandising target is USD 9.99 monthly or USD 79.99 annually, but the app never renders those literals. StoreKit, through RevenueCat, supplies the localized price and billing period shown on the purchase screen.
+Plus has monthly and annual billing for the same entitlement. The launch merchandising target is USD 9.99 monthly or USD 89.99 annually, but the app never renders those literals. StoreKit, through RevenueCat, supplies the localized price and billing period shown on the purchase screen.
 
 There is no card-required trial, weaker Free model, paid input format, chat-message meter, or consumable page pack at launch. The five Free pages are the product trial.
 
@@ -194,7 +194,7 @@ At minimum, verify:
 - a Free user can create two books and five successful pages, with failures released;
 - concurrent generation cannot exceed the allowance;
 - the third book and sixth Free page preserve the user's draft and open the correct Plus explanation;
-- a Plus user gets 20 pages in a UTC month and sees the reset date at the limit;
+- a Plus user gets 40 pages in a UTC month and sees the reset date at the limit;
 - purchase cancellation is silent and preserves the blocked action;
 - a successful purchase or restore synchronizes before the blocked action resumes once;
 - cancellation keeps Plus through the paid-through date, and expiration falls back to Free without hiding content;
