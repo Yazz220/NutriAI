@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  TextInput,
   View,
   type NativeSyntheticEvent,
   type TextInputContentSizeChangeEventData,
@@ -23,9 +24,17 @@ import { getNoshComposerMode } from './noshConversationPresentation';
 const PHOTO_PROMPT = 'Add this recipe from the attached photo';
 const INPUT_MIN_HEIGHT = 44;
 const INPUT_MAX_HEIGHT = 120;
+const INPUT_VERTICAL_PADDING = Spacing.values[10] * 2;
 
 export function clampNoshComposerHeight(height: number) {
   return Math.min(INPUT_MAX_HEIGHT, Math.max(INPUT_MIN_HEIGHT, Math.ceil(height)));
+}
+
+function explicitLineNoshComposerHeight(value: string) {
+  const lineCount = value.split('\n').length;
+  return clampNoshComposerHeight(
+    lineCount * Typography.metrics.lineHeight20 + INPUT_VERTICAL_PADDING,
+  );
 }
 
 export function NoshComposer({
@@ -35,8 +44,6 @@ export function NoshComposer({
   interaction: NoshInteractionSession;
   sendDisabled?: boolean;
 }) {
-  const isEmpty = useAuiState((state) => state.composer.isEmpty);
-  const composerText = useAuiState((state) => state.composer.text);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const aui = useAui();
   const mode = getNoshComposerMode(interaction);
@@ -46,16 +53,50 @@ export function NoshComposer({
     setPendingImageBase64,
     setPendingImageMimeType,
   } = useNoshConversation();
+  const composer = aui.composer;
+  const [draft, setDraft] = React.useState('');
   const [inputHeight, setInputHeight] = React.useState(INPUT_MIN_HEIGHT);
+  const lastPushedDraftRef = React.useRef('');
   const ownsPhotoPromptRef = React.useRef(false);
-  const sendIsDisabled = sendDisabled || isEmpty;
+  const sendIsDisabled = sendDisabled || draft.trim().length === 0;
+
+  const setComposerDraft = React.useCallback((value: string) => {
+    lastPushedDraftRef.current = value;
+    setDraft(value);
+    setInputHeight((currentHeight) => (
+      Math.max(currentHeight, explicitLineNoshComposerHeight(value))
+    ));
+    composer.setText(value);
+  }, [composer]);
+
+  React.useEffect(() => {
+    const syncExternalDraft = () => {
+      const externalDraft = composer.getState().text;
+      if (externalDraft === lastPushedDraftRef.current) return;
+      lastPushedDraftRef.current = externalDraft;
+      setDraft(externalDraft);
+      setInputHeight((currentHeight) => (
+        Math.max(currentHeight, explicitLineNoshComposerHeight(externalDraft))
+      ));
+    };
+
+    syncExternalDraft();
+    return aui.subscribe(syncExternalDraft);
+  }, [aui, composer]);
+
+  React.useEffect(() => {
+    if (draft.length === 0) setInputHeight(INPUT_MIN_HEIGHT);
+  }, [draft]);
 
   const handleContentSizeChange = React.useCallback((
     event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
   ) => {
     if (Platform.OS === 'web') return;
-    setInputHeight(clampNoshComposerHeight(event.nativeEvent.contentSize.height));
-  }, []);
+    setInputHeight(Math.max(
+      clampNoshComposerHeight(event.nativeEvent.contentSize.height),
+      explicitLineNoshComposerHeight(draft),
+    ));
+  }, [draft]);
 
   async function pickRecipePhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -88,9 +129,9 @@ export function NoshComposer({
       });
       setPendingImageBase64(asset.base64);
       setPendingImageMimeType(mimeType);
-      const shouldOwnPrompt = isEmpty
-        || (ownsPhotoPromptRef.current && composerText === PHOTO_PROMPT);
-      if (shouldOwnPrompt) aui.composer.setText(PHOTO_PROMPT);
+      const shouldOwnPrompt = draft.trim().length === 0
+        || (ownsPhotoPromptRef.current && draft === PHOTO_PROMPT);
+      if (shouldOwnPrompt) setComposerDraft(PHOTO_PROMPT);
       ownsPhotoPromptRef.current = shouldOwnPrompt;
     } catch {
       Alert.alert('Could not attach photo', 'Please choose the photo again.');
@@ -101,8 +142,8 @@ export function NoshComposer({
     await aui.composer.clearAttachments();
     setPendingImageBase64(null);
     setPendingImageMimeType(null);
-    if (ownsPhotoPromptRef.current && composerText === PHOTO_PROMPT) {
-      aui.composer.setText('');
+    if (ownsPhotoPromptRef.current && draft === PHOTO_PROMPT) {
+      setComposerDraft('');
     }
     ownsPhotoPromptRef.current = false;
   }
@@ -155,25 +196,36 @@ export function NoshComposer({
               <Paperclip size={18} color={pendingImageBase64 ? Colors.primary : Colors.textSecondary} />
             </Pressable>
           ) : null}
-          <ComposerPrimitive.Input
-            placeholder={mode.placeholder}
-            placeholderTextColor={Colors.textMuted}
-            accessibilityLabel="Message Folio"
-            accessibilityHint={Platform.OS === 'web'
-              ? 'Press Enter to send. Press Shift and Enter for a new line.'
-              : undefined}
-            multiline
-            numberOfLines={1}
-            scrollEnabled
-            maxFontSizeMultiplier={2}
-            textAlignVertical="top"
-            submitMode={sendDisabled ? 'none' : 'enter'}
-            onContentSizeChange={handleContentSizeChange}
-            style={[
-              styles.input,
-              Platform.OS === 'web' ? undefined : { height: inputHeight },
-            ]}
-          />
+          {Platform.OS === 'web' ? (
+            <ComposerPrimitive.Input
+              placeholder={mode.placeholder}
+              placeholderTextColor={Colors.textMuted}
+              accessibilityLabel="Message Folio"
+              accessibilityHint="Press Enter to send. Press Shift and Enter for a new line."
+              multiline
+              numberOfLines={1}
+              scrollEnabled
+              maxFontSizeMultiplier={2}
+              textAlignVertical="top"
+              submitMode={sendDisabled ? 'none' : 'enter'}
+              style={styles.input}
+            />
+          ) : (
+            <TextInput
+              value={draft}
+              onChangeText={setComposerDraft}
+              placeholder={mode.placeholder}
+              placeholderTextColor={Colors.textMuted}
+              accessibilityLabel="Message Folio"
+              multiline
+              numberOfLines={1}
+              scrollEnabled={inputHeight >= INPUT_MAX_HEIGHT}
+              maxFontSizeMultiplier={2}
+              textAlignVertical="top"
+              onContentSizeChange={handleContentSizeChange}
+              style={[styles.input, { height: inputHeight }]}
+            />
+          )}
           {isRunning ? (
             <ComposerPrimitive.Cancel
               accessibilityLabel="Stop response"

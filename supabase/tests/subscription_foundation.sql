@@ -332,7 +332,7 @@ begin
   access := nutriai.get_subscription_access();
   if access ->> 'planId' <> 'plus'
     or access #> '{features,cookbooks,limit}' <> 'null'::jsonb
-    or access #>> '{features,designedPages,limit}' <> '20' then
+    or access #>> '{features,designedPages,limit}' <> '40' then
     raise exception 'Plus subscription snapshot is incorrect: %', access;
   end if;
 end

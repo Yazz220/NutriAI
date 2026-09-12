@@ -41,7 +41,13 @@ TESTING WALKTHROUGH
 - To test account deletion, choose Delete account and complete the confirmation prompts. This permanently removes the account and associated data.
 
 SUBSCRIPTION REVIEW
-[ADD THE FINAL FOLIO PLUS PRODUCTS, PURCHASE/RESTORE WALKTHROUGH, AND REVIEW-SAFE PLAN LIMITS AFTER THE FINAL SUBSCRIPTION PASS.]
+- Folio Free supports up to two cookbooks and five successful designed-page creations for the life of the account.
+- Folio Plus supports unlimited cookbooks and 40 successful designed-page creations per UTC calendar month.
+- Monthly and annual billing unlock the same Folio Plus entitlement. Prices are localized by the App Store, and no introductory offer is configured at launch.
+- Open Settings and select the Folio plan card to view the purchase screen. The annual option is selected initially; monthly can be selected from the same screen.
+- Complete a sandbox purchase with either option. Folio synchronizes the App Store entitlement before enabling Plus capacity.
+- To test restoration, open the same purchase screen and select Restore purchases. To manage an active subscription, return to Settings and select Manage subscription.
+- Failed recipe extraction, failed page generation, and publication retries do not consume a designed-page creation. Existing cookbooks and pages remain available after cancellation.
 
 SUPPORT
 folio.cookbook.help@outlook.com

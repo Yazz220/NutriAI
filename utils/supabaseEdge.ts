@@ -49,6 +49,15 @@ export class FunctionResponseError extends Error {
   }
 }
 
+async function drainResponseReader(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<void> {
+  while (!(await reader.read()).done) {
+    // A terminal NDJSON event already supplied the answer. Let Expo receive
+    // the transport's natural completion without retaining the trailing data.
+  }
+}
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -148,6 +157,8 @@ export async function* streamAuthenticatedFunction<T>(
   options.signal?.addEventListener('abort', abortFromExternal, { once: true });
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let readerReachedEof = false;
+  let cancelReader = false;
 
   try {
     let res: Response;
@@ -212,11 +223,15 @@ export async function* streamAuthenticatedFunction<T>(
         const trimmed = line.trim();
         if (trimmed) yield JSON.parse(trimmed) as T;
       }
-      if (done) break;
+      if (done) {
+        readerReachedEof = true;
+        break;
+      }
     }
 
     if (buffer.trim()) yield JSON.parse(buffer.trim()) as T;
   } catch (error) {
+    cancelReader = true;
     if (error instanceof Error && error.name === 'AbortError') {
       if (options.signal?.aborted) throw new FunctionCanceledError();
       throw new FunctionTimeoutError(timeoutMs);
@@ -225,7 +240,16 @@ export async function* streamAuthenticatedFunction<T>(
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener('abort', abortFromExternal);
-    // A semantic terminal event may end consumption before the peer closes.
-    void reader?.cancel().catch(() => {});
+    if (reader && !readerReachedEof) {
+      if (cancelReader || controller.signal.aborted) {
+        void reader.cancel().catch(() => {});
+      } else {
+        // Expo's native fetch can emit `didComplete` just after a semantic
+        // terminal event. Cancelling here races that close and can make its
+        // ReadableStream controller close twice. Drain in the background so
+        // the adapter can finish immediately and the transport closes once.
+        void drainResponseReader(reader).catch(() => {});
+      }
+    }
   }
 }

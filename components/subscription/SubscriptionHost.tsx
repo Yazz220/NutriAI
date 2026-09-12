@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '@/constants/legal';
+import { NOSH_PLAN_CATALOG } from '@/constants/subscriptions';
 import { useToast } from '@/contexts/ToastContext';
 import { useNoshSubscription } from '@/contexts/NoshSubscriptionContext';
 import type { SubscriptionAccessSnapshot } from '@/types/subscription';
@@ -318,7 +319,8 @@ function SubscriptionHostContent({
       />
       <PageLimitSheet
         visible={limitVisible}
-        limit={subscription.access?.features.designedPages.limit ?? 20}
+        limit={subscription.access?.features.designedPages.limit
+          ?? NOSH_PLAN_CATALOG.plus.limits.designedPagesPerPeriod}
         resetAt={subscription.access?.features.designedPages.periodEnd ?? null}
         onClose={onCloseLimit}
         onManage={() => { void manage(); }}

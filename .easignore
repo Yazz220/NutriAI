@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+/.git/
+/.eas-archive-inspect/
+/.eas-prebuild-inspect/
 
 # Expo
 .expo/
@@ -11,6 +14,18 @@ web-build/
 .claude/
 output/
 skills-lock.json
+
+# Store listing artwork is uploaded separately in App Store Connect
+/marketing/
+
+# Repository-only material that is not part of the mobile runtime
+/brand/
+/docs/
+/__tests__/
+/__mocks__/
+/.github/
+/.playwright-cli/
+/.playwright-mcp/
 
 # Local machine sync automation
 .sync/

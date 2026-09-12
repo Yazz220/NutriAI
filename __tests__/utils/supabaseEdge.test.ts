@@ -169,11 +169,13 @@ describe('streamAuthenticatedFunction', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('cancels the reader when a terminal event ends consumption before EOF', async () => {
+  it('drains rather than cancels the native reader when a terminal event ends consumption', async () => {
     const cancel = jest.fn().mockResolvedValue(undefined);
-    const read = jest.fn().mockResolvedValueOnce({
-      done: false, value: new TextEncoder().encode('{"type":"result"}\n'),
-    });
+    const read = jest.fn()
+      .mockResolvedValueOnce({
+        done: false, value: new TextEncoder().encode('{"type":"result"}\n'),
+      })
+      .mockResolvedValueOnce({ done: true, value: undefined });
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
       body: { getReader: () => ({ read, cancel }) },
@@ -182,8 +184,9 @@ describe('streamAuthenticatedFunction', () => {
       expect(event).toEqual({ type: 'result' });
       break;
     }
-    expect(read).toHaveBeenCalledTimes(1);
-    expect(cancel).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   it('times out even when session loading never settles', async () => {
