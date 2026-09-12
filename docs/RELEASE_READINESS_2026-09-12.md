@@ -69,3 +69,7 @@ References: [Apple submission guidance](https://developer.apple.com/app-store/re
 - Recheck first-attempt capture reliability on build 15 before submission. A retry success is not a clean first-attempt test.
 - User offered the already-running iPhone Mirroring window. Mobile connector returned no accessible devices, and native desktop controls are disabled in this session, so no native interactions or purchase tests were performed.
 - Closed Gmail, Outlook, RevenueCat, App Store Connect and Supabase diagnostic tabs after use. The native auth callback tab could not be controlled because the browser URL policy blocks the nosh scheme.
+
+## Simulator follow-up
+
+User authorized retrying iPhone Mirroring and falling back to the prior simulator. Native desktop surfaces remained unavailable. Booted existing iPhone 17 Pro (iOS 26.1, 90DAC4BA-A669-4723-9C3A-F9A2F4563E69), found prior Nosh.app installation, and compiled latest production-configured JavaScript with auth bypass disabled (5,003 modules). Mobile MCP could discover the device but UI reads and screenshots timed out; WebDriverAgent reported running but inaccessible. Reboot completed, but subsequent app launch and automation-helper repair also stalled. Stopped Metro and requested simulator shutdown to release resources. No native UI, screenshot, or purchase test was verified.
