@@ -10,7 +10,7 @@ Decision: not ready to submit yet. Build 15 is attached, App Privacy is publishe
 - With the owner's explicit approval, deleted broken duplicate `whintgrba909cd08b`. Verified only the working connection remains.
 - Live read-only SQL confirmed `cookbook-pages` and `recipe-captures` are PRIVATE and all 21 `nutriai` tables have RLS enabled.
 - Pulled store metadata into `metadata/` and prepared credential-free reviewer notes at `metadata/review/notes.txt`.
-- Created App Review details `6ec25fdc-f813-4557-8ae0-70b2e61ca549` with the owner-provided contact information. A separate Folio login was created using a Gmail plus alias; it still needs email confirmation and a sample cookbook. Password is outside the repository and stored in Apple's review fields. Account setup is paused while the owner reviews the alias arrangement.
+- Created App Review details `6ec25fdc-f813-4557-8ae0-70b2e61ca549` with the owner-provided contact information. The owner approved the separate Gmail-alias Folio login. Confirmed email status and successful password sign-in on September 12. Password is outside the repository and stored in Apple's review fields. Created `Folio Review Kitchen` through the normal authenticated cookbook RPC and started a synthetic salad recipe through `capture-recipe`; completion is being checked.
 - Physical-device checklist: `docs/TESTFLIGHT_RELEASE_CHECK.md`. No purchase, restoration, or screenshot result has been supplied yet.
 
 ## Synced and verified
@@ -29,7 +29,7 @@ Decision: not ready to submit yet. Build 15 is attached, App Privacy is publishe
 
 1. **Test subscriptions on TestFlight build 15.** The owner confirmed purchase/restore testing has not been done. RevenueCat showed no sandbox transactions. Test monthly and annual purchases, cancellation, restoration, sign-out/account switching, server entitlement sync, and the blocked-action resume behavior. Confirm Plus reaches 40 pages and unlimited books on the server, not just in the client UI. A dashboard TEST webhook does not prove this lifecycle.
 2. **Complete both subscription review packages.** Annual `6807573489` and monthly `6807573064` are MISSING_METADATA. Direct App Store API checks found no review screenshot for either. Pricing, localization, and availability checks passed. Upload actual paywall screenshots, revalidate, and attach both subscriptions to the first app review using the authenticated Apple web session. Promotional images are optional unless those merchandising features are used.
-3. **Confirm and test the reviewer account.** App Review contact details and the dedicated Folio credentials are saved in Apple. Confirm the account email, add a sample cookbook through the capture pipeline, and verify login on the submitted binary. The owner is reviewing the proposed Gmail-alias arrangement.
+3. **Confirm and test the reviewer account.** App Review contact details and the dedicated Folio credentials are saved in Apple. Backend email confirmation and password sign-in passed. Complete and check the sample recipe, then verify login on the submitted binary.
 4. **Test the attached build.** Build 15 is selected. Build another candidate only if testing finds a binary defect or the PC build cannot be confirmed to contain the intended changes.
 5. **App Privacy verified.** The signed-in browser shows published declarations including content, account identifiers, purchases, usage, and diagnostics. No edits were needed during this check.
 6. **Finish the native release smoke test.** Exercise fresh sign-up/email confirmation, Apple sign-in, text/link/photo capture, finished-page reading, contextual chat, native Share to Folio, offline recovery, and account deletion on a disposable account. Test larger text and VoiceOver. A simulator cannot establish StoreKit purchase or physical share-extension readiness. No simulator or physical-device smoke test was completed in this audit.
@@ -57,6 +57,6 @@ There is now one working authenticated delivery path. Real sandbox purchase/rene
 
 ## Next working order
 
-Confirm the reviewer-email arrangement and email address; seed and test the reviewer account; test build 15 purchases and restore; capture and upload subscription review screenshots; attach both subscriptions; finish the native smoke test; rerun `asc validate` and subscription validation. Submit only once those checks are complete.
+Finish the reviewer sample recipe and test the account on build 15; test build 15 purchases and restore; capture and upload subscription review screenshots; attach both subscriptions; finish the native smoke test; rerun `asc validate` and subscription validation. Submit only once those checks are complete.
 
 References: [Apple submission guidance](https://developer.apple.com/app-store/review/guidelines/#before-you-submit), [App Store version](https://appstoreconnect.apple.com/apps/6762021802/distribution/ios/version/inflight), [RevenueCat webhooks](https://app.revenuecat.com/projects/a62eb822/integrations/webhooks), [Supabase security advisor](https://supabase.com/dashboard/project/jqngtejmhoibnzlzjlir/advisors/security).
