@@ -81,3 +81,10 @@ After owner restarted the Mac/apps, native desktop surfaces remained unavailable
 Owner supplied two screenshots from build 15: plans unavailable; restore reports no active purchase; RevenueCat configuration error states no configured products could be fetched from App Store Connect. These are failure evidence, not successful subscription-review screenshots.
 
 Read-only verification: Apple Business shows Paid Apps Agreement `Pending User Info`, no bank account, and U.S. Form W-9 `Missing Tax Info`; Free Apps Agreement and DSA are Active. Owner must complete banking and the appropriate tax process in Apple; do not assume the displayed W-9 is appropriate for the owner's tax status. RevenueCat default offering has correct App Store monthly and annual product IDs, both matching Apple. Both Apple subscriptions remain MISSING_METADATA with review screenshots still outstanding. Complete account requirements, verify agreement Active, then retry product loading and purchases before deciding whether a new binary is needed.
+
+## Account correction follow-up — September 12, 15:23 local
+
+- The earlier Bank of America addition now shows `Processing`. Apple explicitly blocks further banking updates while processing and says changes should appear within 24 hours. The Saudi bank replacement has not been entered or saved.
+- Submitted an individual membership country/address correction request through Apple Developer; the confirmation page acknowledged receipt. Approval is pending. No new developer membership or app record was created.
+- Sent a clarification to the existing Apple Finance tax case, requesting the appropriate non-U.S. questionnaire or secure submission instructions and guidance on the timing of the bank change. Gmail confirmed `Message sent`. No full bank account details were included.
+- Paid Apps remains `Pending User Info` and the displayed W-9 remains `Missing Tax Info`. No W-9 was submitted. Resume the bank update when Apple's lock clears and complete the correct tax process after Apple's guidance. Agreement activation and successful TestFlight purchases/restoration are still required; the app is not ready to submit.
