@@ -1,6 +1,6 @@
 # Folio release readiness — September 12, 2026
 
-Decision: not ready to submit yet. Build 15 is attached, App Privacy is published, and webhook delivery is working. The reviewer account and sample page are prepared. Finish subscription screenshots and physical-device purchase/restore tests, and check capture reliability after the observed first-attempt failure. No replacement binary is justified by the checks completed so far.
+Decision: not ready to submit yet. Apple Paid Apps Agreement is Pending User Info: banking is absent and the tax form is Missing Tax Info. Build 15 cannot load subscription products on the owner's device. Build 15 is attached, App Privacy is published, and webhook delivery is working. The reviewer account and sample page are prepared. Finish subscription screenshots and physical-device purchase/restore tests, and check capture reliability after the observed first-attempt failure. No replacement binary is justified by the checks completed so far.
 
 ## Follow-up completion
 
@@ -73,3 +73,11 @@ References: [Apple submission guidance](https://developer.apple.com/app-store/re
 ## Simulator follow-up
 
 User authorized retrying iPhone Mirroring and falling back to the prior simulator. Native desktop surfaces remained unavailable. Booted existing iPhone 17 Pro (iOS 26.1, 90DAC4BA-A669-4723-9C3A-F9A2F4563E69), found prior Nosh.app installation, and compiled latest production-configured JavaScript with auth bypass disabled (5,003 modules). Mobile MCP could discover the device but UI reads and screenshots timed out; WebDriverAgent reported running but inaccessible. Reboot completed, but subsequent app launch and automation-helper repair also stalled. Stopped Metro and requested simulator shutdown to release resources. No native UI, screenshot, or purchase test was verified.
+
+After owner restarted the Mac/apps, native desktop surfaces remained unavailable. The existing simulator booted successfully in 69 seconds, but Mobile MCP again failed to start WebDriverAgent within its timeout. No Folio UI was inspected. Shut down the simulator; did not start another Metro or build. Next access diagnostic: inspect the user-visible Computer Use settings and OS permission state rather than repeat restarts.
+
+## Device paywall evidence — September 12, 14:27 local
+
+Owner supplied two screenshots from build 15: plans unavailable; restore reports no active purchase; RevenueCat configuration error states no configured products could be fetched from App Store Connect. These are failure evidence, not successful subscription-review screenshots.
+
+Read-only verification: Apple Business shows Paid Apps Agreement `Pending User Info`, no bank account, and U.S. Form W-9 `Missing Tax Info`; Free Apps Agreement and DSA are Active. Owner must complete banking and the appropriate tax process in Apple; do not assume the displayed W-9 is appropriate for the owner's tax status. RevenueCat default offering has correct App Store monthly and annual product IDs, both matching Apple. Both Apple subscriptions remain MISSING_METADATA with review screenshots still outstanding. Complete account requirements, verify agreement Active, then retry product loading and purchases before deciding whether a new binary is needed.
