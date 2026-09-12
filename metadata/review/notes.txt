@@ -1,6 +1,6 @@
 Welcome to Folio, a book-first personal cookbook app.
 
-Use the sign-in credentials provided in App Review Information.
+Use the sign-in credentials provided in App Review Information. The account email is confirmed. Open "Folio Review Kitchen" to view the preloaded "Lemon Cucumber Salad" recipe.
 
 TESTING WALKTHROUGH
 

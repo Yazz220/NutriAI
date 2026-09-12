@@ -1,6 +1,6 @@
 # Folio release readiness — September 12, 2026
 
-Decision: not ready to submit yet. Build 15 is attached, App Privacy is published, and webhook delivery is working. Finish the reviewer account, subscription screenshots, and physical-device purchase/restore tests. No replacement binary is justified by the checks completed so far.
+Decision: not ready to submit yet. Build 15 is attached, App Privacy is published, and webhook delivery is working. The reviewer account and sample page are prepared. Finish subscription screenshots and physical-device purchase/restore tests, and check capture reliability after the observed first-attempt failure. No replacement binary is justified by the checks completed so far.
 
 ## Follow-up completion
 
@@ -10,7 +10,7 @@ Decision: not ready to submit yet. Build 15 is attached, App Privacy is publishe
 - With the owner's explicit approval, deleted broken duplicate `whintgrba909cd08b`. Verified only the working connection remains.
 - Live read-only SQL confirmed `cookbook-pages` and `recipe-captures` are PRIVATE and all 21 `nutriai` tables have RLS enabled.
 - Pulled store metadata into `metadata/` and prepared credential-free reviewer notes at `metadata/review/notes.txt`.
-- Created App Review details `6ec25fdc-f813-4557-8ae0-70b2e61ca549` with the owner-provided contact information. The owner approved the separate Gmail-alias Folio login. Confirmed email status and successful password sign-in on September 12. Password is outside the repository and stored in Apple's review fields. Created `Folio Review Kitchen` through the normal authenticated cookbook RPC and started a synthetic salad recipe through `capture-recipe`; completion is being checked.
+- Created App Review details `6ec25fdc-f813-4557-8ae0-70b2e61ca549` with the owner-provided contact information. The owner approved the separate Gmail-alias Folio login. Confirmed email status and successful password sign-in on September 12. Password is outside the repository and stored in Apple's review fields. Created `Folio Review Kitchen` through the normal authenticated cookbook RPC and completed a synthetic salad recipe through `capture-recipe` after one retry. Verified the published page and authenticated download from private storage; visually checked recipe text and ingredients. Added the sample book/page instructions to Apple review notes.
 - Physical-device checklist: `docs/TESTFLIGHT_RELEASE_CHECK.md`. No purchase, restoration, or screenshot result has been supplied yet.
 
 ## Synced and verified
@@ -29,7 +29,7 @@ Decision: not ready to submit yet. Build 15 is attached, App Privacy is publishe
 
 1. **Test subscriptions on TestFlight build 15.** The owner confirmed purchase/restore testing has not been done. RevenueCat showed no sandbox transactions. Test monthly and annual purchases, cancellation, restoration, sign-out/account switching, server entitlement sync, and the blocked-action resume behavior. Confirm Plus reaches 40 pages and unlimited books on the server, not just in the client UI. A dashboard TEST webhook does not prove this lifecycle.
 2. **Complete both subscription review packages.** Annual `6807573489` and monthly `6807573064` are MISSING_METADATA. Direct App Store API checks found no review screenshot for either. Pricing, localization, and availability checks passed. Upload actual paywall screenshots, revalidate, and attach both subscriptions to the first app review using the authenticated Apple web session. Promotional images are optional unless those merchandising features are used.
-3. **Confirm and test the reviewer account.** App Review contact details and the dedicated Folio credentials are saved in Apple. Backend email confirmation and password sign-in passed. Complete and check the sample recipe, then verify login on the submitted binary.
+3. **Confirm and test the reviewer account.** App Review contact details and the dedicated Folio credentials are saved in Apple. Backend email confirmation and password sign-in passed. The sample recipe is published and its private image is readable with this account. Verify login on the submitted binary.
 4. **Test the attached build.** Build 15 is selected. Build another candidate only if testing finds a binary defect or the PC build cannot be confirmed to contain the intended changes.
 5. **App Privacy verified.** The signed-in browser shows published declarations including content, account identifiers, purchases, usage, and diagnostics. No edits were needed during this check.
 6. **Finish the native release smoke test.** Exercise fresh sign-up/email confirmation, Apple sign-in, text/link/photo capture, finished-page reading, contextual chat, native Share to Folio, offline recovery, and account deletion on a disposable account. Test larger text and VoiceOver. A simulator cannot establish StoreKit purchase or physical share-extension readiness. No simulator or physical-device smoke test was completed in this audit.
@@ -57,6 +57,15 @@ There is now one working authenticated delivery path. Real sandbox purchase/rene
 
 ## Next working order
 
-Finish the reviewer sample recipe and test the account on build 15; test build 15 purchases and restore; capture and upload subscription review screenshots; attach both subscriptions; finish the native smoke test; rerun `asc validate` and subscription validation. Submit only once those checks are complete.
+Test the reviewer account on build 15; test build 15 purchases and restore; capture and upload subscription review screenshots; attach both subscriptions; finish the native smoke test; rerun `asc validate` and subscription validation. Submit only once those checks are complete.
 
 References: [Apple submission guidance](https://developer.apple.com/app-store/review/guidelines/#before-you-submit), [App Store version](https://appstoreconnect.apple.com/apps/6762021802/distribution/ios/version/inflight), [RevenueCat webhooks](https://app.revenuecat.com/projects/a62eb822/integrations/webhooks), [Supabase security advisor](https://supabase.com/dashboard/project/jqngtejmhoibnzlzjlir/advisors/security).
+
+## Live capture check
+
+- Review cookbook `1ab2cf6e-c373-44cf-9d0e-3042d3f29c3b`, capture `d9491746-9a15-4911-822c-44042b1278d1`, page `834d725f-20dd-42e1-8bd6-ea6033e66a44`.
+- First text extraction returned HTTP 502 after about 91 seconds. Production log: `Extraction returned no content` for `qwen/qwen3.6-35b-a3b`. This does not establish the underlying provider cause; the response parser also swallows response JSON read errors.
+- Retried the same durable capture once. Extraction succeeded, page generation and publication completed at 10:49:14 UTC, selected version ready, legacy credit_cost zero. Downloaded the private image as the reviewer and visually verified the recipe. No duplicate capture or manual database publication was used.
+- Recheck first-attempt capture reliability on build 15 before submission. A retry success is not a clean first-attempt test.
+- User offered the already-running iPhone Mirroring window. Mobile connector returned no accessible devices, and native desktop controls are disabled in this session, so no native interactions or purchase tests were performed.
+- Closed Gmail, Outlook, RevenueCat, App Store Connect and Supabase diagnostic tabs after use. The native auth callback tab could not be controlled because the browser URL policy blocks the nosh scheme.
