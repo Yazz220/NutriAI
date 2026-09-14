@@ -88,3 +88,12 @@ Read-only verification: Apple Business shows Paid Apps Agreement `Pending User I
 - Submitted an individual membership country/address correction request through Apple Developer; the confirmation page acknowledged receipt. Approval is pending. No new developer membership or app record was created.
 - Sent a clarification to the existing Apple Finance tax case, requesting the appropriate non-U.S. questionnaire or secure submission instructions and guidance on the timing of the bank change. Gmail confirmed `Message sent`. No full bank account details were included.
 - Paid Apps remains `Pending User Info` and the displayed W-9 remains `Missing Tax Info`. No W-9 was submitted. Resume the bank update when Apple's lock clears and complete the correct tax process after Apple's guidance. Agreement activation and successful TestFlight purchases/restoration are still required; the app is not ready to submit.
+
+## Live status recheck — September 14
+
+- App Store public API: version 1.0 remains `PREPARE_FOR_SUBMISSION` and has no review submission or review history. Build 15 remains `VALID` and attached.
+- App Store Connect web: Paid Apps remains `Pending User Info`; the earlier bank account remains `Processing` beyond the displayed 24-hour estimate; the tax surface still offers only the incomplete U.S. W-9.
+- Apple Developer membership still displays the former U.S. address. The membership correction case has only its receipt acknowledgment, and the Finance tax case has no response after the September 12 follow-up.
+- App Privacy is still published. App metadata, seven product-page screenshots, build, and reviewer details remain present.
+- Both Folio Plus products now display `Prepare for Submission` in the web interface. Public API diagnostics confirm localizations, availability, and pricing for all 175 territories. Neither product has the required App Review screenshot, and the first subscription group has not been added to version 1.0 for review.
+- Do not upload the device screenshots that show unavailable products and a RevenueCat configuration error. Capture a clean paywall after the Paid Apps setup permits StoreKit to return the products, upload it to both subscription records, attach the group to version 1.0, rerun validation, and then submit.
