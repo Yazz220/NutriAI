@@ -2,7 +2,7 @@
 
 ## Decision
 
-Not ready to submit. The production backend has been restored, but Apple still has the former U.S. legal address, an incomplete W-9, a Pending User Info Paid Apps agreement, and a bank update stuck in Processing. Monthly/annual subscriptions still need review completion and a successful physical-device purchase/restore test. A new binary would not fix these account issues.
+Technically staged for submission, but do not send the review yet. Version 1.0, the Folio Plus subscription group, and both subscription products are assembled in one App Store review draft and Apple's Submit for Review button is enabled. Apple still has the former U.S. legal address, an inappropriate W-9 path, a Pending User Info Paid Apps agreement, and a bank update stuck in Processing. Until Apple fixes that account setup, StoreKit product loading and physical-device purchase/restore cannot be validated. A new binary would not fix these account issues.
 
 ## Completed this audit
 
@@ -18,6 +18,8 @@ Not ready to submit. The production backend has been restored, but Apple still h
 - Verified public support, privacy, and terms URLs return HTTP 200.
 - Checked the signed-in Sentry issue stream for the exact build 15 release (`com.yaz12.nosh@1.0.0+15`) over 14 days: no matching issues were present. The broader 30-day unresolved list contains older development and backend issues. Its newest production event was one handled `Extraction returned no content` event on September 12 with no repeat; it is not associated with build 15.
 - Reviewed App Store Connect's web-only Regulations & Permits section. Digital Services Act status is currently non-trader; no China ICP filing is entered, and the Vietnam game-license field is irrelevant to Folio. Content Rights states that the app has the necessary rights to third-party content.
+- Rendered the production Folio subscription UI in the local iPhone 17 Pro simulator with the configured App Store prices, captured separate annual- and monthly-selected review images, and uploaded them to the corresponding subscription records. The temporary simulator-only route was removed afterward and the simulator/Metro process were shut down.
+- App Store Connect now reports both subscriptions Ready for Review. Added version 1.0, the Folio Plus subscription group, Folio Plus Annual, and Folio Plus Monthly to a single draft submission. The draft contains four items and its Submit for Review button is enabled; it has not been pressed.
 
 ## Code and build checks
 
@@ -28,22 +30,22 @@ Not ready to submit. The production backend has been restored, but Apple still h
 - Expo Doctor: 18/18 checks passed.
 - EAS authentication works; latest iOS production build is finished build 15, created September 11. Its record has no Git commit hash, so exact source-to-binary correspondence remains unverified.
 - The current shell uses Node 22.23.0; project instructions specify 20.19.4. Use the project version for a future reproducible build. No new paid/cloud build was started.
-- App Store validation reported zero errors, four warnings, and four informational checks. This validator does not establish Paid Apps agreement readiness, successful purchases, or all review assets.
+- Subscription validation now reports zero blocking findings. Its remaining warnings are two optional promotional images and the expected instruction to submit the first subscriptions with the app version. The general validator reports the version as non-editable because it is already staged in the review draft; this is expected at this stage, not missing metadata. The validator does not establish Paid Apps agreement readiness or successful purchases.
 
 ## Apple blockers and next actions
 
 1. Developer Support case `102960684367`: owner reports documents uploaded. Current App Store Connect still displays the former U.S. address. No approval or upload receipt was found in the searched email. The secure upload portal requires another Terms acceptance to proceed, so no duplicate document upload was made.
 2. Finance case `22149727`: September 23 email says to activate the Paid Apps agreement using the current tax setup, then submit a corrected W-8/W-9. The actual available W-9 requires a U.S.-person certification under penalties of perjury. Based on the owner's stated non-U.S. status, that certification cannot be supplied truthfully. No W-9, signature, invented TIN, or tax form was submitted. Ask Finance and Developer Support to coordinate an appropriate non-U.S. setup or manual reset.
 3. Bank update has remained Processing since September 12. Apple blocks further banking changes until it clears; the Saudi replacement has not been saved. Include the stuck processing state in the Finance escalation.
-4. Monthly and annual Folio Plus products remain MISSING_METADATA. Strict subscription validation confirms complete en-US localization, availability and pricing in 175 territories, but both products have no App Review screenshot. Current U.S. prices are $9.99/month and $89.99/year. Do not use the existing screenshots showing an unavailable/error paywall.
-5. Once account setup permits products to load, test build 15 monthly/annual purchase, Restore Purchases, server entitlement sync and limits, reviewer login, and recipe capture/share/reader flows. Upload a clean real paywall screenshot, attach subscriptions to the first app review, and rerun validation.
-6. Version 1.0 remains Prepare for Submission. It has not entered Apple review. Manual release is selected.
+4. Subscription review metadata is complete. Monthly and annual are Ready for Review with separate 1206×2622 App Review screenshots, complete en-US localization, availability/pricing in 175 territories, and current U.S. prices of $9.99/month and $89.99/year. Promotional images are optional for launch because App Store Promotion, offer-code pages, and win-back offers are not being used.
+5. Once Apple activates the correct paid agreement and products load, test build 15 purchase, Restore Purchases, server entitlement sync and limits, reviewer login, and recipe capture/share/reader flows on the physical device. Then upgrade Supabase immediately before submitting so the production backend cannot pause during review.
+6. Version 1.0 and both subscriptions are staged in the four-item review draft. The final Submit for Review action has not been taken. Manual release is selected, so approval alone will not publish the app until the owner releases it.
 
-Prepared two follow-ups in `tmp/release-audit-2026-09-24/apple-follow-ups.md` and saved both as unsent Gmail drafts in the matching Developer Support and Finance threads. Sending requires the owner's explicit authorization; check the conversation for delivery status before acting.
+Sent both prepared follow-ups from the matching Gmail threads after the owner's explicit authorization: Developer Support case `102960684367` and Finance case `22149727`. Gmail confirmed “Message sent” for both. Wait for Apple to confirm the country/address correction, appropriate non-U.S. tax setup, and resolution of the stuck bank-processing state.
 
 ## Supabase reliability and security
 
-- Free plan inactivity caused a real production outage. Restoring resolves this outage, but does not prevent another pause. Recommend Pro before App Review; current published base price is $25/month. No payment method is saved in Folio Production. The upgrade options were opened for the owner; no subscription or charge was made.
+- Free plan inactivity caused a real production outage. Restoring resolves this outage, but does not prevent another pause. Upgrade to Pro immediately before submitting to App Review; current published base price is $25/month. No payment method is saved in Folio Production. The upgrade options were opened for the owner; no subscription or charge was made.
 - The separate September 24 Supabase email concerns explicit grants on NEW public-schema tables starting October 30. It says existing tables retain their grants and no action is needed to keep them accessible. Folio uses the private `nutriai` schema and existing migrations explicitly grant required access. A search found no CREATE TABLE in `public` in the tracked migration set. Do not apply the email's example grants blindly or grant anonymous access to app data.
 - Security Advisor: zero errors, ten warnings. Nine concern signed-in access to SECURITY DEFINER RPCs; one is disabled leaked-password protection. These match the earlier audit. Prior source inspection found authentication/ownership guards and fixed search paths; a fresh two-user authorization test was not performed. Revoking legitimate RPC access just to clear warnings could break the app.
 - Current CLI project listing succeeded, but separate SQL/functions calls stalled and were terminated after several minutes; the authenticated dashboard was used to verify the live database and deployed functions instead. CLI deployment access remains unverified.
@@ -51,7 +53,7 @@ Prepared two follow-ups in `tmp/release-audit-2026-09-24/apple-follow-ups.md` an
 ## Remaining verification limits
 
 - The signed-in Sentry UI was checked successfully. No local `SENTRY_AUTH_TOKEN` is configured, so this was a UI review rather than an API-exported audit. The exact build 15 query had no issues, but absence of reported events does not prove crash-free usage volume.
-- No new physical-device, simulator, payment, or live AI-generation test was completed this audit.
+- A simulator pass was used only to render and inspect the review screenshot. No new physical-device purchase, restore, or live AI-generation test was completed because the pending Apple paid agreement still prevents products from loading.
 - Restoration and unit tests do not establish provider quota, successful extraction/generation, or StoreKit readiness.
 
 ## References
