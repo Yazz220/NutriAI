@@ -16,6 +16,8 @@ Not ready to submit. The production backend has been restored, but Apple still h
 - Updated App Review contact phone to the owner-provided Saudi number ending 3700; the API response confirmed the saved number and preserved reviewer credentials/notes.
 - Confirmed App Privacy is published (September 11), seven store screenshots remain present, and build 15 is attached.
 - Verified public support, privacy, and terms URLs return HTTP 200.
+- Checked the signed-in Sentry issue stream for the exact build 15 release (`com.yaz12.nosh@1.0.0+15`) over 14 days: no matching issues were present. The broader 30-day unresolved list contains older development and backend issues. Its newest production event was one handled `Extraction returned no content` event on September 12 with no repeat; it is not associated with build 15.
+- Reviewed App Store Connect's web-only Regulations & Permits section. Digital Services Act status is currently non-trader; no China ICP filing is entered, and the Vietnam game-license field is irrelevant to Folio. Content Rights states that the app has the necessary rights to third-party content.
 
 ## Code and build checks
 
@@ -33,11 +35,11 @@ Not ready to submit. The production backend has been restored, but Apple still h
 1. Developer Support case `102960684367`: owner reports documents uploaded. Current App Store Connect still displays the former U.S. address. No approval or upload receipt was found in the searched email. The secure upload portal requires another Terms acceptance to proceed, so no duplicate document upload was made.
 2. Finance case `22149727`: September 23 email says to activate the Paid Apps agreement using the current tax setup, then submit a corrected W-8/W-9. The actual available W-9 requires a U.S.-person certification under penalties of perjury. Based on the owner's stated non-U.S. status, that certification cannot be supplied truthfully. No W-9, signature, invented TIN, or tax form was submitted. Ask Finance and Developer Support to coordinate an appropriate non-U.S. setup or manual reset.
 3. Bank update has remained Processing since September 12. Apple blocks further banking changes until it clears; the Saudi replacement has not been saved. Include the stuck processing state in the Finance escalation.
-4. Monthly and annual Folio Plus products remain MISSING_METADATA in the API; subscription review screenshots are still unverified/missing from prior inspection. Localizations/pricing were previously present. Do not use screenshots showing an unavailable/error paywall.
+4. Monthly and annual Folio Plus products remain MISSING_METADATA. Strict subscription validation confirms complete en-US localization, availability and pricing in 175 territories, but both products have no App Review screenshot. Current U.S. prices are $9.99/month and $89.99/year. Do not use the existing screenshots showing an unavailable/error paywall.
 5. Once account setup permits products to load, test build 15 monthly/annual purchase, Restore Purchases, server entitlement sync and limits, reviewer login, and recipe capture/share/reader flows. Upload a clean real paywall screenshot, attach subscriptions to the first app review, and rerun validation.
 6. Version 1.0 remains Prepare for Submission. It has not entered Apple review. Manual release is selected.
 
-Prepared two follow-ups in `tmp/release-audit-2026-09-24/apple-follow-ups.md`. Sending approval was requested; check the conversation for the latest authorization and delivery status before acting. The draft document initially contains unsent copy.
+Prepared two follow-ups in `tmp/release-audit-2026-09-24/apple-follow-ups.md` and saved both as unsent Gmail drafts in the matching Developer Support and Finance threads. Sending requires the owner's explicit authorization; check the conversation for delivery status before acting.
 
 ## Supabase reliability and security
 
@@ -48,7 +50,7 @@ Prepared two follow-ups in `tmp/release-audit-2026-09-24/apple-follow-ups.md`. S
 
 ## Remaining verification limits
 
-- Sentry is logged out and no local Sentry API token is configured. A sign-in tab is left for the owner; no fresh crash-free claim is justified.
+- The signed-in Sentry UI was checked successfully. No local `SENTRY_AUTH_TOKEN` is configured, so this was a UI review rather than an API-exported audit. The exact build 15 query had no issues, but absence of reported events does not prove crash-free usage volume.
 - No new physical-device, simulator, payment, or live AI-generation test was completed this audit.
 - Restoration and unit tests do not establish provider quota, successful extraction/generation, or StoreKit readiness.
 

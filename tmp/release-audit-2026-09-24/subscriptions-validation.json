@@ -1,0 +1,353 @@
+{
+  "appId": "6762021802",
+  "subscriptionCount": 2,
+  "summary": {
+    "errors": 0,
+    "warnings": 4,
+    "infos": 2,
+    "blocking": 4
+  },
+  "checks": [
+    {
+      "id": "subscriptions.images.recommended",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Annual\" (com.yaz12.nosh.plus.annual) has no subscription promotional image",
+      "remediation": "Upload a unique promotional image if you plan to promote this subscription on the App Store, support offer-code redemption pages, or run win-back offers; the App Review screenshot is separate and review-only",
+      "field": "images",
+      "resourceType": "subscription",
+      "resourceId": "6807573489"
+    },
+    {
+      "id": "subscriptions.images.recommended",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Monthly\" (com.yaz12.nosh.plus.monthly) has no subscription promotional image",
+      "remediation": "Upload a unique promotional image if you plan to promote this subscription on the App Store, support offer-code redemption pages, or run win-back offers; the App Review screenshot is separate and review-only",
+      "field": "images",
+      "resourceType": "subscription",
+      "resourceId": "6807573064"
+    },
+    {
+      "id": "subscriptions.review_readiness.needs_attention",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Annual\" (com.yaz12.nosh.plus.annual) is MISSING_METADATA",
+      "remediation": "See diagnostic checks below for specific missing items (group localizations, subscription localizations, pricing); fix all issues then re-validate",
+      "field": "state",
+      "resourceType": "subscription",
+      "resourceId": "6807573489"
+    },
+    {
+      "id": "subscriptions.review_readiness.needs_attention",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Monthly\" (com.yaz12.nosh.plus.monthly) is MISSING_METADATA",
+      "remediation": "See diagnostic checks below for specific missing items (group localizations, subscription localizations, pricing); fix all issues then re-validate",
+      "field": "state",
+      "resourceType": "subscription",
+      "resourceId": "6807573064"
+    },
+    {
+      "id": "subscriptions.diagnostics.review_screenshot_unverified",
+      "severity": "info",
+      "message": "Could not verify whether Subscription \"Folio Plus Annual\" (com.yaz12.nosh.plus.annual) has an App Review screenshot",
+      "remediation": "Validation could not verify the subscription App Review screenshot because Apple did not return its asset delivery state",
+      "field": "reviewScreenshot",
+      "resourceType": "subscription",
+      "resourceId": "6807573489"
+    },
+    {
+      "id": "subscriptions.diagnostics.review_screenshot_unverified",
+      "severity": "info",
+      "message": "Could not verify whether Subscription \"Folio Plus Monthly\" (com.yaz12.nosh.plus.monthly) has an App Review screenshot",
+      "remediation": "Validation could not verify the subscription App Review screenshot because Apple did not return its asset delivery state",
+      "field": "reviewScreenshot",
+      "resourceType": "subscription",
+      "resourceId": "6807573064"
+    }
+  ],
+  "diagnostics": [
+    {
+      "subscriptionId": "6807573489",
+      "name": "Folio Plus Annual",
+      "productId": "com.yaz12.nosh.plus.annual",
+      "state": "MISSING_METADATA",
+      "conclusion": "unknown",
+      "summary": "1 blocking subscription check(s) could not be verified automatically",
+      "rows": [
+        {
+          "key": "group_localizations",
+          "label": "Group localizations",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "en-US"
+        },
+        {
+          "key": "subscription_localizations",
+          "label": "Subscription localizations",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "en-US"
+        },
+        {
+          "key": "review_screenshot",
+          "label": "Review screenshot delivery",
+          "status": "unverified",
+          "source": "public-api",
+          "blocking": true,
+          "remediation": "Validation could not verify the subscription App Review screenshot because Apple did not return its asset delivery state"
+        },
+        {
+          "key": "subscription_availability",
+          "label": "Subscription availability",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "id=6807573489 territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "upfront_plan_availability",
+          "label": "UPFRONT plan availability",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "id=eyJhIjoiNjgwNzU3MzQ4OSIsInAiOiIwIn0 territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "availability_surface_consistency",
+          "label": "Legacy and UPFRONT availability agree",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "monthly_plan_availability",
+          "label": "MONTHLY commitment availability",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured"
+        },
+        {
+          "key": "price_records",
+          "label": "Price records",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "price_coverage_subscription_availability",
+          "label": "Price coverage vs subscription availability",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE available=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "price_coverage_app_availability",
+          "label": "Price coverage vs app availability",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE app=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "promotional_image",
+          "label": "Promotional image present",
+          "status": "no",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "missing",
+          "remediation": "Apple documents this image as optional unless you use offers or App Store promotion. For an otherwise-complete subscription stuck in MISSING_METADATA, resolve its version with `asc subscriptions versions list --subscription-id \"6807573489\"` (or create one with `asc subscriptions versions create --subscription-id \"6807573489\"` if none exists), then upload a 1024x1024 image with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"`; this can also serve as an undocumented recalculation attempt, so re-run validation afterward."
+        },
+        {
+          "key": "app_has_build",
+          "label": "App has build",
+          "status": "yes",
+          "source": "context",
+          "blocking": false,
+          "evidence": "count=6"
+        },
+        {
+          "key": "introductory_offer",
+          "label": "Introductory offer configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure an introductory offer or free trial with `asc subscriptions introductory-offers create` if this subscription should launch with one."
+        },
+        {
+          "key": "promotional_offers",
+          "label": "Promotional offers configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure promotional offers with `asc subscriptions promotional-offers create` if you plan to use them."
+        },
+        {
+          "key": "win_back_offers",
+          "label": "Win-back offers configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure win-back offers with `asc subscriptions offers win-back create` if you plan to use them."
+        },
+        {
+          "key": "complete_pricing_matrix",
+          "label": "Complete App Store pricing matrix",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=175 required=175"
+        }
+      ]
+    },
+    {
+      "subscriptionId": "6807573064",
+      "name": "Folio Plus Monthly",
+      "productId": "com.yaz12.nosh.plus.monthly",
+      "state": "MISSING_METADATA",
+      "conclusion": "unknown",
+      "summary": "1 blocking subscription check(s) could not be verified automatically",
+      "rows": [
+        {
+          "key": "group_localizations",
+          "label": "Group localizations",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "en-US"
+        },
+        {
+          "key": "subscription_localizations",
+          "label": "Subscription localizations",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "en-US"
+        },
+        {
+          "key": "review_screenshot",
+          "label": "Review screenshot delivery",
+          "status": "unverified",
+          "source": "public-api",
+          "blocking": true,
+          "remediation": "Validation could not verify the subscription App Review screenshot because Apple did not return its asset delivery state"
+        },
+        {
+          "key": "subscription_availability",
+          "label": "Subscription availability",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "id=6807573064 territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "upfront_plan_availability",
+          "label": "UPFRONT plan availability",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "id=eyJhIjoiNjgwNzU3MzA2NCIsInAiOiIwIn0 territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "availability_surface_consistency",
+          "label": "Legacy and UPFRONT availability agree",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "territories=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "monthly_plan_availability",
+          "label": "MONTHLY commitment availability",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured"
+        },
+        {
+          "key": "price_records",
+          "label": "Price records",
+          "status": "yes",
+          "source": "public-api",
+          "blocking": true,
+          "evidence": "AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "price_coverage_subscription_availability",
+          "label": "Price coverage vs subscription availability",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE available=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "price_coverage_app_availability",
+          "label": "Price coverage vs app availability",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE app=AFG,AGO,AIA,ALB,ARE,ARG,ARM,ATG,AUS,AUT,AZE,BEL,BEN,BFA,BGR,BHR,BHS,BIH,BLR,BLZ,BMU,BOL,BRA,BRB,BRN,BTN,BWA,CAN,CHE,CHL,CHN,CIV,CMR,COD,COG,COL,CPV,CRI,CYM,CYP,CZE,DEU,DMA,DNK,DOM,DZA,ECU,EGY,ESP,EST,FIN,FJI,FRA,FSM,GAB,GBR,GEO,GHA,GMB,GNB,GRC,GRD,GTM,GUY,HKG,HND,HRV,HUN,IDN,IND,IRL,IRQ,ISL,ISR,ITA,JAM,JOR,JPN,KAZ,KEN,KGZ,KHM,KNA,KOR,KWT,LAO,LBN,LBR,LBY,LCA,LKA,LTU,LUX,LVA,MAC,MAR,MDA,MDG,MDV,MEX,MKD,MLI,MLT,MMR,MNE,MNG,MOZ,MRT,MSR,MUS,MWI,MYS,NAM,NER,NGA,NIC,NLD,NOR,NPL,NRU,NZL,OMN,PAK,PAN,PER,PHL,PLW,PNG,POL,PRT,PRY,QAT,ROU,RUS,RWA,SAU,SEN,SGP,SLB,SLE,SLV,SRB,STP,SUR,SVK,SVN,SWE,SWZ,SYC,TCA,TCD,THA,TJK,TKM,TON,TTO,TUN,TUR,TWN,TZA,UGA,UKR,URY,USA,UZB,VCT,VEN,VGB,VNM,VUT,XKS,YEM,ZAF,ZMB,ZWE"
+        },
+        {
+          "key": "promotional_image",
+          "label": "Promotional image present",
+          "status": "no",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "missing",
+          "remediation": "Apple documents this image as optional unless you use offers or App Store promotion. For an otherwise-complete subscription stuck in MISSING_METADATA, resolve its version with `asc subscriptions versions list --subscription-id \"6807573064\"` (or create one with `asc subscriptions versions create --subscription-id \"6807573064\"` if none exists), then upload a 1024x1024 image with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"`; this can also serve as an undocumented recalculation attempt, so re-run validation afterward."
+        },
+        {
+          "key": "app_has_build",
+          "label": "App has build",
+          "status": "yes",
+          "source": "context",
+          "blocking": false,
+          "evidence": "count=6"
+        },
+        {
+          "key": "introductory_offer",
+          "label": "Introductory offer configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure an introductory offer or free trial with `asc subscriptions introductory-offers create` if this subscription should launch with one."
+        },
+        {
+          "key": "promotional_offers",
+          "label": "Promotional offers configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure promotional offers with `asc subscriptions promotional-offers create` if you plan to use them."
+        },
+        {
+          "key": "win_back_offers",
+          "label": "Win-back offers configured",
+          "status": "optional",
+          "source": "public-api",
+          "blocking": false,
+          "evidence": "not configured",
+          "remediation": "Optional: configure win-back offers with `asc subscriptions offers win-back create` if you plan to use them."
+        },
+        {
+          "key": "complete_pricing_matrix",
+          "label": "Complete App Store pricing matrix",
+          "status": "yes",
+          "source": "derived",
+          "blocking": true,
+          "evidence": "priced=175 required=175"
+        }
+      ]
+    }
+  ],
+  "strict": true
+}
