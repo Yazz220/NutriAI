@@ -1,0 +1,49 @@
+{
+  "appId": "6762021802",
+  "subscriptionCount": 2,
+  "summary": {
+    "errors": 0,
+    "warnings": 4,
+    "infos": 0,
+    "blocking": 4
+  },
+  "checks": [
+    {
+      "id": "subscriptions.images.recommended",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Annual\" (com.yaz12.nosh.plus.annual) has no subscription promotional image",
+      "remediation": "Upload a unique promotional image if you plan to promote this subscription on the App Store, support offer-code redemption pages, or run win-back offers; the App Review screenshot is separate and review-only",
+      "field": "images",
+      "resourceType": "subscription",
+      "resourceId": "6807573489"
+    },
+    {
+      "id": "subscriptions.images.recommended",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Monthly\" (com.yaz12.nosh.plus.monthly) has no subscription promotional image",
+      "remediation": "Upload a unique promotional image if you plan to promote this subscription on the App Store, support offer-code redemption pages, or run win-back offers; the App Review screenshot is separate and review-only",
+      "field": "images",
+      "resourceType": "subscription",
+      "resourceId": "6807573064"
+    },
+    {
+      "id": "subscriptions.review_readiness.needs_attention",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Annual\" (com.yaz12.nosh.plus.annual) is READY_TO_SUBMIT",
+      "remediation": "Submit this subscription for review in App Store Connect so it is attached to the next app review submission; note: first-time subscriptions must be submitted via the app version page in App Store Connect (not the API)",
+      "field": "state",
+      "resourceType": "subscription",
+      "resourceId": "6807573489"
+    },
+    {
+      "id": "subscriptions.review_readiness.needs_attention",
+      "severity": "warning",
+      "message": "Subscription \"Folio Plus Monthly\" (com.yaz12.nosh.plus.monthly) is READY_TO_SUBMIT",
+      "remediation": "Submit this subscription for review in App Store Connect so it is attached to the next app review submission; note: first-time subscriptions must be submitted via the app version page in App Store Connect (not the API)",
+      "field": "state",
+      "resourceType": "subscription",
+      "resourceId": "6807573064"
+    }
+  ],
+  "strict": true
+}
